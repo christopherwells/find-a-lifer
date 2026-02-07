@@ -44,3 +44,41 @@
 - Feature #2 and beyond (likely more infrastructure, then map, then species checklist)
 - Backend is ready to serve data for frontend features
 - Frontend scaffold is ready for map integration and tab system
+
+### Session 2 - 2026-02-07
+
+**Feature Completed:** #2 - Species metadata API loads correctly
+
+**What was accomplished:**
+- Created backend/build_species_metadata.py:
+  - Downloads and parses eBird taxonomy CSV (10,994 world species)
+  - Merges with avibase.csv (2,511 regional species with invasion/conservation data)
+  - Filters to 2,490 species present in North America/Central America/Caribbean
+  - Computes difficulty scores based on geographic spread, invasion status, conservation status
+  - Detects restricted-range species (present in <=2 regions as Native/Present)
+  - Generates eBird URLs for all species
+- Species metadata includes ALL required fields:
+  - Core: species_id, speciesCode, comName, sciName, familyComName, taxonOrder
+  - Enrichment: invasionStatus (3 values), conservStatus (8 values), difficultyScore, difficultyLabel (4 levels), isRestrictedRange
+  - URLs: ebirdUrl, photoUrl
+- 143 unique taxonomic families represented
+- Data enrichment stats:
+  - Invasion: 1851 Native, 546 Rare/Accidental, 93 Introduced
+  - Conservation: 1526 Least Concern, 125 Near Threatened, 89 Vulnerable, 56 Endangered, 30 Critically Endangered, 650 Unknown
+  - Difficulty: 1633 Very Hard, 486 Easy, 207 Hard, 164 Moderate
+  - 1107 restricted range species
+
+**Verification:**
+- All 7 feature steps verified via browser automation (fetch from frontend context)
+- Response is valid JSON array with 2490 species (exceeds 2000+ requirement)
+- All required fields present in every species entry
+- Zero console errors in browser
+- No mock data patterns in source code
+- Species data served as pre-processed static JSON (1.1 MB)
+
+**Current Status:** 2/44 features passing
+
+**Next steps:**
+- Feature #3+ (likely more infrastructure, weekly data, grid data, then map)
+- Species data is real (from eBird taxonomy + avibase), not mock data
+- Weekly occurrence data still uses sample generator (10 species) - needs update for 2490 species
