@@ -1,0 +1,253 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r libraries}
+# ==============================================================================
+# PART 1: UNIVERSAL DATA PREP (Weekly + EEZ Buffer)
+# ==============================================================================
+
+rm(list = ls())
+
+# CONFIGURATION
+# Set to FALSE to process ALL birds (Takes hours). 
+# Set to TRUE to process only 5 birds (for testing).
+TEST_MODE <- FALSE
+
+# Libraries
+library(dplyr)
+library(purrr)
+library(readr)
+library(sf)
+library(terra)
+library(rebird)
+library(ebirdst)
+library(rnaturalearth)
+
+# Ensure Key is set (Uncomment if needed)
+Sys.setenv(EBIRD_KEY = "ar8ei8j24plp")
+```
+
+```{r spatial setup}
+# ==============================================================================
+# 1. SPATIAL SETUP (Land + EEZ Buffer)
+# ==============================================================================
+message("Defining study area with coastal buffer...")
+
+# Get US Lower 48 Land
+us_lower48_land <- ne_states(country = "United States of America", returnclass = "sf") %>%
+  filter(!postal %in% c("AK", "HI")) %>%
+  st_transform(3857) # Web Mercator for accurate buffering in meters
+
+# Create 200 Nautical Mile Buffer (approx 370,400 meters) for Pelagics
+# We union the states first to get one big shape, then buffer it
+us_buffer <- st_union(us_lower48_land) %>%
+  st_buffer(dist = 370400) 
+
+# The final study mask is the Land + The Buffer
+study_area_mask <- st_union(us_buffer)
+
+# FIX: Convert sf object to terra SpatVector explicitly
+# This prevents the "unable to find inherited method" error in the loop
+study_area_vect <- vect(study_area_mask)
+```
+
+```{r species list generation}
+# ==============================================================================
+# 2. SPECIES LIST GENERATION (FROM AVIBASE CSV)
+# ==============================================================================
+message("Processing species list from avibase.csv...")
+
+# 1. Load the target list (Avibase export)
+if (!file.exists("avibase.csv")) {
+  stop("avibase.csv file not found. Please ensure your target list is in the working directory.")
+}
+
+avibase_targets <- read_csv("avibase_us48.csv", show_col_types = FALSE) %>%
+  select(sciName, comName) %>%
+  distinct()
+
+# 2. Load eBird taxonomy to map scientific names to unique 'speciesCode'
+# Note: ebirdtaxonomy() pulls the full taxonomy from the rebird package
+ebird_taxonomy <- ebirdtaxonomy() %>%
+  as_tibble() %>%
+  filter(category == "species") %>%
+  select(speciesCode, comName, sciName)
+
+# 3. Join Targets with Taxonomy
+# This adds the crucial 'speciesCode' to your target list
+targets_with_codes <- avibase_targets %>%
+  inner_join(ebird_taxonomy, by = c("sciName", "comName"))
+
+# 4. Filter for availability in Status & Trends (S&T)
+# We can only map species that have modeled abundance data
+species_with_st_data <- targets_with_codes %>%
+  semi_join(ebirdst_runs, by = c("speciesCode" = "species_code"))
+
+# Create the final list of codes to process
+target_species_list <- species_with_st_data$speciesCode
+
+message(paste("Found", length(target_species_list), "species in your list with S&T data."))
+
+# Apply Test Mode Limiter
+if (TEST_MODE) {
+  message("!!! RUNNING IN TEST MODE (First 20 Species Only) !!!")
+  target_species_list <- head(target_species_list, 300)
+}
+```
+
+```{r template creation}
+# ==============================================================================
+# 3. TEMPLATE CREATION (9km)
+# ==============================================================================
+message("Setting up 9km grid template...")
+
+if(length(target_species_list) == 0) {
+  stop("No valid species found! Check your CSV or S&T data availability.")
+}
+
+# Use the first bird to define the grid
+ref_species <- target_species_list[1]
+
+tryCatch({
+  load_raster(ref_species, product = "abundance", resolution = "9km")
+}, error = function(e) {
+  message(paste("Downloading reference species:", ref_species))
+  ebirdst_download_status(ref_species, pattern = "abundance_median_9km")
+})
+
+ref_rast <- load_raster(ref_species, product = "abundance", resolution = "9km")
+
+# Project Study Area to match Native Raster (Sinusoidal) for cropping
+boundary_native <- st_transform(study_area_mask, st_crs(ref_rast))
+
+# Create Native Template
+template_native <- crop(ref_rast[[1]], boundary_native)
+values(template_native) <- NA
+
+# Project to Web Mercator (EPSG:3857) for the App
+template_webmerc <- project(template_native, "EPSG:3857", method = "near")
+values(template_webmerc) <- 1:ncell(template_webmerc)
+names(template_webmerc) <- "cell_id"
+```
+
+```{r processing loop}
+# ==============================================================================
+# 4. PROCESSING LOOP (Weekly Data)
+# ==============================================================================
+species_occurrence_list <- list()
+dir.create("app_data", showWarnings = FALSE)
+
+counter <- 0
+total <- length(target_species_list)
+
+message("Starting processing loop. This will take time.")
+
+# SAFETY CHECK: Ensure study_area_vect exists if running chunks out of order
+if (!exists("study_area_vect")) {
+  if (exists("study_area_mask")) {
+    message("Re-creating missing study_area_vect from study_area_mask...")
+    study_area_vect <- vect(study_area_mask)
+  } else {
+    stop("Error: 'study_area_vect' is missing. Please re-run Section 1 (Spatial Setup) to define the boundary.")
+  }
+}
+
+for (code in target_species_list) {
+  counter <- counter + 1
+  
+  # --- A. Download ---
+  check_load <- try(load_raster(code, product = "abundance", resolution = "9km"), silent = TRUE)
+  if (inherits(check_load, "try-error")) {
+    message(sprintf("[%d/%d] Downloading %s...", counter, total, code))
+    dl_status <- try(ebirdst_download_status(code, pattern = "abundance_median_9km"), silent = TRUE)
+    if (inherits(dl_status, "try-error")) next 
+  } else {
+    if(counter %% 10 == 0) message(sprintf("[%d/%d] Processing %s...", counter, total, code))
+  }
+  
+  # --- B. Load & Project ---
+  r <- try(load_raster(code, product = "abundance", resolution = "9km"), silent = TRUE)
+  if (inherits(r, "try-error")) next
+  
+  # Project to Web Mercator
+  r_proj <- project(r, template_webmerc, method = "near")
+  
+  # FIX: Mask using the SpatVector (study_area_vect) instead of the sf object
+  # Keeps land + 200mi ocean, removes distant noise
+  r_mask <- mask(r_proj, study_area_vect)
+  
+  # --- C. Extract Weekly Data ---
+  # S&T Abundance usually has 52 layers (Weeks)
+  # If 52 layers verify, otherwise skip
+  if (nlyr(r_mask) != 52) {
+    # Some older models might be monthly? Skip for safety or adjust logic.
+    next 
+  }
+  
+  # Collect presence indices for this bird
+  bird_weeks <- list()
+  
+  for (w_idx in 1:52) {
+    v <- values(r_mask[[w_idx]])
+    
+    # Threshold: Abundance > 0
+    present_indices <- which(v > 0)
+    
+    if (length(present_indices) > 0) {
+      cell_ids <- values(template_webmerc)[present_indices]
+      
+      # Store temporarily
+      bird_weeks[[length(bird_weeks) + 1]] <- data.frame(
+        cell_id = cell_ids,
+        week = w_idx
+      )
+    }
+  }
+  
+  # If bird is present anywhere, add to master list
+  if (length(bird_weeks) > 0) {
+    df_bird <- dplyr::bind_rows(bird_weeks)
+    df_bird$species_code <- code
+    species_occurrence_list[[length(species_occurrence_list) + 1]] <- df_bird
+  }
+  
+  # Garbage collect to keep RAM happy
+  rm(r, r_proj, r_mask)
+  gc()
+}
+```
+
+```{r save outputs}
+# ==============================================================================
+# 5. SAVE OUTPUTS
+# ==============================================================================
+message("Binding final database...")
+master_lookup <- bind_rows(species_occurrence_list)
+
+message("Saving app_data/master_lookup.rds (Compressed)...")
+saveRDS(master_lookup, "app_data/master_lookup.rds")
+
+message("Saving app_data/grid_template.tif...")
+# EXPLICIT DATATYPE: Ensures the grid is saved as integers (lighter, cleaner matching)
+writeRaster(template_webmerc, "app_data/grid_template.tif", overwrite=TRUE, 
+            gdal=c("COMPRESS=DEFLATE"), datatype="INT4U")
+
+# Metadata
+processed_codes <- unique(master_lookup$species_code)
+ebird_taxonomy <- ebirdtaxonomy() 
+species_meta <- ebird_taxonomy %>% 
+  filter(speciesCode %in% processed_codes) %>%
+  select(speciesCode, comName, sciName)
+
+saveRDS(species_meta, "app_data/species_names.rds")
+
+# Placeholder Life List (Empty) - Careful not to overwrite if you have one you like
+if(!file.exists("app_data/my_life_list.rds")) {
+  saveRDS(character(0), "app_data/my_life_list.rds")
+}
+
+message("Processing Complete. You can now run app.R")
+```

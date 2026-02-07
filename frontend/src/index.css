@@ -22,6 +22,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }

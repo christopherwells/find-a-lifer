@@ -1,0 +1,10 @@
+[    3760ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5176/node_modules/.vite/deps/maplibre-gl.js?v=ef624a3a" line: 23211}] @ http://localhost:5176/node_modules/.vite/deps/maplibre-gl.js?v=ef624a3a:23211
+[    4352ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    4353ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    4384ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    4385ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   43908ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5176/node_modules/.vite/deps/maplibre-gl.js?v=ef624a3a" line: 23211}] @ http://localhost:5176/node_modules/.vite/deps/maplibre-gl.js?v=ef624a3a:23211
+[   44582ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   44628ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   44629ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   44629ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0

@@ -1,1 +1,7 @@
 /* App-specific styles - most styling done via Tailwind utility classes */
+
+/* Ensure MapLibre GL renders properly */
+.maplibregl-map {
+  width: 100%;
+  height: 100%;
+}
