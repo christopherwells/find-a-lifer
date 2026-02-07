@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type TabId = 'explore' | 'species' | 'trip' | 'progress' | 'profile'
 
@@ -146,17 +146,219 @@ function ExploreTab({ currentWeek = 26, onWeekChange }: ExploreTabProps) {
   )
 }
 
+interface Species {
+  species_id: number
+  speciesCode: string
+  comName: string
+  sciName: string
+  familyComName: string
+  taxonOrder: number
+  invasionStatus: string
+  conservStatus: string
+  difficultyScore: number
+  difficultyLabel: string
+  isRestrictedRange: boolean
+  ebirdUrl: string
+  photoUrl: string
+}
+
+interface SpeciesByFamily {
+  [familyName: string]: Species[]
+}
+
 function SpeciesTab() {
+  const [allSpecies, setAllSpecies] = useState<Species[]>([])
+  const [speciesByFamily, setSpeciesByFamily] = useState<SpeciesByFamily>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set())
+  const [searchTerm, setSearchTerm] = useState('')
+
+  // Fetch species data from API
+  useEffect(() => {
+    const fetchSpecies = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/species')
+        if (!response.ok) {
+          throw new Error(`Failed to fetch species: ${response.status}`)
+        }
+        const data: Species[] = await response.json()
+
+        // Sort by taxonomic order
+        const sorted = data.sort((a, b) => a.taxonOrder - b.taxonOrder)
+        setAllSpecies(sorted)
+
+        // Group by family
+        const byFamily: SpeciesByFamily = {}
+        sorted.forEach((species) => {
+          const family = species.familyComName
+          if (!byFamily[family]) {
+            byFamily[family] = []
+          }
+          byFamily[family].push(species)
+        })
+        setSpeciesByFamily(byFamily)
+        setLoading(false)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+        setLoading(false)
+      }
+    }
+
+    fetchSpecies()
+  }, [])
+
+  const toggleFamily = (familyName: string) => {
+    setCollapsedFamilies((prev) => {
+      const next = new Set(prev)
+      if (next.has(familyName)) {
+        next.delete(familyName)
+      } else {
+        next.add(familyName)
+      }
+      return next
+    })
+  }
+
+  // Filter species by search term
+  const filteredFamilies = Object.keys(speciesByFamily).reduce((acc, familyName) => {
+    const familySpecies = speciesByFamily[familyName]
+    const filtered = familySpecies.filter((species) => {
+      const search = searchTerm.toLowerCase()
+      return (
+        species.comName.toLowerCase().includes(search) ||
+        species.sciName.toLowerCase().includes(search) ||
+        familyName.toLowerCase().includes(search)
+      )
+    })
+    if (filtered.length > 0) {
+      acc[familyName] = filtered
+    }
+    return acc
+  }, {} as SpeciesByFamily)
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-[#2C3E50]">Species Checklist</h3>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-[#2C3E50]">Species Checklist</h3>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p className="text-xs text-red-700">
+            <span className="font-medium">Error:</span> {error}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const totalSpecies = allSpecies.length
+  const seenSpecies = 0 // TODO: Will be implemented with IndexedDB life list
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-[#2C3E50]">Species Checklist</h3>
-      <p className="text-sm text-gray-600">
-        Browse and manage your life list. Check off species you've seen and import your eBird list.
-      </p>
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-        <p className="text-xs text-amber-700">
-          <span className="font-medium">Coming soon:</span> Full searchable checklist with family grouping.
-        </p>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="space-y-3 pb-3 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-[#2C3E50]">Species Checklist</h3>
+
+        {/* Species count */}
+        <div className="text-sm text-gray-600">
+          <span className="font-medium text-[#2C3E7B]">{seenSpecies}</span> of{' '}
+          <span className="font-medium">{totalSpecies}</span> species seen
+        </div>
+
+        {/* Search box */}
+        <input
+          type="text"
+          placeholder="Search species or family..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+        />
+      </div>
+
+      {/* Species list by family */}
+      <div className="flex-1 overflow-y-auto mt-3 space-y-1">
+        {Object.keys(filteredFamilies).length === 0 ? (
+          <div className="text-sm text-gray-500 text-center py-4">
+            No species found matching "{searchTerm}"
+          </div>
+        ) : (
+          Object.keys(filteredFamilies).map((familyName) => {
+            const familySpecies = filteredFamilies[familyName]
+            const isCollapsed = collapsedFamilies.has(familyName)
+
+            return (
+              <div key={familyName} className="border border-gray-200 rounded-lg overflow-hidden">
+                {/* Family header */}
+                <button
+                  onClick={() => toggleFamily(familyName)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-gray-500 transition-transform ${
+                        isCollapsed ? '' : 'rotate-90'
+                      }`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className="text-sm font-semibold text-[#2C3E50]">{familyName}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">{familySpecies.length}</span>
+                </button>
+
+                {/* Species in family */}
+                {!isCollapsed && (
+                  <div className="divide-y divide-gray-100">
+                    {familySpecies.map((species) => (
+                      <div
+                        key={species.species_id}
+                        className="px-3 py-2 hover:bg-blue-50 transition-colors"
+                      >
+                        <div className="flex items-start gap-2">
+                          {/* Checkbox placeholder (will be functional with IndexedDB) */}
+                          <input
+                            type="checkbox"
+                            disabled
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B]"
+                          />
+                          <div className="flex-1 min-w-0">
+                            {/* Common name */}
+                            <div className="text-sm font-medium text-[#2C3E50] truncate">
+                              {species.comName}
+                            </div>
+                            {/* Scientific name */}
+                            <div className="text-xs italic text-gray-600 truncate">
+                              {species.sciName}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )
