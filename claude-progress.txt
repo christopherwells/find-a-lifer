@@ -134,3 +134,38 @@
 - Species checklist UI with search/filter
 - IndexedDB persistence for life list
 - The data infrastructure is now complete (species, grid, regions, weekly data all served)
+
+### Session 4 - 2026-02-07
+
+**Feature Completed:** #11 - Grid cells render on MapLibre map
+
+**What was accomplished:**
+- Modified frontend/src/components/MapView.tsx to load and render grid cells:
+  - Fetches grid GeoJSON from /api/grid endpoint on map load
+  - Adds grid data as a MapLibre GeoJSON source
+  - Renders two layers:
+    - grid-fill: Semi-transparent cyan fill (opacity 0.1)
+    - grid-border: Cyan border lines (opacity 0.5)
+  - Implements hover interaction (cursor changes to pointer)
+  - Implements click handler that logs cell properties to console
+  - Console logs successful grid load with feature count
+
+**Verification:**
+- All 6 feature steps verified via browser automation:
+  1. ✅ App loaded at http://localhost:5173
+  2. ✅ Network request GET /api/grid returns 200 OK
+  3. ✅ Grid cells visible as cyan polygons covering continental US
+  4. ✅ Zoomed from 1000 km to 100 km, cells remain visible and clear
+  5. ✅ Cells have clean borders with no overlapping issues
+  6. ✅ Click handler logs "Clicked grid cell" to console
+- Zero console errors (only WebGL warnings which are non-critical)
+- Screenshots: feature11-initial-load.png, feature11-zoomed-in.png, feature11-final-verification.png
+- 312 grid cells rendered successfully
+
+**Current Status:** 7/44 features passing (15.9%)
+
+**Next steps:**
+- Continue with map-related features (week slider, region selector, etc.)
+- Species checklist UI
+- Life list management with IndexedDB
+- Grid cells are now interactive and ready for lifer density heatmap overlay
