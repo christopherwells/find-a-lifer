@@ -211,7 +211,7 @@
 - Species checklist with search/filter
 - Tab navigation infrastructure is complete and ready for content implementation
 
-### Session 4 - 2026-02-07
+### Session 6 - 2026-02-07
 
 **Feature Completed:** #10 - Weekly occurrence data loads and updates map
 
@@ -254,14 +254,14 @@
 - Zero JavaScript errors in console
 - Screenshots taken at key steps
 
-**Current Status:** 7/44 features passing (15.9%)
+**Current Status:** 8/44 features passing (18.2%)
 
 **Next steps:**
 - More UI features (map controls, species checklist, trip planning)
 - Integration of weekly data with user's life list (lifer density calculation)
 - Migration animation (auto-play through weeks)
 
-### Session 6 - 2026-02-07
+### Session 7 - 2026-02-07
 
 **Feature Completed:** #9 - Species metadata loads and displays in checklist
 
@@ -317,3 +317,50 @@
 - Lifer density heatmap calculation based on life list
 - Trip planning features
 
+### Session 8 - 2026-02-07
+
+**Feature Completed:** #8 - Side panel collapses and expands
+
+**What was accomplished:**
+- Verified existing side panel collapse/expand functionality:
+  - SidePanel component accepts `collapsed` and `onToggle` props
+  - App.tsx manages `sidePanelCollapsed` state
+  - Panel width changes via Tailwind classes: `w-80` (expanded) or `w-12` (collapsed)
+  - Smooth CSS transitions: `transition-all duration-300`
+  - When collapsed: only expand button visible (right arrow icon)
+  - When expanded: all 5 tabs visible with full content panel
+  - Active tab state (`activeTab`) is preserved independently from collapse state
+  - Content is restored correctly after expand (no data loss)
+
+**Implementation details:**
+- Collapse button: left arrow icon, title="Collapse panel", positioned on right side of tab navigation
+- Expand button: right arrow icon, title="Expand panel", 48px width centered button
+- State management: `sidePanelCollapsed` boolean in App.tsx, toggled via `setSidePanelCollapsed((prev) => !prev)`
+- Visual feedback: Map expands to fill available space when panel collapses
+- No re-fetch of data: Species list, week data, etc. remain in memory
+
+**Verification (all 6 steps):**
+1. ✅ Load the app with side panel visible - Panel at 320px width showing Explore tab
+2. ✅ Click the collapse button - Panel collapsed to 48px width with expand button
+3. ✅ Verify panel collapses and map fills space - Map expanded from ~75% to ~95% width
+4. ✅ Click expand button to bring panel back - Panel restored to 320px width
+5. ✅ Verify previously active tab still selected - Switched to Species tab, collapsed, expanded → Species tab still active with underline
+6. ✅ Verify panel content restored correctly - Species checklist with search box, family headers, and species list all intact
+
+**Browser automation testing:**
+- Tested collapse/expand from Explore tab (default)
+- Tested collapse/expand from Species tab (2490 species loaded)
+- Verified activeTab state preservation across multiple collapse/expand cycles
+- Zero console errors (only non-critical WebGL warnings)
+- No mock data patterns in source code
+- Screenshots: feature8-step1-initial-state.png, feature8-step2-collapsed.png, feature8-step3-species-tab.png, feature8-step4-collapsed-on-species.png, feature8-step5-expanded-species-preserved.png, feature8-final-verification.png
+
+**Current Status:** 9/44 features passing (20.5%)
+
+**Next steps:**
+- IndexedDB implementation for life list persistence
+- Species checkbox functionality (mark as seen/unseen)
+- Life list import from eBird CSV
+- Lifer density heatmap calculation based on life list
+- More map controls (view mode toggle, opacity slider, region selector)
+- Trip planning features
