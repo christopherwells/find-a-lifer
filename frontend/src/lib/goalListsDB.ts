@@ -9,7 +9,7 @@ export interface GoalList {
 }
 
 const DB_NAME = 'find-a-lifer-db'
-const DB_VERSION = 1
+const DB_VERSION = 2 // Bumped to 2 to add goalLists store (lifeList exists at v1)
 const STORE_NAME = 'goalLists'
 
 // Open or create the database
