@@ -1,0 +1,46 @@
+## Find-A-Lifer Development Progress
+
+### Session 1 - 2026-02-07
+
+**Feature Completed:** #1 - Server starts and serves static data files
+
+**What was accomplished:**
+- Created FastAPI backend (backend/main.py) with:
+  - GET /api/health - returns status, version, timestamp, and available data endpoints
+  - GET /api/species - serves species metadata JSON
+  - GET /api/grid - serves grid cell geometry (GeoJSON)
+  - GET /api/regions - serves region polygons (GeoJSON)
+  - GET /api/weeks/:weekNumber - serves weekly occurrence data (1-52)
+  - Static file serving at /data/ path
+  - CORS middleware for frontend dev
+- Created sample data generator (backend/generate_sample_data.py):
+  - 10 sample species with full metadata
+  - 312 grid cells covering continental US
+  - 3 sample regions (Northeast, Southeast, West)
+  - 52 weekly occurrence files with seasonal variation
+- Created React + Vite + TypeScript frontend (frontend/):
+  - Tailwind CSS with Cornell Lab design system colors
+  - Server status dashboard showing health check results
+  - Displays available data endpoints
+  - Green/yellow/red connection status indicator
+- Created init.sh startup script
+- Updated .autoforge/allowed_commands.yaml for Python/pip
+
+**Architecture decisions:**
+- Backend on port 8000, frontend on port 5173
+- Vite proxy forwards /api and /data requests to backend
+- Python 3.14.3, Node 24.13.0 available on system
+- pip accessed via `python -m pip` (no standalone pip command)
+
+**Verification:**
+- All 6 feature steps verified via curl and browser automation
+- Zero console errors in browser
+- No mock data patterns in source code
+- All data endpoints return HTTP 200
+
+**Current Status:** 1/44 features passing
+
+**Next steps:**
+- Feature #2 and beyond (likely more infrastructure, then map, then species checklist)
+- Backend is ready to serve data for frontend features
+- Frontend scaffold is ready for map integration and tab system
