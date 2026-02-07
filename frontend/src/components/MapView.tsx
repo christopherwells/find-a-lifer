@@ -1,15 +1,51 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 interface MapViewProps {
   darkMode?: boolean
+  currentWeek?: number
 }
 
-export default function MapView({ darkMode = false }: MapViewProps) {
+interface OccurrenceRecord {
+  cell_id: number
+  species_id: number
+  probability: number
+}
+
+export default function MapView({ darkMode = false, currentWeek = 26 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
+  const [weeklyData, setWeeklyData] = useState<OccurrenceRecord[]>([])
+  const [isLoadingWeek, setIsLoadingWeek] = useState(false)
 
+  // Load weekly occurrence data when currentWeek changes
+  useEffect(() => {
+    const loadWeekData = async () => {
+      setIsLoadingWeek(true)
+      try {
+        const response = await fetch(`/api/weeks/${currentWeek}`)
+        if (!response.ok) {
+          console.error(`Failed to load week ${currentWeek} data:`, response.statusText)
+          return
+        }
+        const data: OccurrenceRecord[] = await response.json()
+        setWeeklyData(data)
+        console.log(`Loaded week ${currentWeek} data:`, {
+          recordCount: data.length,
+          sample: data.slice(0, 3),
+        })
+      } catch (error) {
+        console.error(`Error loading week ${currentWeek} data:`, error)
+      } finally {
+        setIsLoadingWeek(false)
+      }
+    }
+
+    loadWeekData()
+  }, [currentWeek])
+
+  // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return
 
@@ -161,12 +197,67 @@ export default function MapView({ darkMode = false }: MapViewProps) {
     }
   }, [darkMode])
 
+  // Update map overlay when weekly data changes
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return
+    if (weeklyData.length === 0) return
+
+    // Aggregate occurrence data by cell_id (sum probabilities for all species in each cell)
+    const cellAggregates = new Map<number, { total: number; count: number }>()
+
+    weeklyData.forEach((record) => {
+      const existing = cellAggregates.get(record.cell_id) || { total: 0, count: 0 }
+      cellAggregates.set(record.cell_id, {
+        total: existing.total + record.probability,
+        count: existing.count + 1,
+      })
+    })
+
+    // Update grid fill layer paint properties to show occurrence density
+    const sourceData = map.current.getSource('grid') as maplibregl.GeoJSONSource
+    if (sourceData && sourceData._data) {
+      const gridData = sourceData._data as GeoJSON.FeatureCollection
+
+      // Create expression for data-driven styling based on cell_id
+      const paintExpression: any = ['case']
+
+      cellAggregates.forEach((aggregate, cellId) => {
+        // Average probability per species in this cell
+        const avgProbability = aggregate.total / aggregate.count
+        // Color intensity based on average probability (blue gradient)
+        const opacity = Math.min(0.7, avgProbability * 2) // Scale opacity
+
+        paintExpression.push(['==', ['get', 'cell_id'], cellId])
+        paintExpression.push(`rgba(8, 136, 136, ${opacity})`)
+      })
+
+      // Default color for cells with no data
+      paintExpression.push('rgba(8, 136, 136, 0.05)')
+
+      // Update the paint property
+      if (map.current.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+        console.log(`Updated map overlay with ${cellAggregates.size} cells`)
+      }
+    }
+  }, [weeklyData])
+
   return (
-    <div
-      ref={mapContainer}
-      data-testid="map-container"
-      className="w-full h-full"
-      style={{ minHeight: '100%' }}
-    />
+    <div className="relative w-full h-full">
+      <div
+        ref={mapContainer}
+        data-testid="map-container"
+        className="w-full h-full"
+        style={{ minHeight: '100%' }}
+      />
+      {isLoadingWeek && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#2C3E7B] border-t-transparent"></div>
+            <span className="text-sm text-gray-700">Loading week data...</span>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

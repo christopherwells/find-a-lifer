@@ -92,13 +92,51 @@ export default function SidePanel({ collapsed, onToggle, currentWeek = 26, onWee
   )
 }
 
-function ExploreTab() {
+interface ExploreTabProps {
+  currentWeek?: number
+  onWeekChange?: (week: number) => void
+}
+
+function ExploreTab({ currentWeek = 26, onWeekChange }: ExploreTabProps) {
+  // Convert week number to approximate date label
+  const getWeekLabel = (week: number): string => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    // Approximate: week 1 = early January, week 52 = late December
+    const dayOfYear = week * 7 - 3 // Approximate day of year
+    const date = new Date(2024, 0, dayOfYear) // Use 2024 as a reference year (leap year)
+    const monthIndex = date.getMonth()
+    const day = date.getDate()
+    return `Week ${week} (~${monthNames[monthIndex]} ${day})`
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-[#2C3E50]">Explore Map</h3>
       <p className="text-sm text-gray-600">
         Use the map controls to explore where bird species can be found. Adjust the week slider to see seasonal changes.
       </p>
+
+      {/* Week Slider */}
+      <div className="space-y-2">
+        <label htmlFor="week-slider" className="block text-sm font-medium text-[#2C3E50]">
+          Select Week
+        </label>
+        <div className="space-y-1">
+          <input
+            id="week-slider"
+            type="range"
+            min="1"
+            max="52"
+            value={currentWeek}
+            onChange={(e) => onWeekChange?.(parseInt(e.target.value, 10))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+          />
+          <div className="text-sm text-center font-medium text-[#2C3E7B]">
+            {getWeekLabel(currentWeek)}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <p className="text-xs text-blue-700">
           <span className="font-medium">Tip:</span> Click on the map to see available lifers in that area.
