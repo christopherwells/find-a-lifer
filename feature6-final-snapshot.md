@@ -1,0 +1,60 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img "bird" [ref=e6]: 🐦
+      - generic [ref=e7]:
+        - heading "Find-A-Lifer" [level=1] [ref=e8]
+        - paragraph [ref=e9]: Discover your next life bird
+    - generic [ref=e10]:
+      - generic [ref=e13]: Connected
+      - button "Switch to dark mode" [ref=e14]:
+        - img [ref=e15]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - navigation [ref=e19]:
+        - button "🗺 Explore" [ref=e20]:
+          - generic [ref=e21]: 🗺
+          - generic [ref=e22]: Explore
+        - button "🐦 Species" [ref=e23]:
+          - generic [ref=e24]: 🐦
+          - generic [ref=e25]: Species
+        - button "✈ Trip Plan" [ref=e26]:
+          - generic [ref=e27]: ✈
+          - generic [ref=e28]: Trip Plan
+        - button "📊 Progress" [ref=e29]:
+          - generic [ref=e30]: 📊
+          - generic [ref=e31]: Progress
+        - button "👤 Profile" [ref=e32]:
+          - generic [ref=e33]: 👤
+          - generic [ref=e34]: Profile
+        - button "Collapse panel" [ref=e35]:
+          - img [ref=e36]
+      - generic [ref=e39]:
+        - heading "Explore Map" [level=3] [ref=e40]
+        - paragraph [ref=e41]: Use the map controls to explore where bird species can be found. Adjust the week slider to see seasonal changes.
+        - generic [ref=e42]:
+          - generic [ref=e43]: Select Week
+          - generic [ref=e44]:
+            - slider "Select Week" [ref=e45] [cursor=pointer]: "26"
+            - generic [ref=e46]: Week 26 (~Jun 27)
+        - paragraph [ref=e48]: "Tip: Click on the map to see available lifers in that area."
+    - generic [ref=e51]:
+      - region "Map" [ref=e52]
+      - generic:
+        - generic [ref=e53]:
+          - button "Zoom in" [ref=e54] [cursor=pointer]
+          - button "Zoom out" [ref=e56] [cursor=pointer]
+          - button "Reset bearing to north" [ref=e58]
+        - generic:
+          - generic [ref=e60]: 1000 km
+          - group [ref=e61]:
+            - generic "Toggle attribution" [ref=e62] [cursor=pointer]
+            - generic [ref=e63]:
+              - link "MapLibre" [ref=e69] [cursor=pointer]:
+                - /url: https://maplibre.org/
+              - text: "| ©"
+              - link "OSM" [ref=e70] [cursor=pointer]:
+                - /url: https://www.openstreetmap.org/copyright
+              - text: ©
+              - link "CARTO" [ref=e71] [cursor=pointer]:
+                - /url: https://carto.com/
