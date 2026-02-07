@@ -364,3 +364,48 @@
 - Lifer density heatmap calculation based on life list
 - More map controls (view mode toggle, opacity slider, region selector)
 - Trip planning features
+
+### Session 9 - 2026-02-07
+
+**Feature Completed:** #23 - Check and uncheck species as seen
+
+**What was accomplished:**
+- Implemented full species checkbox functionality with IndexedDB persistence:
+  - Wrapped App with LifeListProvider in main.tsx to provide LifeList context
+  - Updated SpeciesTab component to use useLifeList hook
+  - Enabled checkboxes (removed disabled attribute)
+  - Wired checkbox checked state to isSpeciesSeen(speciesCode)
+  - Connected onChange handler to toggleSpecies(speciesCode, comName)
+  - Updated species count display to use getTotalSeen() from context
+  - All checkboxes are now functional with cursor:pointer styling
+
+**Verification (all 8 steps):**
+1. ✅ Loaded app and navigated to Species tab
+2. ✅ Found species in checklist (Common Ostrich, Emu, Greater Rhea, etc.)
+3. ✅ Clicked checkbox for Common Ostrich - marked as seen
+4. ✅ Verified checkbox shows checked state (blue checkmark visible)
+5. ✅ Verified species count updated: "0 of 2490" → "1 of 2490 species seen"
+6. ✅ Clicked checkbox again to unmark species
+7. ✅ Verified checkbox returned to unchecked state (empty checkbox)
+8. ✅ Verified species count decremented: "1 of 2490" → "0 of 2490 species seen"
+
+**Browser automation testing:**
+- Console log confirmed: "Marked Common Ostrich (ostric2) as seen"
+- Console log confirmed: "Marked ostric2 as unseen"
+- Data persisted across page reload (verified with full browser refresh)
+- Zero JavaScript errors in console (0 errors, 18 WebGL warnings which are non-critical)
+- Screenshots: feature23-step1-species-tab.png, feature23-step2-checkbox-checked.png, feature23-step3-persistence-verified.png, feature23-step4-unchecked.png
+
+**Mock data verification:**
+- Grep check for mock patterns in src/ returned empty: no globalThis, devStore, mockDb, etc.
+- All data stored in real IndexedDB (find-a-lifer-db database, lifeList object store)
+- LifeListContext uses idb library v8.0.3 for IndexedDB operations
+
+**Current Status:** 12/83 features passing (14.5%)
+
+**Next steps:**
+- More species checklist features (bulk mark as seen, import from eBird CSV)
+- Life list import/export functionality
+- Lifer density heatmap calculation based on user's life list
+- Trip planning features (compare destinations by lifer count)
+
