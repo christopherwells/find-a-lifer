@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Cornell Lab of Ornithology inspired design system */
+:root {
+  --color-primary: #2C3E7B;
+  --color-secondary: #E87722;
+  --color-bg-light: #FFFFFF;
+  --color-bg-light-alt: #F5F5F5;
+  --color-bg-dark: #1A1A2E;
+  --color-bg-dark-alt: #16213E;
+  --color-success: #27AE60;
+  --color-warning: #F39C12;
+  --color-danger: #E74C3C;
+  --color-text-dark: #2C3E50;
+  --color-text-light: #ECF0F1;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}

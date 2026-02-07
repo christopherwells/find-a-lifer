@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Build output
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.Rproj.user/
+.vscode/
+.idea/
+
+# R data files
+.RData
+.RDataTmp
+.Rhistory
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screenshots (testing artifacts)
+*.png
+
+# AutoForge
+.autoforge/
+
+# Large data files (R-based originals)
+app_data/
+regions_starter.gpkg
+avibase.xlsx
+
+# Generated sample data is committed (small enough for dev)

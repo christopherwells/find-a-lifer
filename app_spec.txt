@@ -1,0 +1,423 @@
+<project_specification>
+  <project_name>Find-A-Lifer</project_name>
+
+  <overview>
+    Find-A-Lifer is an interactive web application that helps birders discover and plan trips to find "life birds" — species they've never seen before. By combining eBird Status &amp; Trends abundance and occurrence data with an interactive map, users can explore where target species are located by week, assess probability of finding them, compare destinations, and plan birding trips. The app is designed for both casual birders and serious listers pursuing goals like seeing every native North American bird species. Originally built as an R Shiny app, this is a full rewrite targeting a modern Python backend with a JavaScript frontend, architected for minimal server resources with heavy client-side computation, browser-based data persistence, and a data pipeline designed to run on HPC clusters.
+  </overview>
+
+  <technology_stack>
+    <frontend>
+      <framework>React (with Vite build tooling)</framework>
+      <mapping>MapLibre GL JS (open-source, performant vector tile map rendering)</mapping>
+      <styling>Tailwind CSS with Cornell Lab of Ornithology-inspired design system</styling>
+      <state_management>React Context + useReducer for app state; IndexedDB (via idb library) for persistent user data</state_management>
+      <language>TypeScript</language>
+    </frontend>
+    <backend>
+      <runtime>Python 3.11+ (FastAPI)</runtime>
+      <purpose>Lightweight static data server and API proxy; no heavy computation at runtime</purpose>
+      <database>none — stateless server; user data stored client-side in IndexedDB; species/grid/weekly data served as pre-processed static JSON files</database>
+    </backend>
+    <data_pipeline>
+      <language>Python 3.11+</language>
+      <libraries>rasterio, geopandas, pandas, numpy, xarray, dask (for parallelization)</libraries>
+      <execution>Designed as batch job for HPC clusters (Bowdoin College HPC); parallelizable across species and weeks</execution>
+      <output>Pre-processed static JSON/binary files consumed by frontend</output>
+    </data_pipeline>
+    <communication>
+      <api>REST API (FastAPI) for data endpoints; static file serving for pre-processed data</api>
+    </communication>
+    <hosting>
+      <target>Free-tier hosting (Vercel/Netlify for frontend, Railway/Render for lightweight Python API, or combined static deployment)</target>
+      <architecture>Client-heavy — browser handles filtering, lifer counting, map rendering, trip planning; server delivers data files</architecture>
+    </hosting>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - Node.js 18+ and npm for frontend build
+      - Python 3.11+ with pip/conda for backend and data pipeline
+      - eBird Status &amp; Trends data access (requires eBird S&amp;T data download)
+      - For data pipeline: HPC cluster access recommended for full species processing; local processing viable for testing with subset
+    </environment_setup>
+  </prerequisites>
+
+  <feature_count>90</feature_count>
+
+  <security_and_access_control>
+    <user_roles>
+      <role name="anonymous_user">
+        <permissions>
+          - Full access to all app features
+          - Can import/export life lists
+          - Can save data to browser local storage
+          - No authentication required
+        </permissions>
+        <protected_routes>
+          - None — all routes publicly accessible
+        </protected_routes>
+      </role>
+    </user_roles>
+    <authentication>
+      <method>none (v1) — future: eBird OAuth integration</method>
+      <session_timeout>none — stateless, browser-based persistence</session_timeout>
+      <password_requirements>n/a</password_requirements>
+    </authentication>
+    <sensitive_operations>
+      - Clear/reset entire life list requires confirmation dialog
+      - No other sensitive operations in v1
+    </sensitive_operations>
+    <future_considerations>
+      - Architecture should allow adding eBird OAuth login for automatic life list sync
+      - User accounts with server-side persistence can be added later without major refactor
+    </future_considerations>
+  </security_and_access_control>
+
+  <core_features>
+    <infrastructure>
+      - Server starts and serves static data files correctly
+      - API health endpoint responds with status
+      - Weekly data files load correctly in browser
+      - Species metadata loads and parses correctly
+      - Grid/spatial data loads and renders correctly
+    </infrastructure>
+
+    <interactive_map_and_visualization>
+      - Base map with terrain, rivers, lakes, major cities, and major airports (MapLibre with appropriate tile source)
+      - Light mode and dark mode map toggle
+      - Lifer density heatmap overlay (cells colored by number of unseen species)
+      - Single species range view (spotlight one species across all cells)
+      - Occurrence probability view (color intensity = likelihood of finding species)
+      - Toggle between map views (lifer density / species range / probability)
+      - Week slider (1-52) with date labels for temporal navigation
+      - Migration animation playback (auto-advance through weeks showing species movement)
+      - Heatmap opacity control slider
+      - Smooth zoom and pan with region-based zoom presets
+      - Region selector dropdown (US regions, Alaska, Hawaii, Canada/Greenland, Central America, Caribbean)
+      - Click-to-inspect: click a map cell to see lifers available there
+      - Dynamic map legend reflecting current view mode
+      - Responsive map that fills available space
+      - Major city and airport labels for trip planning context
+    </interactive_map_and_visualization>
+
+    <species_checklist_and_management>
+      - Searchable species list with autocomplete (type to find any species instantly)
+      - Species grouped by taxonomic family with collapsible sections
+      - Check/uncheck individual species as seen
+      - Select all / select none per family
+      - Global select all / select none
+      - Live species count display ("X of Y species seen")
+      - eBird CSV life list import (upload and parse)
+      - Re-import updated CSV (merges with existing selections)
+      - Auto-save life list to IndexedDB on every change
+      - Auto-load saved life list on app startup
+      - Scroll-to and highlight species from search
+      - Region-aware checklist filtering (show only species present in selected region)
+    </species_checklist_and_management>
+
+    <trip_planning>
+      - Select a location (click map or search) and date range to see ranked lifers by probability
+      - Lifer hotspot rankings: top locations for a given week where user would find the most new species
+      - Window of opportunity: for a target species, show best weeks and locations
+      - Compare two locations side-by-side for a given date range
+      - Overlap view: species available at both locations vs. unique to each
+      - Total lifer count comparison between locations
+      - Region-based trip filtering
+      - Trip plan results sortable by probability, species name, or family
+      - Clear/reset trip planning selections
+      - Visual indicators on map for compared locations
+    </trip_planning>
+
+    <filters_and_discovery>
+      - Filter by taxonomic family
+      - Filter by invasion status (Native, Introduced, Rare/Accidental, Unknown)
+      - Filter by conservation status (Least Concern, Near Threatened, Vulnerable, Critically Endangered, Unknown)
+      - Filter by difficulty level (derived from average occurrence probability — low probability = high difficulty)
+      - Restricted distribution highlight/badge for geographically limited species
+      - Lifer count range filter (dynamic max based on data)
+      - Combine multiple filters simultaneously
+      - Clear all filters button
+      - Filter state preserved during session
+      - Active filter indicators in UI
+    </filters_and_discovery>
+
+    <species_info_cards>
+      - Popup card when clicking/selecting a species
+      - Species photo (from Macaulay Library / eBird media API if available)
+      - Conservation status badge with color coding
+      - Difficulty badge (Easy / Moderate / Hard / Very Hard)
+      - Restricted range badge for geographically limited species
+      - Direct link to eBird species page for full details
+    </species_info_cards>
+
+    <badges_and_enrichment_system>
+      - Auto-populate conservation status from IUCN Red List API or eBird taxonomy data
+      - Auto-populate invasion/nativity status from eBird regional data
+      - Difficulty scoring computed from eBird S&amp;T average occurrence probability across range
+      - Restricted range detection (species appearing in fewer than N grid cells flagged)
+      - Manual override system in pipeline config for correcting automated assignments
+      - Badges displayed consistently across checklist, info cards, and map interactions
+    </badges_and_enrichment_system>
+
+    <my_progress_dashboard>
+      - Total species seen count with visual progress bar
+      - Breakdown by taxonomic family (seen vs. total per family)
+      - Breakdown by region (how many lifers remain per region)
+      - Visual progress indicators (charts or bars)
+      - "What's left" targeting: families or regions with the most remaining lifers
+      - Summary stats (percentage complete, most-seen family, least-seen family)
+    </my_progress_dashboard>
+
+    <profile_and_data_management>
+      - Life list automatically saved to IndexedDB
+      - Life list automatically loaded on app startup
+      - Export life list as CSV file
+      - Import eBird CSV life list (with parsing and species matching)
+      - Clear/reset life list with confirmation dialog
+    </profile_and_data_management>
+
+    <ui_ux_and_responsive_design>
+      - Responsive layout that works on desktop and mobile
+      - Collapsible side panel for map controls and features
+      - Clean terrain-style base map (not satellite)
+      - Light/dark mode toggle for entire UI (not just map)
+      - Loading states and skeleton screens while data loads
+      - Error handling with user-friendly messages
+      - Smooth transitions and animations
+      - Cornell Lab of Ornithology-inspired color palette (blues, earth tones, clean whites)
+    </ui_ux_and_responsive_design>
+
+    <data_pipeline_python>
+      - Process eBird S&amp;T abundance rasters for all species (parallelizable across species)
+      - Species list reconciliation against eBird taxonomy
+      - Generate unified grid (27km resolution now, architecture supports 3km later)
+      - Partition occurrence data into 52 weekly output files
+      - Detect regional species presence from raster data
+      - Auto-enrich species metadata (conservation status, invasion status, difficulty score, restricted range flag)
+      - Pipeline configuration file for resolution, species list, region definitions, and HPC job parameters
+    </data_pipeline_python>
+  </core_features>
+
+  <database_schema>
+    <note>No server-side database. All data is pre-processed static files served to the client. User data is stored in browser IndexedDB.</note>
+    <static_data_files>
+      <species_metadata>
+        - species_id (integer, unique)
+        - speciesCode (string, eBird code)
+        - comName (string, common name)
+        - sciName (string, scientific name)
+        - familyComName (string, family common name)
+        - taxonOrder (integer, for sorting)
+        - invasionStatus (string: Native | Introduced | Rare/Accidental | Unknown)
+        - conservStatus (string: Least Concern | Near Threatened | Vulnerable | Critically Endangered | Unknown)
+        - difficultyScore (float, 0-1, derived from avg occurrence probability)
+        - difficultyLabel (string: Easy | Moderate | Hard | Very Hard)
+        - isRestrictedRange (boolean)
+        - ebirdUrl (string, link to eBird species page)
+        - photoUrl (string, Macaulay Library thumbnail URL if available)
+      </species_metadata>
+      <weekly_occurrence_files>
+        - 52 files (week_01.json through week_52.json)
+        - Each contains array of {cell_id, species_id, probability} records
+        - probability is float 0-1 representing occurrence likelihood
+      </weekly_occurrence_files>
+      <grid_data>
+        - Grid cell definitions with cell_id, center lat/lng, and bounding polygon
+        - Format optimized for MapLibre rendering (GeoJSON or vector tiles)
+        - 27km resolution (architecture supports future 3km upgrade)
+      </grid_data>
+      <regions_data>
+        - Region polygons (GeoJSON) for map display and filtering
+        - Species-region mapping for checklist filtering
+      </regions_data>
+    </static_data_files>
+    <client_side_storage>
+      <life_list>
+        - IndexedDB store: "lifeList"
+        - Keys: speciesCode (string)
+        - Values: {speciesCode, comName, dateAdded, source: "manual" | "import"}
+      </life_list>
+      <user_preferences>
+        - IndexedDB store: "preferences"
+        - Keys: setting name
+        - Values: {darkMode, defaultRegion, lastWeek, activeFilters}
+      </user_preferences>
+    </client_side_storage>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <data_serving>
+      - GET /api/health (server status)
+      - GET /api/species (full species metadata JSON)
+      - GET /api/weeks/:weekNumber (weekly occurrence data for given week)
+      - GET /api/grid (grid cell geometry data)
+      - GET /api/regions (region polygons and species-region mappings)
+    </data_serving>
+    <static_assets>
+      - GET /data/species.json (alternative static file serving)
+      - GET /data/weeks/week_01.json through week_52.json
+      - GET /data/grid.geojson
+      - GET /data/regions.geojson
+    </static_assets>
+    <note>Most data can be served as static files. FastAPI endpoints provide optional caching, compression, and future extensibility for eBird API proxying.</note>
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <main_structure>
+      Full-screen interactive map as the primary canvas. Collapsible side panel (left or right) containing tabbed interface for all controls and features. Top bar with app title, light/dark mode toggle, and navigation to Progress Dashboard. Mobile: side panel becomes bottom sheet or full-screen overlay.
+    </main_structure>
+    <side_panel_tabs>
+      - Explore: Map view controls (region selector, week slider, view mode toggle, migration animation, opacity)
+      - Species: Searchable checklist with family grouping, filters, and species info cards
+      - Trip Plan: Location/date picker, lifer rankings, compare mode
+      - Progress: Dashboard with stats, charts, and targeting suggestions
+      - Profile: Import/export, preferences, clear data
+    </side_panel_tabs>
+    <map_overlays>
+      - Heatmap layer (lifer density or probability)
+      - Region boundary outlines
+      - City and airport labels
+      - Click-to-inspect popup showing species list for selected cell
+      - Trip planning location markers
+    </map_overlays>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      Inspired by Cornell Lab of Ornithology branding:
+      - Primary: Deep blue (#2C3E7B) — Cornell blue
+      - Secondary: Warm orange/red (#E87722) — accent for CTAs and highlights
+      - Background light: Clean white (#FFFFFF) with subtle gray (#F5F5F5)
+      - Background dark: Deep charcoal (#1A1A2E) with dark blue-gray (#16213E)
+      - Success/seen: Forest green (#27AE60)
+      - Warning: Amber (#F39C12)
+      - Danger: Red (#E74C3C)
+      - Text: Dark gray (#2C3E50) on light, light gray (#ECF0F1) on dark
+      - Map heatmap: viridis-inspired gradient (yellow → green → blue → purple) for lifer density
+    </color_palette>
+    <typography>
+      - Primary font: Inter or system font stack (clean, modern, readable)
+      - Headings: Semi-bold, slightly larger
+      - Body: Regular weight, comfortable reading size
+      - Species names: Common name prominent, scientific name in italics below
+    </typography>
+    <badges>
+      - Conservation: Color-coded pills (green=LC, yellow=NT, orange=VU, red=CR, gray=Unknown)
+      - Difficulty: Gradient pills (green=Easy, yellow=Moderate, orange=Hard, red=Very Hard)
+      - Restricted Range: Purple pill with map pin icon
+      - Invasion Status: Subtle text labels (Native, Introduced, Rare/Accidental)
+    </badges>
+  </design_system>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Project Foundation &amp; Data Pipeline</title>
+      <tasks>
+        - Set up React + Vite + TypeScript frontend project structure
+        - Set up FastAPI backend project structure
+        - Create Python data pipeline scripts (eBird S&amp;T processing, species enrichment, grid generation, weekly partitioning)
+        - Pipeline configuration for HPC batch execution
+        - Generate sample/test data for development
+      </tasks>
+    </step>
+    <step number="2">
+      <title>Core Map &amp; Data Loading</title>
+      <tasks>
+        - Implement MapLibre GL map with terrain tile source
+        - Load and render grid cells on map
+        - Load species metadata and weekly occurrence data
+        - Implement week slider with date labels
+        - Implement region selector with zoom presets
+        - Implement lifer density heatmap overlay
+      </tasks>
+    </step>
+    <step number="3">
+      <title>Species Checklist &amp; Persistence</title>
+      <tasks>
+        - Build searchable species list with autocomplete
+        - Implement family-grouped collapsible checklist
+        - Implement check/uncheck, select all/none functionality
+        - Set up IndexedDB persistence (auto-save/auto-load)
+        - Implement eBird CSV import and parsing
+        - Connect checklist state to map (recalculate lifer density)
+      </tasks>
+    </step>
+    <step number="4">
+      <title>Map Views &amp; Filters</title>
+      <tasks>
+        - Implement single species range view
+        - Implement probability view
+        - Implement view mode toggle
+        - Build filter system (family, invasion, conservation, difficulty)
+        - Implement click-to-inspect cell popup
+        - Implement spotlight species on map
+      </tasks>
+    </step>
+    <step number="5">
+      <title>Trip Planning &amp; Compare</title>
+      <tasks>
+        - Build trip planning UI (location + date range picker)
+        - Implement ranked lifer list by probability for location/date
+        - Implement lifer hotspot rankings
+        - Implement window of opportunity for target species
+        - Build compare two locations side-by-side view
+        - Implement overlap vs unique lifer analysis
+      </tasks>
+    </step>
+    <step number="6">
+      <title>Species Info, Badges &amp; Progress</title>
+      <tasks>
+        - Build species info card popup
+        - Implement badge system (conservation, difficulty, restricted range)
+        - Integrate auto-enrichment into pipeline
+        - Build progress dashboard with stats and charts
+        - Implement "what's left" targeting suggestions
+      </tasks>
+    </step>
+    <step number="7">
+      <title>Migration Animation &amp; Polish</title>
+      <tasks>
+        - Implement migration animation playback (auto-advance weeks)
+        - Implement light/dark mode for entire app
+        - Responsive design for mobile
+        - Loading states, error handling, transitions
+        - Performance optimization for client-side data processing
+        - Final UI polish with Cornell-inspired design system
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - All core map interactions work smoothly (heatmap, species range, probability views)
+      - Species checklist is fast and searchable even with 2500+ species
+      - eBird CSV import works reliably
+      - Life list persists across browser sessions via IndexedDB
+      - Trip planning produces useful ranked lifer recommendations
+      - Location comparison provides clear actionable insights
+      - Migration animation plays smoothly through 52 weeks
+      - All filters work correctly and can be combined
+    </functionality>
+    <user_experience>
+      - App loads quickly despite large dataset
+      - Map interactions feel responsive (no multi-second lag)
+      - Finding a species in the checklist takes seconds, not minutes
+      - Trip planning workflow is intuitive — no birding app experience required
+      - Mobile layout is functional for field use
+    </user_experience>
+    <technical_quality>
+      - Python data pipeline runs successfully on HPC cluster
+      - Pipeline is configurable (resolution, species list, regions)
+      - Architecture supports future 3km grid resolution upgrade
+      - Architecture supports future eBird OAuth user account integration
+      - Client-side computation handles full dataset without excessive memory use
+      - Static data files are optimized for size and load time
+    </technical_quality>
+    <design_polish>
+      - Clean, professional appearance suitable for presentation to Cornell Lab of Ornithology
+      - Cornell-inspired color palette and typography
+      - Consistent badge and status styling throughout
+      - Functional and polished — does not need to be consumer-grade but should look intentional and professional
+    </design_polish>
+  </success_criteria>
+</project_specification>
