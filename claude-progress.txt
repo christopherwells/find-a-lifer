@@ -210,3 +210,54 @@
 - Region selector implementation
 - Species checklist with search/filter
 - Tab navigation infrastructure is complete and ready for content implementation
+
+### Session 4 - 2026-02-07
+
+**Feature Completed:** #10 - Weekly occurrence data loads and updates map
+
+**What was accomplished:**
+- Added week state management to App.tsx:
+  - currentWeek state (default: week 26)
+  - Passed currentWeek and setCurrentWeek to SidePanel and MapView
+- Created week slider component in ExploreTab:
+  - HTML5 range input (1-52 weeks)
+  - Dynamic date labels using getWeekLabel helper function
+  - Shows "Week X (~Month Day)" format
+  - Accepts currentWeek and onWeekChange props
+- Updated MapView to load and display weekly occurrence data:
+  - New useEffect hook loads data from /api/weeks/{weekNumber} when currentWeek changes
+  - Stores weeklyData in state with TypeScript interface
+  - Displays loading indicator while fetching
+  - Aggregates occurrence data by cell_id (sum probabilities for all species per cell)
+  - Updates map overlay with data-driven paint expression
+  - Color intensity based on average probability per cell
+  - Logs data loading and map updates to console
+- Map overlay updates in real-time when week slider changes
+- Zero console errors
+
+**Verification (all 9 steps):**
+1. ✅ Loaded app and navigated to Explore tab
+2. ✅ Verified week slider present with labels ("Week 26 (~Jun 27)")
+3. ✅ Moved slider to week 1 (using Home key)
+4. ✅ Verified network request: GET /api/weeks/1 => 200 OK
+5. ✅ Verified map overlay updated (console: "Updated map overlay with 312 cells")
+6. ✅ Moved slider to week 26 (using arrow keys)
+7. ✅ Verified new network request: GET /api/weeks/26 => 200 OK
+8. ✅ Verified map overlay changed (different data loaded)
+9. ✅ Verified week label updates dynamically ("Week 1 (~Jan 4)" to "Week 26 (~Jun 27)")
+
+**Browser automation testing:**
+- Tested week slider interaction with keyboard (Home, End, Arrow keys)
+- Tested week slider interaction with mouse clicks
+- Verified network requests in Network tab
+- Verified console logs show data loading and map updates
+- Zero JavaScript errors in console
+- Screenshots taken at key steps
+
+**Current Status:** 7/44 features passing (15.9%)
+
+**Next steps:**
+- More UI features (map controls, species checklist, trip planning)
+- Integration of weekly data with user's life list (lifer density calculation)
+- Migration animation (auto-play through weeks)
+
