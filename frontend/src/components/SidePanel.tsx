@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react'
+import { useLifeList } from '../contexts/LifeListContext'
 
-type TabId = 'explore' | 'species' | 'trip' | 'progress' | 'profile'
+export type MapViewMode = 'density' | 'probability' | 'species'
+
+type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress' | 'profile'
 
 interface SidePanelProps {
   collapsed: boolean
   onToggle: () => void
   currentWeek?: number
   onWeekChange?: (week: number) => void
+  viewMode?: MapViewMode
+  onViewModeChange?: (mode: MapViewMode) => void
 }
 
 interface Tab {
@@ -18,12 +23,20 @@ interface Tab {
 const tabs: Tab[] = [
   { id: 'explore', label: 'Explore', icon: '\u{1F5FA}' },   // world map emoji
   { id: 'species', label: 'Species', icon: '\u{1F426}' },    // bird emoji
+  { id: 'goals', label: 'Goal Birds', icon: '\u{1F3AF}' },   // target emoji
   { id: 'trip', label: 'Trip Plan', icon: '\u{2708}' },      // airplane emoji
   { id: 'progress', label: 'Progress', icon: '\u{1F4CA}' },  // chart emoji
   { id: 'profile', label: 'Profile', icon: '\u{1F464}' },    // person emoji
 ]
 
-export default function SidePanel({ collapsed, onToggle, currentWeek = 26, onWeekChange }: SidePanelProps) {
+export default function SidePanel({
+  collapsed,
+  onToggle,
+  currentWeek = 26,
+  onWeekChange,
+  viewMode = 'density',
+  onViewModeChange
+}: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
   return (
@@ -81,8 +94,16 @@ export default function SidePanel({ collapsed, onToggle, currentWeek = 26, onWee
       {/* Tab Content */}
       {!collapsed && (
         <div className="flex-1 overflow-y-auto p-4">
-          {activeTab === 'explore' && <ExploreTab currentWeek={currentWeek} onWeekChange={onWeekChange} />}
+          {activeTab === 'explore' && (
+            <ExploreTab
+              currentWeek={currentWeek}
+              onWeekChange={onWeekChange}
+              viewMode={viewMode}
+              onViewModeChange={onViewModeChange}
+            />
+          )}
           {activeTab === 'species' && <SpeciesTab />}
+          {activeTab === 'goals' && <GoalBirdsTab />}
           {activeTab === 'trip' && <TripPlanTab />}
           {activeTab === 'progress' && <ProgressTab />}
           {activeTab === 'profile' && <ProfileTab />}
@@ -95,9 +116,16 @@ export default function SidePanel({ collapsed, onToggle, currentWeek = 26, onWee
 interface ExploreTabProps {
   currentWeek?: number
   onWeekChange?: (week: number) => void
+  viewMode?: MapViewMode
+  onViewModeChange?: (mode: MapViewMode) => void
 }
 
-function ExploreTab({ currentWeek = 26, onWeekChange }: ExploreTabProps) {
+function ExploreTab({
+  currentWeek = 26,
+  onWeekChange,
+  viewMode = 'density',
+  onViewModeChange
+}: ExploreTabProps) {
   // Convert week number to approximate date label
   const getWeekLabel = (week: number): string => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -115,6 +143,50 @@ function ExploreTab({ currentWeek = 26, onWeekChange }: ExploreTabProps) {
       <p className="text-sm text-gray-600">
         Use the map controls to explore where bird species can be found. Adjust the week slider to see seasonal changes.
       </p>
+
+      {/* View Mode Toggle */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-[#2C3E50]">
+          View Mode
+        </label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onViewModeChange?.('density')}
+            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+              viewMode === 'density'
+                ? 'bg-[#2C3E7B] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Density
+          </button>
+          <button
+            onClick={() => onViewModeChange?.('probability')}
+            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+              viewMode === 'probability'
+                ? 'bg-[#2C3E7B] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Probability
+          </button>
+          <button
+            onClick={() => onViewModeChange?.('species')}
+            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+              viewMode === 'species'
+                ? 'bg-[#2C3E7B] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Species
+          </button>
+        </div>
+        <p className="text-xs text-gray-500">
+          {viewMode === 'density' && 'Show number of species per area'}
+          {viewMode === 'probability' && 'Show occurrence probability intensity'}
+          {viewMode === 'species' && 'Show single species range (coming soon)'}
+        </p>
+      </div>
 
       {/* Week Slider */}
       <div className="space-y-2">
@@ -173,6 +245,7 @@ function SpeciesTab() {
   const [error, setError] = useState<string | null>(null)
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
+  const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
 
   // Fetch species data from API
   useEffect(() => {
@@ -263,7 +336,7 @@ function SpeciesTab() {
   }
 
   const totalSpecies = allSpecies.length
-  const seenSpecies = 0 // TODO: Will be implemented with IndexedDB life list
+  const seenSpecies = getTotalSeen()
 
   return (
     <div className="flex flex-col h-full">
@@ -334,11 +407,12 @@ function SpeciesTab() {
                         className="px-3 py-2 hover:bg-blue-50 transition-colors"
                       >
                         <div className="flex items-start gap-2">
-                          {/* Checkbox placeholder (will be functional with IndexedDB) */}
+                          {/* Functional checkbox with IndexedDB persistence */}
                           <input
                             type="checkbox"
-                            disabled
-                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B]"
+                            checked={isSpeciesSeen(species.speciesCode)}
+                            onChange={() => toggleSpecies(species.speciesCode, species.comName)}
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer"
                           />
                           <div className="flex-1 min-w-0">
                             {/* Common name */}
@@ -359,6 +433,198 @@ function SpeciesTab() {
             )
           })
         )}
+      </div>
+    </div>
+  )
+}
+
+function GoalBirdsTab() {
+  const [goalLists, setGoalLists] = useState<GoalList[]>([])
+  const [activeListId, setActiveListId] = useState<string | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [newListName, setNewListName] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  // Load goal lists from IndexedDB on mount
+  useEffect(() => {
+    const loadGoalLists = async () => {
+      try {
+        setLoading(true)
+        const lists = await goalListsDB.getAllLists()
+        setGoalLists(lists)
+
+        // Set active list (first list or none if empty)
+        if (lists.length > 0) {
+          setActiveListId(lists[0].id)
+        }
+        setLoading(false)
+      } catch (error) {
+        console.error('Failed to load goal lists:', error)
+        setLoading(false)
+      }
+    }
+
+    loadGoalLists()
+  }, [])
+
+  const handleCreateList = async () => {
+    if (!newListName.trim()) {
+      return
+    }
+
+    try {
+      const newList: GoalList = {
+        id: crypto.randomUUID(),
+        name: newListName.trim(),
+        speciesCodes: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      await goalListsDB.saveList(newList)
+
+      // Update state
+      setGoalLists((prev) => [...prev, newList])
+      setActiveListId(newList.id)
+
+      // Reset form
+      setShowCreateDialog(false)
+      setNewListName('')
+    } catch (error) {
+      console.error('Failed to create goal list:', error)
+    }
+  }
+
+  const activeList = goalLists.find((list) => list.id === activeListId)
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-[#2C3E50]">Goal Birds</h3>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="space-y-3 pb-3 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-[#2C3E50]">Goal Birds</h3>
+          <button
+            onClick={() => setShowCreateDialog(true)}
+            className="px-3 py-1.5 bg-[#2C3E7B] text-white text-xs font-medium rounded-lg hover:bg-[#1f2d5a] transition-colors"
+          >
+            + New List
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-600">
+          Create and manage lists of birds you want to see.
+        </p>
+
+        {/* List selector */}
+        {goalLists.length > 0 && (
+          <select
+            value={activeListId || ''}
+            onChange={(e) => setActiveListId(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+          >
+            {goalLists.map((list) => (
+              <option key={list.id} value={list.id}>
+                {list.name} ({list.speciesCodes.length} birds)
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Create dialog */}
+      {showCreateDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCreateDialog(false)}>
+          <div className="bg-white rounded-lg p-6 w-80 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-lg font-semibold text-[#2C3E50] mb-4">Create New Goal List</h4>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="list-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  List Name
+                </label>
+                <input
+                  id="list-name"
+                  type="text"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
+                  placeholder="e.g., Dream Birds"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => {
+                    setShowCreateDialog(false)
+                    setNewListName('')
+                  }}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateList}
+                  disabled={!newListName.trim()}
+                  className="px-4 py-2 text-sm text-white bg-[#2C3E7B] rounded-lg hover:bg-[#1f2d5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* List content or empty state */}
+      <div className="flex-1 overflow-y-auto mt-3">
+        {goalLists.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <div className="text-6xl mb-4">🎯</div>
+            <h4 className="text-lg font-semibold text-[#2C3E50] mb-2">No Goal Lists Yet</h4>
+            <p className="text-sm text-gray-600 mb-4">
+              Create your first goal list to start tracking birds you want to see.
+            </p>
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="px-4 py-2 bg-[#2C3E7B] text-white text-sm font-medium rounded-lg hover:bg-[#1f2d5a] transition-colors"
+            >
+              Create Your First List
+            </button>
+          </div>
+        ) : activeList ? (
+          <div>
+            {activeList.speciesCodes.length === 0 ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <p className="text-sm text-blue-700">
+                  <span className="font-medium">This list is empty.</span>
+                  <br />
+                  Add species from the Species tab to build your goal list.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activeList.speciesCodes.map((code) => (
+                  <div key={code} className="px-3 py-2 bg-gray-50 rounded-lg">
+                    <div className="text-sm font-medium text-[#2C3E50]">{code}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   )

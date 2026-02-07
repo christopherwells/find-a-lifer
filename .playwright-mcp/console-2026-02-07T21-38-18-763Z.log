@@ -1,0 +1,6 @@
+[    2160ms] [ERROR] [JavaScript Error: "Loading module from “http://localhost:5173/src/contexts/LifeListContext.tsx” was blocked because of a disallowed MIME type (“”)." {file: "http://localhost:5173/" line: 0}] @ http://localhost:5173/:0
+[    2161ms] [WARNING] [JavaScript Warning: "Loading failed for the module with source “http://localhost:5173/src/contexts/LifeListContext.tsx”." {file: "http://localhost:5173/src/main.tsx" line: 0}] @ http://localhost:5173/src/main.tsx:0
+[   10673ms] SyntaxError: The requested module 'http://localhost:5173/src/components/SidePanel.tsx' doesn't provide an export named: 'MapViewMode'
+
+[   11180ms] SyntaxError: The requested module 'http://localhost:5173/src/components/SidePanel.tsx' doesn't provide an export named: 'MapViewMode'
+

@@ -1,0 +1,3 @@
+[    2644ms] SyntaxError: The requested module 'http://localhost:5173/src/components/SidePanel.tsx' doesn't provide an export named: 'MapViewMode'
+
+[   19538ms] [ERROR] [JavaScript Error: "The connection to ws://localhost:5173/?token=g42oE6dNwtjy was interrupted while the page was loading." {file: "http://localhost:5173/@vite/client" line: 745}] @ http://localhost:5173/@vite/client:745
