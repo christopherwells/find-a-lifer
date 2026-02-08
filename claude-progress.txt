@@ -901,3 +901,73 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 - Progress dashboard (stats, charts, family breakdowns)
 - Profile/data management (eBird CSV import, export, data reset)
 - Additional map features (migration animation, region selector, heatmap opacity control)
+
+### Session 18 - 2026-02-08
+
+**Feature Completed:** #53 - Goal list auto-saves on every change
+
+**What was accomplished:**
+- Verified comprehensive auto-save functionality for all goal list operations
+- All changes to goal lists (create, rename, delete, add bird, remove bird) are immediately persisted to IndexedDB
+- No manual save button exists or is needed - all operations call IndexedDB functions directly
+- Tested complete lifecycle:
+  1. Created "Auto-Save Test List" - immediately saved to IndexedDB
+  2. Added Northern Cardinal - immediately saved via goalListsDB.addSpeciesToList()
+  3. Reloaded page - species persisted (verified via dropdown showing "1 birds")
+  4. Removed Northern Cardinal - immediately saved via goalListsDB.removeSpeciesFromList()
+  5. Reloaded page - removal persisted (verified via dropdown showing "0 birds")
+  6. Created "Second Test List" - immediately saved to IndexedDB
+  7. Reloaded page - both lists persisted in dropdown
+
+**Technical implementation details:**
+- All operations in GoalBirdsTab component call goalListsDB module functions directly
+- goalListsDB.ts (frontend/src/lib/goalListsDB.ts) handles all IndexedDB transactions:
+  - saveList(list): Uses IndexedDB put() transaction for immediate persistence (lines 83-98)
+  - addSpeciesToList(): Calls saveList() after adding species code (line 128)
+  - removeSpeciesFromList(): Calls saveList() after filtering species (line 141)
+  - renameList(): Calls saveList() after updating name (line 153)
+  - deleteList(): Direct IndexedDB delete() transaction (line 106)
+- All functions use IndexedDB transactions that complete before returning
+- No in-memory state that's not persisted
+- No "save" button in UI - all changes auto-save on action completion
+
+**Verification (all 5 steps):**
+1. ✅ Add a species to a goal list - Added Northern Cardinal to Auto-Save Test List
+2. ✅ Without any save action, force-close the browser - Reloaded page (Playwright limitation, equivalent behavior)
+3. ✅ Reopen the app and verify the species is still on the list - Northern Cardinal persisted, shown in list with full name
+4. ✅ Remove a species and repeat the same test - Removed Northern Cardinal, reloaded page
+5. ✅ Verify the removal persisted - List showed "0 birds", species no longer in list
+
+**Browser automation testing:**
+- All 5 feature steps verified via browser automation with screenshots
+- Created goal list, added species, verified persistence across reload
+- Removed species, verified removal persistence across reload
+- Created second list, verified both lists persist
+- Console logs confirm IndexedDB operations:
+  - "Added Northern Cardinal (norcar) to goal list"
+  - "Removed Northern Cardinal (norcar) from goal list"
+  - "Saved active goal list ID to localStorage"
+  - "Restored active goal list: [UUID]"
+- Zero JavaScript console errors (0 errors, 9 non-critical WebGL warnings)
+- No mock data patterns in source code (grep verification passed)
+- Screenshots: feature53-step0-initial-load.md, feature53-step1-species-added.png, feature53-step2-persistence-verified.png, feature53-step3-species-removed.png, feature53-step4-removal-persisted.png, feature53-final-verification.png
+
+**Mock data verification:**
+- Grep check for mock patterns in frontend/src/ returned empty
+- No globalThis, devStore, mockDb, fakeData, etc.
+- All data stored in real IndexedDB (goalLists object store in find-a-lifer-db database)
+- All goalListsDB functions use real IndexedDB transactions
+
+**Additional operations tested:**
+- List creation: Immediately calls saveList() with new list object
+- List selection: Active list ID saved to localStorage for persistence
+- List restoration: Previous active list restored on app reload
+- Multiple lists: Both "Auto-Save Test List" and "Second Test List" persist correctly
+
+**Current Status:** 22/83 features passing (26.5%)
+
+**Next steps:**
+- More goal bird list features (view goal list on map with highlighting, filter trip planning by goal list)
+- Progress dashboard (stats, charts, family breakdowns)
+- Profile/data management (eBird CSV import, export, data reset)
+- Additional map features (migration animation, region selector, heatmap opacity control)
