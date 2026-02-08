@@ -804,6 +804,35 @@ function GoalBirdsTab() {
     }
   }
 
+  // Handle species removal
+  const handleRemoveSpecies = async (speciesCode: string, speciesName: string) => {
+    if (!activeListId) return
+
+    try {
+      const activeList = goalLists.find((list) => list.id === activeListId)
+      if (!activeList) return
+
+      // Remove species from the list
+      await goalListsDB.removeSpeciesFromList(activeListId, speciesCode)
+      console.log(`Removed ${speciesName} (${speciesCode}) from goal list`)
+
+      // Update state
+      setGoalLists((prev) =>
+        prev.map((list) =>
+          list.id === activeListId
+            ? { ...list, speciesCodes: list.speciesCodes.filter((code) => code !== speciesCode) }
+            : list
+        )
+      )
+
+      // Show success toast
+      setShowSuccessToast(`Removed ${speciesName} from ${activeList.name}`)
+      setTimeout(() => setShowSuccessToast(''), 3000)
+    } catch (error) {
+      console.error('Failed to remove species from goal list:', error)
+    }
+  }
+
   // Filter species based on search query
   const filteredSpecies = searchQuery.trim()
     ? allSpecies.filter((species) => {
@@ -1114,13 +1143,34 @@ function GoalBirdsTab() {
                 {activeList.speciesCodes.map((code) => {
                   const species = allSpecies.find((s) => s.speciesCode === code)
                   return (
-                    <div key={code} className="px-3 py-2 bg-gray-50 rounded-lg">
-                      <div className="text-sm font-medium text-[#2C3E50]">
-                        {species ? species.comName : code}
+                    <div key={code} className="px-3 py-2 bg-gray-50 rounded-lg flex items-center justify-between hover:bg-gray-100 transition-colors group">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-[#2C3E50]">
+                          {species ? species.comName : code}
+                        </div>
+                        {species && (
+                          <div className="text-xs italic text-gray-600">{species.sciName}</div>
+                        )}
                       </div>
-                      {species && (
-                        <div className="text-xs italic text-gray-600">{species.sciName}</div>
-                      )}
+                      <button
+                        onClick={() => handleRemoveSpecies(code, species?.comName || code)}
+                        className="flex-shrink-0 ml-2 p-1 text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove from list"
+                        data-testid={`remove-species-${code}`}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   )
                 })}
