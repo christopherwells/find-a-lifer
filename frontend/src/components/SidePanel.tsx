@@ -468,6 +468,8 @@ function GoalBirdsTab() {
   const [loading, setLoading] = useState(true)
   const [renamingListId, setRenamingListId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deletingListId, setDeletingListId] = useState<string | null>(null)
 
   // Load goal lists from IndexedDB on mount
   useEffect(() => {
@@ -555,7 +557,46 @@ function GoalBirdsTab() {
     setRenameValue('')
   }
 
+  const handleStartDelete = (list: GoalList) => {
+    setDeletingListId(list.id)
+    setShowDeleteDialog(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingListId) {
+      return
+    }
+
+    try {
+      await goalListsDB.deleteList(deletingListId)
+      console.log(`Deleted goal list: ${deletingListId}`)
+
+      // Update state: remove the deleted list
+      const remainingLists = goalLists.filter((list) => list.id !== deletingListId)
+      setGoalLists(remainingLists)
+
+      // Set new active list (first remaining list, or null if none)
+      if (remainingLists.length > 0) {
+        setActiveListId(remainingLists[0].id)
+      } else {
+        setActiveListId(null)
+      }
+
+      // Reset delete state
+      setShowDeleteDialog(false)
+      setDeletingListId(null)
+    } catch (error) {
+      console.error('Failed to delete goal list:', error)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false)
+    setDeletingListId(null)
+  }
+
   const activeList = goalLists.find((list) => list.id === activeListId)
+  const deletingList = goalLists.find((list) => list.id === deletingListId)
 
   if (loading) {
     return (
@@ -639,16 +680,28 @@ function GoalBirdsTab() {
                   ))}
                 </select>
                 {activeList && (
-                  <button
-                    onClick={() => handleStartRename(activeList)}
-                    className="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-gray-800 transition-colors"
-                    title="Rename list"
-                    data-testid="rename-list-btn"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                    </svg>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleStartRename(activeList)}
+                      className="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-gray-800 transition-colors"
+                      title="Rename list"
+                      data-testid="rename-list-btn"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleStartDelete(activeList)}
+                      className="px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors"
+                      title="Delete list"
+                      data-testid="delete-list-btn"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -695,6 +748,49 @@ function GoalBirdsTab() {
                   className="px-4 py-2 text-sm text-white bg-[#2C3E7B] rounded-lg hover:bg-[#1f2d5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {showDeleteDialog && deletingList && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleCancelDelete}>
+          <div className="bg-white rounded-lg p-6 w-96 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-lg font-semibold text-[#2C3E50] mb-4">Delete Goal List?</h4>
+
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-800">
+                  <span className="font-semibold">Warning:</span> You are about to delete the goal list{' '}
+                  <span className="font-semibold">"{deletingList.name}"</span>
+                  {deletingList.speciesCodes.length > 0 && (
+                    <>
+                      {' '}which contains <span className="font-semibold">{deletingList.speciesCodes.length} bird{deletingList.speciesCodes.length !== 1 ? 's' : ''}</span>
+                    </>
+                  )}.
+                </p>
+                <p className="text-sm text-red-800 mt-2">
+                  This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancelDelete}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  data-testid="delete-cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                  data-testid="delete-confirm-btn"
+                >
+                  Delete List
                 </button>
               </div>
             </div>
