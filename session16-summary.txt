@@ -1,0 +1,43 @@
+Session 16 Summary - Feature #51
+=================================
+
+Feature: User can remove a species from a goal list
+Status: ✅ PASSING (20/83 features = 24.1%)
+
+Implementation:
+- Added remove button (red X icon) to each species card in Goal Birds panel
+- Button hidden by default, appears on hover with smooth transition
+- Single-click removal with no confirmation dialog (frictionless as specified)
+- Calls goalListsDB.removeSpeciesFromList() for IndexedDB persistence
+- Shows success toast: "Removed [species] from [list name]"
+- Updates list count and UI state immediately
+- Works for both seen and unseen species
+
+Verification Results:
+✅ All 5 feature steps verified via browser automation
+✅ Species removed immediately on click
+✅ List count updated (dropdown and header)
+✅ Success toast displayed
+✅ Data persists after page reload
+✅ Zero JavaScript console errors
+✅ No mock data patterns found
+
+Files Modified:
+- frontend/src/components/SidePanel.tsx (added remove button and handler)
+
+Technical Details:
+- Remove button uses hover-reveal pattern (opacity-0 group-hover:opacity-100)
+- Red styling for destructive action (text-red-600, hover:bg-red-50)
+- IndexedDB function already existed: goalListsDB.removeSpeciesFromList()
+- State management uses functional setState for consistency
+- Success toast auto-dismisses after 3 seconds
+
+Git Commits:
+- 19e1478: feat: implement remove species from goal list - feature #51
+- dd286be: docs: add session 16 progress notes for feature #51
+
+Next Session:
+- More goal bird list features (view on map, filter trip planning)
+- Progress dashboard
+- Profile/data management
+- Map features (animation, region selector, opacity control)
