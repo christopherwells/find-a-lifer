@@ -515,3 +515,68 @@
 - Progress dashboard (stats, charts, family breakdowns)
 - Profile/data management (eBird CSV import, export, data reset)
 - Additional map features (migration animation, region selector, heatmap opacity control)
+
+### Session 12 - 2026-02-08
+
+**Feature Completed:** #47 - User can delete a goal list with confirmation
+
+**What was accomplished:**
+- Implemented goal list deletion feature with confirmation dialog in GoalBirdsTab component
+- Added new state variables:
+  - showDeleteDialog: boolean to control confirmation dialog visibility
+  - deletingListId: string | null to track which list is being deleted
+- Created three handler functions:
+  - handleStartDelete(list): Shows confirmation dialog for specified list
+  - handleConfirmDelete(): Deletes list from IndexedDB, updates state, sets first remaining list as active
+  - handleCancelDelete(): Closes dialog without deleting
+- Added delete button next to rename button:
+  - Red trash icon button with red background (ref: e107)
+  - Located in list selector controls area
+  - Uses data-testid="delete-list-btn" for testing
+- Created confirmation dialog component:
+  - Modal overlay with semi-transparent black background
+  - White dialog box (w-96) with heading "Delete Goal List?"
+  - Red warning box showing list name and bird count
+  - "This action cannot be undone" warning text
+  - Cancel button (gray) and Delete List button (red)
+  - Click outside dialog closes it (handleCancelDelete)
+- Proper state management:
+  - After deletion, remaining lists filtered from state
+  - Active list switches to first remaining list (or null if none)
+  - Dialog closes and state resets after deletion
+- IndexedDB persistence via goalListsDB.deleteList(id)
+
+**Verification (all 7 steps):**
+1. ✅ Navigate to Goal Birds section with at least two lists - Created "First Test List" and "Second Test List"
+2. ✅ Select the list to delete - "Second Test List" was active
+3. ✅ Click delete action - Clicked red delete button, dialog appeared
+4. ✅ Verify a confirmation dialog appears warning about deletion - Dialog showed "Delete Goal List?" with warning about "Second Test List"
+5. ✅ Confirm deletion - Clicked "Delete List" button
+6. ✅ Verify the list is removed and another list becomes active - Dropdown now shows only "First Test List (0 birds)" as selected
+7. ✅ Verify the deleted list's birds are no longer shown - N/A (list was empty), but list completely removed from UI and IndexedDB
+
+**Browser automation testing:**
+- All 7 feature steps verified via browser automation
+- Tested cancel functionality first (dialog closes, list remains)
+- Tested actual deletion (list removed, active switches to remaining list)
+- Verified persistence with full page reload - only "First Test List" remains
+- Console log confirms: "Deleted goal list: 9ee47903-6ae2-45b1-8ecf-b..."
+- Zero JavaScript console errors (0 errors, 9 non-critical WebGL warnings)
+- No mock data patterns in source code (grep verification passed)
+- Screenshots: feature47-step1-two-lists-created.png, feature47-step3-delete-confirmation.png, feature47-step5-list-deleted.png, feature47-step6-persistence-verified.png
+
+**Technical implementation details:**
+- goalListsDB.deleteList(id) already existed in lib/goalListsDB.ts (lines 101-116)
+- Delete handler filters remaining lists: `goalLists.filter((list) => list.id !== deletingListId)`
+- Active list logic: `remainingLists.length > 0 ? remainingLists[0].id : null`
+- Dialog uses deletingList variable: `goalLists.find((list) => list.id === deletingListId)`
+- Conditional rendering shows bird count in warning if list has species
+- Dialog z-index: z-50 (above side panel content)
+
+**Current Status:** 16/83 features passing (19.3%)
+
+**Next steps:**
+- More goal bird list features (add species to list, remove species from list, view goal list progress)
+- Progress dashboard (stats, charts, family breakdowns)
+- Profile/data management (eBird CSV import, export, data reset)
+- Additional map features (migration animation, region selector, heatmap opacity control)
