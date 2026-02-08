@@ -630,9 +630,13 @@ function GoalBirdsTab() {
         const lists = await goalListsDB.getAllLists()
         setGoalLists(lists)
 
-        // Set active list (first list or none if empty)
+        // Restore previously active list from localStorage, or use first list
+        const savedActiveListId = localStorage.getItem('activeGoalListId')
         if (lists.length > 0) {
-          setActiveListId(lists[0].id)
+          // If saved ID exists and is in the list, use it; otherwise use first list
+          const validSavedId = savedActiveListId && lists.some((list) => list.id === savedActiveListId)
+          setActiveListId(validSavedId ? savedActiveListId : lists[0].id)
+          console.log(`Restored active goal list: ${validSavedId ? savedActiveListId : lists[0].id}`)
         }
         setLoading(false)
       } catch (error) {
@@ -643,6 +647,16 @@ function GoalBirdsTab() {
 
     loadGoalLists()
   }, [])
+
+  // Save active list ID to localStorage whenever it changes
+  useEffect(() => {
+    if (activeListId) {
+      localStorage.setItem('activeGoalListId', activeListId)
+      console.log(`Saved active goal list ID to localStorage: ${activeListId}`)
+    } else {
+      localStorage.removeItem('activeGoalListId')
+    }
+  }, [activeListId])
 
   // Load species metadata for search/add functionality
   useEffect(() => {
