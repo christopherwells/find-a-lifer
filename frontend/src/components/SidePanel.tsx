@@ -269,6 +269,11 @@ function SpeciesTab() {
   const [searchTerm, setSearchTerm] = useState('')
   const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
 
+  // Goal list management for adding species to goal lists
+  const [goalLists, setGoalLists] = useState<GoalList[]>([])
+  const [addingSpecies, setAddingSpecies] = useState<{ code: string; name: string } | null>(null)
+  const [showSuccessMessage, setShowSuccessMessage] = useState<string | null>(null)
+
   // Fetch species data from API
   useEffect(() => {
     const fetchSpecies = async () => {
@@ -304,6 +309,20 @@ function SpeciesTab() {
     fetchSpecies()
   }, [])
 
+  // Load goal lists on mount
+  useEffect(() => {
+    const loadGoalLists = async () => {
+      try {
+        const lists = await goalListsDB.getAllLists()
+        setGoalLists(lists)
+      } catch (error) {
+        console.error('Failed to load goal lists:', error)
+      }
+    }
+
+    loadGoalLists()
+  }, [])
+
   const toggleFamily = (familyName: string) => {
     setCollapsedFamilies((prev) => {
       const next = new Set(prev)
@@ -314,6 +333,38 @@ function SpeciesTab() {
       }
       return next
     })
+  }
+
+  const handleStartAddToGoalList = (speciesCode: string, comName: string) => {
+    setAddingSpecies({ code: speciesCode, name: comName })
+  }
+
+  const handleCancelAddToGoalList = () => {
+    setAddingSpecies(null)
+  }
+
+  const handleAddToGoalList = async (listId: string) => {
+    if (!addingSpecies) return
+
+    try {
+      await goalListsDB.addSpeciesToList(listId, addingSpecies.code)
+      const list = goalLists.find((l) => l.id === listId)
+      console.log(`Added ${addingSpecies.name} (${addingSpecies.code}) to goal list: ${list?.name}`)
+
+      // Show success message
+      setShowSuccessMessage(`Added ${addingSpecies.name} to ${list?.name}`)
+      setTimeout(() => setShowSuccessMessage(null), 3000)
+
+      // Close dialog
+      setAddingSpecies(null)
+
+      // Refresh goal lists to show updated counts
+      const lists = await goalListsDB.getAllLists()
+      setGoalLists(lists)
+    } catch (error) {
+      console.error('Failed to add species to goal list:', error)
+      alert('Failed to add species to goal list. Please try again.')
+    }
   }
 
   // Filter species by search term
@@ -446,6 +497,26 @@ function SpeciesTab() {
                               {species.sciName}
                             </div>
                           </div>
+                          {/* Add to goal list button */}
+                          <button
+                            onClick={() => handleStartAddToGoalList(species.speciesCode, species.comName)}
+                            className="flex-shrink-0 p-1 text-[#2C3E7B] hover:bg-[#2C3E7B] hover:text-white rounded transition-colors"
+                            title="Add to goal list"
+                            data-testid={`add-to-goal-${species.speciesCode}`}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -456,6 +527,79 @@ function SpeciesTab() {
           })
         )}
       </div>
+
+      {/* Add to Goal List Dialog */}
+      {addingSpecies && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleCancelAddToGoalList}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg p-6 w-96 max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[#2C3E50] mb-2">
+              Add to Goal List
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Select a goal list to add <span className="font-medium">{addingSpecies.name}</span>:
+            </p>
+
+            {goalLists.length === 0 ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-yellow-700">
+                  You don't have any goal lists yet. Create one in the Goal Birds tab first.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {goalLists.map((list) => (
+                  <button
+                    key={list.id}
+                    onClick={() => handleAddToGoalList(list.id)}
+                    className="w-full text-left px-4 py-3 border border-gray-300 rounded-lg hover:border-[#2C3E7B] hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="font-medium text-[#2C3E50]">{list.name}</div>
+                    <div className="text-xs text-gray-500">
+                      {list.speciesCodes.length} bird{list.speciesCodes.length !== 1 ? 's' : ''}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleCancelAddToGoalList}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Toast */}
+      {showSuccessMessage && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-sm font-medium">{showSuccessMessage}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
