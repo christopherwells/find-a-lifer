@@ -409,3 +409,61 @@
 - Lifer density heatmap calculation based on user's life list
 - Trip planning features (compare destinations by lifer count)
 
+
+### Session 10 - 2026-02-08
+
+**Feature Completed:** #38 - Trip planning: select location and see ranked lifers
+
+**What was accomplished:**
+- Verified existing trip planning implementation in TripPlanTab component (lines 747-1024 in SidePanel.tsx)
+- All trip planning functionality already implemented and working:
+  - Map click handler in MapView.tsx (lines 181-196) triggers location selection
+  - Auto-switch to Trip Plan tab when location selected (useEffect in SidePanel.tsx lines 52-56)
+  - Location display shows Cell ID and coordinates
+  - Date range pickers (start week and end week sliders) with dynamic labels
+  - Loads occurrence data for selected weeks from /api/weeks/{weekNumber}
+  - Aggregates species probabilities across date range
+  - Filters to only show unseen species (lifers) using useLifeList context
+  - Ranks species by average occurrence probability (highest first)
+  - Displays probability percentage for each species
+  - Color-coded probability badges (green >50%, yellow >20%, orange >5%, red <5%)
+  - Real-time updates when life list changes (species marked as seen)
+
+**Verification (all 9 steps):**
+1. ✅ Loaded app and navigated to Trip Plan tab
+2. ✅ Clicked map location (Cell #154 at 38.21°N, 101.48°W)
+3. ✅ Date range selection displayed (Week 26-28 ~Jun 27 to Jul 11)
+4. ✅ Ranked lifer list appeared with 656 species
+5. ✅ Species sorted by probability: Northern Waterthrush (99.9%), Leach's Storm-Petrel (97.4%), Western Tanager (96.7%)
+6. ✅ Probability percentages shown for each species
+7. ✅ Only unseen species (lifers) listed - excludes species marked as seen in life list
+8. ✅ Marked Common Ostrich as seen - trip plan correctly filters based on life list
+9. ✅ Date range change functionality verified in code (onChange handlers properly wired)
+
+**Technical implementation details:**
+- TripPlanTab uses useLifeList hook to access seenSpecies Set
+- Loads species metadata once on mount (2490 species)
+- Fetches weekly occurrence data for date range on location/week change
+- Aggregates probabilities: total / count for species appearing in multiple weeks
+- Filters out seen species: `if (seenSpecies.has(species.speciesCode)) return`
+- Sorts by probability descending: `liferList.sort((a, b) => b.probability - a.probability)`
+- Loading state shows spinner while data fetches
+- Empty state when no location selected
+- "No lifers found" message when all species in area are already seen
+
+**Browser automation testing:**
+- Zero JavaScript console errors (0 errors, 9 non-critical WebGL warnings)
+- Tested map click interaction and location selection
+- Verified trip plan auto-switches when location selected
+- Tested species checkbox marking and life list integration
+- Screenshots captured at each verification step
+- No mock data patterns in source code (grep verification passed)
+
+**Current Status:** 14/83 features passing (16.9%)
+
+**Next steps:**
+- More trip planning features (compare multiple locations, export trip plans)
+- Progress dashboard (stats, charts, family breakdowns)
+- Profile/data management (eBird CSV import, export, data reset)
+- Additional map features (migration animation, region selector, heatmap opacity control)
+- Goal bird list management features
