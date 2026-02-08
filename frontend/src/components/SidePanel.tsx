@@ -615,6 +615,13 @@ function GoalBirdsTab() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deletingListId, setDeletingListId] = useState<string | null>(null)
 
+  // Species search/add state
+  const [allSpecies, setAllSpecies] = useState<Species[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [showSuccessToast, setShowSuccessToast] = useState('')
+  const [showDuplicateToast, setShowDuplicateToast] = useState('')
+
   // Load goal lists from IndexedDB on mount
   useEffect(() => {
     const loadGoalLists = async () => {
@@ -635,6 +642,22 @@ function GoalBirdsTab() {
     }
 
     loadGoalLists()
+  }, [])
+
+  // Load species metadata for search/add functionality
+  useEffect(() => {
+    const loadSpecies = async () => {
+      try {
+        const response = await fetch('/api/species')
+        if (!response.ok) return
+        const data: Species[] = await response.json()
+        setAllSpecies(data)
+        console.log('Goal Birds: Loaded species metadata', data.length)
+      } catch (error) {
+        console.error('Failed to load species for Goal Birds:', error)
+      }
+    }
+    loadSpecies()
   }, [])
 
   const handleCreateList = async () => {
@@ -738,6 +761,60 @@ function GoalBirdsTab() {
     setShowDeleteDialog(false)
     setDeletingListId(null)
   }
+
+  // Handle species search and add
+  const handleAddSpecies = async (species: Species) => {
+    if (!activeListId) return
+
+    try {
+      const activeList = goalLists.find((list) => list.id === activeListId)
+      if (!activeList) return
+
+      // Check for duplicates
+      if (activeList.speciesCodes.includes(species.speciesCode)) {
+        setShowDuplicateToast(`${species.comName} is already in this list`)
+        setTimeout(() => setShowDuplicateToast(''), 3000)
+        setSearchQuery('')
+        setShowSuggestions(false)
+        return
+      }
+
+      // Add species to the list
+      await goalListsDB.addSpeciesToList(activeListId, species.speciesCode)
+      console.log(`Added ${species.comName} (${species.speciesCode}) to goal list`)
+
+      // Update state
+      setGoalLists((prev) =>
+        prev.map((list) =>
+          list.id === activeListId
+            ? { ...list, speciesCodes: [...list.speciesCodes, species.speciesCode] }
+            : list
+        )
+      )
+
+      // Show success toast
+      setShowSuccessToast(`Added ${species.comName} to ${activeList.name}`)
+      setTimeout(() => setShowSuccessToast(''), 3000)
+
+      // Clear search
+      setSearchQuery('')
+      setShowSuggestions(false)
+    } catch (error) {
+      console.error('Failed to add species to goal list:', error)
+    }
+  }
+
+  // Filter species based on search query
+  const filteredSpecies = searchQuery.trim()
+    ? allSpecies.filter((species) => {
+        const query = searchQuery.toLowerCase()
+        return (
+          species.comName.toLowerCase().includes(query) ||
+          species.sciName.toLowerCase().includes(query) ||
+          species.speciesCode.toLowerCase().includes(query)
+        )
+      }).slice(0, 10) // Limit to 10 suggestions
+    : []
 
   const activeList = goalLists.find((list) => list.id === activeListId)
   const deletingList = goalLists.find((list) => list.id === deletingListId)
@@ -959,27 +1036,141 @@ function GoalBirdsTab() {
             </button>
           </div>
         ) : activeList ? (
-          <div>
+          <div className="space-y-3">
+            {/* Search/Add Species Interface */}
+            <div className="relative">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setShowSuggestions(true)
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  placeholder="Search species to add..."
+                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+                  data-testid="species-search-input"
+                />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="absolute right-3 top-2.5 h-5 w-5 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && searchQuery.trim() && filteredSpecies.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                  {filteredSpecies.map((species) => (
+                    <button
+                      key={species.speciesCode}
+                      onClick={() => handleAddSpecies(species)}
+                      className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                      data-testid={`species-suggestion-${species.speciesCode}`}
+                    >
+                      <div className="text-sm font-medium text-[#2C3E50]">
+                        {species.comName}
+                      </div>
+                      <div className="text-xs italic text-gray-600">
+                        {species.sciName}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* No results message */}
+              {showSuggestions && searchQuery.trim() && filteredSpecies.length === 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                  <p className="text-sm text-gray-600">No species found matching "{searchQuery}"</p>
+                </div>
+              )}
+            </div>
+
+            {/* Species in List */}
             {activeList.speciesCodes.length === 0 ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                 <p className="text-sm text-blue-700">
                   <span className="font-medium">This list is empty.</span>
                   <br />
-                  Add species from the Species tab to build your goal list.
+                  Search and add species above, or add from the Species tab.
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
-                {activeList.speciesCodes.map((code) => (
-                  <div key={code} className="px-3 py-2 bg-gray-50 rounded-lg">
-                    <div className="text-sm font-medium text-[#2C3E50]">{code}</div>
-                  </div>
-                ))}
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {activeList.speciesCodes.length} bird{activeList.speciesCodes.length !== 1 ? 's' : ''} in list
+                </div>
+                {activeList.speciesCodes.map((code) => {
+                  const species = allSpecies.find((s) => s.speciesCode === code)
+                  return (
+                    <div key={code} className="px-3 py-2 bg-gray-50 rounded-lg">
+                      <div className="text-sm font-medium text-[#2C3E50]">
+                        {species ? species.comName : code}
+                      </div>
+                      {species && (
+                        <div className="text-xs italic text-gray-600">{species.sciName}</div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
         ) : null}
       </div>
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-sm font-medium">{showSuccessToast}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Toast */}
+      {showDuplicateToast && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-yellow-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-sm font-medium">{showDuplicateToast}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
