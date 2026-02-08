@@ -5,6 +5,8 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 interface MapViewProps {
   darkMode?: boolean
   currentWeek?: number
+  viewMode?: string
+  onLocationSelect?: (location: { cellId: number; coordinates: [number, number] }) => void
 }
 
 interface OccurrenceRecord {
@@ -13,7 +15,7 @@ interface OccurrenceRecord {
   probability: number
 }
 
-export default function MapView({ darkMode = false, currentWeek = 26 }: MapViewProps) {
+export default function MapView({ darkMode = false, currentWeek = 26, viewMode = 'density', onLocationSelect }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const [weeklyData, setWeeklyData] = useState<OccurrenceRecord[]>([])
@@ -175,11 +177,21 @@ export default function MapView({ darkMode = false, currentWeek = 26 }: MapViewP
           }
         })
 
-        // Add click handler to log cell info (for verification)
+        // Add click handler for trip planning location selection
         map.current.on('click', 'grid-fill', (e) => {
           if (e.features && e.features.length > 0) {
             const feature = e.features[0]
-            console.log('Clicked grid cell:', feature.properties)
+            const cellId = feature.properties?.cell_id
+            if (cellId && e.lngLat && onLocationSelect) {
+              onLocationSelect({
+                cellId: cellId,
+                coordinates: [e.lngLat.lng, e.lngLat.lat]
+              })
+              console.log('Selected location for trip planning:', {
+                cellId,
+                coordinates: [e.lngLat.lng, e.lngLat.lat]
+              })
+            }
           }
         })
 

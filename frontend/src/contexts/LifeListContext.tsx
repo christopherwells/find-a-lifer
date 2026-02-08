@@ -13,6 +13,20 @@ interface LifeListDB extends DBSchema {
     key: string
     value: LifeListEntry
   }
+  goalLists: {
+    key: string
+    value: {
+      id: string
+      name: string
+      speciesCodes: string[]
+      createdAt: string
+      updatedAt: string
+    }
+    indexes: {
+      'name': string
+      'createdAt': string
+    }
+  }
 }
 
 interface LifeListContextValue {
@@ -29,7 +43,7 @@ interface LifeListContextValue {
 const LifeListContext = createContext<LifeListContextValue | undefined>(undefined)
 
 const DB_NAME = 'find-a-lifer-db'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'lifeList'
 
 let dbInstance: IDBPDatabase<LifeListDB> | null = null
@@ -44,6 +58,12 @@ async function getDB(): Promise<IDBPDatabase<LifeListDB>> {
       // Create the lifeList object store if it doesn't exist
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'speciesCode' })
+      }
+      // Create the goalLists object store if it doesn't exist (added in v2)
+      if (!db.objectStoreNames.contains('goalLists')) {
+        const goalStore = db.createObjectStore('goalLists', { keyPath: 'id' })
+        goalStore.createIndex('name', 'name', { unique: false })
+        goalStore.createIndex('createdAt', 'createdAt', { unique: false })
       }
     },
   })

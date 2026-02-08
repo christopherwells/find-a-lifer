@@ -28,7 +28,12 @@ function openDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result
 
-      // Create object store if it doesn't exist
+      // Create the lifeList object store if it doesn't exist (from v1)
+      if (!db.objectStoreNames.contains('lifeList')) {
+        db.createObjectStore('lifeList', { keyPath: 'speciesCode' })
+      }
+
+      // Create goalLists object store if it doesn't exist (added in v2)
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
         objectStore.createIndex('name', 'name', { unique: false })
@@ -136,6 +141,19 @@ export async function removeSpeciesFromList(listId: string, speciesCode: string)
   await saveList(list)
 }
 
+// Rename a goal list
+export async function renameList(id: string, newName: string): Promise<GoalList> {
+  const list = await getList(id)
+  if (!list) {
+    throw new Error('Goal list not found')
+  }
+
+  list.name = newName.trim()
+  list.updatedAt = new Date().toISOString()
+  await saveList(list)
+  return list
+}
+
 // Export all functions as a namespace
 export const goalListsDB = {
   getAllLists,
@@ -143,5 +161,6 @@ export const goalListsDB = {
   saveList,
   deleteList,
   addSpeciesToList,
-  removeSpeciesFromList
+  removeSpeciesFromList,
+  renameList
 }

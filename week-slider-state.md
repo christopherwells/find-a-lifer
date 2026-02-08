@@ -1,0 +1,70 @@
+- generic [ref=e5]:
+  - banner [ref=e6]:
+    - generic [ref=e7]:
+      - img "bird" [ref=e8]: 🐦
+      - generic [ref=e9]:
+        - heading "Find-A-Lifer" [level=1] [ref=e10]
+        - paragraph [ref=e11]: Discover your next life bird
+    - generic [ref=e12]:
+      - generic [ref=e15]: Connected
+      - button "Switch to dark mode" [ref=e16]:
+        - img [ref=e17]
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - navigation [ref=e21]:
+        - button "🗺 Explore" [ref=e22]:
+          - generic [ref=e23]: 🗺
+          - generic [ref=e24]: Explore
+        - button "🐦 Species" [ref=e25]:
+          - generic [ref=e26]: 🐦
+          - generic [ref=e27]: Species
+        - button "🎯 Goal Birds" [ref=e28]:
+          - generic [ref=e29]: 🎯
+          - generic [ref=e30]: Goal Birds
+        - button "✈ Trip Plan" [ref=e31]:
+          - generic [ref=e32]: ✈
+          - generic [ref=e33]: Trip Plan
+        - button "📊 Progress" [ref=e34]:
+          - generic [ref=e35]: 📊
+          - generic [ref=e36]: Progress
+        - button "👤 Profile" [ref=e37]:
+          - generic [ref=e38]: 👤
+          - generic [ref=e39]: Profile
+        - button "Collapse panel" [ref=e40]:
+          - img [ref=e41]
+      - generic [ref=e44]:
+        - heading "Explore Map" [level=3] [ref=e45]
+        - paragraph [ref=e46]: Use the map controls to explore where bird species can be found. Adjust the week slider to see seasonal changes.
+        - generic [ref=e47]:
+          - generic [ref=e48]: View Mode
+          - generic [ref=e49]:
+            - button "Density" [ref=e50]
+            - button "Probability" [ref=e51]
+            - button "Species" [ref=e52]
+          - paragraph [ref=e53]: Show number of species per area
+        - generic [ref=e54]:
+          - generic [ref=e55]: Select Week
+          - generic [ref=e56]:
+            - slider "Select Week" [active] [ref=e57] [cursor=pointer]: "1"
+            - generic [ref=e58]: Week 1 (~Jan 4)
+        - paragraph [ref=e60]: "Tip: Click on the map to see available lifers in that area."
+    - generic [ref=e63]:
+      - region "Map" [ref=e64]
+      - generic:
+        - generic [ref=e65]:
+          - button "Zoom in" [ref=e66] [cursor=pointer]
+          - button "Zoom out" [ref=e68] [cursor=pointer]
+          - button "Reset bearing to north" [ref=e70]
+        - generic:
+          - generic [ref=e72]: 1000 km
+          - group [ref=e73]:
+            - generic "Toggle attribution" [ref=e74] [cursor=pointer]
+            - generic [ref=e75]:
+              - link "MapLibre" [ref=e76] [cursor=pointer]:
+                - /url: https://maplibre.org/
+              - text: "| ©"
+              - link "OSM" [ref=e77] [cursor=pointer]:
+                - /url: https://www.openstreetmap.org/copyright
+              - text: ©
+              - link "CARTO" [ref=e78] [cursor=pointer]:
+                - /url: https://carto.com/

@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
+import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 
 export type MapViewMode = 'density' | 'probability' | 'species'
+
+export interface SelectedLocation {
+  cellId: number
+  coordinates: [number, number] // [lng, lat]
+  name?: string
+}
 
 type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress' | 'profile'
 
@@ -12,6 +19,7 @@ interface SidePanelProps {
   onWeekChange?: (week: number) => void
   viewMode?: MapViewMode
   onViewModeChange?: (mode: MapViewMode) => void
+  selectedLocation?: SelectedLocation | null
 }
 
 interface Tab {
@@ -35,9 +43,17 @@ export default function SidePanel({
   currentWeek = 26,
   onWeekChange,
   viewMode = 'density',
-  onViewModeChange
+  onViewModeChange,
+  selectedLocation
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
+
+  // Auto-switch to Trip Plan tab when a location is selected on the map
+  useEffect(() => {
+    if (selectedLocation) {
+      setActiveTab('trip')
+    }
+  }, [selectedLocation])
 
   return (
     <div
@@ -104,7 +120,13 @@ export default function SidePanel({
           )}
           {activeTab === 'species' && <SpeciesTab />}
           {activeTab === 'goals' && <GoalBirdsTab />}
-          {activeTab === 'trip' && <TripPlanTab />}
+          {activeTab === 'trip' && (
+            <TripPlanTab
+              selectedLocation={selectedLocation}
+              currentWeek={currentWeek}
+              onWeekChange={onWeekChange}
+            />
+          )}
           {activeTab === 'progress' && <ProgressTab />}
           {activeTab === 'profile' && <ProfileTab />}
         </div>
@@ -444,6 +466,8 @@ function GoalBirdsTab() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [loading, setLoading] = useState(true)
+  const [renamingListId, setRenamingListId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   // Load goal lists from IndexedDB on mount
   useEffect(() => {
@@ -495,6 +519,42 @@ function GoalBirdsTab() {
     }
   }
 
+  const handleStartRename = (list: GoalList) => {
+    setRenamingListId(list.id)
+    setRenameValue(list.name)
+  }
+
+  const handleConfirmRename = async () => {
+    if (!renamingListId || !renameValue.trim()) {
+      return
+    }
+
+    try {
+      const updatedList = await goalListsDB.renameList(renamingListId, renameValue.trim())
+      console.log(`Renamed goal list to "${updatedList.name}"`)
+
+      // Update state
+      setGoalLists((prev) =>
+        prev.map((list) =>
+          list.id === renamingListId
+            ? { ...list, name: updatedList.name, updatedAt: updatedList.updatedAt }
+            : list
+        )
+      )
+
+      // Reset rename state
+      setRenamingListId(null)
+      setRenameValue('')
+    } catch (error) {
+      console.error('Failed to rename goal list:', error)
+    }
+  }
+
+  const handleCancelRename = () => {
+    setRenamingListId(null)
+    setRenameValue('')
+  }
+
   const activeList = goalLists.find((list) => list.id === activeListId)
 
   if (loading) {
@@ -528,17 +588,71 @@ function GoalBirdsTab() {
 
         {/* List selector */}
         {goalLists.length > 0 && (
-          <select
-            value={activeListId || ''}
-            onChange={(e) => setActiveListId(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
-          >
-            {goalLists.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.name} ({list.speciesCodes.length} birds)
-              </option>
-            ))}
-          </select>
+          <div className="space-y-2">
+            {renamingListId === activeListId ? (
+              /* Inline rename input */
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleConfirmRename()
+                    if (e.key === 'Escape') handleCancelRename()
+                  }}
+                  placeholder="Enter new name..."
+                  className="flex-1 px-3 py-2 text-sm border border-[#2C3E7B] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+                  autoFocus
+                  data-testid="rename-input"
+                />
+                <button
+                  onClick={handleConfirmRename}
+                  disabled={!renameValue.trim()}
+                  className="px-3 py-2 text-sm text-white bg-[#2C3E7B] rounded-lg hover:bg-[#1f2d5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Save new name"
+                  data-testid="rename-save-btn"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleCancelRename}
+                  className="px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  title="Cancel rename"
+                  data-testid="rename-cancel-btn"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              /* Normal list selector with rename button */
+              <div className="flex gap-2">
+                <select
+                  value={activeListId || ''}
+                  onChange={(e) => setActiveListId(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+                  data-testid="goal-list-selector"
+                >
+                  {goalLists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} ({list.speciesCodes.length} birds)
+                    </option>
+                  ))}
+                </select>
+                {activeList && (
+                  <button
+                    onClick={() => handleStartRename(activeList)}
+                    className="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-gray-800 transition-colors"
+                    title="Rename list"
+                    data-testid="rename-list-btn"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -630,17 +744,281 @@ function GoalBirdsTab() {
   )
 }
 
-function TripPlanTab() {
+interface TripPlanTabProps {
+  selectedLocation?: SelectedLocation | null
+  currentWeek?: number
+  onWeekChange?: (week: number) => void
+}
+
+interface TripLifer {
+  species_id: number
+  speciesCode: string
+  comName: string
+  sciName: string
+  familyComName: string
+  probability: number
+  difficultyLabel: string
+}
+
+function TripPlanTab({
+  selectedLocation,
+  currentWeek = 26,
+}: TripPlanTabProps) {
+  const [startWeek, setStartWeek] = useState(currentWeek)
+  const [endWeek, setEndWeek] = useState(Math.min(currentWeek + 2, 52))
+  const [lifers, setLifers] = useState<TripLifer[]>([])
+  const [loading, setLoading] = useState(false)
+  const [speciesData, setSpeciesData] = useState<Species[]>([])
+  const [speciesLoaded, setSpeciesLoaded] = useState(false)
+  const { seenSpecies } = useLifeList()
+
+  const getWeekLabel = (week: number): string => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const dayOfYear = week * 7 - 3
+    const date = new Date(2024, 0, dayOfYear)
+    return `${monthNames[date.getMonth()]} ${date.getDate()}`
+  }
+
+  // Load species metadata once
+  useEffect(() => {
+    const fetchSpecies = async () => {
+      try {
+        const response = await fetch('/api/species')
+        if (!response.ok) return
+        const data: Species[] = await response.json()
+        setSpeciesData(data)
+        setSpeciesLoaded(true)
+        console.log('Trip Plan: loaded species metadata', data.length)
+      } catch (error) {
+        console.error('Trip Plan: failed to load species', error)
+      }
+    }
+    fetchSpecies()
+  }, [])
+
+  // Sync start/end weeks with currentWeek from Explore tab
+  useEffect(() => {
+    setStartWeek(currentWeek)
+    setEndWeek(Math.min(currentWeek + 2, 52))
+  }, [currentWeek])
+
+  // Load occurrence data when location or week range changes
+  useEffect(() => {
+    if (!selectedLocation || !speciesLoaded) {
+      setLifers([])
+      return
+    }
+
+    const loadTripData = async () => {
+      setLoading(true)
+      try {
+        // Build species lookup map
+        const speciesById = new Map<number, Species>()
+        speciesData.forEach(sp => speciesById.set(sp.species_id, sp))
+
+        // Determine weeks to load
+        const weeksToLoad: number[] = []
+        for (let w = startWeek; w <= endWeek; w++) {
+          weeksToLoad.push(w)
+        }
+
+        // Accumulate probabilities for species in the selected cell
+        const speciesProbabilities = new Map<number, { total: number; count: number }>()
+
+        for (const week of weeksToLoad) {
+          try {
+            const response = await fetch(`/api/weeks/${week}`)
+            if (!response.ok) continue
+            const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+            const cellRecords = weekData.filter(r => r.cell_id === selectedLocation.cellId)
+            cellRecords.forEach(record => {
+              const existing = speciesProbabilities.get(record.species_id) || { total: 0, count: 0 }
+              speciesProbabilities.set(record.species_id, {
+                total: existing.total + record.probability,
+                count: existing.count + 1
+              })
+            })
+          } catch (err) {
+            console.error(`Trip Plan: failed to load week ${week}`, err)
+          }
+        }
+
+        // Build ranked lifer list (unseen species only)
+        const liferList: TripLifer[] = []
+        speciesProbabilities.forEach((prob, speciesId) => {
+          const species = speciesById.get(speciesId)
+          if (!species) return
+          if (seenSpecies.has(species.speciesCode)) return
+
+          liferList.push({
+            species_id: speciesId,
+            speciesCode: species.speciesCode,
+            comName: species.comName,
+            sciName: species.sciName,
+            familyComName: species.familyComName,
+            probability: prob.total / prob.count,
+            difficultyLabel: species.difficultyLabel
+          })
+        })
+
+        // Sort by occurrence probability (highest first)
+        liferList.sort((a, b) => b.probability - a.probability)
+        setLifers(liferList)
+        console.log(`Trip Plan: found ${liferList.length} lifers at cell ${selectedLocation.cellId} for weeks ${startWeek}-${endWeek}`)
+      } catch (error) {
+        console.error('Trip Plan: error loading data', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTripData()
+  }, [selectedLocation, startWeek, endWeek, speciesLoaded, speciesData, seenSpecies])
+
+  const formatProbability = (prob: number): string => {
+    return (prob * 100).toFixed(1) + '%'
+  }
+
+  const getProbabilityColor = (prob: number): string => {
+    if (prob >= 0.5) return 'text-green-700 bg-green-50'
+    if (prob >= 0.2) return 'text-yellow-700 bg-yellow-50'
+    if (prob >= 0.05) return 'text-orange-700 bg-orange-50'
+    return 'text-red-700 bg-red-50'
+  }
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-[#2C3E50]">Trip Planning</h3>
-      <p className="text-sm text-gray-600">
-        Plan your next birding trip by finding the best locations and times to see new life birds.
-      </p>
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-        <p className="text-xs text-amber-700">
-          <span className="font-medium">Coming soon:</span> Location comparison and lifer rankings.
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="space-y-3 pb-3 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-[#2C3E50]">Trip Planning</h3>
+        <p className="text-sm text-gray-600">
+          Click a location on the map, then set your date range to see ranked lifers.
         </p>
+      </div>
+
+      {/* Location Display */}
+      <div className="mt-3 space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+            Selected Location
+          </label>
+          {selectedLocation ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-sm font-medium text-blue-800">
+                Cell #{selectedLocation.cellId}
+              </div>
+              <div className="text-xs text-blue-600">
+                {selectedLocation.coordinates[1].toFixed(2)}°N, {Math.abs(selectedLocation.coordinates[0]).toFixed(2)}°W
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-sm text-gray-500 italic">
+                Click on the map to select a location
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Date Range (Week Range) Picker */}
+        <div>
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+            Date Range
+          </label>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">Start Week</label>
+              <input
+                type="range"
+                min="1"
+                max="52"
+                value={startWeek}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  setStartWeek(val)
+                  if (val > endWeek) setEndWeek(val)
+                }}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              />
+              <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                Week {startWeek} (~{getWeekLabel(startWeek)})
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">End Week</label>
+              <input
+                type="range"
+                min="1"
+                max="52"
+                value={endWeek}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  setEndWeek(val)
+                  if (val < startWeek) setStartWeek(val)
+                }}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              />
+              <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                Week {endWeek} (~{getWeekLabel(endWeek)})
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ranked Lifer List */}
+      <div className="mt-3 flex-1 overflow-y-auto">
+        {!selectedLocation ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+            <p className="text-sm text-blue-700">
+              <span className="font-medium">Select a location</span> on the map to see lifers you could find there.
+            </p>
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+          </div>
+        ) : lifers.length === 0 ? (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+            <p className="text-sm text-green-700">
+              <span className="font-medium">No lifers found!</span> You have already seen all species recorded in this area during this period.
+            </p>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-[#2C3E50]">
+                Potential Lifers ({lifers.length})
+              </h4>
+              <span className="text-xs text-gray-500">
+                Sorted by probability
+              </span>
+            </div>
+            <div className="space-y-1">
+              {lifers.map((lifer, index) => (
+                <div
+                  key={lifer.speciesCode}
+                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <div className="text-xs text-gray-400 w-6 text-right font-mono">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-[#2C3E50] truncate">
+                      {lifer.comName}
+                    </div>
+                    <div className="text-xs italic text-gray-500 truncate">
+                      {lifer.sciName}
+                    </div>
+                  </div>
+                  <div className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${getProbabilityColor(lifer.probability)}`}>
+                    {formatProbability(lifer.probability)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
