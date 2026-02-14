@@ -1095,3 +1095,51 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 - Progress dashboard (stats, charts, family breakdowns)
 - Profile/data management (eBird CSV import, export, data reset)
 - Life list import from eBird CSV
+
+### Session 21 - 2026-02-14
+
+**Feature Completed:** #57 - Goal Birds Only filter overlay on Lifer Density view
+
+**What was accomplished:**
+- Added `goalBirdsOnlyFilter` boolean state to App.tsx, passed as prop to both SidePanel and MapView
+- Added new `goalBirdsOnlyFilter` and `onGoalBirdsOnlyFilterChange` props to SidePanelProps, ExploreTabProps interfaces
+- Added "Filter" section with "🎯 Goal Birds Only" toggle button in ExploreTab (only visible in density mode)
+- Toggle has amber/gold active state when ON, grey when OFF, with aria-pressed attribute for accessibility
+- Description text updates: "Showing only unseen goal birds in density" vs "Show number of unseen species per area"
+- Footer hint updates: "Heatmap counts only your unseen goal birds" vs "Toggle to filter density to goal birds only"
+- Filter auto-resets to false when switching away from density view mode
+- Added new density branch in MapView overlay useEffect: when viewMode === 'density' AND goalBirdsOnlyFilter, counts unseen goal species (from goalSpeciesIdSetRef) per cell using same teal color scheme but scaled by goal bird count
+- Added "🎯 Goal Birds Only" legend overlay with Few/Some/Many gradient shown at bottom-left when filter is active
+- Added goalBirdsOnlyFilter to the overlay useEffect dependency array
+
+**Technical details:**
+- Goal species ID set already built by existing useEffect (triggered by goalSpeciesCodes + seenSpecies)
+- When filter active: counts cells with probability > 0 AND species_id in goalSpeciesIdSet; scales 0.1-0.7 intensity
+- When filter inactive: uses original all-species density calculation (unchanged behavior)
+- App.tsx loads goal species on viewMode change OR goalBirdsOnlyFilter change
+
+**Verification (all 6 steps):**
+1. ✅ Switched to Lifer Density map view — full teal heatmap (312 cells, week 26)
+2. ✅ Enabled 'Goal Birds Only' toggle — amber active state, description updated, legend appeared
+3. ✅ Heatmap recalculated to only reflect goal bird density — 219 cells (4 goal birds: norcar, amerob, baleag, cangoo)
+4. ✅ Cell colors changed — many western/interior cells transparent, only 219 cells show teal
+5. ✅ Disabled toggle — full lifer density returned (312 cells, console: "Updated density overlay with 312 cells")
+6. ✅ Toggle state visually clear — OFF: grey with dark switch, ON: amber/gold with white switch + [pressed] attribute
+
+**Browser automation testing:**
+- Created goal list with 4 species via UI (Northern Cardinal, American Robin, Bald Eagle, Canada Goose)
+- Switched to Density view, verified full heatmap (312 cells)
+- Clicked toggle — verified 219 cells with goal birds (density reduced)
+- Clicked toggle again — verified return to 312 cells
+- Cleaned up test goal list (deleted via UI)
+- Zero JavaScript console errors (0 errors, 21 non-critical WebGL warnings)
+- Screenshots: feature57-step1-initial-state.png, feature57-step1-density-full.png, feature57-step2-goal-birds-only-enabled.png, feature57-step4-toggle-disabled.png
+- Mock data check: no mock patterns in frontend/src/
+
+**Current Status:** 26/83 features passing (31.3%)
+
+**Next steps:**
+- Map features: probability view, species spotlight view, empty cell messages
+- Progress dashboard (stats, charts, family breakdowns)
+- Profile/data management (eBird CSV import, export, data reset)
+- Life list import from eBird CSV
