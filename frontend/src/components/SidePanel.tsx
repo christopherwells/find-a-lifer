@@ -892,6 +892,9 @@ function GoalBirdsTab() {
   const [showSuccessToast, setShowSuccessToast] = useState('')
   const [showDuplicateToast, setShowDuplicateToast] = useState('')
 
+  // Filter within current list
+  const [listFilterTerm, setListFilterTerm] = useState('')
+
   // Load goal lists from IndexedDB on mount
   useEffect(() => {
     const loadGoalLists = async () => {
@@ -918,7 +921,7 @@ function GoalBirdsTab() {
     loadGoalLists()
   }, [])
 
-  // Save active list ID to localStorage whenever it changes
+  // Save active list ID to localStorage whenever it changes, and reset list filter
   useEffect(() => {
     if (activeListId) {
       localStorage.setItem('activeGoalListId', activeListId)
@@ -926,6 +929,8 @@ function GoalBirdsTab() {
     } else {
       localStorage.removeItem('activeGoalListId')
     }
+    // Reset the within-list filter when switching lists
+    setListFilterTerm('')
   }, [activeListId])
 
   // Load species metadata for search/add functionality
@@ -1131,6 +1136,22 @@ function GoalBirdsTab() {
 
   const activeList = goalLists.find((list) => list.id === activeListId)
   const deletingList = goalLists.find((list) => list.id === deletingListId)
+
+  // Filter the species codes in the current active list by listFilterTerm
+  const filteredListCodes: string[] = (() => {
+    if (!activeList) return []
+    if (!listFilterTerm.trim()) return activeList.speciesCodes
+    const q = listFilterTerm.toLowerCase()
+    return activeList.speciesCodes.filter((code) => {
+      const species = allSpecies.find((s) => s.speciesCode === code)
+      if (!species) return code.toLowerCase().includes(q)
+      return (
+        species.comName.toLowerCase().includes(q) ||
+        species.sciName.toLowerCase().includes(q) ||
+        code.toLowerCase().includes(q)
+      )
+    })
+  })()
 
   if (loading) {
     return (
@@ -1421,66 +1442,103 @@ function GoalBirdsTab() {
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  {activeList.speciesCodes.length} bird{activeList.speciesCodes.length !== 1 ? 's' : ''} in list
-                </div>
-                {activeList.speciesCodes.map((code) => {
-                  const species = allSpecies.find((s) => s.speciesCode === code)
-                  const seen = isSpeciesSeen(code)
-                  return (
-                    <div
-                      key={code}
-                      className={`px-3 py-2 rounded-lg flex items-center justify-between transition-colors group ${
-                        seen
-                          ? 'bg-gray-100 hover:bg-gray-200'
-                          : 'bg-gray-50 hover:bg-gray-100'
-                      }`}
-                      data-testid={`goal-species-${code}`}
+                {/* Filter within list search bar */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={listFilterTerm}
+                    onChange={(e) => setListFilterTerm(e.target.value)}
+                    placeholder="Filter list by name..."
+                    className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+                    data-testid="goal-list-filter-input"
+                  />
+                  {listFilterTerm ? (
+                    <button
+                      onClick={() => setListFilterTerm('')}
+                      className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
+                      title="Clear filter"
+                      data-testid="goal-list-filter-clear"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`text-sm font-medium truncate ${
-                            seen
-                              ? 'line-through text-gray-400'
-                              : 'text-[#2C3E50]'
-                          }`}
-                          data-testid={seen ? `goal-species-seen-${code}` : `goal-species-unseen-${code}`}
-                        >
-                          {species ? species.comName : code}
-                        </div>
-                        {species && (
-                          <div className={`text-xs italic truncate ${seen ? 'line-through text-gray-400' : 'text-gray-600'}`}>
-                            {species.sciName}
-                          </div>
-                        )}
-                        {seen && (
-                          <div className="text-xs text-green-600 font-medium mt-0.5">
-                            ✓ Seen
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleRemoveSpecies(code, species?.comName || code)}
-                        className="flex-shrink-0 ml-2 p-1 text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                        title="Remove from list"
-                        data-testid={`remove-species-${code}`}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2 top-1.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
+                </div>
+
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide" data-testid="goal-list-count">
+                  {listFilterTerm.trim()
+                    ? `${filteredListCodes.length} of ${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''}`
+                    : `${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''} in list`}
+                </div>
+
+                {filteredListCodes.length === 0 ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                    <p className="text-sm text-gray-500">No species match "{listFilterTerm}"</p>
+                  </div>
+                ) : (
+                  filteredListCodes.map((code) => {
+                    const species = allSpecies.find((s) => s.speciesCode === code)
+                    const seen = isSpeciesSeen(code)
+                    return (
+                      <div
+                        key={code}
+                        className={`px-3 py-2 rounded-lg flex items-center justify-between transition-colors group ${
+                          seen
+                            ? 'bg-gray-100 hover:bg-gray-200'
+                            : 'bg-gray-50 hover:bg-gray-100'
+                        }`}
+                        data-testid={`goal-species-${code}`}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`text-sm font-medium truncate ${
+                              seen
+                                ? 'line-through text-gray-400'
+                                : 'text-[#2C3E50]'
+                            }`}
+                            data-testid={seen ? `goal-species-seen-${code}` : `goal-species-unseen-${code}`}
+                          >
+                            {species ? species.comName : code}
+                          </div>
+                          {species && (
+                            <div className={`text-xs italic truncate ${seen ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                              {species.sciName}
+                            </div>
+                          )}
+                          {seen && (
+                            <div className="text-xs text-green-600 font-medium mt-0.5">
+                              ✓ Seen
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleRemoveSpecies(code, species?.comName || code)}
+                          className="flex-shrink-0 ml-2 p-1 text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          title="Remove from list"
+                          data-testid={`remove-species-${code}`}
                         >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  )
-                })}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             )}
           </div>
