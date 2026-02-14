@@ -1358,3 +1358,46 @@ The Goal Birds tab was already fully implemented in `frontend/src/components/Sid
 - No mock patterns in frontend/src/ — all data from real IndexedDB goal lists and /api/species endpoint
 
 **Current Status:** 32/83 features passing (38.6%)
+
+---
+
+### Session 26 - 2026-02-14
+
+**Feature Completed:** #64 - Seen goal birds display with strikethrough and muted text
+
+**What was accomplished:**
+- Feature was already fully implemented in `frontend/src/components/SidePanel.tsx` `GoalBirdsTab` function
+- No code changes needed — just verified existing implementation works correctly
+
+**Implementation details (pre-existing in SidePanel.tsx lines 1484-1540):**
+- `const seen = isSpeciesSeen(code)` computed for each species row (line 1486)
+- Seen common name: `className="text-sm font-medium truncate line-through text-gray-400"` — strikethrough + muted gray
+- Unseen common name: `className="text-sm font-medium truncate text-[#2C3E50]"` — full dark Cornell blue-gray
+- Seen sci name: `className="text-xs italic truncate line-through text-gray-400"` — same strikethrough/muted
+- Unseen sci name: `className="text-xs italic truncate text-gray-600"` — regular gray
+- Seen species also shows a "✓ Seen" green badge (`text-xs text-green-600 font-medium mt-0.5`)
+- Seen rows use slightly different background: `bg-gray-100 hover:bg-gray-200` vs `bg-gray-50 hover:bg-gray-100`
+- `data-testid` attributes: `goal-species-seen-{code}` for seen, `goal-species-unseen-{code}` for unseen
+
+**Verification (all 6 steps):**
+1. ✅ View a goal list with both seen and unseen species — created test list with Northern Cardinal (seen) + American Robin (unseen)
+2. ✅ Unseen species (American Robin) show in normal full-color text — CSS class `text-[#2C3E50]`, no strikethrough
+3. ✅ Seen species (Northern Cardinal) show with strikethrough — CSS class `line-through` confirmed via DOM inspection
+4. ✅ Seen species have muted/faded text color — CSS class `text-gray-400` confirmed via DOM inspection
+5. ✅ Styling is visually distinct but not harsh — gentle gray fade, not invisible/jarring
+6. ✅ Fits the Cornell Lab-inspired design system — consistent typography and color scheme
+
+**Browser automation testing:**
+- Added Northern Cardinal directly to IndexedDB life list (workaround for slow Species tab with 2490 entries)
+- Created "Feature64 Strikethrough Test" goal list with Northern Cardinal + American Robin
+- Verified strikethrough + muted styling on Northern Cardinal (seen)
+- Verified full-color normal styling on American Robin (unseen)
+- DOM inspection confirmed: seen=`line-through text-gray-400`, unseen=`text-[#2C3E50]`
+- Screenshot: feature64-step1-goal-birds-seen-unseen.png
+- Zero JavaScript console errors (0 errors, only WebGL warnings)
+- Cleaned up test list and test life list entry after verification
+
+**Mock data verification:**
+- No mock patterns in frontend/src/ — all data from real IndexedDB
+
+**Current Status:** 33/83 features passing (39.8%)
