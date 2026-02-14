@@ -1243,4 +1243,41 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 - Grep for mock patterns in frontend/src/ returned empty
 - All data from real IndexedDB goal lists and /api/weeks/{week} endpoint
 
+---
+
+## Session 24 - Feature #61: Map legend updates for Goal Birds views
+
+**Date:** 2026-02-14
+**Feature:** #61 - Map legend updates for Goal Birds views
+**Status:** ✅ PASSING (30/83 features)
+
+**What was built:**
+- Added `data-testid="goal-birds-legend"` to the Goal Birds view legend
+- Updated Goal Birds view legend label from "🎯 Goal Birds" to "🎯 Goal Birds Density" with subtitle "Goal birds per cell"
+- **Added missing standard Lifer Density legend** for density mode without goalBirdsOnlyFilter
+  - data-testid="lifer-density-legend"
+  - Shows "🔭 Lifer Density" with Few/Some/Many color scale
+  - Subtitle: "Unseen species per area"
+- Added `data-testid="goal-birds-only-density-legend"` to the Goal Birds Only filter density legend
+
+**Legend behavior (verified):**
+- Density mode (no filter): "🔭 Lifer Density" legend visible
+- Goal Birds view mode: "🎯 Goal Birds Density" legend visible
+- Density + Goal Birds Only filter: "🎯 Goal Birds Only" legend visible
+- All transitions correct when switching modes/filter
+
+**Verification (all 3 steps):**
+1. Switched to Goal Birds view → "🎯 Goal Birds Density" legend shown with color scale ✅
+2. Switched to Density + enabled Goal Birds Only filter → "🎯 Goal Birds Only" legend shown ✅
+3. Disabled filter → legend reverted to "🔭 Lifer Density" with "Unseen species per area" ✅
+
+**Browser automation testing:**
+- Zero JavaScript console errors (0 errors, WebGL warnings only)
+- Screenshots: feature61-step1-lifer-density-legend.png, feature61-step1-goal-birds-legend.png, feature61-step2-goal-birds-only-legend.png, feature61-step3-reverted-to-lifer-density.png
+
+**Mock data verification:**
+- Grep for mock patterns in frontend/src/ returned empty
+
+**Current Status:** 30/83 features passing (36.1%)
+
 **Current Status:** 28/83 features passing (33.7%)
