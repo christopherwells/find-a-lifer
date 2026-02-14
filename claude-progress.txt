@@ -1139,7 +1139,66 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 **Current Status:** 26/83 features passing (31.3%)
 
 **Next steps:**
-- Map features: probability view, species spotlight view, empty cell messages
+- Map features: probability view, empty cell messages
+- Progress dashboard (stats, charts, family breakdowns)
+- Profile/data management (eBird CSV import, export, data reset)
+- Life list import from eBird CSV
+
+### Session 22 - 2026-02-14
+
+**Feature Completed:** #58 - Goal Birds Only filter overlay on Species Range view
+
+**What was accomplished:**
+- Added `SpeciesMeta` interface and `ExploreTabProps` new props: `selectedSpecies`, `onSelectedSpeciesChange`, `goalSpeciesCodes`
+- Added species picker UI to ExploreTab for `viewMode === 'species'`:
+  - Search input box with real-time filtering
+  - Scrollable list showing first 100 of all 2490 species (with "type to search" hint)
+  - Selected species chip showing name/sci name with a clear (X) button
+  - When Goal Birds Only is ON: filters picker to only goal list species (e.g. 2 of 2490)
+- Extended Goal Birds Only toggle to show in both `density` AND `species` view modes
+  - In density mode: same behavior as before (filter the heatmap)
+  - In species mode: filters the species picker instead
+  - Description text context-sensitive: "Species picker shows only your goal birds" vs "Heatmap counts only your unseen goal birds"
+- Added `selectedSpecies: string | null` state to App.tsx, passed through SidePanel and MapView
+- Reset logic: switching away from species view clears selectedSpecies; switching away from both density+species resets filter toggle
+- MapView species range overlay: when viewMode === 'species' and a species is selected, looks up its species_id from speciesMetaCache, finds all cells with probability > 0, colors cells with blue gradient (intensity 0.15–0.85 proportional to probability)
+- Added Species Range legend overlay (Low/Med/High blue gradient) shown when species selected
+- Added selectedSpecies to overlay useEffect dependency array
+
+**Technical details:**
+- ExploreTab fetches species via `/api/species` when entering species view (uses module-level cache if loaded)
+- goalSpeciesCodes passed from App.tsx → SidePanel → ExploreTab for filtering
+- Async lookupAndRender() in MapView handles species metadata loading + paint expression building
+- speciesMetaCache module-level variable shared between goal birds and species range overlays
+
+**Verification (all 6 steps):**
+1. ✅ Switched to Species Range map view — species picker appeared with 2490 species
+2. ✅ Enabled 'Goal Birds Only' toggle — amber active state, picker filtered to 2 species (Northern Cardinal, American Robin)
+3. ✅ Opened species picker — scrollable list visible
+4. ✅ Verified only goal list species shown — exactly 2 of 2490 after toggle ON
+5. ✅ Selected American Robin — range displayed (156 cells, blue gradient), legend appeared
+6. ✅ Disabled toggle — full species list returned ("Showing first 100 of 2490")
+
+**Browser automation testing:**
+- Created "Feature58 Test List" goal list with Northern Cardinal + American Robin
+- Tested species picker in species view (all 2490 displayed)
+- Searched "Northern Cardinal" — filtered to 1 result
+- Selected Northern Cardinal — range showed 111 cells, console: "norcar (id=2378) found in 111 cells"
+- Enabled Goal Birds Only toggle — picker filtered to 2 birds only
+- Selected American Robin — range showed 156 cells, console: "amerob (id=1898) found in 156 cells"
+- Disabled toggle — full 2490 list returned
+- Deleted test goal list to clean up
+- Zero JavaScript console errors (0 errors, 21 non-critical WebGL warnings)
+- Screenshots: feature58-step1-species-view-loaded.png, feature58-step2-norcar-selected.png, feature58-step3-goal-birds-only-filtered.png, feature58-step4-toggle-disabled-full-list.png
+
+**Mock data verification:**
+- Grep for mock patterns in frontend/src/ returned empty
+- All data from real IndexedDB and /api/species + /api/weeks/{week} endpoints
+
+**Current Status:** 27/83 features passing (32.5%)
+
+**Next steps:**
+- Map features: probability view, empty cell messages
 - Progress dashboard (stats, charts, family breakdowns)
 - Profile/data management (eBird CSV import, export, data reset)
 - Life list import from eBird CSV
