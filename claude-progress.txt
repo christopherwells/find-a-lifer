@@ -1202,3 +1202,45 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 - Progress dashboard (stats, charts, family breakdowns)
 - Profile/data management (eBird CSV import, export, data reset)
 - Life list import from eBird CSV
+
+### Session 23 - 2026-02-14
+
+**Feature Completed:** #59 - Goal Birds Only filter overlay on Probability view
+
+**What was accomplished:**
+- Added Probability view mode overlay logic to MapView.tsx (new `else if (viewMode === 'probability')` branch)
+- Computes max probability per cell across all species, or only goal species when filter active
+- Added Goal Birds Only toggle visibility in Probability mode (SidePanel.tsx ExploreTab)
+- Description text context-sensitive: "Show occurrence probability intensity across all species" vs "Showing occurrence probability for goal birds only"
+- Footer hint updates: "Toggle to filter probability to goal birds only" vs "Probability heatmap shows only your goal birds"
+- Legend changes dynamically: "Occurrence Probability" vs "Goal Birds Probability"
+- Updated App.tsx reset logic: goalBirdsOnlyFilter now persists when switching between density/probability/species modes
+
+**Technical details:**
+- Probability mode uses max probability per cell (best chance of finding any species in that cell)
+- When goalBirdsOnlyFilter=true AND goalSpeciesCodes.size > 0: only records from goalSpeciesIdSet included
+- Color scheme: purple/violet rgba(138, 43, 226, intensity) scaled 0.12 to 0.85 by max probability
+- Legend overlay always shown in probability mode; title changes to reflect active filter state
+
+**Verification (all 5 steps):**
+1. Switched to Probability map view — purple heatmap appeared (312 cells, week 26, all species)
+2. Enabled Goal Birds Only toggle — amber active state, legend changed to "Goal Birds Probability"
+3. Heatmap recalculated: 171 cells (3 goal birds: norcar, amerob, baleag) vs full 312 cells
+4. Week slider to week 10 — heatmap updated to 115 cells (seasonal variation confirmed)
+5. Disabled toggle — full 312-cell probability heatmap returned, legend reverted
+
+**Browser automation testing:**
+- Created goal list "Feature59 Test List" with Northern Cardinal, American Robin, Bald Eagle
+- Switched to Probability view, verified full heatmap (312 cells, console log confirmed)
+- Enabled Goal Birds Only toggle — verified 171 cells with goal bird probability data
+- Adjusted week slider to week 10 — verified 115 cells (correct seasonal reduction)
+- Disabled toggle — verified return to 312 cells, all text/legend reverted
+- Deleted test goal list to clean up
+- Zero JavaScript console errors (0 errors, 25 non-critical WebGL warnings)
+- Screenshots: feature59-step1-probability-view.png, feature59-step2-goal-birds-filter-active.png, feature59-step3-week10-updated.png, feature59-step4-filter-disabled.png
+
+**Mock data verification:**
+- Grep for mock patterns in frontend/src/ returned empty
+- All data from real IndexedDB goal lists and /api/weeks/{week} endpoint
+
+**Current Status:** 28/83 features passing (33.7%)
