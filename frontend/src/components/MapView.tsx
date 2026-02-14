@@ -690,9 +690,12 @@ export default function MapView({
         </div>
       )}
       {viewMode === 'goal-birds' && (
-        <div className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2">
+        <div
+          data-testid="goal-birds-legend"
+          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
+        >
           <div className="flex items-center gap-2 mb-1">
-            <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds</div>
+            <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds Density</div>
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-600">
             <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(212,160,23,0.12)' }}></div>
@@ -702,11 +705,33 @@ export default function MapView({
             <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(212,160,23,0.85)' }}></div>
             <span>Many</span>
           </div>
+          <div className="text-xs text-gray-400 mt-1">Goal birds per cell</div>
           {goalSpeciesCodes.size === 0 && (
             <div className="text-xs text-amber-600 mt-1">
               Add goal birds in the Goal Birds tab
             </div>
           )}
+        </div>
+      )}
+
+      {/* Standard Lifer Density legend */}
+      {viewMode === 'density' && !goalBirdsOnlyFilter && (
+        <div
+          data-testid="lifer-density-legend"
+          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <div className="text-xs font-semibold text-[#2C3E50]">🔭 Lifer Density</div>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(8,136,136,0.12)' }}></div>
+            <span>Few</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.4)' }}></div>
+            <span>Some</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.7)' }}></div>
+            <span>Many</span>
+          </div>
+          <div className="text-xs text-gray-400 mt-1">Unseen species per area</div>
         </div>
       )}
 
@@ -760,7 +785,10 @@ export default function MapView({
 
       {/* Goal Birds Only filter legend in density mode */}
       {viewMode === 'density' && goalBirdsOnlyFilter && (
-        <div className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2">
+        <div
+          data-testid="goal-birds-only-density-legend"
+          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
+        >
           <div className="flex items-center gap-2 mb-1">
             <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds Only</div>
           </div>
