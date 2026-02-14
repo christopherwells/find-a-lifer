@@ -605,6 +605,7 @@ function SpeciesTab() {
 }
 
 function GoalBirdsTab() {
+  const { isSpeciesSeen } = useLifeList()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [activeListId, setActiveListId] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -1156,14 +1157,37 @@ function GoalBirdsTab() {
                 </div>
                 {activeList.speciesCodes.map((code) => {
                   const species = allSpecies.find((s) => s.speciesCode === code)
+                  const seen = isSpeciesSeen(code)
                   return (
-                    <div key={code} className="px-3 py-2 bg-gray-50 rounded-lg flex items-center justify-between hover:bg-gray-100 transition-colors group">
+                    <div
+                      key={code}
+                      className={`px-3 py-2 rounded-lg flex items-center justify-between transition-colors group ${
+                        seen
+                          ? 'bg-gray-100 hover:bg-gray-200'
+                          : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                      data-testid={`goal-species-${code}`}
+                    >
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-[#2C3E50]">
+                        <div
+                          className={`text-sm font-medium truncate ${
+                            seen
+                              ? 'line-through text-gray-400'
+                              : 'text-[#2C3E50]'
+                          }`}
+                          data-testid={seen ? `goal-species-seen-${code}` : `goal-species-unseen-${code}`}
+                        >
                           {species ? species.comName : code}
                         </div>
                         {species && (
-                          <div className="text-xs italic text-gray-600">{species.sciName}</div>
+                          <div className={`text-xs italic truncate ${seen ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                            {species.sciName}
+                          </div>
+                        )}
+                        {seen && (
+                          <div className="text-xs text-green-600 font-medium mt-0.5">
+                            ✓ Seen
+                          </div>
                         )}
                       </div>
                       <button
