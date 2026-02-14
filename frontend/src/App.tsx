@@ -62,8 +62,8 @@ function App() {
           viewMode={viewMode}
           onViewModeChange={(mode) => {
             setViewMode(mode)
-            // Reset goal birds only filter when switching away from density and species
-            if (mode !== 'density' && mode !== 'species') setGoalBirdsOnlyFilter(false)
+            // Reset goal birds only filter when switching away from density, probability, and species
+            if (mode !== 'density' && mode !== 'probability' && mode !== 'species') setGoalBirdsOnlyFilter(false)
             // Reset selected species when switching away from species view
             if (mode !== 'species') setSelectedSpecies(null)
           }}

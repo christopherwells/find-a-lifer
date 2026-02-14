@@ -515,6 +515,61 @@ export default function MapView({
         map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
       }
+    } else if (viewMode === 'probability') {
+      // Probability mode: show max occurrence probability per cell
+      // When goalBirdsOnlyFilter is active, only consider goal species
+      const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+      const useGoalFilter = goalBirdsOnlyFilter && goalSpeciesCodes.size > 0
+
+      // Compute max probability per cell (across all or goal species)
+      const cellMaxProbability = new Map<number, number>()
+
+      weeklyData.forEach((record) => {
+        if (record.probability <= 0) return
+        // When filter active, skip non-goal species
+        if (useGoalFilter && !goalSpeciesIdSet.has(record.species_id)) return
+
+        const existing = cellMaxProbability.get(record.cell_id) || 0
+        if (record.probability > existing) {
+          cellMaxProbability.set(record.cell_id, record.probability)
+        }
+      })
+
+      console.log(`Probability overlay: ${cellMaxProbability.size} cells, goal filter=${useGoalFilter}, goal species=${goalSpeciesIdSet.size}`)
+
+      if (cellMaxProbability.size === 0) {
+        if (map.current.getLayer('grid-fill')) {
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(138, 43, 226, 0.03)')
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        }
+        if (map.current.getLayer('grid-border')) {
+          map.current.setPaintProperty('grid-border', 'line-color', '#8A2BE2')
+          map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
+        }
+        return
+      }
+
+      // Build paint expression: purple/violet color scaled by max probability
+      const paintExpression: any = ['case']
+
+      cellMaxProbability.forEach((maxProb, cellId) => {
+        // Scale from 0.12 (very low) to 0.85 (probability ≥ 0.8)
+        const intensity = Math.min(0.85, maxProb * 0.9 + 0.1)
+        paintExpression.push(['==', ['get', 'cell_id'], cellId])
+        paintExpression.push(`rgba(138, 43, 226, ${intensity.toFixed(3)})`)
+      })
+
+      // Default: no occurrence data in this cell — very faint
+      paintExpression.push('rgba(138, 43, 226, 0.02)')
+
+      if (map.current.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+      }
+      if (map.current.getLayer('grid-border')) {
+        map.current.setPaintProperty('grid-border', 'line-color', '#8A2BE2')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+      }
     } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
       // Density mode with Goal Birds Only filter: count unseen goal species per cell (teal)
       if (goalSpeciesCodes.size === 0) {
@@ -673,6 +728,33 @@ export default function MapView({
             <span>High</span>
           </div>
           <div className="text-xs text-gray-400 mt-1">Occurrence probability</div>
+        </div>
+      )}
+
+      {/* Probability view legend */}
+      {viewMode === 'probability' && (
+        <div
+          data-testid="probability-legend"
+          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <div className="text-xs font-semibold text-[#2C3E50]">
+              {goalBirdsOnlyFilter ? '🎯 Goal Birds Probability' : '📊 Occurrence Probability'}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(138,43,226,0.15)' }}></div>
+            <span>Low</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(138,43,226,0.5)' }}></div>
+            <span>Med</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(138,43,226,0.85)' }}></div>
+            <span>High</span>
+          </div>
+          {goalBirdsOnlyFilter && goalSpeciesCodes.size === 0 && (
+            <div className="text-xs text-purple-600 mt-1">
+              Add goal birds in the Goal Birds tab
+            </div>
+          )}
         </div>
       )}
 

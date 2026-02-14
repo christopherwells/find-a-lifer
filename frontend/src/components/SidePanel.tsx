@@ -293,15 +293,16 @@ function ExploreTab({
         <p className="text-xs text-gray-500">
           {viewMode === 'density' && !goalBirdsOnlyFilter && 'Show number of unseen species per area'}
           {viewMode === 'density' && goalBirdsOnlyFilter && 'Showing only unseen goal birds in density'}
-          {viewMode === 'probability' && 'Show occurrence probability intensity'}
+          {viewMode === 'probability' && !goalBirdsOnlyFilter && 'Show occurrence probability intensity across all species'}
+          {viewMode === 'probability' && goalBirdsOnlyFilter && 'Showing occurrence probability for goal birds only'}
           {viewMode === 'species' && !goalBirdsOnlyFilter && 'Select a species to spotlight its range on the map'}
           {viewMode === 'species' && goalBirdsOnlyFilter && 'Showing only your goal birds in the species picker'}
           {viewMode === 'goal-birds' && 'Show unseen goal birds per area'}
         </p>
       </div>
 
-      {/* Goal Birds Only Filter — shown in Lifer Density view and Species Range view */}
-      {(viewMode === 'density' || viewMode === 'species') && (
+      {/* Goal Birds Only Filter — shown in Lifer Density, Probability, and Species Range views */}
+      {(viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && (
         <div className="space-y-2">
           <label className="block text-sm font-medium text-[#2C3E50]">
             Filter
@@ -338,6 +339,9 @@ function ExploreTab({
             {viewMode === 'density' && (goalBirdsOnlyFilter
               ? 'Heatmap counts only your unseen goal birds'
               : 'Toggle to filter density to goal birds only')}
+            {viewMode === 'probability' && (goalBirdsOnlyFilter
+              ? 'Probability heatmap shows only your goal birds'
+              : 'Toggle to filter probability to goal birds only')}
             {viewMode === 'species' && (goalBirdsOnlyFilter
               ? 'Species picker shows only your goal birds'
               : 'Toggle to filter species picker to goal birds only')}
