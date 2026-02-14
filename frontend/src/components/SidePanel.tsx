@@ -25,6 +25,9 @@ interface SidePanelProps {
   selectedSpecies?: string | null
   onSelectedSpeciesChange?: (speciesCode: string | null) => void
   goalSpeciesCodes?: Set<string>
+  goalLists?: GoalList[]
+  activeGoalListId?: string | null
+  onActiveGoalListIdChange?: (id: string | null) => void
 }
 
 interface Tab {
@@ -54,7 +57,10 @@ export default function SidePanel({
   selectedLocation,
   selectedSpecies,
   onSelectedSpeciesChange,
-  goalSpeciesCodes
+  goalSpeciesCodes,
+  goalLists = [],
+  activeGoalListId = null,
+  onActiveGoalListIdChange
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -131,6 +137,9 @@ export default function SidePanel({
               selectedSpecies={selectedSpecies}
               onSelectedSpeciesChange={onSelectedSpeciesChange}
               goalSpeciesCodes={goalSpeciesCodes}
+              goalLists={goalLists}
+              activeGoalListId={activeGoalListId}
+              onActiveGoalListIdChange={onActiveGoalListIdChange}
             />
           )}
           {activeTab === 'species' && <SpeciesTab />}
@@ -167,6 +176,9 @@ interface ExploreTabProps {
   selectedSpecies?: string | null
   onSelectedSpeciesChange?: (speciesCode: string | null) => void
   goalSpeciesCodes?: Set<string>
+  goalLists?: GoalList[]
+  activeGoalListId?: string | null
+  onActiveGoalListIdChange?: (id: string | null) => void
 }
 
 function ExploreTab({
@@ -178,7 +190,10 @@ function ExploreTab({
   onGoalBirdsOnlyFilterChange,
   selectedSpecies = null,
   onSelectedSpeciesChange,
-  goalSpeciesCodes = new Set()
+  goalSpeciesCodes = new Set(),
+  goalLists = [],
+  activeGoalListId = null,
+  onActiveGoalListIdChange
 }: ExploreTabProps) {
   // Species picker state for Species Range view
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
@@ -249,6 +264,7 @@ function ExploreTab({
         </label>
         <div className="grid grid-cols-2 gap-2">
           <button
+            data-testid="view-mode-density"
             onClick={() => onViewModeChange?.('density')}
             className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
               viewMode === 'density'
@@ -259,6 +275,7 @@ function ExploreTab({
             Density
           </button>
           <button
+            data-testid="view-mode-probability"
             onClick={() => onViewModeChange?.('probability')}
             className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
               viewMode === 'probability'
@@ -269,6 +286,7 @@ function ExploreTab({
             Probability
           </button>
           <button
+            data-testid="view-mode-species"
             onClick={() => onViewModeChange?.('species')}
             className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
               viewMode === 'species'
@@ -300,6 +318,39 @@ function ExploreTab({
           {viewMode === 'goal-birds' && 'Show unseen goal birds per area'}
         </p>
       </div>
+
+      {/* Active Goal List Selector — shown when in Goal Birds view OR when Goal Birds Only filter is active */}
+      {(viewMode === 'goal-birds' || ((viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && goalBirdsOnlyFilter)) && (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-[#2C3E50]">
+            Active Goal List
+          </label>
+          {goalLists.length === 0 ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs text-amber-700">
+                No goal lists yet. Create one in the 🎯 Goal Birds tab.
+              </p>
+            </div>
+          ) : (
+            <select
+              value={activeGoalListId || ''}
+              onChange={(e) => onActiveGoalListIdChange?.(e.target.value || null)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A017] focus:border-transparent bg-white"
+              data-testid="active-goal-list-selector"
+              aria-label="Select active goal list for map"
+            >
+              {goalLists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name} ({list.speciesCodes.length} birds)
+                </option>
+              ))}
+            </select>
+          )}
+          <p className="text-xs text-gray-500">
+            Map shows goal birds from the selected list
+          </p>
+        </div>
+      )}
 
       {/* Goal Birds Only Filter — shown in Lifer Density, Probability, and Species Range views */}
       {(viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && (

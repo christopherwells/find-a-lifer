@@ -3,7 +3,7 @@ import TopBar from './components/TopBar'
 import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
 import { useLifeList } from './contexts/LifeListContext'
-import { goalListsDB } from './lib/goalListsDB'
+import { goalListsDB, type GoalList } from './lib/goalListsDB'
 import './App.css'
 
 export interface SelectedLocation {
@@ -21,27 +21,61 @@ function App() {
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
   const [goalSpeciesCodes, setGoalSpeciesCodes] = useState<Set<string>>(new Set())
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
+  const [goalLists, setGoalLists] = useState<GoalList[]>([])
+  const [activeGoalListId, setActiveGoalListId] = useState<string | null>(null)
   const { seenSpecies } = useLifeList()
 
-  // Load goal species from all goal lists, refresh when view mode changes to goal-birds
+  // Load all goal lists on startup and when view/filter changes
   useEffect(() => {
-    const loadGoalSpecies = async () => {
+    const loadGoalLists = async () => {
       try {
         const lists = await goalListsDB.getAllLists()
-        const allCodes = new Set<string>()
-        lists.forEach((list) => {
-          list.speciesCodes.forEach((code) => allCodes.add(code))
+        setGoalLists(lists)
+
+        // Restore saved active list from localStorage
+        const savedActiveListId = localStorage.getItem('activeGoalListId')
+        const validSavedId = savedActiveListId && lists.some((l) => l.id === savedActiveListId)
+        const resolvedActiveId = validSavedId ? savedActiveListId : (lists.length > 0 ? lists[0].id : null)
+
+        setActiveGoalListId((prevId) => {
+          // If we already have a valid active list, keep it (don't reset on re-loads)
+          if (prevId && lists.some((l) => l.id === prevId)) return prevId
+          return resolvedActiveId
         })
-        setGoalSpeciesCodes(allCodes)
-        console.log(`App: loaded ${allCodes.size} goal species from ${lists.length} lists`)
+
+        console.log(`App: loaded ${lists.length} goal lists`)
       } catch (error) {
-        console.error('App: failed to load goal species', error)
+        console.error('App: failed to load goal lists', error)
       }
     }
 
-    // Always load goal species so the map can switch modes instantly
-    loadGoalSpecies()
+    loadGoalLists()
   }, [viewMode, goalBirdsOnlyFilter]) // Re-load when view mode or filter changes to pick up latest list changes
+
+  // Compute goal species codes from the ACTIVE list — reads fresh from DB to avoid stale cache
+  useEffect(() => {
+    if (!activeGoalListId) {
+      setGoalSpeciesCodes(new Set())
+      return
+    }
+    const loadActiveListSpecies = async () => {
+      try {
+        const lists = await goalListsDB.getAllLists()
+        const activeList = lists.find((l) => l.id === activeGoalListId)
+        if (!activeList) {
+          setGoalSpeciesCodes(new Set())
+          return
+        }
+        const codes = new Set<string>(activeList.speciesCodes)
+        setGoalSpeciesCodes(codes)
+        console.log(`App: active goal list "${activeList.name}" has ${codes.size} species`)
+      } catch (error) {
+        console.error('App: failed to load active list species', error)
+        setGoalSpeciesCodes(new Set())
+      }
+    }
+    loadActiveListSpecies()
+  }, [activeGoalListId])
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">
@@ -73,6 +107,13 @@ function App() {
           selectedSpecies={selectedSpecies}
           onSelectedSpeciesChange={setSelectedSpecies}
           goalSpeciesCodes={goalSpeciesCodes}
+          goalLists={goalLists}
+          activeGoalListId={activeGoalListId}
+          onActiveGoalListIdChange={(id) => {
+            setActiveGoalListId(id)
+            if (id) localStorage.setItem('activeGoalListId', id)
+            else localStorage.removeItem('activeGoalListId')
+          }}
         />
 
         {/* Map Area */}
