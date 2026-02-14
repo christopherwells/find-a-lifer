@@ -17,6 +17,7 @@ function App() {
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(26) // Default to week 26 (late June)
   const [viewMode, setViewMode] = useState<MapViewMode>('density')
+  const [goalBirdsOnlyFilter, setGoalBirdsOnlyFilter] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
   const [goalSpeciesCodes, setGoalSpeciesCodes] = useState<Set<string>>(new Set())
   const { seenSpecies } = useLifeList()
@@ -39,7 +40,7 @@ function App() {
 
     // Always load goal species so the map can switch modes instantly
     loadGoalSpecies()
-  }, [viewMode]) // Re-load when view mode changes to pick up latest list changes
+  }, [viewMode, goalBirdsOnlyFilter]) // Re-load when view mode or filter changes to pick up latest list changes
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">
@@ -58,7 +59,13 @@ function App() {
           currentWeek={currentWeek}
           onWeekChange={setCurrentWeek}
           viewMode={viewMode}
-          onViewModeChange={setViewMode}
+          onViewModeChange={(mode) => {
+            setViewMode(mode)
+            // Reset goal birds only filter when switching away from density
+            if (mode !== 'density') setGoalBirdsOnlyFilter(false)
+          }}
+          goalBirdsOnlyFilter={goalBirdsOnlyFilter}
+          onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
           selectedLocation={selectedLocation}
         />
 
@@ -68,6 +75,7 @@ function App() {
             darkMode={darkMode}
             currentWeek={currentWeek}
             viewMode={viewMode}
+            goalBirdsOnlyFilter={goalBirdsOnlyFilter}
             onLocationSelect={setSelectedLocation}
             goalSpeciesCodes={goalSpeciesCodes}
             seenSpecies={seenSpecies}

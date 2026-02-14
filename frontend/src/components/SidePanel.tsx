@@ -19,6 +19,8 @@ interface SidePanelProps {
   onWeekChange?: (week: number) => void
   viewMode?: MapViewMode
   onViewModeChange?: (mode: MapViewMode) => void
+  goalBirdsOnlyFilter?: boolean
+  onGoalBirdsOnlyFilterChange?: (value: boolean) => void
   selectedLocation?: SelectedLocation | null
 }
 
@@ -44,6 +46,8 @@ export default function SidePanel({
   onWeekChange,
   viewMode = 'density',
   onViewModeChange,
+  goalBirdsOnlyFilter = false,
+  onGoalBirdsOnlyFilterChange,
   selectedLocation
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
@@ -116,6 +120,8 @@ export default function SidePanel({
               onWeekChange={onWeekChange}
               viewMode={viewMode}
               onViewModeChange={onViewModeChange}
+              goalBirdsOnlyFilter={goalBirdsOnlyFilter}
+              onGoalBirdsOnlyFilterChange={onGoalBirdsOnlyFilterChange}
             />
           )}
           {activeTab === 'species' && <SpeciesTab />}
@@ -140,13 +146,17 @@ interface ExploreTabProps {
   onWeekChange?: (week: number) => void
   viewMode?: MapViewMode
   onViewModeChange?: (mode: MapViewMode) => void
+  goalBirdsOnlyFilter?: boolean
+  onGoalBirdsOnlyFilterChange?: (value: boolean) => void
 }
 
 function ExploreTab({
   currentWeek = 26,
   onWeekChange,
   viewMode = 'density',
-  onViewModeChange
+  onViewModeChange,
+  goalBirdsOnlyFilter = false,
+  onGoalBirdsOnlyFilterChange
 }: ExploreTabProps) {
   // Convert week number to approximate date label
   const getWeekLabel = (week: number): string => {
@@ -215,12 +225,55 @@ function ExploreTab({
           </button>
         </div>
         <p className="text-xs text-gray-500">
-          {viewMode === 'density' && 'Show number of species per area'}
+          {viewMode === 'density' && !goalBirdsOnlyFilter && 'Show number of unseen species per area'}
+          {viewMode === 'density' && goalBirdsOnlyFilter && 'Showing only unseen goal birds in density'}
           {viewMode === 'probability' && 'Show occurrence probability intensity'}
           {viewMode === 'species' && 'Show single species range (coming soon)'}
           {viewMode === 'goal-birds' && 'Show unseen goal birds per area'}
         </p>
       </div>
+
+      {/* Goal Birds Only Filter — only shown in Lifer Density view */}
+      {viewMode === 'density' && (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-[#2C3E50]">
+            Filter
+          </label>
+          <button
+            data-testid="goal-birds-only-toggle"
+            onClick={() => onGoalBirdsOnlyFilterChange?.(!goalBirdsOnlyFilter)}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
+              goalBirdsOnlyFilter
+                ? 'bg-[#D4A017] border-[#D4A017] text-white'
+                : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300'
+            }`}
+            aria-pressed={goalBirdsOnlyFilter}
+          >
+            <span className="flex items-center gap-2">
+              <span>🎯</span>
+              <span>Goal Birds Only</span>
+            </span>
+            <span
+              className={`inline-flex items-center justify-center w-8 h-4 rounded-full transition-colors ${
+                goalBirdsOnlyFilter ? 'bg-white bg-opacity-30' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block w-3 h-3 rounded-full transition-transform ${
+                  goalBirdsOnlyFilter
+                    ? 'bg-white translate-x-2'
+                    : 'bg-white -translate-x-2'
+                }`}
+              />
+            </span>
+          </button>
+          <p className="text-xs text-gray-500">
+            {goalBirdsOnlyFilter
+              ? 'Heatmap counts only your unseen goal birds'
+              : 'Toggle to filter density to goal birds only'}
+          </p>
+        </div>
+      )}
 
       {/* Week Slider */}
       <div className="space-y-2">

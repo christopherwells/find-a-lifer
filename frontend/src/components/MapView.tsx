@@ -6,6 +6,7 @@ interface MapViewProps {
   darkMode?: boolean
   currentWeek?: number
   viewMode?: string
+  goalBirdsOnlyFilter?: boolean
   onLocationSelect?: (location: { cellId: number; coordinates: [number, number] }) => void
   goalSpeciesCodes?: Set<string>
   seenSpecies?: Set<string>
@@ -45,6 +46,7 @@ export default function MapView({
   darkMode = false,
   currentWeek = 26,
   viewMode = 'density',
+  goalBirdsOnlyFilter = false,
   onLocationSelect,
   goalSpeciesCodes = new Set(),
   seenSpecies = new Set()
@@ -428,6 +430,73 @@ export default function MapView({
         map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
       }
+    } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
+      // Density mode with Goal Birds Only filter: count unseen goal species per cell (teal)
+      if (goalSpeciesCodes.size === 0) {
+        // No goal species defined: show very faint overlay
+        if (map.current.getLayer('grid-fill')) {
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(8, 136, 136, 0.05)')
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        }
+        if (map.current.getLayer('grid-border')) {
+          map.current.setPaintProperty('grid-border', 'line-color', '#088')
+          map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
+        }
+        console.log('Goal Birds Only filter: no goal species defined')
+        return
+      }
+
+      const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+
+      // Count unseen goal species present in each cell (probability > 0)
+      const cellCounts = new Map<number, number>()
+      let maxCount = 0
+
+      weeklyData.forEach((record) => {
+        if (record.probability > 0 && goalSpeciesIdSet.has(record.species_id)) {
+          const prev = cellCounts.get(record.cell_id) || 0
+          const next = prev + 1
+          cellCounts.set(record.cell_id, next)
+          if (next > maxCount) maxCount = next
+        }
+      })
+
+      console.log(`Goal Birds Only density: ${cellCounts.size} cells with goal birds, max=${maxCount}, unseen goal species=${goalSpeciesIdSet.size}`)
+
+      if (maxCount === 0) {
+        if (map.current.getLayer('grid-fill')) {
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(8, 136, 136, 0.05)')
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        }
+        if (map.current.getLayer('grid-border')) {
+          map.current.setPaintProperty('grid-border', 'line-color', '#088')
+          map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
+        }
+        return
+      }
+
+      // Build paint expression: teal color scaled by goal bird count
+      const paintExpression: any = ['case']
+
+      cellCounts.forEach((count, cellId) => {
+        if (count === 0) return
+        // Scale from 0.1 (1 goal bird) to 0.7 (max goal birds)
+        const intensity = Math.min(0.7, (count / maxCount) * 0.6 + 0.1)
+        paintExpression.push(['==', ['get', 'cell_id'], cellId])
+        paintExpression.push(`rgba(8, 136, 136, ${intensity.toFixed(3)})`)
+      })
+
+      // Default: no goal birds in this cell — very faint
+      paintExpression.push('rgba(8, 136, 136, 0.02)')
+
+      if (map.current.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+      }
+      if (map.current.getLayer('grid-border')) {
+        map.current.setPaintProperty('grid-border', 'line-color', '#088')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+      }
     } else {
       // Default density mode: teal/cyan heatmap based on average occurrence probability
       const cellAggregates = new Map<number, { total: number; count: number }>()
@@ -462,7 +531,7 @@ export default function MapView({
       }
       console.log(`Updated density overlay with ${cellAggregates.size} cells`)
     }
-  }, [weeklyData, viewMode, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion])
+  }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion])
 
   return (
     <div className="relative w-full h-full">
@@ -495,6 +564,28 @@ export default function MapView({
           </div>
           {goalSpeciesCodes.size === 0 && (
             <div className="text-xs text-amber-600 mt-1">
+              Add goal birds in the Goal Birds tab
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Goal Birds Only filter legend in density mode */}
+      {viewMode === 'density' && goalBirdsOnlyFilter && (
+        <div className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds Only</div>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(8,136,136,0.12)' }}></div>
+            <span>Few</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.4)' }}></div>
+            <span>Some</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.7)' }}></div>
+            <span>Many</span>
+          </div>
+          {goalSpeciesCodes.size === 0 && (
+            <div className="text-xs text-teal-600 mt-1">
               Add goal birds in the Goal Birds tab
             </div>
           )}
