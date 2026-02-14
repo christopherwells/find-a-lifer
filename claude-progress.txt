@@ -15,7 +15,7 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 
 ## Feature Completion Status
 
-**Current Status:** 17/83 features passing (20.5%)
+**Current Status:** 31/83 features passing (37.3%)
 
 ---
 
@@ -1280,4 +1280,81 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 
 **Current Status:** 30/83 features passing (36.1%)
 
+---
+
+### Session 21 - 2026-02-14
+
+**Feature Completed:** #62
+
+**Feature #62 - Goal Birds tab in side panel:**
+
+The Goal Birds tab was already fully implemented in `frontend/src/components/SidePanel.tsx` from previous sessions. This session performed browser verification to confirm all 6 feature steps pass.
+
+**Implementation details (pre-existing):**
+- Tab defined in `tabs` array at line 42: `{ id: 'goals', label: 'Goal Birds', icon: '🎯' }`
+- Tab rendered with same button styling as all other tabs: icon + label, active state with blue underline
+- `GoalBirdsTab` function component (lines 876–1533) implements full goal list management:
+  - Create/rename/delete goal lists (persisted in IndexedDB via goalListsDB)
+  - Species search/add functionality with autocomplete dropdown
+  - Species removal with hover-reveal X button
+  - Empty state with CTA button
+  - Success/duplicate/error toast notifications
+  - Loading spinner
+
+**Verification (all 6 steps):**
+1. ✅ Open the side panel - side panel visible and open
+2. ✅ Verify 'Goal Birds' tab is visible among existing tabs - 🎯 Goal Birds tab shown alongside Explore, Species, Trip Plan, Progress, Profile
+3. ✅ Click the Goal Birds tab - tab activates with blue underline indicator
+4. ✅ Verify panel shows goal list management UI - heading, "+New List" button, empty state message, "Create Your First List" CTA
+5. ✅ Verify tab follows same styling as existing tabs - same icon+label layout, same font, same blue active indicator
+6. ✅ Verify it works on mobile layout - tested at 390px width, all elements visible and functional
+
+**Browser automation testing:**
+- Zero JavaScript console errors (0 errors, only WebGL warnings)
+- Screenshots: feature62-step1-initial-state.png, feature62-step2-goal-birds-tab-active.png, feature62-step3-mobile-layout.png
+
+**No code changes needed** - feature was already fully implemented.
+
+**Current Status:** 31/83 features passing (37.3%)
+
 **Current Status:** 28/83 features passing (33.7%)
+
+---
+
+### Session 25 - 2026-02-14
+
+**Feature Completed:** #63 - Searchable goal bird list within the Goal Birds panel
+
+**What was accomplished:**
+- Added `listFilterTerm` state to `GoalBirdsTab` in `SidePanel.tsx`
+- Added `filteredListCodes` computed array that filters the active list's species codes by common name, scientific name, or species code
+- Added filter input bar (`data-testid="goal-list-filter-input"`) above the species list with:
+  - Search icon (static) when empty
+  - Clear (×) button (`data-testid="goal-list-filter-clear"`) when filter has text
+- Count label changes from "X birds in list" to "X of Y birds" when filter is active
+- Added "No species match '...'" message when filter results in 0 matches
+- Reset `listFilterTerm` when active list changes (in the `activeListId` useEffect)
+- Filter uses `filteredListCodes.map(...)` instead of `activeList.speciesCodes.map(...)` for rendering
+
+**Verification (all 6 steps):**
+1. ✅ Navigate to Goal Birds panel with populated list — filter bar visible below header
+2. ✅ Type in search bar — "cardinal" → "1 OF 3 BIRDS", only Northern Cardinal shown
+3. ✅ List filters in real time — instant client-side filtering (no loading delay)
+4. ✅ Common name ("cardinal") AND scientific name ("Turdus") both filter correctly
+5. ✅ Clear search — "3 birds in list" returned, all 3 species visible
+6. ✅ No-match state — "0 OF 3 BIRDS" + "No species match 'zzznomatch'" message
+
+**Browser automation testing:**
+- Created "Feature63 Test List" with Northern Cardinal, American Robin, Bald Eagle
+- Tested filter by common name: "cardinal" → 1 result
+- Tested filter by scientific name: "Turdus" → 1 result (American Robin = Turdus migratorius)
+- Tested clear button → full list restored
+- Tested no-match: "zzznomatch" → 0 results with informative message
+- Deleted test list to clean up
+- Zero JavaScript console errors throughout (0 errors, only WebGL warnings)
+- Screenshots: feature63-step1-list-populated.png, feature63-step2-filter-cardinal.png, feature63-step3-filter-sciname.png, feature63-step4-no-match.png, feature63-step5-filter-cleared.png
+
+**Mock data verification:**
+- No mock patterns in frontend/src/ — all data from real IndexedDB goal lists and /api/species endpoint
+
+**Current Status:** 32/83 features passing (38.6%)
