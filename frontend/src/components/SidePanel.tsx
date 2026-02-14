@@ -22,6 +22,9 @@ interface SidePanelProps {
   goalBirdsOnlyFilter?: boolean
   onGoalBirdsOnlyFilterChange?: (value: boolean) => void
   selectedLocation?: SelectedLocation | null
+  selectedSpecies?: string | null
+  onSelectedSpeciesChange?: (speciesCode: string | null) => void
+  goalSpeciesCodes?: Set<string>
 }
 
 interface Tab {
@@ -48,7 +51,10 @@ export default function SidePanel({
   onViewModeChange,
   goalBirdsOnlyFilter = false,
   onGoalBirdsOnlyFilterChange,
-  selectedLocation
+  selectedLocation,
+  selectedSpecies,
+  onSelectedSpeciesChange,
+  goalSpeciesCodes
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -122,6 +128,9 @@ export default function SidePanel({
               onViewModeChange={onViewModeChange}
               goalBirdsOnlyFilter={goalBirdsOnlyFilter}
               onGoalBirdsOnlyFilterChange={onGoalBirdsOnlyFilterChange}
+              selectedSpecies={selectedSpecies}
+              onSelectedSpeciesChange={onSelectedSpeciesChange}
+              goalSpeciesCodes={goalSpeciesCodes}
             />
           )}
           {activeTab === 'species' && <SpeciesTab />}
@@ -141,6 +150,13 @@ export default function SidePanel({
   )
 }
 
+interface SpeciesMeta {
+  species_id: number
+  speciesCode: string
+  comName: string
+  sciName: string
+}
+
 interface ExploreTabProps {
   currentWeek?: number
   onWeekChange?: (week: number) => void
@@ -148,6 +164,9 @@ interface ExploreTabProps {
   onViewModeChange?: (mode: MapViewMode) => void
   goalBirdsOnlyFilter?: boolean
   onGoalBirdsOnlyFilterChange?: (value: boolean) => void
+  selectedSpecies?: string | null
+  onSelectedSpeciesChange?: (speciesCode: string | null) => void
+  goalSpeciesCodes?: Set<string>
 }
 
 function ExploreTab({
@@ -156,8 +175,55 @@ function ExploreTab({
   viewMode = 'density',
   onViewModeChange,
   goalBirdsOnlyFilter = false,
-  onGoalBirdsOnlyFilterChange
+  onGoalBirdsOnlyFilterChange,
+  selectedSpecies = null,
+  onSelectedSpeciesChange,
+  goalSpeciesCodes = new Set()
 }: ExploreTabProps) {
+  // Species picker state for Species Range view
+  const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
+  const [speciesSearch, setSpeciesSearch] = useState('')
+  const [isLoadingSpecies, setIsLoadingSpecies] = useState(false)
+
+  // Load species metadata when switching to species view
+  useEffect(() => {
+    if (viewMode !== 'species') return
+    if (allSpecies.length > 0) return // already loaded
+    setIsLoadingSpecies(true)
+    fetch('/api/species')
+      .then((r) => r.json())
+      .then((data: SpeciesMeta[]) => {
+        setAllSpecies(data)
+        setIsLoadingSpecies(false)
+      })
+      .catch((err) => {
+        console.error('ExploreTab: failed to load species', err)
+        setIsLoadingSpecies(false)
+      })
+  }, [viewMode, allSpecies.length])
+
+  // Build filtered species list for picker
+  const filteredSpecies = (() => {
+    let list = allSpecies
+    // When Goal Birds Only is active, filter to goal list species
+    if (goalBirdsOnlyFilter && goalSpeciesCodes.size > 0) {
+      list = list.filter((s) => goalSpeciesCodes.has(s.speciesCode))
+    }
+    // Apply text search
+    if (speciesSearch.trim()) {
+      const q = speciesSearch.toLowerCase()
+      list = list.filter(
+        (s) =>
+          s.comName.toLowerCase().includes(q) ||
+          s.sciName.toLowerCase().includes(q)
+      )
+    }
+    return list
+  })()
+
+  // Selected species display name
+  const selectedSpeciesMeta = allSpecies.find((s) => s.speciesCode === selectedSpecies)
+
   // Convert week number to approximate date label
   const getWeekLabel = (week: number): string => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -228,13 +294,14 @@ function ExploreTab({
           {viewMode === 'density' && !goalBirdsOnlyFilter && 'Show number of unseen species per area'}
           {viewMode === 'density' && goalBirdsOnlyFilter && 'Showing only unseen goal birds in density'}
           {viewMode === 'probability' && 'Show occurrence probability intensity'}
-          {viewMode === 'species' && 'Show single species range (coming soon)'}
+          {viewMode === 'species' && !goalBirdsOnlyFilter && 'Select a species to spotlight its range on the map'}
+          {viewMode === 'species' && goalBirdsOnlyFilter && 'Showing only your goal birds in the species picker'}
           {viewMode === 'goal-birds' && 'Show unseen goal birds per area'}
         </p>
       </div>
 
-      {/* Goal Birds Only Filter — only shown in Lifer Density view */}
-      {viewMode === 'density' && (
+      {/* Goal Birds Only Filter — shown in Lifer Density view and Species Range view */}
+      {(viewMode === 'density' || viewMode === 'species') && (
         <div className="space-y-2">
           <label className="block text-sm font-medium text-[#2C3E50]">
             Filter
@@ -268,10 +335,92 @@ function ExploreTab({
             </span>
           </button>
           <p className="text-xs text-gray-500">
-            {goalBirdsOnlyFilter
+            {viewMode === 'density' && (goalBirdsOnlyFilter
               ? 'Heatmap counts only your unseen goal birds'
-              : 'Toggle to filter density to goal birds only'}
+              : 'Toggle to filter density to goal birds only')}
+            {viewMode === 'species' && (goalBirdsOnlyFilter
+              ? 'Species picker shows only your goal birds'
+              : 'Toggle to filter species picker to goal birds only')}
           </p>
+        </div>
+      )}
+
+      {/* Species Picker — shown in Species Range view */}
+      {viewMode === 'species' && (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-[#2C3E50]">
+            Select Species
+          </label>
+          {/* Search input */}
+          <input
+            type="text"
+            placeholder="Search species..."
+            value={speciesSearch}
+            onChange={(e) => setSpeciesSearch(e.target.value)}
+            data-testid="species-range-search"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+          />
+          {/* Selected species display */}
+          {selectedSpecies && selectedSpeciesMeta && (
+            <div className="flex items-center justify-between bg-[#2C3E7B] text-white px-3 py-2 rounded-lg text-sm">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium truncate">{selectedSpeciesMeta.comName}</div>
+                <div className="text-xs text-blue-200 italic truncate">{selectedSpeciesMeta.sciName}</div>
+              </div>
+              <button
+                onClick={() => onSelectedSpeciesChange?.(null)}
+                className="ml-2 text-blue-200 hover:text-white transition-colors flex-shrink-0"
+                aria-label="Clear selected species"
+                data-testid="clear-selected-species"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {/* Species list */}
+          {isLoadingSpecies ? (
+            <div className="text-sm text-gray-500 text-center py-4">
+              <div className="animate-spin inline-block rounded-full h-4 w-4 border-2 border-[#2C3E7B] border-t-transparent mr-2"></div>
+              Loading species...
+            </div>
+          ) : (
+            <div
+              data-testid="species-range-list"
+              className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100"
+            >
+              {filteredSpecies.length === 0 ? (
+                <div className="px-3 py-3 text-sm text-gray-500 text-center">
+                  {goalBirdsOnlyFilter && goalSpeciesCodes.size === 0
+                    ? 'No goal birds in your list. Add some in the Goal Birds tab.'
+                    : 'No species found.'}
+                </div>
+              ) : (
+                filteredSpecies.slice(0, 100).map((s) => (
+                  <button
+                    key={s.speciesCode}
+                    data-testid={`species-range-item-${s.speciesCode}`}
+                    onClick={() => {
+                      onSelectedSpeciesChange?.(s.speciesCode)
+                      setSpeciesSearch('')
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-blue-50 ${
+                      selectedSpecies === s.speciesCode ? 'bg-blue-100 font-medium' : ''
+                    }`}
+                  >
+                    <div className="font-medium text-gray-800">{s.comName}</div>
+                    <div className="text-xs text-gray-500 italic">{s.sciName}</div>
+                  </button>
+                ))
+              )}
+              {filteredSpecies.length > 100 && (
+                <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                  Showing first 100 of {filteredSpecies.length} — type to search
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

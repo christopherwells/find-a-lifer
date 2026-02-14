@@ -10,6 +10,7 @@ interface MapViewProps {
   onLocationSelect?: (location: { cellId: number; coordinates: [number, number] }) => void
   goalSpeciesCodes?: Set<string>
   seenSpecies?: Set<string>
+  selectedSpecies?: string | null
 }
 
 interface OccurrenceRecord {
@@ -49,7 +50,8 @@ export default function MapView({
   goalBirdsOnlyFilter = false,
   onLocationSelect,
   goalSpeciesCodes = new Set(),
-  seenSpecies = new Set()
+  seenSpecies = new Set(),
+  selectedSpecies = null
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -66,12 +68,14 @@ export default function MapView({
   const weeklyDataRef = useRef(weeklyData)
   const goalSpeciesCodesRef = useRef(goalSpeciesCodes)
   const seenSpeciesRef = useRef(seenSpecies)
+  const selectedSpeciesRef = useRef(selectedSpecies)
 
   // Keep refs updated with latest values for use in map event handlers
   useEffect(() => { viewModeRef.current = viewMode }, [viewMode])
   useEffect(() => { weeklyDataRef.current = weeklyData }, [weeklyData])
   useEffect(() => { goalSpeciesCodesRef.current = goalSpeciesCodes }, [goalSpeciesCodes])
   useEffect(() => { seenSpeciesRef.current = seenSpecies }, [seenSpecies])
+  useEffect(() => { selectedSpeciesRef.current = selectedSpecies }, [selectedSpecies])
 
   // Close popup when switching away from goal-birds mode
   useEffect(() => {
@@ -362,7 +366,88 @@ export default function MapView({
     if (!map.current || !map.current.isStyleLoaded()) return
     if (weeklyData.length === 0) return
 
-    if (viewMode === 'goal-birds') {
+    if (viewMode === 'species') {
+      // Species Range mode: highlight cells where the selected species occurs
+      if (!selectedSpecies) {
+        // No species selected: show faint neutral overlay
+        if (map.current.getLayer('grid-fill')) {
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(44, 62, 123, 0.04)')
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        }
+        if (map.current.getLayer('grid-border')) {
+          map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
+          map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
+        }
+        console.log('Species Range: no species selected')
+        return
+      }
+
+      // Look up species_id from cache (may need to load first)
+      const lookupAndRender = async () => {
+        if (!speciesMetaCache) {
+          try {
+            const response = await fetch('/api/species')
+            if (!response.ok) return
+            const data: SpeciesMeta[] = await response.json()
+            speciesMetaCache = data
+          } catch { return }
+        }
+        const speciesMeta = speciesMetaCache.find((s) => s.speciesCode === selectedSpecies)
+        if (!speciesMeta) {
+          console.warn(`Species Range: species ${selectedSpecies} not found in metadata`)
+          return
+        }
+        const speciesId = speciesMeta.species_id
+
+        // Find all cells with this species (probability > 0)
+        const cellProbabilities = new Map<number, number>()
+        weeklyData.forEach((record) => {
+          if (record.species_id === speciesId && record.probability > 0) {
+            cellProbabilities.set(record.cell_id, record.probability)
+          }
+        })
+
+        console.log(`Species Range: ${selectedSpecies} (id=${speciesId}) found in ${cellProbabilities.size} cells this week`)
+
+        if (cellProbabilities.size === 0) {
+          // Species not present anywhere this week
+          if (map.current && map.current.getLayer('grid-fill')) {
+            map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(44, 62, 123, 0.04)')
+            map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+          }
+          if (map.current && map.current.getLayer('grid-border')) {
+            map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
+            map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
+          }
+          return
+        }
+
+        // Build paint expression: blue intensity scaled by probability
+        const paintExpression: any = ['case']
+
+        cellProbabilities.forEach((prob, cellId) => {
+          // Scale from 0.15 (lowest) to 0.85 (probability=1.0)
+          const intensity = Math.min(0.85, prob * 0.7 + 0.15)
+          paintExpression.push(['==', ['get', 'cell_id'], cellId])
+          paintExpression.push(`rgba(44, 62, 123, ${intensity.toFixed(3)})`)
+        })
+
+        // Default: species not present in this cell — very faint
+        paintExpression.push('rgba(44, 62, 123, 0.02)')
+
+        if (map.current && map.current.getLayer('grid-fill')) {
+          map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        }
+        if (map.current && map.current.getLayer('grid-border')) {
+          map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
+          map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+        }
+      }
+
+      lookupAndRender()
+      return
+    } else if (viewMode === 'goal-birds') {
       // Goal Birds mode: count unseen goal species per cell (amber/gold heatmap)
       if (goalSpeciesCodes.size === 0) {
         // No goal species defined: show empty overlay
@@ -531,7 +616,7 @@ export default function MapView({
       }
       console.log(`Updated density overlay with ${cellAggregates.size} cells`)
     }
-  }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion])
+  }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies])
 
   return (
     <div className="relative w-full h-full">
@@ -567,6 +652,27 @@ export default function MapView({
               Add goal birds in the Goal Birds tab
             </div>
           )}
+        </div>
+      )}
+
+      {/* Species Range legend */}
+      {viewMode === 'species' && selectedSpecies && (
+        <div
+          data-testid="species-range-legend"
+          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <div className="text-xs font-semibold text-[#2C3E50]">🐦 Species Range</div>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(44,62,123,0.2)' }}></div>
+            <span>Low</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(44,62,123,0.5)' }}></div>
+            <span>Med</span>
+            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(44,62,123,0.85)' }}></div>
+            <span>High</span>
+          </div>
+          <div className="text-xs text-gray-400 mt-1">Occurrence probability</div>
         </div>
       )}
 

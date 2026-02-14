@@ -20,6 +20,7 @@ function App() {
   const [goalBirdsOnlyFilter, setGoalBirdsOnlyFilter] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
   const [goalSpeciesCodes, setGoalSpeciesCodes] = useState<Set<string>>(new Set())
+  const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
   const { seenSpecies } = useLifeList()
 
   // Load goal species from all goal lists, refresh when view mode changes to goal-birds
@@ -61,12 +62,17 @@ function App() {
           viewMode={viewMode}
           onViewModeChange={(mode) => {
             setViewMode(mode)
-            // Reset goal birds only filter when switching away from density
-            if (mode !== 'density') setGoalBirdsOnlyFilter(false)
+            // Reset goal birds only filter when switching away from density and species
+            if (mode !== 'density' && mode !== 'species') setGoalBirdsOnlyFilter(false)
+            // Reset selected species when switching away from species view
+            if (mode !== 'species') setSelectedSpecies(null)
           }}
           goalBirdsOnlyFilter={goalBirdsOnlyFilter}
           onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
           selectedLocation={selectedLocation}
+          selectedSpecies={selectedSpecies}
+          onSelectedSpeciesChange={setSelectedSpecies}
+          goalSpeciesCodes={goalSpeciesCodes}
         />
 
         {/* Map Area */}
@@ -79,6 +85,7 @@ function App() {
             onLocationSelect={setSelectedLocation}
             goalSpeciesCodes={goalSpeciesCodes}
             seenSpecies={seenSpecies}
+            selectedSpecies={selectedSpecies}
           />
         </div>
       </div>
