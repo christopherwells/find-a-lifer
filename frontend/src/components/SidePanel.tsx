@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 
-export type MapViewMode = 'density' | 'probability' | 'species'
+export type MapViewMode = 'density' | 'probability' | 'species' | 'goal-birds'
 
 export interface SelectedLocation {
   cellId: number
@@ -171,10 +171,10 @@ function ExploreTab({
         <label className="block text-sm font-medium text-[#2C3E50]">
           View Mode
         </label>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => onViewModeChange?.('density')}
-            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
               viewMode === 'density'
                 ? 'bg-[#2C3E7B] text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -184,7 +184,7 @@ function ExploreTab({
           </button>
           <button
             onClick={() => onViewModeChange?.('probability')}
-            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
               viewMode === 'probability'
                 ? 'bg-[#2C3E7B] text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -194,7 +194,7 @@ function ExploreTab({
           </button>
           <button
             onClick={() => onViewModeChange?.('species')}
-            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
               viewMode === 'species'
                 ? 'bg-[#2C3E7B] text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -202,11 +202,23 @@ function ExploreTab({
           >
             Species
           </button>
+          <button
+            onClick={() => onViewModeChange?.('goal-birds')}
+            data-testid="view-mode-goal-birds"
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+              viewMode === 'goal-birds'
+                ? 'bg-[#D4A017] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            🎯 Goal Birds
+          </button>
         </div>
         <p className="text-xs text-gray-500">
           {viewMode === 'density' && 'Show number of species per area'}
           {viewMode === 'probability' && 'Show occurrence probability intensity'}
           {viewMode === 'species' && 'Show single species range (coming soon)'}
+          {viewMode === 'goal-birds' && 'Show unseen goal birds per area'}
         </p>
       </div>
 

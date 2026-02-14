@@ -971,3 +971,71 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 - Progress dashboard (stats, charts, family breakdowns)
 - Profile/data management (eBird CSV import, export, data reset)
 - Additional map features (migration animation, region selector, heatmap opacity control)
+
+### Session 19 - 2026-02-14
+
+**Feature Completed:** #55 - Dedicated Goal Birds density heatmap map view
+
+**What was accomplished:**
+- Added 'goal-birds' as a new view mode option to the MapViewMode type in SidePanel.tsx
+- Refactored view mode toggle from flex row to 2×2 grid to accommodate 4 buttons
+- Added "🎯 Goal Birds" button with amber/gold active state styling (bg-[#D4A017])
+- Added description text: "Show unseen goal birds per area" for goal-birds mode
+- Updated App.tsx to:
+  - Load all goal species codes from IndexedDB (all lists combined) whenever viewMode changes
+  - Pass `goalSpeciesCodes: Set<string>` and `seenSpecies: Set<string>` as new props to MapView
+- Updated MapView.tsx with:
+  - New props: `goalSpeciesCodes?: Set<string>`, `seenSpecies?: Set<string>`
+  - Module-level `speciesMetaCache: SpeciesMeta[] | null` to avoid re-fetching 2490 species
+  - `goalSpeciesIdSetRef`: React ref holding `Set<number>` of goal species IDs excluding seen species
+  - `goalSpeciesIdSetReady` state boolean to trigger overlay re-render after async ID build
+  - useEffect to build goalSpeciesIdSet: fetches/caches /api/species metadata, maps goalSpeciesCodes to species_ids excluding seenSpecies; triggers on [goalSpeciesCodes, seenSpecies]
+  - Goal Birds overlay logic in main overlay useEffect: counts weekly occurrence records per cell where species_id is in goalSpeciesIdSet and probability > 0; scales amber intensity from 0.1 to 0.85 based on count/maxCount
+  - Amber/gold color scheme: `rgba(212, 160, 23, intensity)` for goal birds mode vs teal for density mode
+  - Legend overlay UI: "🎯 Goal Birds" with Few/Some/Many gradient indicators
+  - "Add goal birds in the Goal Birds tab" helper message when no goal species defined
+
+**Technical details:**
+- MapViewMode type: `'density' | 'probability' | 'species' | 'goal-birds'`
+- Species code → species_id mapping via /api/species (2490 entries, module-level cached)
+- Weekly data: 113,534 records at week 26, each with {cell_id, species_id, probability}
+- Async timing: goalSpeciesIdSetReady state ensures overlay re-runs after async ID set build
+- App re-loads goal species when viewMode changes to pick up latest list modifications
+
+**Verification (all 7 steps):**
+1. ✅ Add 4 species to goal list: American Robin, Northern Cardinal, Bald Eagle, Canada Goose
+2. ✅ Click "🎯 Goal Birds" view mode button — button becomes amber/active, description updates
+3. ✅ Heatmap displays amber cells at varying intensities across continental US (219 cells at week 26)
+4. ✅ Week slider updated: week 10 shows 173 cells, week 30 shows 222 cells, week 26 shows 219 cells
+5. ✅ Marked American Robin (amerob) as seen in IndexedDB — goal species ID set drops to 3 unseen
+6. ✅ Page reload — heatmap recalculates with 200 cells (down from 219), confirming seen species excluded
+7. ✅ Cells with no goal birds show no amber color (white/transparent background visible)
+
+**Console log evidence:**
+- "App: loaded 4 goal species from 1 lists"
+- "MapView: built goal species ID set with 3 unseen goal species" (after marking American Robin seen)
+- "Goal Birds overlay: 200 cells with goal birds, max=3, unseen goal species=3" (down from 219)
+- "Loaded 1 species from IndexedDB life list" (confirms seen species loaded correctly)
+
+**Browser automation testing:**
+- All 7 feature steps verified via browser automation with screenshots
+- Tested amber heatmap rendering, week slider responsiveness, legend overlay display
+- Verified seen species exclusion: adding American Robin to life list → 219 cells dropped to 200
+- Used browser_evaluate to write/remove seen species in IndexedDB (Species tab too large for Playwright snapshots)
+- Cleaned up test data after verification (American Robin removed from life list)
+- Zero JavaScript console errors (0 errors, 13 non-critical WebGL warnings)
+- Screenshots: goal-birds-3-unseen.png
+
+**Mock data verification:**
+- Grep check for mock patterns in frontend/src/ returned empty
+- All data from real IndexedDB goal lists and occurrence data from /api/weeks/{week}
+- Species metadata from /api/species (2490 real eBird species)
+
+**Current Status:** 24/83 features passing (28.9%)
+
+**Next steps:**
+- More map view features (light/dark mode toggle, heatmap opacity control)
+- Progress dashboard (stats, charts, family breakdowns)
+- Profile/data management (eBird CSV import, export, data reset)
+- Life list import from eBird CSV
+- Additional goal birds features (filter trip planning by goal list)
