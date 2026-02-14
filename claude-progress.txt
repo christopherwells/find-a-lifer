@@ -1039,3 +1039,59 @@ Find-A-Lifer is an interactive web application that helps birders discover and p
 - Profile/data management (eBird CSV import, export, data reset)
 - Life list import from eBird CSV
 - Additional goal birds features (filter trip planning by goal list)
+
+### Session 20 - 2026-02-14
+
+**Feature Completed:** #56 - Click-to-inspect shows goal birds in a cell in Goal Birds view
+
+**What was accomplished:**
+- Fixed critical bug: `setGoalSpeciesIdSetReady` was called in MapView.tsx (lines 88 and 117) but was never declared as state
+- The correct state variable was `goalSpeciesIdSetVersion` / `setGoalSpeciesIdSetVersion` (declared at line 59)
+- Replaced both `setGoalSpeciesIdSetReady(true)` calls with `setGoalSpeciesIdSetVersion(v => v + 1)`
+- This fix resolved a ReferenceError that was logged as 3 console errors on every page load
+- The goal birds click-to-inspect popup functionality was already fully implemented in MapView.tsx from session 19
+
+**Implementation already present (from session 19):**
+- `GoalBirdInCell` interface: speciesCode, comName, sciName, probability, isSeen
+- `GoalBirdsPopup` interface: cellId, coordinates, birds[]
+- Map click handler in `grid-fill` layer: when viewMode === goal-birds, builds popup from weeklyData
+- Filters records for clicked cell, maps species_id to metadata, checks against goalSpeciesCodes
+- Sorts by probability descending (highest first)
+- Popup UI: header with cell ID + bird count, scrollable bird list, footer hint
+- Each bird shows: common name, scientific name, probability %, seen status
+- Seen birds: line-through text, muted opacity, green checkmark (checkmark)
+- Unseen birds: normal bold text styling
+- Close button to dismiss popup
+- Auto-close when switching away from goal-birds mode
+- viewModeRef, weeklyDataRef, goalSpeciesCodesRef, seenSpeciesRef refs for use inside map click handler
+
+**Verification (all 7 steps):**
+1. Switched to Goal Birds view with 4 goal species (American Robin, Northern Cardinal, Bald Eagle, Canada Goose)
+2. Clicked amber cell on map, popup appeared with "Goal Birds in Area"
+3. Popup listed 3 goal birds present in cell 180 (Bald Eagle absent from that cell)
+4. Birds ranked by probability: Northern Cardinal 87.0% > American Robin 75.9% > Canada Goose 72.2%
+5. Marked American Robin as seen in IndexedDB, reloaded, popup shows American Robin with strikethrough + muted styling + green checkmark
+6. Northern Cardinal and Canada Goose shown in normal styling (unseen)
+7. Clicked different cell (cell 161), popup updated to "1 goal bird - Cell 161" with only Canada Goose at 80.3%
+
+**Browser automation testing:**
+- Created goal list with 4 species via UI interactions
+- Switched to Goal Birds view mode
+- Used browser_evaluate to dispatch mouse click events on map canvas
+- Verified popup content in both screenshots and accessibility snapshot
+- Tested seen/unseen styling by writing to IndexedDB then reloading
+- Cleaned up test data (removed amerob from life list)
+- Zero JavaScript console errors (0 errors, 9-17 non-critical WebGL warnings)
+- Screenshots: feature56-goal-birds-active.png, feature56-popup-shown.png, feature56-popup-with-seen-bird.png, feature56-popup-different-cell.png
+
+**Mock data verification:**
+- Grep for mock patterns in frontend/src/ returned empty
+- All data from real IndexedDB and /api/weeks/{week} endpoint
+
+**Current Status:** 25/83 features passing (30.1%)
+
+**Next steps:**
+- Map features: empty cell popup message, probability view, species spotlight view
+- Progress dashboard (stats, charts, family breakdowns)
+- Profile/data management (eBird CSV import, export, data reset)
+- Life list import from eBird CSV
