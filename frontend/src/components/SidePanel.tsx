@@ -1051,6 +1051,7 @@ function GoalBirdsTab() {
 
   // Suggestions section state
   const [showRarestSuggestions, setShowRarestSuggestions] = useState(true)
+  const [showHardestSuggestions, setShowHardestSuggestions] = useState(true)
 
   // Species info card state
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
@@ -1842,6 +1843,121 @@ function GoalBirdsTab() {
                                 className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
                                 title={`Add ${sp.comName} to goal list`}
                                 data-testid={`rarest-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Hardest to Find Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter unseen species with Very Hard difficulty, sorted by score descending (hardest first)
+              const hardestSuggestions = allSpecies
+                .filter((sp) => sp.difficultyScore >= 0.75 && !isSpeciesSeen(sp.speciesCode))
+                .slice()
+                .sort((a, b) => b.difficultyScore - a.difficultyScore)
+                .slice(0, 20) // Top 20 hardest unseen species
+
+              if (hardestSuggestions.length === 0) return null
+
+              const getDifficultyBadgeStyle = (score: number) => {
+                if (score >= 0.90) return { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Extremely Hard' }
+                if (score >= 0.75) return { bg: 'bg-red-100', text: 'text-red-800', label: 'Very Hard' }
+                return { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Hard' }
+              }
+
+              return (
+                <div className="mt-4" data-testid="hardest-suggestions-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowHardestSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                    data-testid="hardest-suggestions-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600 font-bold text-sm">🔭</span>
+                      <span className="text-sm font-semibold text-purple-800">Hardest to Find</span>
+                      <span className="text-xs bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {hardestSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-purple-600 transition-transform ${showHardestSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showHardestSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="hardest-suggestions-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Species with the lowest average occurrence probability — sorted hardest first. Tap + to add to this goal list.
+                      </p>
+                      {hardestSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        const badgeStyle = getDifficultyBadgeStyle(sp.difficultyScore)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`hardest-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                <span
+                                  className={`text-xs ${badgeStyle.bg} ${badgeStyle.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`}
+                                  data-testid={`hardest-difficulty-badge-${sp.speciesCode}`}
+                                >
+                                  🔭 {badgeStyle.label}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`hardest-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`hardest-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`hardest-add-btn-${sp.speciesCode}`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
