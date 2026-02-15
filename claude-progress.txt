@@ -1,5 +1,52 @@
 # Find-A-Lifer Development Progress
 
+---
+
+### Session 27 - 2026-02-15
+
+**Feature Completed:** #65 - Species info card accessible from goal list
+
+**What was accomplished:**
+- Built `SpeciesInfoCard` component in SidePanel.tsx (new standalone function before GoalBirdsTab)
+- Component shows: photo area (graceful placeholder when photoUrl empty), species names, family, conservation status badge, difficulty badge, optional restricted range/invasion status badges, eBird link button
+- Used `createPortal(content, document.body)` to render the modal outside the scrollable panel DOM - this prevents z-index/pointer-event capture issues caused by `overflow-y-auto` containers
+- Added `selectedSpeciesCard: Species | null` state to `GoalBirdsTab`
+- Made species name area in goal list a clickable button that opens the info card
+- Added hover-visible info icon button (ℹ️) on each species row in goal list
+- Also added clickable species names to `SpeciesTab` (main checklist) for consistency ("same as from the main checklist")
+- Added `selectedSpeciesCard` state to `SpeciesTab` with same modal rendering
+- Added `createPortal` import from 'react-dom'
+
+**Technical details:**
+- `SpeciesInfoCard` uses `createPortal(jsx, document.body)` for proper z-index stacking
+- Conservation colors: green/yellow/orange/red based on IUCN status (Least Concern → Critically Endangered)
+- Difficulty colors: green (Easy) → purple (Extremely Hard)
+- Photo placeholder: image icon + "No photo available" text (all species currently have empty photoUrl)
+- eBird link: `https://ebird.org/species/{code}` with external link icon
+
+**Verification (all 5 steps):**
+1. ✅ Navigate to Goal Birds panel — panel shows with list management
+2. ✅ Click on a species (Northern Cardinal) in goal list — info card popup appeared
+3. ✅ Species info card popup verified — common name, sci name, family shown
+4. ✅ Shows conservation badge ("🌿 Least Concern"), difficulty badge ("🔭 Easy"), eBird link button
+5. ✅ Card behavior matches SpeciesTab — same SpeciesInfoCard component used in both
+
+**Browser automation testing:**
+- Created "Feature65 Test List" with Northern Cardinal
+- Clicked species name → info card opened with portal rendering (confirmed via DOM: card outside main panel hierarchy)
+- Verified: conservation badge, difficulty badge, eBird link all present
+- X button closes card; overlay blocks background clicks (proper modal behavior)
+- Deleted test list to clean up
+- Zero JavaScript console errors throughout (0 errors, WebGL warnings only)
+- Screenshots: feature65-step1-goal-list-with-species.png, feature65-step2-species-info-card.png, feature65-step2-portal-modal.png
+
+**Mock data verification:**
+- No mock patterns in frontend/src/ — all data from real /api/species endpoint and IndexedDB
+
+**Current Status:** 34/83 features passing (41.0%)
+
+---
+
 This file tracks the development progress of the Find-A-Lifer web application, documenting completed features, implementation details, and testing results.
 
 ## Project Overview
