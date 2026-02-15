@@ -2,7 +2,86 @@
 
 ---
 
+### Session 28 - 2026-02-15
+
+**Feature Completed:** #67 - Suggestions engine: Rarest in North America category
+
+**What was accomplished:**
+- Feature was already implemented in `frontend/src/components/SidePanel.tsx` (from a previous session that didn't commit)
+- Committed 105-line addition: Rarest in North America suggestions section in GoalBirdsTab
+
+**Implementation details (SidePanel.tsx ~lines 1757-1861):**
+- `showRarestSuggestions` state for collapsible section (default: open)
+- `rarestSuggestions` computed as: `allSpecies.filter((sp) => sp.isRestrictedRange && !isSpeciesSeen(sp.speciesCode)).slice(0, 20)`
+- Section header: amber-styled button "📍 Rarest in North America" with count badge, collapsible toggle
+- Each suggestion row shows: common name, "📍 Rare" amber badge, optional "✓ In list" blue badge
+- Already-in-list indicator: checkmark circle icon (non-clickable) with `data-testid="rarest-already-added-{code}"`
+- Add button: `data-testid="rarest-add-btn-{code}"` calls `handleAddSpecies(sp)` for immediate addition
+
+**Verification (all 7 steps):**
+1. ✅ Navigate to Goal Birds panel suggestions section — section visible after creating a goal list
+2. ✅ Find the 'Rarest in North America' category — "📍 Rarest in North America 20" amber header shown
+3. ✅ Species with restricted range flags — each entry has "📍 Rare" amber badge
+4. ✅ Already-on-list species indicated — Highland Tinamou showed "✓ In list" + checkmark button after adding
+5. ✅ Already-seen species excluded — Added Great Tinamou (gretin1) to life list; it disappeared from suggestions, replaced by next unseen species (Great Curassow)
+6. ✅ Tap add button — clicked +, success toast "Added Highland Tinamou to Feature67 Rarest Test" appeared
+7. ✅ Species added immediately — list count updated instantly, species appeared in goal list
+
+**Browser automation testing:**
+- Created "Feature67 Rarest Test" goal list
+- Verified 20 restricted-range species with amber Rare badge
+- Added Highland Tinamou → "✓ In list" badge + checkmark shown immediately
+- Added gretin1 to IndexedDB life list, reloaded → Great Tinamou absent from suggestions
+- Screenshots: feature67-verify-step1-suggestions.png, feature67-verify-step2-added-indicator.png, feature67-verify-step3-seen-excluded.png
+- Zero JavaScript console errors (0 errors, 9 WebGL warnings only)
+- No mock data patterns in frontend/src/
+
+**Cleanup:** Deleted test goal list; removed gretin1 from life list
+
+**Current Status:** 36/83 features passing (43.4%)
+
+---
+
 ### Session 27 - 2026-02-15
+
+**Feature Completed:** #66 - Goal list progress summary display
+
+**What was accomplished:**
+- Feature was already implemented in `frontend/src/components/SidePanel.tsx` from a previous session
+- No code changes needed — just verified existing implementation works correctly
+
+**Implementation details (pre-existing in SidePanel.tsx ~lines 1630-1664):**
+- IIFE computes `total = activeList.speciesCodes.length`, `seenCount` (filtered by `isSpeciesSeen`), `progressPct = Math.round((seenCount / total) * 100)`
+- Renders `data-testid="goal-list-progress-summary"` div with:
+  - Left: "X bird(s) in list" or filter count when filtering
+  - Right: "X of Y seen" in green (`text-xs font-semibold text-green-700`, `data-testid="goal-list-seen-count"`)
+  - Progress bar: `data-testid="goal-list-progress-bar"` + fill with `style={{ width: progressPct% }}` + green `bg-green-500`
+  - Bar has `title={progressPct% complete}` for accessibility
+  - Transition animation on fill: `transition-all duration-300`
+
+**Verification (all 5 steps):**
+1. ✅ View a goal list with a mix of seen and unseen species — created "Feature66 Progress Test" with 3 birds; progress showed "0 of 3 seen"
+2. ✅ Progress summary displayed — "3 BIRDS IN LIST" left, "0 of 3 seen" right, 0% progress bar
+3. ✅ Marked Northern Cardinal as seen (via IndexedDB write + page reload) — progress updated to "1 of 3 seen"
+4. ✅ Progress summary updated — "1 of 3 seen" with 33% filled green progress bar
+5. ✅ Styling clean and fits design system — green text, thin 1.5px bar, Cornell Lab color scheme
+
+**Browser automation testing:**
+- Created goal list with Northern Cardinal, American Robin, Bald Eagle
+- Verified "0 of 3 seen" initial state (screenshot: feature66-step1-list-3-birds.png)
+- Added Northern Cardinal to IndexedDB life list, reloaded page
+- Verified "1 of 3 seen" with 33% progress bar (screenshot: feature66-step2-1-of-3-seen.png)
+- Deleted test goal list, removed norcar from life list (cleanup complete)
+- Zero JavaScript console errors (0 errors, 9 WebGL warnings only)
+
+**Mock data verification:**
+- No mock patterns in frontend/src/ — all data from real IndexedDB (goal lists + life list)
+
+**Current Status:** 35/83 features passing (42.2%)
+
+---
+
+### Session 27 - 2026-02-15 (previous entry)
 
 **Feature Completed:** #65 - Species info card accessible from goal list
 
