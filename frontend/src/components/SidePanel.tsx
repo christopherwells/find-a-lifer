@@ -1627,11 +1627,41 @@ function GoalBirdsTab() {
                   )}
                 </div>
 
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide" data-testid="goal-list-count">
-                  {listFilterTerm.trim()
-                    ? `${filteredListCodes.length} of ${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''}`
-                    : `${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''} in list`}
-                </div>
+                {/* Progress Summary */}
+                {(() => {
+                  const total = activeList.speciesCodes.length
+                  const seenCount = activeList.speciesCodes.filter((code) => isSpeciesSeen(code)).length
+                  const progressPct = total > 0 ? Math.round((seenCount / total) * 100) : 0
+                  return (
+                    <div className="space-y-1" data-testid="goal-list-progress-summary">
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide" data-testid="goal-list-count">
+                          {listFilterTerm.trim()
+                            ? `${filteredListCodes.length} of ${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''}`
+                            : `${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''} in list`}
+                        </div>
+                        <div
+                          className="text-xs font-semibold text-green-700"
+                          data-testid="goal-list-seen-count"
+                        >
+                          {seenCount} of {total} seen
+                        </div>
+                      </div>
+                      {/* Progress bar */}
+                      <div
+                        className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden"
+                        data-testid="goal-list-progress-bar"
+                        title={`${progressPct}% complete`}
+                      >
+                        <div
+                          className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                          style={{ width: `${progressPct}%` }}
+                          data-testid="goal-list-progress-fill"
+                        />
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {filteredListCodes.length === 0 ? (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
