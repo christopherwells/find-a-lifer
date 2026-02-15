@@ -2,6 +2,53 @@
 
 ---
 
+### Session 29 - 2026-02-15
+
+**Feature Completed:** #68 - Suggestions engine: Hardest to Find category
+
+**What was accomplished:**
+- Added `showHardestSuggestions` state variable to `GoalBirdsTab` in `SidePanel.tsx`
+- Added new "Hardest to Find" suggestions section below the "Rarest in North America" section
+- Section uses IIFE pattern (same as Rarest section) for self-contained filtering/rendering
+- Filters unseen species with `difficultyScore >= 0.75` (Very Hard or above)
+- Sorts by `difficultyScore` descending (highest score = hardest = shown first)
+- Shows top 20 hardest unseen species
+- Difficulty badges:
+  - "Extremely Hard" (score >= 0.90) in purple (bg-purple-100 text-purple-800)
+  - "Very Hard" (score >= 0.75) in red (bg-red-100 text-red-800)
+- Already-seen species excluded via `!isSpeciesSeen(sp.speciesCode)` filter
+- One-tap add button (dark blue) with checkmark + "✓ In list" badge when already in current goal list
+- Collapsible toggle button with purple styling (matching difficulty theme)
+- Section header: "🔭 Hardest to Find" with count badge
+- Description text: "Species with the lowest average occurrence probability — sorted hardest first."
+- data-testid attributes: hardest-suggestions-section, hardest-suggestions-toggle, hardest-suggestions-list, hardest-suggestion-{code}, hardest-difficulty-badge-{code}, hardest-in-list-badge-{code}, hardest-already-added-{code}, hardest-add-btn-{code}
+
+**Verification (all 6 steps):**
+1. ✅ Navigate to suggestions section — Goal Birds tab → create list → suggestions visible
+2. ✅ Find the 'Hardest to Find' category — "🔭 Hardest to Find" section with count=20
+3. ✅ Verify sorted by difficulty (hardest first) — Laysan Duck (0.9891), Baudo Guan, Horned Guan...
+4. ✅ Verify difficulty badges — "🔭 Extremely Hard" in purple shown for all top-20
+5. ✅ Verify seen species excluded — added Laysan Duck to life list, it disappeared from suggestions
+6. ✅ One-tap add — added Laysan Duck, "Added Laysan Duck to..." toast appeared, "✓ In list" badge shown
+
+**Browser automation testing:**
+- Created "Feature68 Test List" goal list
+- Verified Hardest to Find section visible with 20 species, all "Extremely Hard"
+- Tapped + on Laysan Duck → added to goal list, "✓ In list" badge shown
+- Added Laysan Duck to IndexedDB life list as "seen"
+- Reloaded page → Laysan Duck excluded from Hardest to Find list (Baudo Guan now #1)
+- Deleted test goal list and test life list entry to clean up
+- Zero JavaScript console errors (0 errors, 9 WebGL warnings only)
+- Screenshots: feature68-step1-hardest-to-find.png, feature68-step2-hardest-section-visible.png, feature68-step3-added-indicator.png, feature68-step4-seen-excluded.png
+
+**Mock data verification:**
+- No mock patterns in frontend/src/ (grep returned empty)
+- All data from real IndexedDB goal lists and species metadata API
+
+**Current Status:** 37/83 features passing (44.6%)
+
+---
+
 ### Session 28 - 2026-02-15
 
 **Feature Completed:** #67 - Suggestions engine: Rarest in North America category
