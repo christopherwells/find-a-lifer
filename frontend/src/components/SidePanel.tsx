@@ -1049,6 +1049,9 @@ function GoalBirdsTab() {
   // Filter within current list
   const [listFilterTerm, setListFilterTerm] = useState('')
 
+  // Suggestions section state
+  const [showRarestSuggestions, setShowRarestSuggestions] = useState(true)
+
   // Species info card state
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
 
@@ -1751,6 +1754,108 @@ function GoalBirdsTab() {
                 )}
               </div>
             )}
+
+            {/* Rarest in North America Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              const rarestSuggestions = allSpecies
+                .filter((sp) => sp.isRestrictedRange && !isSpeciesSeen(sp.speciesCode))
+                .slice(0, 20) // Take up to 20 unseen restricted-range species
+
+              if (rarestSuggestions.length === 0) return null
+
+              return (
+                <div className="mt-4" data-testid="suggestions-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowRarestSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                    data-testid="rarest-suggestions-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-600 font-bold text-sm">📍</span>
+                      <span className="text-sm font-semibold text-amber-800">Rarest in North America</span>
+                      <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {rarestSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-amber-600 transition-transform ${showRarestSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showRarestSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="rarest-suggestions-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Restricted-range species not yet on your life list. Tap + to add to this goal list.
+                      </p>
+                      {rarestSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`rarest-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0">
+                                  📍 Rare
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`rarest-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`rarest-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`rarest-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         ) : null}
       </div>
