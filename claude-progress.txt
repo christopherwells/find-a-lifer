@@ -1991,3 +1991,57 @@ Verified that the occurrence probability view mode is fully functional. The feat
 - All servers running, codebase in clean state
 - Browser closed cleanly
 
+
+---
+
+### Session 34 - 2026-02-16
+
+**Feature Completed:** #16 - Week slider with date labels navigates temporal data
+
+**What was accomplished:**
+- Feature was already fully implemented in `frontend/src/components/SidePanel.tsx` (ExploreTab component)
+- No code changes needed — performed comprehensive browser verification
+
+**Implementation details (pre-existing in SidePanel.tsx):**
+- Week slider: `<input type="range" min="1" max="52">` at lines 523-531
+- `getWeekLabel()` function (lines 254-262) converts week number to approximate date label
+- Date calculation: `dayOfYear = week * 7 - 3`, then creates Date object to get month/day
+- Format: "Week N (~MonthName Day)" (e.g., "Week 26 (~Jun 27)")
+- Slider onChange calls `onWeekChange?.()` which triggers data reload in MapView
+- Keyboard arrow keys work natively with HTML range input (no custom code needed)
+
+**Verification (all 7 steps):**
+1. ✅ Loaded app and navigated to Explore tab — app loaded, Explore tab active by default
+2. ✅ Week slider displayed with range 1-52 — slider element (e69) present with min=1 max=52
+3. ✅ Current week shows date label — Week 26 displayed "Week 26 (~Jun 27)"
+4. ✅ Slide to week 26, verify late June date — Correctly shows "~Jun 27" (late June)
+5. ✅ Map overlay updates when week changes — Console logs confirmed:
+   - Week 1: 62,890 records, max lifers=336, density overlay updated
+   - Week 26: 113,534 records, max lifers=594, density overlay updated
+   - Week 52: 62,831 records, max lifers=332, density overlay updated
+6. ✅ Slide to week 52, verify late December — Correctly shows "~Dec 26" (late December)
+7. ✅ Keyboard arrow keys work for fine control:
+   - Arrow Right: Week increased 26→27→28→29
+   - Arrow Left: Week decreased correctly
+   - Each keyboard action triggered immediate data load and map overlay update
+
+**Browser automation testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Week data loads correctly for all tested weeks (1, 25, 26, 27, 28, 29, 52)
+- Date labels accurate:
+  - Week 1: "~Jan 4" (early January)
+  - Week 26: "~Jun 27" (late June)
+  - Week 52: "~Dec 26" (late December)
+- Map density overlay updates immediately on every week change
+- Screenshots: page-2026-02-16T05-45-26-861Z.png (week 29 with slider and map)
+
+**Mock data verification:**
+- No mock patterns — all data from real /api/weeks/{week} endpoint
+- Week data varies correctly: different record counts for each week
+
+**Current Status:** 49/83 features passing (59.0%)
+
+**Next steps:**
+- Continue with remaining features (e.g., migration animation, trip planning, profile)
+- All servers running, codebase clean
+
