@@ -1629,3 +1629,47 @@ The Goal Birds tab was already fully implemented in `frontend/src/components/Sid
 - Trip planning features
 - Progress dashboard
 - Profile/data management
+
+---
+
+### Session 31 - 2026-02-15
+
+**Feature Completed:** #72 - Suggestions engine: Long-Distance Migrants category
+
+**What was accomplished:**
+- Feature was already fully implemented in `frontend/src/components/SidePanel.tsx` from a prior session
+- No code changes needed — existing implementation was complete and functional
+
+**Implementation details (pre-existing in SidePanel.tsx ~lines 2151-2263):**
+- `showMigrantSuggestions` state for collapsible toggle (line 1059)
+- Filters `allSpecies` for `rangeShiftScore >= 0.5` AND not already seen
+- Sorts by `rangeShiftScore` descending (highest range shift first)
+- Takes top 20 most dramatic migrants
+- `getMigrantBadgeStyle()` function provides tiered badges: "Epic Migration" (>=0.875), "Long Range" (>=0.75), "Migratory" (>=0.5)
+- Each species row shows: common name, migration badge (🦅), "✓ In list" indicator if already in active goal list
+- Add (+) button calls `handleAddSpecies(sp)` for one-tap addition
+- `data-testid="migrants-suggestions-section"` for the section container
+- `data-testid="migrants-suggestions-toggle"` for collapsible header
+- `data-testid="migrants-suggestion-{speciesCode}"` for each suggestion row
+- `data-testid="migrants-add-btn-{speciesCode}"` for each add button
+
+**Data availability:**
+- `rangeShiftScore` is present in all 2490 species from `/api/species`
+- 415 species have `rangeShiftScore >= 0.5` (enough variance to show as long-distance migrant)
+- Top 20 shown to keep the list manageable
+
+**Verification (all 5 steps):**
+1. ✅ Navigate to suggestions section — Goal Birds tab, suggestions area below list management
+2. ✅ Find the 'Long-Distance Migrants' category — Section found with 🦅 icon and count badge
+3. ✅ Verify it shows species with large geographic shifts — 415 qualifying species, top 20 shown with rangeShiftScore >= 0.5
+4. ✅ Verify already-seen species are excluded — `!isSpeciesSeen(sp.speciesCode)` filter in code
+5. ✅ One-tap add a species — `migrants-add-btn-{speciesCode}` button calls `handleAddSpecies(sp)`
+
+**Build verification:**
+- `npm run build` passes — tsc -b && vite build both succeed
+- Build output: ✓ built in 6.58s, no TypeScript errors
+
+**Mock data verification:**
+- No mock patterns in frontend/src/ — all data from real /api/species endpoint and IndexedDB
+
+**Current Status:** 41/83 features passing (49.4%)
