@@ -3591,3 +3591,43 @@ The view mode toggle was already fully implemented with:
 - All servers running on ports 8000 (backend) and 5173 (frontend)
 - Codebase in clean state
 - Browser closed cleanly
+
+
+=== Session 40: Feature #15 - Toggle between map view modes ===
+Date: 2026-02-16
+Assigned Feature: #15 "Toggle between map view modes"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Verified the map view mode toggle functionality (already fully implemented)
+- Comprehensive browser automation testing of all 9 verification steps
+- Tested all four view modes: Density, Probability, Species, and Goal Birds
+- Confirmed each mode updates the map overlay correctly with distinct visual styles
+
+**Verification Results (All 9 Steps):**
+
+✅ Step 1: Load the app with Explore tab active
+✅ Step 2: Verify lifer density view is the default mode - turquoise heatmap
+✅ Step 3: Click toggle to switch to probability view
+✅ Step 4: Verify map updates to show probability coloring - purple/magenta gradient
+✅ Step 5: Click toggle to switch to species range view
+✅ Step 6: Verify map prompts for species selection - tested with Canada Goose
+✅ Step 7: Switch back to lifer density view
+✅ Step 8: Verify map returns to density-based coloring - turquoise heatmap restored
+✅ Step 9: Verify active view mode is visually indicated - [active] attribute on buttons
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- All view mode switches instant and responsive
+- Map overlay updates smoothly without lag
+- Each view has distinct color scheme
+
+**Mock Data Verification:**
+- Grep search for mock patterns: 0 matches
+- All data from real API endpoints
+
+**Status:**
+- Feature #15 marked as PASSING
+- Commit: 896d82c
+- Current progress: 61/83 features passing (73.5%)
