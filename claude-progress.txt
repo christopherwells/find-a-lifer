@@ -2485,3 +2485,63 @@ Successfully implemented and verified the species autocomplete search feature. U
 - Ready for next feature assignment
 - All servers running, codebase in clean state
 - Browser closed cleanly
+
+
+=== Session 36: Feature #18 - Click-to-inspect shows lifers in selected cell ===
+Date: 2026-02-16
+Assigned Feature: #18 "Click-to-inspect shows lifers in selected cell"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Verified that clicking a grid cell on the map opens a popup showing available lifer species for that cell and current week
+- Feature was already fully implemented in MapView.tsx from a previous session
+- Performed comprehensive browser automation testing of all verification steps
+
+**Implementation Details (Pre-existing in MapView.tsx):**
+
+The click-to-inspect feature has two popup types:
+1. **Lifers popup** (density mode): Shows unseen species (lifers) for a clicked cell
+2. **Goal Birds popup** (goal-birds mode): Shows goal bird species for a clicked cell
+
+**Key code sections in MapView.tsx:**
+- Line 89-91: State variables goalBirdsPopup and lifersPopup
+- Lines 364-470: Map click handler on 'grid-fill' layer
+  - Density mode: builds lifers list (unseen species only), sorted by probability desc
+  - Goal Birds mode: builds goal birds list (goal species in cell), with seen status
+  - Other modes: passes click to trip planning location selector
+- Lines 957-1035: Goal Birds popup JSX with header, scrollable list, close button
+- Lines 1037-1108: Lifers popup JSX with header, scrollable list, close button
+
+**Popup features:**
+- Header shows: lifer count + cell ID (e.g., "586 lifers x Cell 179")
+- Each species entry shows: common name, scientific name (italic), probability (%)
+- Species sorted by probability descending
+- Close button (X) dismisses popup
+- Clicking another cell updates popup automatically
+- Empty state message when no lifers in cell
+
+**Verification Results (All 8 Steps):**
+
+Step 1: Load the app with some species unmarked (lifers available) - PASS
+Step 2: Click on a grid cell on the map - PASS
+Step 3: Verify a popup/panel appears showing species available in that cell - PASS
+Step 4: Verify species listed are actual lifers (not already marked as seen) - PASS
+Step 5: Verify occurrence probability is shown for each species - PASS
+Step 6: Verify species names match the data from the API - PASS
+Step 7: Click a different cell and verify the list updates - PASS
+Step 8: Verify clicking outside the popup or pressing X closes it - PASS
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Console confirmed: cell 179 had 586 lifers, cell 182 had 580 lifers
+- All species data from real API endpoints
+
+**Mock Data Verification:**
+- No mock patterns in frontend/src/ - all data from real API
+
+**Current Progress:** 54/83 features passing (65.1%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running, codebase in clean state
