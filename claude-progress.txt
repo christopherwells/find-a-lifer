@@ -2,6 +2,42 @@
 
 ---
 
+### Session 33 - 2026-02-15
+
+**Feature Completed:** #76 - Suggestions engine: LBJs (Little Brown Jobs) category
+
+**What was accomplished:**
+- Implemented LBJs curated suggestions category in `frontend/src/components/SidePanel.tsx`
+- Added `showLBJsSuggestions` state for collapsible section
+- Added `LBJS` array with 25 curated North American small brown bird species:
+  - Sparrows (15): Song, Swamp, Savannah, White-throated, White-crowned, Chipping, Field, Fox, Lark, American Tree, Grasshopper, Henslow's, LeConte's, Lincoln's
+  - Wrens (5): Carolina, Bewick's, Northern House, Marsh, Rock, Cactus
+  - Pipit (1): American Pipit
+  - Junco (1): Dark-eyed Junco
+  - Longspur (1): Lapland Longspur
+  - Towhees (2): Spotted Towhee, Eastern Towhee
+- Section uses stone color theme (bg-stone-50, text-stone-800) with 🐦 emoji
+- Follows same pattern as Raptors (#75), Owls (#74), Colorful Characters (#73)
+- Filters out already-seen species (isSpeciesSeen check)
+- Shows "✓ In list" badge for species already in the active goal list
+- One-tap "+" button to add species to goal list via handleAddSpecies
+- All data-testid attributes: lbjs-section, lbjs-toggle, lbjs-list, lbjs-suggestion-{code}, lbjs-add-btn-{code}, lbjs-in-list-badge-{code}, lbjs-already-added-{code}
+
+**Verification:**
+- TypeScript build: ✅ Passes cleanly (tsc + vite build, no errors, built in 6.82s)
+- Mock data check: No mock patterns in frontend/src/
+- Git commit: 6dd823d
+
+**Current Status:** 45/83 features passing (54.2%)
+
+**Next steps:**
+- More suggestions categories (Water Birds, Shorebirds, Warblers, etc.)
+- Trip planning features
+- Progress dashboard
+- Profile/data management
+
+---
+
 ### Session 32 - 2026-02-15
 
 **Feature Completed:** #73 - Suggestions engine: Colorful Characters category
