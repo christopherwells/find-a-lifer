@@ -49,6 +49,43 @@ interface LiferInCell {
   probability: number
 }
 
+/**
+ * Generate a rainbow gradient color based on a normalized value (0 to 1)
+ * Rainbow spectrum: red → orange → yellow → green → blue → indigo → violet
+ * Returns an RGBA string with the given alpha value
+ */
+function getRainbowColor(normalizedValue: number, alpha: number = 0.8): string {
+  // Clamp value between 0 and 1
+  const t = Math.max(0, Math.min(1, normalizedValue))
+
+  // Define rainbow color stops (RGB values)
+  const colorStops = [
+    { r: 255, g: 0, b: 0 },     // Red
+    { r: 255, g: 127, b: 0 },   // Orange
+    { r: 255, g: 255, b: 0 },   // Yellow
+    { r: 0, g: 255, b: 0 },     // Green
+    { r: 0, g: 0, b: 255 },     // Blue
+    { r: 75, g: 0, b: 130 },    // Indigo
+    { r: 148, g: 0, b: 211 }    // Violet
+  ]
+
+  // Calculate which two color stops to interpolate between
+  const scaledValue = t * (colorStops.length - 1)
+  const lowerIndex = Math.floor(scaledValue)
+  const upperIndex = Math.ceil(scaledValue)
+  const fraction = scaledValue - lowerIndex
+
+  // Interpolate between the two color stops
+  const lowerColor = colorStops[lowerIndex]
+  const upperColor = colorStops[upperIndex]
+
+  const r = Math.round(lowerColor.r + (upperColor.r - lowerColor.r) * fraction)
+  const g = Math.round(lowerColor.g + (upperColor.g - lowerColor.g) * fraction)
+  const b = Math.round(lowerColor.b + (upperColor.b - lowerColor.b) * fraction)
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 interface LifersPopup {
   cellId: number
   coordinates: [number, number]
@@ -57,6 +94,22 @@ interface LifersPopup {
 
 // Module-level cache for species metadata (to avoid re-fetching)
 let speciesMetaCache: SpeciesMeta[] | null = null
+
+// Helper function to generate legend tick labels
+function getLegendTicks(min: number, max: number, isPercentage: boolean, numTicks: number = 3): string[] {
+  if (max === 0) return ['0', '0', '0']
+
+  const ticks: string[] = []
+  for (let i = 0; i < numTicks; i++) {
+    const value = min + (max - min) * (i / (numTicks - 1))
+    if (isPercentage) {
+      ticks.push(`${Math.round(value * 100)}%`)
+    } else {
+      ticks.push(Math.round(value).toString())
+    }
+  }
+  return ticks
+}
 
 // Region bounds for zoom presets
 const REGION_BOUNDS: Record<string, { center: [number, number]; zoom: number }> = {
@@ -93,6 +146,9 @@ export default function MapView({
   const [lifersPopup, setLifersPopup] = useState<LifersPopup | null>(null)
   // Species metadata for the selected species (used in legend)
   const [selectedSpeciesMeta, setSelectedSpeciesMeta] = useState<SpeciesMeta | null>(null)
+  // Legend data range values (for numeric labels)
+  const [legendMin, setLegendMin] = useState(0)
+  const [legendMax, setLegendMax] = useState(0)
   // Refs for latest values accessible inside map click handler
   const viewModeRef = useRef(viewMode)
   const weeklyDataRef = useRef(weeklyData)
@@ -496,11 +552,11 @@ export default function MapView({
         // No species selected: show faint neutral overlay
         setSelectedSpeciesMeta(null)
         if (map.current.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(44, 62, 123, 0.04)')
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
+          map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
         }
         console.log('Species Range: no species selected')
@@ -537,14 +593,21 @@ export default function MapView({
 
         console.log(`Species Range: ${selectedSpecies} (id=${speciesId}) found in ${cellProbabilities.size} cells this week`)
 
+        // Calculate min/max probabilities for legend
+        const probabilities = Array.from(cellProbabilities.values())
+        const minProb = probabilities.length > 0 ? Math.min(...probabilities) : 0
+        const maxProb = probabilities.length > 0 ? Math.max(...probabilities) : 0
+        setLegendMin(minProb)
+        setLegendMax(maxProb)
+
         if (cellProbabilities.size === 0) {
           // Species not present anywhere this week
           if (map.current && map.current.getLayer('grid-fill')) {
-            map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(44, 62, 123, 0.04)')
+            map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
             map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
           }
           if (map.current && map.current.getLayer('grid-border')) {
-            map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
+            map.current.setPaintProperty('grid-border', 'line-color', '#999')
             map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
           }
           return
@@ -554,22 +617,22 @@ export default function MapView({
         const paintExpression: any = ['case']
 
         cellProbabilities.forEach((prob, cellId) => {
-          // Scale from 0.15 (lowest) to 0.85 (probability=1.0)
-          const intensity = Math.min(0.85, prob * 0.7 + 0.15)
+          // Use probability directly as normalized value (already 0-1)
+          const color = getRainbowColor(prob, 1.0)
           paintExpression.push(['==', ['get', 'cell_id'], cellId])
-          paintExpression.push(`rgba(44, 62, 123, ${intensity.toFixed(3)})`)
+          paintExpression.push(color)
         })
 
-        // Default: species not present in this cell — very faint
-        paintExpression.push('rgba(44, 62, 123, 0.02)')
+        // Default: species not present in this cell (light gray)
+        paintExpression.push('rgba(200, 200, 200, 0.1)')
 
         if (map.current && map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current && map.current.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+          map.current.setPaintProperty('grid-border', 'line-color', '#666')
+          map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
         }
       }
 
@@ -580,11 +643,11 @@ export default function MapView({
       if (goalSpeciesCodes.size === 0) {
         // No goal species defined: show empty overlay
         if (map.current.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(212, 160, 23, 0.03)')
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
+          map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
         console.log('Goal Birds: no goal species defined in any list')
@@ -608,14 +671,20 @@ export default function MapView({
 
       console.log(`Goal Birds overlay: ${cellCounts.size} cells with goal birds, max=${maxCount}, unseen goal species=${goalSpeciesIdSet.size}`)
 
+      // Calculate min/max for legend
+      const counts = Array.from(cellCounts.values()).filter(c => c > 0)
+      const minCount = counts.length > 0 ? Math.min(...counts) : 0
+      setLegendMin(minCount)
+      setLegendMax(maxCount)
+
       if (maxCount === 0) {
         // No goal birds present anywhere this week
         if (map.current.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(212, 160, 23, 0.03)')
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
+          map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
         return
@@ -640,8 +709,8 @@ export default function MapView({
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+        map.current.setPaintProperty('grid-border', 'line-color', '#666')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
     } else if (viewMode === 'probability') {
       // Probability mode: show max occurrence probability per cell
@@ -665,13 +734,20 @@ export default function MapView({
 
       console.log(`Probability overlay: ${cellMaxProbability.size} cells, goal filter=${useGoalFilter}, goal species=${goalSpeciesIdSet.size}`)
 
+      // Calculate min/max probabilities for legend
+      const probabilities = Array.from(cellMaxProbability.values())
+      const minProb = probabilities.length > 0 ? Math.min(...probabilities) : 0
+      const maxProb = probabilities.length > 0 ? Math.max(...probabilities) : 1
+      setLegendMin(minProb)
+      setLegendMax(maxProb)
+
       if (cellMaxProbability.size === 0) {
         if (map.current.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(138, 43, 226, 0.03)')
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#8A2BE2')
+          map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
         }
         return
@@ -681,33 +757,33 @@ export default function MapView({
       const paintExpression: any = ['case']
 
       cellMaxProbability.forEach((maxProb, cellId) => {
-        // Scale from 0.12 (very low) to 0.85 (probability ≥ 0.8)
-        const intensity = Math.min(0.85, maxProb * 0.9 + 0.1)
+        // Use max probability directly as normalized value (already 0-1)
+        const color = getRainbowColor(maxProb, 1.0)
         paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(`rgba(138, 43, 226, ${intensity.toFixed(3)})`)
+        paintExpression.push(color)
       })
 
-      // Default: no occurrence data in this cell — very faint
-      paintExpression.push('rgba(138, 43, 226, 0.02)')
+      // Default: no occurrence data in this cell (light gray)
+      paintExpression.push('rgba(200, 200, 200, 0.1)')
 
       if (map.current.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#8A2BE2')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+        map.current.setPaintProperty('grid-border', 'line-color', '#666')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
     } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
       // Density mode with Goal Birds Only filter: count unseen goal species per cell (teal)
       if (goalSpeciesCodes.size === 0) {
         // No goal species defined: show very faint overlay
         if (map.current.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(8, 136, 136, 0.05)')
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#088')
+          map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
         console.log('Goal Birds Only filter: no goal species defined')
@@ -731,39 +807,46 @@ export default function MapView({
 
       console.log(`Goal Birds Only density: ${cellCounts.size} cells with goal birds, max=${maxCount}, unseen goal species=${goalSpeciesIdSet.size}`)
 
+      // Calculate min/max for legend
+      const counts = Array.from(cellCounts.values()).filter(c => c > 0)
+      const minCount = counts.length > 0 ? Math.min(...counts) : 0
+      setLegendMin(minCount)
+      setLegendMax(maxCount)
+
       if (maxCount === 0) {
         if (map.current.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(8, 136, 136, 0.05)')
+          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#088')
+          map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
         return
       }
 
-      // Build paint expression: teal color scaled by goal bird count
+      // Build paint expression: rainbow gradient scaled by goal bird count
       const paintExpression: any = ['case']
 
       cellCounts.forEach((count, cellId) => {
         if (count === 0) return
-        // Scale from 0.1 (1 goal bird) to 0.7 (max goal birds)
-        const intensity = Math.min(0.7, (count / maxCount) * 0.6 + 0.1)
+        // Calculate normalized value based on goal bird count
+        const normalizedValue = count / maxCount
+        const color = getRainbowColor(normalizedValue, 1.0)
         paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(`rgba(8, 136, 136, ${intensity.toFixed(3)})`)
+        paintExpression.push(color)
       })
 
-      // Default: no goal birds in this cell — very faint
-      paintExpression.push('rgba(8, 136, 136, 0.02)')
+      // Default: no goal birds in this cell (light gray)
+      paintExpression.push('rgba(200, 200, 200, 0.1)')
 
       if (map.current.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#088')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+        map.current.setPaintProperty('grid-border', 'line-color', '#666')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
     } else {
       // Default density mode: lifer density heatmap based on number of UNSEEN species
@@ -790,27 +873,34 @@ export default function MapView({
       })
 
       const maxLifers = Math.max(...Array.from(cellLiferCounts.values()), 0)
+      const minLifers = cellLiferCounts.size > 0 ? Math.min(...Array.from(cellLiferCounts.values())) : 0
+
+      // Update legend data range
+      setLegendMin(minLifers)
+      setLegendMax(maxLifers)
 
       const paintExpression: any = ['case']
 
       cellLiferCounts.forEach((liferCount, cellId) => {
-        // Scale opacity based on lifer count (more lifers = darker color)
-        const intensity = Math.min(0.85, (liferCount / maxLifers) * 0.7 + 0.15)
+        // Calculate normalized value (0 to 1) based on lifer count
+        const normalizedValue = liferCount / maxLifers
+        // Get rainbow color with full opacity (alpha controlled by heatmapOpacity prop)
+        const color = getRainbowColor(normalizedValue, 1.0)
 
         paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(`rgba(8, 136, 136, ${intensity})`)
+        paintExpression.push(color)
       })
 
-      // Default: cells with zero lifers or all species seen
-      paintExpression.push('rgba(8, 136, 136, 0.05)')
+      // Default: cells with zero lifers or all species seen (light gray)
+      paintExpression.push('rgba(200, 200, 200, 0.1)')
 
       if (map.current.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#088')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
+        map.current.setPaintProperty('grid-border', 'line-color', '#666')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
       console.log(`Updated density overlay with ${cellLiferCounts.size} cells, max lifers=${maxLifers}, seen species=${seenSpeciesIdSet.size}`)
     }
@@ -841,12 +931,23 @@ export default function MapView({
             <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds Density</div>
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-600">
-            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(212,160,23,0.12)' }}></div>
-            <span>Few</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(212,160,23,0.5)' }}></div>
-            <span>Some</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(212,160,23,0.85)' }}></div>
-            <span>Many</span>
+            {(() => {
+              const ticks = getLegendTicks(legendMin, legendMax, false, 5)
+              return (
+                <>
+                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
+                  <span>{ticks[0]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
+                  <span>{ticks[1]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
+                  <span>{ticks[2]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
+                  <span>{ticks[3]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
+                  <span>{ticks[4]}</span>
+                </>
+              )
+            })()}
           </div>
           <div className="text-xs text-gray-400 mt-1">Goal birds per cell</div>
           {goalSpeciesCodes.size === 0 && (
@@ -867,12 +968,23 @@ export default function MapView({
             <div className="text-xs font-semibold text-[#2C3E50]">🔭 Lifer Density</div>
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-600">
-            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(8,136,136,0.12)' }}></div>
-            <span>Few</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.4)' }}></div>
-            <span>Some</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.7)' }}></div>
-            <span>Many</span>
+            {(() => {
+              const ticks = getLegendTicks(legendMin, legendMax, false, 5)
+              return (
+                <>
+                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
+                  <span>{ticks[0]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
+                  <span>{ticks[1]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
+                  <span>{ticks[2]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
+                  <span>{ticks[3]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
+                  <span>{ticks[4]}</span>
+                </>
+              )
+            })()}
           </div>
           <div className="text-xs text-gray-400 mt-1">Unseen species per area</div>
         </div>
@@ -893,12 +1005,23 @@ export default function MapView({
             </div>
           )}
           <div className="flex items-center gap-1 text-xs text-gray-600">
-            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(44,62,123,0.2)' }}></div>
-            <span>Low</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(44,62,123,0.5)' }}></div>
-            <span>Med</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(44,62,123,0.85)' }}></div>
-            <span>High</span>
+            {(() => {
+              const ticks = getLegendTicks(legendMin, legendMax, true, 5)
+              return (
+                <>
+                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
+                  <span>{ticks[0]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
+                  <span>{ticks[1]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
+                  <span>{ticks[2]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
+                  <span>{ticks[3]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
+                  <span>{ticks[4]}</span>
+                </>
+              )
+            })()}
           </div>
           <div className="text-xs text-gray-400 mt-1">Occurrence probability</div>
         </div>
@@ -916,12 +1039,23 @@ export default function MapView({
             </div>
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-600">
-            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(138,43,226,0.15)' }}></div>
-            <span>Low</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(138,43,226,0.5)' }}></div>
-            <span>Med</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(138,43,226,0.85)' }}></div>
-            <span>High</span>
+            {(() => {
+              const ticks = getLegendTicks(legendMin, legendMax, true, 5)
+              return (
+                <>
+                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
+                  <span>{ticks[0]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
+                  <span>{ticks[1]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
+                  <span>{ticks[2]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
+                  <span>{ticks[3]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
+                  <span>{ticks[4]}</span>
+                </>
+              )
+            })()}
           </div>
           {goalBirdsOnlyFilter && goalSpeciesCodes.size === 0 && (
             <div className="text-xs text-purple-600 mt-1">
@@ -941,12 +1075,23 @@ export default function MapView({
             <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds Only</div>
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-600">
-            <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(8,136,136,0.12)' }}></div>
-            <span>Few</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.4)' }}></div>
-            <span>Some</span>
-            <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgba(8,136,136,0.7)' }}></div>
-            <span>Many</span>
+            {(() => {
+              const ticks = getLegendTicks(legendMin, legendMax, false, 5)
+              return (
+                <>
+                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
+                  <span>{ticks[0]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
+                  <span>{ticks[1]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
+                  <span>{ticks[2]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
+                  <span>{ticks[3]}</span>
+                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
+                  <span>{ticks[4]}</span>
+                </>
+              )
+            })()}
           </div>
           {goalSpeciesCodes.size === 0 && (
             <div className="text-xs text-teal-600 mt-1">
