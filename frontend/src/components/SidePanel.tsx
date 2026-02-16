@@ -1062,6 +1062,7 @@ function GoalBirdsTab() {
   const [showColorfulCharactersSuggestions, setShowColorfulCharactersSuggestions] = useState(true)
   const [showOwlsNightbirdsSuggestions, setShowOwlsNightbirdsSuggestions] = useState(true)
   const [showRaptorsSuggestions, setShowRaptorsSuggestions] = useState(true)
+  const [showLBJsSuggestions, setShowLBJsSuggestions] = useState(true)
 
   // Curated Regional Icons — signature/must-see birds for each North American region
   // Derived from pipeline config curated data
@@ -1198,6 +1199,36 @@ function GoalBirdsTab() {
     'blkvul',    // Black Vulture — short-tailed vulture, flapping flight style
     'calcon',    // California Condor — largest North American land bird, conservation story
     'y00678',    // Crested Caracara — unusual raptor with carrion and insect diet
+  ]
+
+  // Curated LBJs — Little Brown Jobs: the notoriously tricky small brown birds
+  // Sparrows, wrens, pipits, juncos, and related species that challenge even experienced birders
+  const LBJS: string[] = [
+    'sonspa',    // Song Sparrow — quintessential LBJ, streaked brown, ubiquitous
+    'swaspa',    // Swamp Sparrow — rusty-winged marsh sparrow
+    'savspa',    // Savannah Sparrow — grassland sparrow, fine breast streaking
+    'whtspa',    // White-throated Sparrow — bold white throat, tan or white morph
+    'whcspa',    // White-crowned Sparrow — crisp black-and-white head stripes
+    'chispa',    // Chipping Sparrow — red cap, black eye line, tidy suburban sparrow
+    'fiespa',    // Field Sparrow — plain face, pink bill, bouncing-ball song
+    'foxspa',    // Fox Sparrow — largest sparrow, thick-billed, rich rufous
+    'larspa',    // Lark Sparrow — harlequin face pattern, central breast spot
+    'daejun',    // Dark-eyed Junco — the "snowbird", slate-gray with white outer tail
+    'amtspa',    // American Tree Sparrow — bicolored bill, rusty cap, winter visitor
+    'graspa',    // Grasshopper Sparrow — flat-headed, flat-backed, flat-sounding
+    'henspa',    // Henslow's Sparrow — olive-headed, secretive grass dweller
+    'lecspa',    // LeConte's Sparrow — buffy-orange, extremely secretive marsh sparrow
+    'linspa',    // Lincoln's Sparrow — buffy-washed breast, fine streaking
+    'amepip',    // American Pipit — long-tailed ground bird, bobs tail incessantly
+    'carwre',    // Carolina Wren — loud voice for small body, rufous with white supercilium
+    'bewwre',    // Bewick's Wren — long tail, bold white eyebrow, western counterpart
+    'houwre',    // Northern House Wren — plain brown, chattering song, cavity nester
+    'marwre',    // Marsh Wren — bold white eyebrow, woven nest over water
+    'rocwre',    // Rock Wren — pale gray-brown, bobbing behavior on rocky slopes
+    'cacwre',    // Cactus Wren — largest North American wren, spotted chest
+    'spotow',    // Spotted Towhee — rufous sides, bold spotting on wings
+    'eastow',    // Eastern Towhee — classic "drink-your-teeeea" eastern counterpart
+    'laplon',    // Lapland Longspur — Arctic breeder, abundant winter grassland bird
   ]
 
   // Species info card state
@@ -2979,6 +3010,126 @@ function GoalBirdsTab() {
                                 className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
                                 title={`Add ${sp.comName} to goal list`}
                                 data-testid={`raptors-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* LBJs Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter curated LBJ species that are unseen
+              const lbjsSuggestions = LBJS
+                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
+                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
+
+              if (lbjsSuggestions.length === 0) return null
+
+              return (
+                <div className="mt-4" data-testid="lbjs-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowLBJsSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-stone-50 border border-stone-200 rounded-lg hover:bg-stone-100 transition-colors"
+                    data-testid="lbjs-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-stone-600 font-bold text-sm">🐦</span>
+                      <span className="text-sm font-semibold text-stone-800">LBJs (Little Brown Jobs)</span>
+                      <span className="text-xs bg-stone-200 text-stone-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {lbjsSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-stone-600 transition-transform ${showLBJsSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showLBJsSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="lbjs-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Sparrows, wrens, pipits, juncos, and other small brown birds — notoriously difficult to tell apart, a badge of honor for skilled birders. Tap + to add to this goal list.
+                      </p>
+                      {lbjsSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-2 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`lbjs-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species photo thumbnail */}
+                            {sp.photoUrl ? (
+                              <img
+                                src={sp.photoUrl}
+                                alt={sp.comName}
+                                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 mr-2"
+                                data-testid={`lbjs-photo-${sp.speciesCode}`}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="w-10 h-10 rounded-lg bg-stone-100 flex items-center justify-center flex-shrink-0 mr-2"
+                                data-testid={`lbjs-photo-placeholder-${sp.speciesCode}`}
+                              >
+                                <span className="text-lg">🐦</span>
+                              </div>
+                            )}
+
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`lbjs-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`lbjs-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`lbjs-add-btn-${sp.speciesCode}`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
