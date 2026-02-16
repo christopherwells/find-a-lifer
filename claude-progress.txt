@@ -1717,3 +1717,54 @@ The Goal Birds tab was already fully implemented in `frontend/src/components/Sid
 - No mock patterns in frontend/src/ — all data from real /api/species endpoint and IndexedDB
 
 **Current Status:** 41/83 features passing (49.4%)
+
+---
+## Session: Feature #74 - Owls & Nightbirds Suggestion Category
+**Date:** 2026-02-15
+**Feature:** #74 - Suggestions engine: Owls and Nightbirds category
+**Status:** PASSING ✅
+
+### What was accomplished:
+- Implemented "Owls & Nightbirds" curated suggestion category in SidePanel.tsx
+- Added `OWLS_NIGHTBIRDS` array with 25 curated North American nocturnal species:
+  - Owls: Great Horned, Snowy, Barred, Great Gray, American Barn, Eastern/Western Screech, Northern Hawk, Short-eared, Long-eared, Boreal, Northern Saw-whet, Burrowing, Northern Pygmy, Elf, Flammulated, Ferruginous Pygmy, Spotted
+  - Nightjars/Nighthawks: Eastern Whip-poor-will, Mexican Whip-poor-will, Chuck-will's-widow, Common Poorwill, Common Nighthawk, Lesser Nighthawk, Common Pauraque
+- Added `showOwlsNightbirdsSuggestions` state for collapsible section
+- Section uses indigo color theme (bg-indigo-50, text-indigo-800) with 🦉 emoji
+- Follows same pattern as Colorful Characters (feature #73) and other suggestion categories
+- Filters out already-seen species (isSpeciesSeen check)
+- Shows "✓ In list" badge for species already in the active goal list
+- One-tap "+" button to add species to goal list via handleAddSpecies
+- All proper data-testid attributes for testing
+- Species lookup by speciesCode from allSpecies — gracefully skips missing codes
+
+### Verification:
+- TypeScript build: ✅ Passes cleanly (tsc + vite build, no errors)
+- ESLint: Pre-existing errors only (9 errors all in other files/code, none from new code)
+- Git commit: ab45a69
+
+### Current Status:
+- 43/83 features passing (51.8%)
+
+---
+## Session: Feature #75 - Raptors Suggestion Category
+**Date:** 2026-02-15
+**Feature:** #75 - Suggestions engine: Raptors category
+**Status:** PASSING
+
+### What was accomplished:
+- Implemented "Raptors" curated suggestion category in SidePanel.tsx
+- Added RAPTORS array with 25 curated North American raptor species
+- Species include eagles (Bald, Golden), buteos (Red-tailed, Swainson's, Broad-winged, Red-shouldered, Ferruginous, Rough-legged), accipiters (Cooper's Hawk, Sharp-shinned Hawk), kites (Mississippi, Swallow-tailed, White-tailed, Snail), Northern Harrier, falcons (Peregrine, Gyrfalcon, Prairie, Merlin, American Kestrel), Osprey, Turkey Vulture, Black Vulture, California Condor, Crested Caracara
+- Added showRaptorsSuggestions state for collapsible section
+- Section uses amber color theme (bg-amber-50, text-amber-800) with eagle emoji
+- Filters out already-seen species, shows "In list" badge, one-tap add button
+- All 25 species codes verified valid against test_species_response.json
+
+### Verification:
+- All 25 species codes verified valid against live species data
+- TypeScript build: PASS (tsc + vite build, no errors, built in 6.67s)
+- Git commit: 4d19486
+
+### Current Status:
+- 44/83 features passing (53.0%)
