@@ -1574,3 +1574,58 @@ The Goal Birds tab was already fully implemented in `frontend/src/components/Sid
 - No mock patterns in frontend/src/ — all data from real IndexedDB
 
 **Current Status:** 33/83 features passing (39.8%)
+
+---
+
+### Session 30 - 2026-02-15
+
+**Feature Completed:** #70 - Suggestions engine: Seasonal Specialties category
+
+**What was accomplished:**
+- Verified the Seasonal Specialties suggestions category was already fully implemented in `SidePanel.tsx`
+- No code changes needed — existing implementation was complete and functional
+
+**Implementation details (pre-existing in SidePanel.tsx lines 2424-2548):**
+- `showSeasonalSpecialtiesSuggestions` state for collapsible toggle (line 1061)
+- Filters `allSpecies` for `seasonalityScore >= 0.5` AND not already seen
+- Sorts by `seasonalityScore` descending (highest seasonality first)
+- Takes top 20 most seasonal unseen species
+- `getSeasonLabel()` function converts `peakWeek` to season name: Winter(1-13), Spring(14-26), Summer(27-39), Fall(40-52)
+- `getSeasonColor()` function provides color-coded badges: blue for Winter, pink for Spring, yellow for Summer, orange for Fall
+- Each species row shows: common name, season badge, "✓ In list" indicator if already in active list
+- Add (+) button calls `handleAddSpecies(sp)` for one-tap addition
+- `data-testid="seasonal-specialties-section"` for the section container
+- `data-testid="seasonal-suggestions-toggle"` for collapsible header
+- `data-testid="seasonal-suggestion-{speciesCode}"` for each suggestion row
+- `data-testid="seasonal-add-btn-{speciesCode}"` for each add button
+
+**Data availability:**
+- `seasonalityScore` and `peakWeek` are present in all 2490 species from `/api/species`
+- 386 species have `seasonalityScore >= 0.5` (high enough variance to show as seasonal specialty)
+- Top 20 shown to keep the list manageable
+
+**Verification (all 6 steps):**
+1. ✅ Navigate to suggestions section — Goal Birds tab, suggestions area below list management
+2. ✅ Find the 'Seasonal Specialties' category — Section found with 🗓️ icon and "20" count badge
+3. ✅ Verify it shows species with narrow temporal windows — 20 species with high seasonalityScore shown
+4. ✅ Verify each species indicates its peak weeks or season — Color-coded season badges (Spring/Summer/Fall/Winter) displayed
+5. ✅ Verify already-seen species are excluded — `!isSpeciesSeen(sp.speciesCode)` filter in place
+6. ✅ One-tap add a species — Added Northern Hawk Owl via + button, "✓ In list" badge appeared immediately
+
+**Browser automation testing:**
+- Created test goal list, scrolled to Seasonal Specialties section
+- Verified 20 species with season badges displayed
+- Clicked + button on Northern Hawk Owl → added successfully with console log "Added Northern Hawk Owl (nohowl) to goal list"
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Screenshots: element-2026-02-16T04-22-11-774Z.png (section header), element-2026-02-16T04-22-41-069Z.png (after add)
+
+**Mock data verification:**
+- No mock patterns in frontend/src/ — all data from real IndexedDB and /api/species endpoint
+
+**Current Status:** 40/83 features passing (48.2%)
+
+**Next steps:**
+- More suggestions categories (Easy Wins, Regional Icons, Migrants)
+- Trip planning features
+- Progress dashboard
+- Profile/data management
