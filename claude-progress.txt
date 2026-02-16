@@ -2944,3 +2944,189 @@ The difficulty filter was already fully implemented with:
 - All servers running on ports 8000 (backend) and 5173 (frontend)
 - Codebase in clean state
 - Browser closed cleanly
+
+
+=== Session 38: Feature #36 - Species info card displays on selection ===
+Date: 2026-02-16
+Assigned Feature: #36 "Species info card displays on selection"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Verified species info card popup functionality (already fully implemented)
+- Comprehensive browser automation testing of all 10 verification steps
+- Tested with multiple species: Common Ostrich and Highland Tinamou
+- Confirmed all badges display correctly with proper color coding
+
+**Implementation Details (Pre-existing in frontend/src/components/SidePanel.tsx):**
+
+The species info card was already fully implemented as a React portal overlay with:
+
+1. **Photo Area (lines 1195-1209):**
+   - Shows species photo if `photoUrl` is available
+   - Otherwise displays "No photo available" placeholder with image icon
+   - Gray background with centered content
+
+2. **Close Button (lines 1211-1220):**
+   - Positioned in top-right corner with absolute positioning
+   - White background with opacity, rounded full
+   - X icon from SVG
+   - data-testid="species-info-card-close"
+
+3. **Species Names (lines 1226-1233):**
+   - Common name: h3 heading, bold, large text
+   - Scientific name: italic, gray text
+   - Family name: small text, lighter gray
+
+4. **Badges Section (lines 1237-1270):**
+   - Conservation status badge (lines 1239-1244):
+     - Color-coded based on IUCN status
+     - 🌿 icon with status label
+     - data-testid="species-info-conservation-badge"
+   - Difficulty badge (lines 1246-1251):
+     - Color-coded: Easy (green), Moderate (yellow), Hard (orange), Very Hard (red)
+     - 🔭 icon with difficulty label
+     - data-testid="species-info-difficulty-badge"
+   - Restricted range badge (lines 1253-1260):
+     - Only shown if `species.isRestrictedRange === true`
+     - Blue background (bg-blue-100, text-blue-800)
+     - 📍 icon with "Restricted Range" text
+     - data-testid="species-info-restricted-badge"
+   - Invasion status badge (lines 1262-1269):
+     - Only shown if status is not empty and not "Native"
+     - Amber background (bg-amber-100, text-amber-800)
+     - ⚠️ icon with status label
+     - data-testid="species-info-invasion-badge"
+
+5. **eBird Link (lines 1273-1285):**
+   - Full-width button with Cornell blue background
+   - External link icon
+   - Opens in new tab (target="_blank", rel="noopener noreferrer")
+   - URL format: https://ebird.org/species/{speciesCode}
+   - data-testid="species-info-ebird-link"
+
+6. **Trigger Mechanism (lines 1027-1041):**
+   - Each species in checklist has a button that wraps the name
+   - Clicking the button calls `setSelectedSpeciesCard(species)`
+   - Opens info card as modal overlay
+   - data-testid={`species-info-btn-${speciesCode}`}
+
+**Verification Results (All 10 Steps):**
+
+✅ Step 1: Load the app and navigate to Species tab
+   - App loaded on http://localhost:5177
+   - Clicked Species tab button (ref=e25)
+   - Species Checklist displayed with 2490 species
+
+✅ Step 2: Click on a species name to select it
+   - Clicked "Common Ostrich" (Struthio camelus) button
+   - Species code: ostric2
+
+✅ Step 3: Verify an info card popup/panel appears
+   - Modal overlay appeared with semi-transparent black background
+   - White rounded card centered on screen
+   - Card has proper z-index (z-50) and displays above all content
+
+✅ Step 4: Verify species photo is displayed (or placeholder if unavailable)
+   - Common Ostrich has empty photoUrl field
+   - Placeholder correctly displayed with:
+     - Image icon (SVG)
+     - "No photo available" text
+     - Gray background
+
+✅ Step 5: Verify conservation status badge with correct color coding
+   - Common Ostrich shows: 🌿 Unknown
+   - Badge has gray background (conservationColors['Unknown'])
+   - Badge displayed prominently in badges section
+
+✅ Step 6: Verify difficulty badge (Easy/Moderate/Hard/Very Hard)
+   - Common Ostrich shows: 🔭 Very Hard
+   - Badge has red/dark background (difficultyColors for Very Hard)
+   - Correct based on difficultyScore: 0.8182
+
+✅ Step 7: Verify restricted range badge appears for qualifying species
+   - Tested with Highland Tinamou (Nothocercus bonapartei)
+   - Species has isRestrictedRange: true
+   - Badge correctly displayed: 📍 Restricted Range
+   - Blue background (bg-blue-100, text-blue-800)
+
+✅ Step 8: Verify direct link to eBird species page is present and formatted correctly
+   - eBird button displayed: "View on eBird" with external link icon
+   - Common Ostrich URL: https://ebird.org/species/ostric2
+   - Highland Tinamou URL: https://ebird.org/species/higtin1
+   - URL format matches eBird's species page pattern
+
+✅ Step 9: Click the eBird link and verify it points to correct URL
+   - Link element found with correct href attribute
+   - Opens in new tab (target="_blank")
+   - Uses rel="noopener noreferrer" for security
+
+✅ Step 10: Close the info card and verify it dismisses cleanly
+   - Clicked X close button (ref=e23684)
+   - Modal overlay dismissed
+   - Returned to Species Checklist view
+   - No residual elements or errors
+
+**Additional Badge Verification:**
+- Common Ostrich also shows invasion status badge: ⚠️ Rare/Accidental
+- Highland Tinamou shows: 🌿 Least Concern (green) and 🔭 Very Hard (red)
+- All badges have proper spacing with gap-2 flexbox layout
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Console logs confirmed normal operation:
+  - "Loaded 0 species from IndexedDB life list"
+  - "App: loaded 0 goal lists"
+  - "Grid data loaded successfully: {featureCount: 312}"
+  - "Loaded week 26 data: {recordCount: 113534}"
+  - "MapView: cached 2490 species metadata entries"
+  - "Updated density overlay with 312 cells, max lifers=594, seen species=0"
+- All interactions smooth and responsive
+- Info card opened instantly on click
+- Modal overlay click-to-close worked correctly
+
+**Mock Data Verification (Step 5.6):**
+- Grep search for mock patterns in frontend/src/: **0 matches**
+- No globalThis, devStore, dev-store, mockDb, mockData, fakeData, sampleData, dummyData, testData, STUB, MOCK, isDevelopment, or isDev patterns
+- All species data from real /api/species endpoint (2490 species)
+- Species metadata includes all required fields:
+  - comName, sciName, familyComName
+  - conservStatus, difficultyLabel, isRestrictedRange
+  - invasionStatus, ebirdUrl, photoUrl
+
+**Technical Notes:**
+- Info card uses React createPortal to render outside main DOM hierarchy
+- Overlay implements click-to-close by stopping propagation on card element
+- Badge colors defined in conservationColors and difficultyColors objects
+- Conditional rendering ensures badges only show when relevant:
+  - Restricted range: only if isRestrictedRange === true
+  - Invasion status: only if not empty and not "Native"
+- eBird URLs follow pattern: https://ebird.org/species/{speciesCode}
+- Modal overlay uses fixed positioning with z-50 for proper stacking
+- Photo placeholder uses flexbox centering for icon and text
+
+**Color Coding Verification:**
+- Conservation badges:
+  - Unknown: gray (bg-gray-100, text-gray-600)
+  - Least Concern: green (bg-green-100, text-green-700)
+  - Near Threatened: yellow (bg-yellow-100, text-yellow-700)
+  - Vulnerable: orange (bg-orange-100, text-orange-700)
+  - Endangered: red (bg-red-100, text-red-700)
+  - Critically Endangered: dark red (bg-red-200, text-red-900)
+- Difficulty badges:
+  - Easy: green (bg-green-100, text-green-700)
+  - Moderate: yellow (bg-yellow-100, text-yellow-700)
+  - Hard: orange (bg-orange-100, text-orange-700)
+  - Very Hard: red (bg-red-100, text-red-700)
+
+**Status:**
+- Feature #36 marked as PASSING
+- No code changes needed (already fully implemented)
+- Zero blockers
+- Current progress: 59/83 features passing (71.1%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running on ports 8000 (backend) and 5177 (frontend)
+- Codebase in clean state
+- Browser closed cleanly
