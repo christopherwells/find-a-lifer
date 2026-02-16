@@ -211,6 +211,11 @@ function ExploreTab({
   const [speciesSearch, setSpeciesSearch] = useState('')
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(false)
 
+  // Animation state
+  const [isAnimating, setIsAnimating] = useState(false)
+  const animationIntervalRef = useRef<number | null>(null)
+  const currentWeekRef = useRef(currentWeek)
+
   // Load species metadata when switching to species view
   useEffect(() => {
     if (viewMode !== 'species') return
@@ -260,6 +265,39 @@ function ExploreTab({
     const day = date.getDate()
     return `Week ${week} (~${monthNames[monthIndex]} ${day})`
   }
+
+  // Keep ref in sync with currentWeek prop
+  useEffect(() => {
+    currentWeekRef.current = currentWeek
+  }, [currentWeek])
+
+  // Animation controls
+  const startAnimation = () => {
+    if (animationIntervalRef.current !== null) return // Already running
+    setIsAnimating(true)
+    animationIntervalRef.current = window.setInterval(() => {
+      // Auto-advance to next week, loop back to 1 after 52
+      const nextWeek = currentWeekRef.current >= 52 ? 1 : currentWeekRef.current + 1
+      onWeekChange?.(nextWeek)
+    }, 1000) // Advance every 1 second for smooth animation
+  }
+
+  const stopAnimation = () => {
+    if (animationIntervalRef.current !== null) {
+      clearInterval(animationIntervalRef.current)
+      animationIntervalRef.current = null
+    }
+    setIsAnimating(false)
+  }
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (animationIntervalRef.current !== null) {
+        clearInterval(animationIntervalRef.current)
+      }
+    }
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -528,11 +566,51 @@ function ExploreTab({
             value={currentWeek}
             onChange={(e) => onWeekChange?.(parseInt(e.target.value, 10))}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            data-testid="week-slider"
           />
           <div className="text-sm text-center font-medium text-[#2C3E7B]">
             {getWeekLabel(currentWeek)}
           </div>
         </div>
+      </div>
+
+      {/* Migration Animation Controls */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-[#2C3E50]">
+          Migration Animation
+        </label>
+        <div className="flex items-center gap-2">
+          {!isAnimating ? (
+            <button
+              onClick={startAnimation}
+              data-testid="animation-play-button"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#E87722] hover:bg-[#d46b1e] text-white rounded-lg transition-colors font-medium"
+              aria-label="Play migration animation"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+              </svg>
+              Play
+            </button>
+          ) : (
+            <button
+              onClick={stopAnimation}
+              data-testid="animation-pause-button"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium"
+              aria-label="Pause migration animation"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              Pause
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-gray-500">
+          {isAnimating
+            ? 'Animation playing — map updates automatically each second'
+            : 'Click Play to watch species movement through the year'}
+        </p>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
