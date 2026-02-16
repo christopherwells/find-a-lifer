@@ -31,6 +31,8 @@ interface SidePanelProps {
   onActiveGoalListIdChange?: (id: string | null) => void
   selectedRegion?: string | null
   onSelectedRegionChange?: (regionId: string | null) => void
+  heatmapOpacity?: number
+  onHeatmapOpacityChange?: (opacity: number) => void
 }
 
 interface Tab {
@@ -65,7 +67,9 @@ export default function SidePanel({
   activeGoalListId = null,
   onActiveGoalListIdChange,
   selectedRegion = null,
-  onSelectedRegionChange
+  onSelectedRegionChange,
+  heatmapOpacity = 0.8,
+  onHeatmapOpacityChange
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -147,9 +151,11 @@ export default function SidePanel({
               onActiveGoalListIdChange={onActiveGoalListIdChange}
               selectedRegion={selectedRegion}
               onSelectedRegionChange={onSelectedRegionChange}
+              heatmapOpacity={heatmapOpacity}
+              onHeatmapOpacityChange={onHeatmapOpacityChange}
             />
           )}
-          {activeTab === 'species' && <SpeciesTab />}
+          {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} />}
           {activeTab === 'goals' && <GoalBirdsTab />}
           {activeTab === 'trip' && (
             <TripPlanTab
@@ -188,6 +194,8 @@ interface ExploreTabProps {
   onActiveGoalListIdChange?: (id: string | null) => void
   selectedRegion?: string | null
   onSelectedRegionChange?: (regionId: string | null) => void
+  heatmapOpacity?: number
+  onHeatmapOpacityChange?: (opacity: number) => void
 }
 
 function ExploreTab({
@@ -204,7 +212,9 @@ function ExploreTab({
   activeGoalListId = null,
   onActiveGoalListIdChange,
   selectedRegion = null,
-  onSelectedRegionChange
+  onSelectedRegionChange,
+  heatmapOpacity = 0.8,
+  onHeatmapOpacityChange
 }: ExploreTabProps) {
   // Species picker state for Species Range view
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
@@ -613,6 +623,32 @@ function ExploreTab({
         </p>
       </div>
 
+      {/* Heatmap Opacity Slider */}
+      <div className="space-y-2">
+        <label htmlFor="opacity-slider" className="block text-sm font-medium text-[#2C3E50]">
+          Heatmap Opacity
+        </label>
+        <div className="space-y-1">
+          <input
+            id="opacity-slider"
+            type="range"
+            min="0"
+            max="100"
+            value={Math.round(heatmapOpacity * 100)}
+            onChange={(e) => onHeatmapOpacityChange?.(parseInt(e.target.value, 10) / 100)}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            data-testid="opacity-slider"
+            aria-label="Adjust heatmap opacity"
+          />
+          <div className="text-sm text-center font-medium text-[#2C3E7B]">
+            {Math.round(heatmapOpacity * 100)}%
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Adjust the transparency of the heatmap overlay
+        </p>
+      </div>
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <p className="text-xs text-blue-700">
           <span className="font-medium">Tip:</span> Click on the map to see available lifers in that area.
@@ -645,7 +681,11 @@ interface SpeciesByFamily {
   [familyName: string]: Species[]
 }
 
-function SpeciesTab() {
+interface SpeciesTabProps {
+  selectedRegion?: string | null
+}
+
+function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
   const [speciesByFamily, setSpeciesByFamily] = useState<SpeciesByFamily>({})
   const [loading, setLoading] = useState(true)
@@ -657,6 +697,10 @@ function SpeciesTab() {
   const [selectedInvasionStatus, setSelectedInvasionStatus] = useState<string>('') // '' means "All"
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('') // '' means "All Difficulties"
   const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
+
+  // Region filtering state
+  const [regionSpeciesCodes, setRegionSpeciesCodes] = useState<Set<string> | null>(null)
+  const [regionName, setRegionName] = useState<string | null>(null)
 
   // Goal list management for adding species to goal lists
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
@@ -721,6 +765,48 @@ function SpeciesTab() {
 
     loadGoalLists()
   }, [])
+
+  // Load region data when selectedRegion changes
+  useEffect(() => {
+    const loadRegionData = async () => {
+      if (!selectedRegion) {
+        // No region selected, clear filter
+        setRegionSpeciesCodes(null)
+        setRegionName(null)
+        return
+      }
+
+      try {
+        const response = await fetch('/api/regions')
+        if (!response.ok) {
+          throw new Error(`Failed to fetch regions: ${response.status}`)
+        }
+        const data = await response.json()
+
+        // Find the selected region
+        const region = data.features?.find(
+          (f: any) => f.properties.region_id === selectedRegion
+        )
+
+        if (region && region.properties) {
+          const codes = new Set<string>(region.properties.species_codes || [])
+          setRegionSpeciesCodes(codes)
+          setRegionName(region.properties.name || selectedRegion)
+          console.log(`SpeciesTab: filtered to region "${region.properties.name}" with ${codes.size} species`)
+        } else {
+          // Region not found, clear filter
+          setRegionSpeciesCodes(null)
+          setRegionName(null)
+        }
+      } catch (error) {
+        console.error('Failed to load region data:', error)
+        setRegionSpeciesCodes(null)
+        setRegionName(null)
+      }
+    }
+
+    loadRegionData()
+  }, [selectedRegion])
 
   const toggleFamily = (familyName: string) => {
     setCollapsedFamilies((prev) => {
@@ -832,7 +918,7 @@ function SpeciesTab() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Filter species by search term, selected family, conservation status, and invasion status
+  // Filter species by search term, selected family, conservation status, invasion status, and region
   const filteredFamilies = Object.keys(speciesByFamily).reduce((acc, familyName) => {
     // If a family is selected, only include that family
     if (selectedFamily && familyName !== selectedFamily) {
@@ -856,7 +942,10 @@ function SpeciesTab() {
       const matchesDifficulty =
         !selectedDifficulty || species.difficultyLabel === selectedDifficulty
 
-      return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty
+      const matchesRegion =
+        !regionSpeciesCodes || regionSpeciesCodes.has(species.speciesCode)
+
+      return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion
     })
     if (filtered.length > 0) {
       acc[familyName] = filtered
@@ -907,12 +996,21 @@ function SpeciesTab() {
         <div className="text-sm text-gray-600">
           <span className="font-medium text-[#2C3E7B]">{seenSpecies}</span> of{' '}
           <span className="font-medium">{totalSpecies}</span> species seen
-          {(selectedFamily || selectedConservStatus || selectedInvasionStatus || selectedDifficulty) && (
+          {(selectedFamily || selectedConservStatus || selectedInvasionStatus || selectedDifficulty || regionSpeciesCodes) && (
             <span className="text-xs text-gray-500 ml-2">
               (showing {filteredSpeciesCount})
             </span>
           )}
         </div>
+
+        {/* Region filter indicator */}
+        {regionName && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-2" data-testid="region-filter-indicator">
+            <p className="text-xs text-blue-700">
+              <span className="font-medium">📍 Region Filter:</span> Showing only species found in {regionName}
+            </p>
+          </div>
+        )}
 
         {/* Family filter dropdown */}
         <div>

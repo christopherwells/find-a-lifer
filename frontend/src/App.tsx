@@ -24,6 +24,7 @@ function App() {
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [activeGoalListId, setActiveGoalListId] = useState<string | null>(null)
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+  const [heatmapOpacity, setHeatmapOpacity] = useState(0.8) // Default to 80% opacity
   const { seenSpecies } = useLifeList()
 
   // Load all goal lists on startup and when view/filter changes
@@ -117,6 +118,8 @@ function App() {
           }}
           selectedRegion={selectedRegion}
           onSelectedRegionChange={setSelectedRegion}
+          heatmapOpacity={heatmapOpacity}
+          onHeatmapOpacityChange={setHeatmapOpacity}
         />
 
         {/* Map Area */}
@@ -131,6 +134,7 @@ function App() {
             seenSpecies={seenSpecies}
             selectedSpecies={selectedSpecies}
             selectedRegion={selectedRegion}
+            heatmapOpacity={heatmapOpacity}
           />
         </div>
       </div>

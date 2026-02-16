@@ -12,6 +12,7 @@ interface MapViewProps {
   seenSpecies?: Set<string>
   selectedSpecies?: string | null
   selectedRegion?: string | null
+  heatmapOpacity?: number
 }
 
 interface OccurrenceRecord {
@@ -75,7 +76,8 @@ export default function MapView({
   goalSpeciesCodes = new Set(),
   seenSpecies = new Set(),
   selectedSpecies = null,
-  selectedRegion = null
+  selectedRegion = null,
+  heatmapOpacity = 0.8
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -495,7 +497,7 @@ export default function MapView({
         setSelectedSpeciesMeta(null)
         if (map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(44, 62, 123, 0.04)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
@@ -539,7 +541,7 @@ export default function MapView({
           // Species not present anywhere this week
           if (map.current && map.current.getLayer('grid-fill')) {
             map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(44, 62, 123, 0.04)')
-            map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+            map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
           }
           if (map.current && map.current.getLayer('grid-border')) {
             map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
@@ -563,7 +565,7 @@ export default function MapView({
 
         if (map.current && map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current && map.current.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#2C3E7B')
@@ -579,7 +581,7 @@ export default function MapView({
         // No goal species defined: show empty overlay
         if (map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(212, 160, 23, 0.03)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', 0.8)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
@@ -610,7 +612,7 @@ export default function MapView({
         // No goal birds present anywhere this week
         if (map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(212, 160, 23, 0.03)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', 0.8)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
@@ -635,7 +637,7 @@ export default function MapView({
 
       if (map.current.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#D4A017')
@@ -666,7 +668,7 @@ export default function MapView({
       if (cellMaxProbability.size === 0) {
         if (map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(138, 43, 226, 0.03)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#8A2BE2')
@@ -690,7 +692,7 @@ export default function MapView({
 
       if (map.current.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#8A2BE2')
@@ -702,7 +704,7 @@ export default function MapView({
         // No goal species defined: show very faint overlay
         if (map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(8, 136, 136, 0.05)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#088')
@@ -732,7 +734,7 @@ export default function MapView({
       if (maxCount === 0) {
         if (map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(8, 136, 136, 0.05)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
         if (map.current.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#088')
@@ -757,7 +759,7 @@ export default function MapView({
 
       if (map.current.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#088')
@@ -804,7 +806,7 @@ export default function MapView({
 
       if (map.current.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
       if (map.current.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#088')
@@ -812,7 +814,7 @@ export default function MapView({
       }
       console.log(`Updated density overlay with ${cellLiferCounts.size} cells, max lifers=${maxLifers}, seen species=${seenSpeciesIdSet.size}`)
     }
-  }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies])
+  }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity])
 
   return (
     <div className="relative w-full h-full">
