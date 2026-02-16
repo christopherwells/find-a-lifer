@@ -3278,3 +3278,316 @@ This ensures the interval always reads the current week value even though the ca
 - Ready for next feature assignment
 - All servers running on ports 8000 (backend) and 5173 (frontend)
 - Codebase in clean state with all changes committed
+
+
+=== Session 40: Feature #44 - Progress dashboard shows correct statistics ===
+Date: 2026-02-16
+Assigned Feature: #44 "Progress dashboard shows correct statistics"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Implemented comprehensive ProgressTab component with real-time statistics
+- Progress dashboard now displays accurate counts and percentages from life list
+- All data sourced from IndexedDB and API (no mock data)
+- Comprehensive browser automation testing verified all 10 verification steps
+
+**Implementation Details (frontend/src/components/SidePanel.tsx):**
+
+Replaced the "Coming soon" placeholder ProgressTab with a fully functional dashboard:
+
+1. **State Management (lines ~3896-3898):**
+   - `allSpecies` (Species[]): Loaded from /api/species
+   - `loading` (boolean): Loading state for species fetch
+
+2. **Data Loading (lines ~3900-3912):**
+   - useEffect fetches species metadata on mount
+   - Uses fetch('/api/species') to get full species list with family data
+   - Loading spinner while data is being fetched
+
+3. **Statistics Calculation (lines ~3921-3934):**
+   - `totalSpecies`: Total count from API (2490 species)
+   - `totalSeen`: Retrieved from useLifeList().getTotalSeen()
+   - `percentComplete`: Calculated as (totalSeen / totalSpecies) * 100
+   - `familyStats`: Object mapping family name to { total, seen } counts
+
+4. **Overall Progress Card (lines ~3948-3964):**
+   - Large percentage display (e.g., "0.4%")
+   - Visual progress bar with green fill (bg-[#27AE60])
+   - Progress bar width set dynamically: `width: ${percentComplete}%`
+   - Species count display: "X of Y species seen"
+   - data-testid attributes for testing
+
+5. **Family Breakdown Section (lines ~3966-3996):**
+   - Lists all families sorted by total species count (descending)
+   - Each family shows: name, seen/total count, progress bar
+   - Family progress bars use Cornell blue (bg-[#2C3E7B])
+   - Scrollable container (max-h-96 overflow-y-auto)
+   - Each family has unique data-testid for testing
+
+6. **Dynamic Messages (lines ~3998-4021):**
+   - "What's Left" section: Shows when 0 < totalSeen < totalSpecies
+   - Completion message: Shown when totalSeen === totalSpecies (with 🎉)
+   - Empty state: Shown when totalSeen === 0 (guides user to Species or Profile tab)
+
+**Verification Results (All 10 Steps):**
+
+✅ Step 1: Load the app with empty life list
+   - App loaded successfully on http://localhost:5173
+
+✅ Step 2: Navigate to Progress tab
+   - Clicked Progress tab button (📊 Progress)
+
+✅ Step 3: Verify total species count shows 0
+   - Initial state: "0 of 2490 species seen"
+   - Progress percentage: 0.0%
+
+✅ Step 4: Verify progress bar shows 0%
+   - Progress bar container rendered
+   - Fill width: 0% (not visible)
+   - Empty state message displayed
+
+✅ Step 5: Navigate to Species tab and mark 10 species as seen
+   - Clicked Species tab
+   - Marked species from families:
+     - Common Ostrich (Ostriches: 1/1)
+     - Emu (Cassowaries and Emu: 1/1)
+     - Greater Rhea (Rheas: 2/2)
+     - Lesser Rhea
+     - Chilean Tinamou (Tinamous: 6/7)
+     - Highland Tinamou
+     - Great Tinamou
+     - Little Tinamou
+     - Thicket Tinamou
+     - Slaty-breasted Tinamou
+   - Species count updated to "10 of 2490 species seen"
+
+✅ Step 6: Return to Progress tab
+   - Clicked Progress tab button
+   - Tab switched successfully
+
+✅ Step 7: Verify total shows 10 species seen
+   - Display updated: "10 of 2490 species seen"
+   - Correct count after marking species
+
+✅ Step 8: Verify progress bar updated
+   - Progress percentage: 0.4% (10/2490 = 0.40%)
+   - Progress bar fill visible with green color
+   - Width correctly set to 0.4%
+
+✅ Step 9: Verify family breakdown shows correct counts
+   - Tinamous: 6/7 (6 out of 7 species marked)
+   - Rheas: 2/2 (100% complete)
+   - Ostriches: 1/1 (100% complete)
+   - Cassowaries and Emu: 1/1 (100% complete)
+   - All other families: 0/X (no species marked)
+   - Family totals match species metadata
+
+✅ Step 10: Verify percentage complete is accurate
+   - 10 / 2490 = 0.40%
+   - Display shows "0.4%" (correct rounding)
+   - Progress bar width matches percentage
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Console confirmed:
+  - "Loaded 10 species from IndexedDB life list"
+  - Species metadata loaded from /api/species
+  - All interactions smooth and responsive
+- Screenshot verified visual appearance of progress dashboard
+- All UI elements rendered correctly
+
+**Mock Data Verification (Step 5.6):**
+- Grep search for mock patterns in frontend/src/: **0 matches**
+- No globalThis, devStore, dev-store, mockDb, mockData, fakeData, sampleData, dummyData, testData, STUB, MOCK, isDevelopment, or isDev patterns
+- All species data from real /api/species endpoint (2490 species)
+- All life list data from IndexedDB via LifeListContext
+- Family statistics calculated from real data
+
+**Technical Notes:**
+- Progress dashboard uses LifeListContext for life list state
+- Species metadata fetched from /api/species on mount
+- Family breakdown sorted by total species count (largest families first)
+- Progress bars use CSS transitions for smooth updates
+- Green color (#27AE60) for overall progress bar (success theme)
+- Cornell blue (#2C3E7B) for family progress bars (brand consistency)
+- Percentage rounded to 1 decimal place for readability
+- Empty state guides users to Species or Profile tabs
+- Completion state celebrates achievement with emoji
+- All state persists across tab switches (React state maintained)
+
+**Data Flow:**
+1. ProgressTab mounts → fetches species from /api/species
+2. getTotalSeen() retrieves count from LifeListContext (IndexedDB)
+3. Calculate percentComplete = (totalSeen / totalSpecies) * 100
+4. For each species, check isSpeciesSeen(speciesCode) to build familyStats
+5. Sort families by total count, render progress bars
+
+**UI/UX Features:**
+- Loading spinner while species data loads
+- Responsive layout with proper spacing
+- Scrollable family list (max-height with overflow)
+- Color-coded progress bars (green for overall, blue for families)
+- Clear typography hierarchy (h3 → h4 → p)
+- Contextual messages based on progress state
+- data-testid attributes for all key elements
+
+**Status:**
+- Feature #44 marked as PASSING
+- Commit: 5227307
+- Zero blockers
+- Current progress: 61/83 features passing (73.5%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running on ports 8000 (backend) and 5173 (frontend)
+- Codebase in clean state with all changes committed
+- Browser closed cleanly
+
+
+
+=== Session 40: Feature #15 - Toggle between map view modes ===
+Date: 2026-02-16
+Assigned Feature: #15 "Toggle between map view modes"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Verified the map view mode toggle functionality (already fully implemented)
+- Comprehensive browser automation testing of all 9 verification steps
+- Tested all four view modes: Density, Probability, Species, and Goal Birds
+- Confirmed each mode updates the map overlay correctly with distinct visual styles
+
+**Implementation Details (Pre-existing in frontend/src/components/SidePanel.tsx):**
+
+The view mode toggle was already fully implemented with:
+
+1. **View Mode Buttons (lines 333-393):**
+   - 2x2 grid layout with 4 buttons
+   - Density button (data-testid="view-mode-density")
+   - Probability button (data-testid="view-mode-probability")
+   - Species button (data-testid="view-mode-species")
+   - Goal Birds button (data-testid="view-mode-goal-birds")
+
+2. **Visual Active State:**
+   - Active button: bg-[#2C3E7B] (Cornell blue) with white text
+   - Inactive buttons: bg-gray-100 with gray-700 text, hover:bg-gray-200
+   - Goal Birds button uses gold when active: bg-[#D4A017]
+
+3. **Dynamic Description Text (lines 384-391):**
+   - Changes based on viewMode and goalBirdsOnlyFilter
+   - Density: "Show number of unseen species per area"
+   - Probability: "Show occurrence probability intensity across all species"
+   - Species: "Select a species to spotlight its range on the map"
+   - Goal Birds: "Show unseen goal birds per area"
+
+4. **Conditional UI Elements:**
+   - Species picker shown only in Species view (lines 477-540)
+   - Goal list selector shown in Goal Birds view or when filter active (lines 396-426)
+   - Goal Birds Only filter shown in Density/Probability/Species views (lines 429-474)
+
+**Verification Results (All 9 Steps):**
+
+✅ Step 1: Load the app with Explore tab active
+   - App loaded on http://localhost:5173
+   - Explore tab active by default
+   - View Mode toggle visible with 4 buttons
+
+✅ Step 2: Verify lifer density view is the default mode
+   - Density button highlighted with dark blue background
+   - Map shows turquoise/teal heatmap overlay
+   - Legend displays "🔭 Lifer Density" with gradient (Few → Some → Many)
+   - Description: "Unseen species per area"
+
+✅ Step 3: Click toggle to switch to probability view
+   - Clicked Probability button (ref=e55)
+   - Button changed from gray to dark blue (active state)
+
+✅ Step 4: Verify map updates to show probability coloring
+   - Map overlay changed from turquoise to **purple/magenta gradient**
+   - Legend updated to "📊 Occurrence Probability" (Low → Mid → High)
+   - Description changed to "Show occurrence probability intensity across all species"
+   - Visually distinct from density view
+
+✅ Step 5: Click toggle to switch to species range view
+   - Clicked Species button (ref=e56)
+   - Species button became active (dark blue)
+   - Species picker UI appeared in left panel with search box
+
+✅ Step 6: Verify map prompts for species selection or shows selected species range
+   - Initial state: Very light blue overlay with prompt message
+   - Legend: "🔎 Species Range: Select a species to see its range"
+   - Selected Canada Goose from species picker
+   - Map updated to show purple/blue gradient for Canada Goose range
+   - Legend updated: "🔎 Species Range: Canada Goose" (Low → High)
+   - Range clearly concentrated in northern North America
+
+✅ Step 7: Switch back to lifer density view
+   - Clicked Density button (ref=e54)
+   - Density button became active again
+
+✅ Step 8: Verify map returns to density-based coloring
+   - Map overlay changed back to turquoise/teal heatmap
+   - Legend restored to "🔭 Lifer Density" (Few → Some → Many)
+   - Species picker UI disappeared from left panel
+   - Description: "Unseen species per area"
+
+✅ Step 9: Verify active view mode is visually indicated in the UI
+   - Tested all four modes:
+     - Density mode: Density button shows [active] attribute
+     - Probability mode: Probability button shows [active] attribute
+     - Species mode: Species button shows [active] attribute
+     - Goal Birds mode: Goal Birds button shows [active] attribute
+   - Active button has dark blue background (Cornell blue)
+   - Inactive buttons have gray background
+   - Clear visual distinction between active and inactive states
+
+**Map Overlay Color Verification:**
+- **Density view:** Turquoise/teal gradient (lifer count based)
+- **Probability view:** Purple/magenta gradient (occurrence probability)
+- **Species view:** Purple/blue gradient (species-specific range)
+- **Goal Birds view:** Similar to density but filtered to goal lists
+- Each view has distinct color scheme for easy differentiation
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Total console messages: 27
+- All view mode switches instant and responsive
+- Map overlay updates smoothly without lag
+- All interactions performed via real UI clicks
+
+**Mock Data Verification (Step 5.6):**
+- Grep search for mock patterns in frontend/src/: **0 matches**
+- No globalThis, devStore, dev-store, mockDb, mockData, fakeData, sampleData, dummyData, testData, STUB, MOCK, isDevelopment, or isDev patterns
+- All data from real API endpoints:
+  - /api/species (2490 species)
+  - /api/weeks/:weekNumber (weekly occurrence data)
+  - /api/grid (312 grid cells)
+
+**Technical Notes:**
+- View mode state managed by parent component (App.tsx)
+- onViewModeChange callback triggers map re-rendering
+- Each view mode shows/hides different UI sections conditionally
+- Legend component dynamically updates based on viewMode prop
+- Species picker uses virtualization for performance (shows first 100, search to filter)
+- Goal Birds mode has distinct gold color (#D4A017) for active state
+- All view modes work with week slider and region selector
+
+**Dependencies Verified:**
+- Feature #12: Lifer density heatmap overlay ✅
+- Feature #13: Single species range view ✅
+- Feature #14: Occurrence probability view ✅
+- All three dependency features working correctly and integrated
+
+**Status:**
+- Feature #15 marked as PASSING
+- No code changes needed (already fully implemented)
+- Commit: 896d82c
+- Zero blockers
+- Current progress: 61/83 features passing (73.5%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running on ports 8000 (backend) and 5173 (frontend)
+- Codebase in clean state
+- Browser closed cleanly
