@@ -37,3 +37,6 @@ regions_starter.gpkg
 avibase.xlsx
 
 # Generated sample data is committed (small enough for dev)
+
+.playwright-cli/
+.playwright/

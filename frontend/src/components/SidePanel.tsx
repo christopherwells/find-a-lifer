@@ -524,6 +524,9 @@ interface Species {
   isRestrictedRange: boolean
   ebirdUrl: string
   photoUrl: string
+  seasonalityScore: number
+  peakWeek: number
+  rangeShiftScore: number
 }
 
 interface SpeciesByFamily {
@@ -1052,6 +1055,63 @@ function GoalBirdsTab() {
   // Suggestions section state
   const [showRarestSuggestions, setShowRarestSuggestions] = useState(true)
   const [showHardestSuggestions, setShowHardestSuggestions] = useState(true)
+  const [showEasyWinsSuggestions, setShowEasyWinsSuggestions] = useState(true)
+  const [showMigrantSuggestions, setShowMigrantSuggestions] = useState(true)
+  const [showRegionalIconsSuggestions, setShowRegionalIconsSuggestions] = useState(true)
+  const [showSeasonalSpecialtiesSuggestions, setShowSeasonalSpecialtiesSuggestions] = useState(true)
+
+  // Curated Regional Icons — signature/must-see birds for each North American region
+  // Derived from pipeline config curated data
+  const REGIONAL_ICONS: Array<{ region: string; regionKey: string; emoji: string; speciesCodes: string[] }> = [
+    {
+      region: 'Southwest',
+      regionKey: 'southwest',
+      emoji: '🌵',
+      speciesCodes: ['greroa', 'gamqua', 'phaino', 'paired', 'gilfli'],
+    },
+    {
+      region: 'Southeast',
+      regionKey: 'southeast',
+      emoji: '🌿',
+      speciesCodes: ['swtkit', 'flsjay', 'prowar', 'recwoo', 'bnhnut'],
+    },
+    {
+      region: 'Northeast',
+      regionKey: 'northeast',
+      emoji: '🍂',
+      speciesCodes: ['bicthr', 'atlpuf', 'comeid', 'amewoo'],
+    },
+    {
+      region: 'Midwest',
+      regionKey: 'midwest',
+      emoji: '🌾',
+      speciesCodes: ['henspa', 'dickci', 'belvir', 'grpchi', 'sancra'],
+    },
+    {
+      region: 'Rockies',
+      regionKey: 'rockies',
+      emoji: '⛰️',
+      speciesCodes: ['whtpta1', 'bkrfin', 'clanut', 'amedip', 'stejay'],
+    },
+    {
+      region: 'West Coast',
+      regionKey: 'westcoast',
+      emoji: '🌊',
+      speciesCodes: ['tufpuf', 'spoowl', 'marmur', 'blkoys'],
+    },
+    {
+      region: 'Alaska',
+      regionKey: 'alaska',
+      emoji: '❄️',
+      speciesCodes: ['speeid', 'gyrfal', 'brtcur', 'snoowl1', 'yebloo'],
+    },
+    {
+      region: 'Hawaii',
+      regionKey: 'hawaii',
+      emoji: '🌺',
+      speciesCodes: ['hawgoo', 'apapan', 'iiwi'],
+    },
+  ]
 
   // Species info card state
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
@@ -1858,6 +1918,121 @@ function GoalBirdsTab() {
               )
             })()}
 
+            {/* Easy Wins Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter unseen species with Easy difficulty (score < 0.25), sorted by score ascending (easiest/highest probability first)
+              const easyWinsSuggestions = allSpecies
+                .filter((sp) => sp.difficultyScore < 0.25 && !isSpeciesSeen(sp.speciesCode))
+                .slice()
+                .sort((a, b) => a.difficultyScore - b.difficultyScore)
+                .slice(0, 20) // Top 20 easiest unseen species
+
+              if (easyWinsSuggestions.length === 0) return null
+
+              const getEasyBadgeStyle = (score: number) => {
+                if (score < 0.10) return { bg: 'bg-green-100', text: 'text-green-800', label: 'Very Easy' }
+                if (score < 0.18) return { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Easy' }
+                return { bg: 'bg-teal-100', text: 'text-teal-800', label: 'Fairly Easy' }
+              }
+
+              return (
+                <div className="mt-4" data-testid="easy-wins-suggestions-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowEasyWinsSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+                    data-testid="easy-wins-suggestions-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 font-bold text-sm">⭐</span>
+                      <span className="text-sm font-semibold text-green-800">Easy Wins</span>
+                      <span className="text-xs bg-green-200 text-green-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {easyWinsSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-green-600 transition-transform ${showEasyWinsSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showEasyWinsSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="easy-wins-suggestions-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Unseen species with high occurrence probability — sorted easiest first. Great lifers to target on your next trip!
+                      </p>
+                      {easyWinsSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        const badgeStyle = getEasyBadgeStyle(sp.difficultyScore)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`easy-wins-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                <span
+                                  className={`text-xs ${badgeStyle.bg} ${badgeStyle.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`}
+                                  data-testid={`easy-wins-probability-badge-${sp.speciesCode}`}
+                                >
+                                  ⭐ {badgeStyle.label}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`easy-wins-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`easy-wins-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`easy-wins-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
             {/* Hardest to Find Suggestions */}
             {(() => {
               const activeListCodes = new Set(activeList.speciesCodes)
@@ -1958,6 +2133,405 @@ function GoalBirdsTab() {
                                 className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
                                 title={`Add ${sp.comName} to goal list`}
                                 data-testid={`hardest-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Long-Distance Migrants Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter unseen species with rangeShiftScore >= 0.5, sorted by score descending (biggest migrants first)
+              const migrantSuggestions = allSpecies
+                .filter((sp) => (sp.rangeShiftScore ?? 0) >= 0.5 && !isSpeciesSeen(sp.speciesCode))
+                .slice()
+                .sort((a, b) => (b.rangeShiftScore ?? 0) - (a.rangeShiftScore ?? 0))
+                .slice(0, 20) // Top 20 most dramatic long-distance migrants
+
+              if (migrantSuggestions.length === 0) return null
+
+              const getMigrantBadgeStyle = (score: number) => {
+                if (score >= 0.875) return { bg: 'bg-sky-100', text: 'text-sky-800', label: 'Epic Migration' }
+                if (score >= 0.75) return { bg: 'bg-sky-100', text: 'text-sky-700', label: 'Long Range' }
+                return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Migratory' }
+              }
+
+              return (
+                <div className="mt-4" data-testid="migrants-suggestions-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowMigrantSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors"
+                    data-testid="migrants-suggestions-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sky-600 font-bold text-sm">🦅</span>
+                      <span className="text-sm font-semibold text-sky-800">Long-Distance Migrants</span>
+                      <span className="text-xs bg-sky-200 text-sky-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {migrantSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-sky-600 transition-transform ${showMigrantSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showMigrantSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="migrants-suggestions-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Species with the most dramatic range shifts across weeks — great for tracking on the migration animation. Tap + to add to this goal list.
+                      </p>
+                      {migrantSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        const badgeStyle = getMigrantBadgeStyle(sp.rangeShiftScore ?? 0)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`migrants-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                <span
+                                  className={`text-xs ${badgeStyle.bg} ${badgeStyle.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`}
+                                  data-testid={`migrants-shift-badge-${sp.speciesCode}`}
+                                >
+                                  🦅 {badgeStyle.label}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`migrants-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 truncate mt-0.5">{sp.sciName}</p>
+                            </div>
+                            {/* Add / already-added button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`migrants-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`migrants-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Regional Icons Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+
+              // Build flat list of regional icon species that are unseen
+              // Each entry includes region info for grouping/labeling
+              interface RegionalIconEntry {
+                speciesCode: string
+                comName: string
+                sciName: string
+                region: string
+                regionKey: string
+                emoji: string
+              }
+
+              const regionalIconEntries: RegionalIconEntry[] = []
+              for (const regionGroup of REGIONAL_ICONS) {
+                for (const code of regionGroup.speciesCodes) {
+                  const sp = allSpecies.find((s) => s.speciesCode === code)
+                  if (sp && !isSpeciesSeen(sp.speciesCode)) {
+                    regionalIconEntries.push({
+                      speciesCode: sp.speciesCode,
+                      comName: sp.comName,
+                      sciName: sp.sciName,
+                      region: regionGroup.region,
+                      regionKey: regionGroup.regionKey,
+                      emoji: regionGroup.emoji,
+                    })
+                  }
+                }
+              }
+
+              if (regionalIconEntries.length === 0) return null
+
+              // Group entries by region for display
+              const groupedByRegion: { [region: string]: RegionalIconEntry[] } = {}
+              for (const entry of regionalIconEntries) {
+                if (!groupedByRegion[entry.region]) groupedByRegion[entry.region] = []
+                groupedByRegion[entry.region].push(entry)
+              }
+
+              // Only show regions that have at least one unseen species
+              const regionsToShow = REGIONAL_ICONS.filter((rg) => groupedByRegion[rg.region]?.length > 0)
+
+              return (
+                <div className="mt-4" data-testid="regional-icons-suggestions-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowRegionalIconsSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors"
+                    data-testid="regional-icons-suggestions-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-teal-600 font-bold text-sm">🗺️</span>
+                      <span className="text-sm font-semibold text-teal-800">Regional Icons</span>
+                      <span className="text-xs bg-teal-200 text-teal-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {regionalIconEntries.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-teal-600 transition-transform ${showRegionalIconsSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showRegionalIconsSuggestions && (
+                    <div className="mt-1 space-y-3" data-testid="regional-icons-suggestions-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Signature species for each region — the must-see birds of the Southwest, Northeast, and beyond.
+                      </p>
+                      {regionsToShow.map((regionGroup) => {
+                        const entries = groupedByRegion[regionGroup.region] || []
+                        return (
+                          <div key={regionGroup.regionKey} data-testid={`regional-icons-group-${regionGroup.regionKey}`}>
+                            {/* Region label */}
+                            <div className="flex items-center gap-1.5 px-1 mb-1">
+                              <span className="text-sm">{regionGroup.emoji}</span>
+                              <span className="text-xs font-semibold text-teal-700 uppercase tracking-wide">
+                                {regionGroup.region}
+                              </span>
+                            </div>
+                            {/* Species in this region */}
+                            <div className="space-y-1">
+                              {entries.map((entry) => {
+                                const alreadyInList = activeListCodes.has(entry.speciesCode)
+                                const sp = allSpecies.find((s) => s.speciesCode === entry.speciesCode)
+                                if (!sp) return null
+                                return (
+                                  <div
+                                    key={entry.speciesCode}
+                                    className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                                      alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                                    }`}
+                                    data-testid={`regional-icons-suggestion-${entry.speciesCode}`}
+                                  >
+                                    {/* Species info */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                          {entry.comName}
+                                        </span>
+                                        <span
+                                          className="text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                          data-testid={`regional-icons-region-badge-${entry.speciesCode}`}
+                                        >
+                                          {regionGroup.emoji} {regionGroup.region}
+                                        </span>
+                                        {alreadyInList && (
+                                          <span
+                                            className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                            data-testid={`regional-icons-in-list-badge-${entry.speciesCode}`}
+                                          >
+                                            ✓ In list
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-xs italic text-gray-500 truncate">{entry.sciName}</div>
+                                    </div>
+
+                                    {/* Add button */}
+                                    {alreadyInList ? (
+                                      <div
+                                        className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                        title="Already in this goal list"
+                                        data-testid={`regional-icons-already-added-${entry.speciesCode}`}
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleAddSpecies(sp)}
+                                        className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                        title={`Add ${entry.comName} to goal list`}
+                                        data-testid={`regional-icons-add-btn-${entry.speciesCode}`}
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Seasonal Specialties Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter unseen species with high seasonality score (>= 0.5), sorted by score descending
+              const seasonalSuggestions = allSpecies
+                .filter((sp) => (sp.seasonalityScore ?? 0) >= 0.5 && !isSpeciesSeen(sp.speciesCode))
+                .slice()
+                .sort((a, b) => (b.seasonalityScore ?? 0) - (a.seasonalityScore ?? 0))
+                .slice(0, 20) // Top 20 most seasonal unseen species
+
+              if (seasonalSuggestions.length === 0) return null
+
+              const getSeasonLabel = (peakWeek: number): string => {
+                if (peakWeek === 0) return 'Year-round'
+                if (peakWeek <= 13) return 'Winter (Jan–Mar)'
+                if (peakWeek <= 26) return 'Spring (Apr–Jun)'
+                if (peakWeek <= 39) return 'Summer (Jul–Sep)'
+                return 'Fall (Oct–Dec)'
+              }
+
+              const getSeasonColor = (peakWeek: number) => {
+                if (peakWeek === 0) return { bg: 'bg-gray-100', text: 'text-gray-700' }
+                if (peakWeek <= 13) return { bg: 'bg-blue-100', text: 'text-blue-800' }
+                if (peakWeek <= 26) return { bg: 'bg-pink-100', text: 'text-pink-800' }
+                if (peakWeek <= 39) return { bg: 'bg-yellow-100', text: 'text-yellow-800' }
+                return { bg: 'bg-orange-100', text: 'text-orange-800' }
+              }
+
+              return (
+                <div className="mt-4" data-testid="seasonal-specialties-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowSeasonalSpecialtiesSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-cyan-50 border border-cyan-200 rounded-lg hover:bg-cyan-100 transition-colors"
+                    data-testid="seasonal-suggestions-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-cyan-600 font-bold text-sm">🗓️</span>
+                      <span className="text-sm font-semibold text-cyan-800">Seasonal Specialties</span>
+                      <span className="text-xs bg-cyan-200 text-cyan-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {seasonalSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-cyan-600 transition-transform ${showSeasonalSpecialtiesSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showSeasonalSpecialtiesSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="seasonal-suggestions-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Species with narrow availability windows — spike seasonally then disappear. Catch them while you can! Tap + to add to this goal list.
+                      </p>
+                      {seasonalSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        const seasonLabel = getSeasonLabel(sp.peakWeek ?? 0)
+                        const seasonColor = getSeasonColor(sp.peakWeek ?? 0)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`seasonal-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                <span
+                                  className={`text-xs ${seasonColor.bg} ${seasonColor.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`}
+                                  data-testid={`seasonal-season-badge-${sp.speciesCode}`}
+                                >
+                                  🗓️ {seasonLabel}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`seasonal-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`seasonal-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`seasonal-add-btn-${sp.speciesCode}`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
