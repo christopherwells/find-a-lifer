@@ -3631,3 +3631,148 @@ Assigned Feature: #15 "Toggle between map view modes"
 - Feature #15 marked as PASSING
 - Commit: 896d82c
 - Current progress: 61/83 features passing (73.5%)
+
+
+=== Session 41: Feature #20 - Heatmap opacity control slider works ===
+Date: 2026-02-16
+Assigned Feature: #20 "Heatmap opacity control slider works"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Implemented heatmap opacity control slider in Explore tab
+- Slider controls transparency of all heatmap overlays (density, probability, species, goal birds)
+- Range: 0-100%, updates immediately without page reload
+- Fully tested with browser automation across all opacity levels
+
+**Implementation Details:**
+
+1. **App.tsx (lines 27, 121-122, 137):**
+   - Added `heatmapOpacity` state (default: 0.8 = 80%)
+   - Passed to SidePanel via props
+   - Passed to MapView via props
+
+2. **SidePanel.tsx:**
+   - Added `heatmapOpacity` and `onHeatmapOpacityChange` to SidePanelProps
+   - Added same props to ExploreTabProps
+   - Created opacity slider UI section after Migration Animation
+   - Slider: type="range", min="0", max="100"
+   - Displays current value as percentage (e.g., "80%")
+   - data-testid="opacity-slider" for testing
+   - Help text: "Adjust the transparency of the heatmap overlay"
+
+3. **MapView.tsx:**
+   - Added `heatmapOpacity` to MapViewProps (default: 0.8)
+   - Replaced all hardcoded `fill-opacity: 1` with `heatmapOpacity` variable
+   - Replaced all hardcoded `fill-opacity: 0.8` with `heatmapOpacity` variable
+   - Added `heatmapOpacity` to useEffect dependency array (line 817)
+   - Map re-renders overlay when opacity changes
+
+4. **UI Location:**
+   - Explore tab, after Migration Animation section
+   - Above the blue "Tip" box
+   - Consistent styling with week slider (Cornell blue accent)
+
+**Verification Results (All 6 Steps):**
+
+✅ Step 1: Load the app with heatmap overlay visible
+   - App loaded on http://localhost:5173
+   - Lifer density heatmap visible at default 80% opacity
+
+✅ Step 2: Verify opacity slider is present in Explore tab controls
+   - Slider found at ref=e81 (data-testid="opacity-slider")
+   - Label: "Heatmap Opacity"
+   - Current value display: "80%"
+
+✅ Step 3: Set opacity to 100% and verify heatmap is fully opaque
+   - Used playwright-cli fill to set slider to "100"
+   - Heatmap became fully opaque (darkest teal colors)
+   - No transparency, solid color fill
+   - Display updated to "100%"
+
+✅ Step 4: Set opacity to 50% and verify heatmap is semi-transparent
+   - Set slider to "50"
+   - Heatmap became semi-transparent
+   - Base map clearly visible through the overlay (roads, coastlines visible)
+   - Perfect blend of heatmap and base map
+   - Display shows "50%"
+
+✅ Step 5: Set opacity to 0% and verify heatmap is fully transparent
+   - Set slider to "0"
+   - Heatmap completely invisible
+   - Only grid cell borders visible (light teal lines)
+   - Base map fully visible with no color overlay
+   - Display shows "0%"
+
+✅ Step 6: Verify opacity change applies immediately without page reload
+   - All opacity changes were instantaneous
+   - No page reload or manual refresh needed
+   - Smooth transitions between opacity levels
+   - Console logs show overlay re-rendering on each change
+
+**Cross-Mode Testing:**
+
+Tested opacity slider in multiple view modes:
+- **Density mode (teal):** 0%, 50%, 75%, 100% all working
+- **Probability mode (purple):** 25%, 75% tested and working
+- Opacity control applies to all heatmap types
+- View mode switching preserves opacity setting
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Total console messages: 16 (all info logs)
+- Console confirmed density overlay updates on opacity change
+- All interactions via real UI (playwright-cli fill)
+- Screenshots captured at: 0%, 25%, 50%, 75%, 100%
+
+**Mock Data Verification (Step 5.6):**
+- Grep search for mock patterns in frontend/src/: **0 matches**
+- No globalThis, devStore, dev-store, mockDb, mockData, fakeData, sampleData, dummyData, testData, STUB, MOCK, isDevelopment, or isDev patterns
+- All data from real API endpoints
+
+**Technical Implementation Notes:**
+
+1. **State Management:**
+   - App.tsx maintains single source of truth for opacity value
+   - Flows down to SidePanel (for UI control) and MapView (for rendering)
+   - React state ensures synchronization
+
+2. **Opacity Calculation:**
+   - Slider value: 0-100 (integer)
+   - Converted to decimal: `parseInt(value) / 100` (0.0 - 1.0)
+   - MapLibre GL uses decimal opacity (0.0 = transparent, 1.0 = opaque)
+
+3. **MapLibre Integration:**
+   - `map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)`
+   - Applied to all view modes in the main overlay update useEffect
+   - Dependency array includes `heatmapOpacity` to trigger re-render
+
+4. **User Experience:**
+   - Slider updates display percentage in real-time
+   - Visual feedback immediate (no lag)
+   - Consistent with week slider styling
+   - Accessible aria-label: "Adjust heatmap opacity"
+
+**Files Modified:**
+- frontend/src/App.tsx: Added heatmapOpacity state and props
+- frontend/src/components/SidePanel.tsx: Added opacity slider UI and props
+- frontend/src/components/MapView.tsx: Added opacity prop and applied to fill-opacity
+
+**Edge Cases Tested:**
+- 0% opacity: Heatmap completely invisible ✅
+- 100% opacity: Heatmap fully opaque ✅
+- Mid-range values (25%, 50%, 75%): Smooth transparency ✅
+- View mode switches: Opacity persists ✅
+- Week changes: Opacity maintained ✅
+
+**Status:**
+- Feature #20 marked as PASSING
+- Commit: 9c310e1
+- Zero blockers
+- Current progress: 63/83 features passing (75.9%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running on ports 8000 (backend) and 5173 (frontend)
+- Codebase in clean state with all changes committed
+- Browser closed cleanly
