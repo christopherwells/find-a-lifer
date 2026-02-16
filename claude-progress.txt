@@ -2732,3 +2732,104 @@ Step 8: Verify clicking outside the popup or pressing X closes it - PASS
 **Next Steps:**
 - Ready for next feature assignment
 - All servers running, codebase in clean state
+
+
+=== Session 37: Feature #32 - Filter by conservation and invasion status ===
+Date: 2026-02-16
+Assigned Feature: #32 "Filter by conservation and invasion status"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Implemented conservation status and invasion (origin) status filters in the Species tab
+- Added two new dropdown UI elements for filtering the species checklist
+- Updated filter logic to apply both filters simultaneously (intersection)
+
+**Implementation Details (frontend/src/components/SidePanel.tsx):**
+
+1. **New State Variables (lines ~577-578):**
+   - `selectedConservStatus` (string, default ''): Filters by IUCN conservation status
+   - `selectedInvasionStatus` (string, default ''): Filters by origin/invasion status
+
+2. **Updated filteredFamilies Logic (lines ~754-782):**
+   - Added `matchesConserv`: checks `species.conservStatus === selectedConservStatus` (or passes if no filter)
+   - Added `matchesInvasion`: checks `species.invasionStatus === selectedInvasionStatus` (or passes if no filter)
+   - Combined with existing `matchesSearch` using AND logic (intersection of all filters)
+
+3. **Conservation Status Dropdown (data-testid="conservation-filter"):**
+   - All Conservation Statuses (default)
+   - 🟢 Least Concern (1526 species)
+   - 🟡 Near Threatened (125 species)
+   - 🟠 Vulnerable (89 species)
+   - 🔴 Endangered (56 species)
+   - 🔴 Critically Endangered (30 species)
+   - ⚫ Extinct in the Wild (2 species)
+   - ❓ Data Deficient (12 species)
+   - Unknown (650 species)
+
+4. **Origin Status Dropdown (data-testid="invasion-filter"):**
+   - All Origins (default)
+   - 🐦 Native (1851 species)
+   - ⚠️ Introduced (93 species)
+   - 🔍 Rare/Accidental (546 species)
+
+5. **Species Count Display:**
+   - Shows "(showing N)" when any filter (family, conservation, or invasion) is active
+
+6. **Empty State Message:**
+   - "No species match the active filters" when status filters are active but no results
+   - "No species found matching X" when search term has no results
+
+**Verification Results (All 8 Steps):**
+
+✅ Step 1: Load app, navigate to Species tab
+   - App loaded on http://localhost:5173
+   - Both new filter dropdowns visible
+
+✅ Step 2: Apply conservation status filter 'Vulnerable'
+   - Selected Vulnerable from conservation-filter dropdown
+
+✅ Step 3: Verify only vulnerable species are shown
+   - Exactly 89 species shown across 39 families
+   - "(showing 89)" count indicator displayed
+
+✅ Step 4: Clear conservation filter, apply invasion status filter 'Introduced'
+   - Cleared conservation filter, selected Introduced
+
+✅ Step 5: Verify only introduced species are shown
+   - Exactly 93 species shown
+   - "(showing 93)" count indicator displayed
+
+✅ Step 6: Apply both filters simultaneously (Vulnerable + Introduced)
+   - Both filters active at the same time
+
+✅ Step 7: Verify results match intersection of both filters
+   - Only 1 species: Mariana Swiftlet (Aerodramus bartschi)
+   - Correctly the intersection of Vulnerable AND Introduced species
+
+✅ Step 8: Clear all filters, verify full list returns
+   - Set both dropdowns back to "All" options
+   - Full 2490 species list restored with no filter count indicator
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- All data from real /api/species endpoint (2490 species)
+- Filters respond immediately on dropdown change
+
+**Mock Data Verification:**
+- No mock patterns in frontend/src/ — all data from real API
+
+**Files Modified:**
+- frontend/src/components/SidePanel.tsx:
+  - Added 2 new state variables for conservation/invasion filters
+  - Updated filteredFamilies to apply status filters
+  - Added 2 new filter dropdown UI elements
+  - Updated species count display logic
+  - Updated empty state message
+
+**Current Progress:** 57/83 features passing (68.7%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running on ports 8000 (backend) and 5173 (frontend)
+- Codebase in clean state with all changes committed (33aa612)
