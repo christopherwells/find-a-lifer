@@ -1,0 +1,34 @@
+[    2805ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[    4129ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    4130ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    4144ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    4145ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5563ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5587ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5588ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5591ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   19783ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   19783ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   19800ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   19800ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   28292ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   28313ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   28327ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   28342ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193631ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193631ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193632ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193632ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193845ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193861ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193871ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  193873ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  201111ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  201125ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  201125ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  201138ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  206183ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  206200ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  206245ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  206245ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  206245ms] [WARNING] [JavaScript Warning: "After reporting 32, no further warnings will be reported for this WebGL context."] @ :0

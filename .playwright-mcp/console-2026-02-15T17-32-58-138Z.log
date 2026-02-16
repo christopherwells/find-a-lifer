@@ -1,0 +1,16 @@
+[     723ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[   32083ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   32084ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   32084ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   32084ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   44377ms] NotFoundError: IDBDatabase.transaction: 'lifeList' is not a known object store name
+    at req.onsuccess (debugger eval code line 301 > eval:8:21)
+    at EventHandlerNonNull* (debugger eval code line 301 > eval:6:5)
+    at  (debugger eval code line 301 > eval:4:10)
+    at evaluate (debugger eval code:303:16)
+    at  (debugger eval code:1:44)
+    at evaluateFunction (chrome://juggler/content/content/Runtime.js:404:60)
+    at callFunction (chrome://juggler/content/content/Runtime.js:103:41)
+    at _onMessageInternal (chrome://juggler/content/SimpleChannel.js:237:37)
+    at _onMessage (chrome://juggler/content/SimpleChannel.js:194:12)
+    at bindToActor/actor.receiveMessage (chrome://juggler/content/SimpleChannel.js:39:44)

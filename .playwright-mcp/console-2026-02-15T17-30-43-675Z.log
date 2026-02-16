@@ -1,0 +1,41 @@
+[    3241ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[    5871ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5894ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5895ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5895ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    6250ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    6287ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    6288ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    6288ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[   99521ms] [WARNING] An error occurred in the <GoalBirdsTab> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+ @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:6965
+[   99565ms] ReferenceError: showSeasonalSuggestions is not defined
+    at GoalBirdsTab/<.children<.children<.children< (http://localhost:5173/src/components/SidePanel.tsx?t=1771176742340:3938:78)
+    at GoalBirdsTab (http://localhost:5173/src/components/SidePanel.tsx?t=1771176742340:4112:9)
+    at react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:18509:20)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:5654:42)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:7475:21)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:8525:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:999:15)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:12561:98)
+    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:12424:60)
+    at renderRootSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:12408:13)
+    at performWorkOnRoot (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:11827:37)
+    at performWorkOnRootViaSchedulerTask (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:13505:26)
+    at performWorkUntilDeadline (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:36:58)
+    at EventHandlerNonNull*node_modules/scheduler/cjs/scheduler.development.js/< (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:156:9)
+    at node_modules/scheduler/cjs/scheduler.development.js (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:266:7)
+    at __require (http://localhost:5173/node_modules/.vite/deps/chunk-BUSYA2B4.js?v=640ea4d0:3:50)
+    at node_modules/scheduler/index.js (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:277:24)
+    at __require (http://localhost:5173/node_modules/.vite/deps/chunk-BUSYA2B4.js?v=640ea4d0:3:50)
+    at node_modules/react-dom/cjs/react-dom-client.development.js/< (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:17259:23)
+    at node_modules/react-dom/cjs/react-dom-client.development.js (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:20177:7)
+    at __require (http://localhost:5173/node_modules/.vite/deps/chunk-BUSYA2B4.js?v=640ea4d0:3:50)
+    at node_modules/react-dom/client.js (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:20188:24)
+    at __require (http://localhost:5173/node_modules/.vite/deps/chunk-BUSYA2B4.js?v=640ea4d0:3:50)
+    at  (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:20192:16)
+[   99569ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[  102470ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211

@@ -1,0 +1,9 @@
+[    4198ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[    5945ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5965ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5967ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    5968ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    7207ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    7236ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    7237ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    7241ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0

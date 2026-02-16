@@ -1,0 +1,64 @@
+[     434ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[    1833ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    1852ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    1853ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    1853ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    3445ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    3472ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    3472ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[    3473ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  125841ms] [WARNING] An error occurred in the <SpeciesInfoCard> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+ @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:6965
+[  125851ms] Error: Target container is not a DOM element.
+    at node_modules/react-dom/cjs/react-dom.development.js/exports.createPortal (http://localhost:5173/node_modules/.vite/deps/chunk-AIQQI3PJ.js?v=640ea4d0:83:17)
+    at SpeciesInfoCard (http://localhost:5173/src/components/SidePanel.tsx?t=1771121436853:1366:10)
+    at react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:18509:20)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:5654:42)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:7475:21)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:8525:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:999:15)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:12561:98)
+    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:12424:60)
+    at renderRootSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:12408:13)
+    at performWorkOnRoot (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:11827:37)
+    at performSyncWorkOnRoot (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:13517:26)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:13414:122)
+    at flushSyncWork$1 (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:12076:86)
+    at scheduleRefresh (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=640ea4d0:372:11)
+    at performReactRefresh/< (http://localhost:5173/@react-refresh:228:17)
+    at performReactRefresh (http://localhost:5173/@react-refresh:217:26)
+    at enqueueUpdate< (http://localhost:5173/@react-refresh:604:3)
+    at setTimeout handler*debounce/< (http://localhost:5173/@react-refresh:594:14)
+    at validateRefreshBoundaryAndEnqueueUpdate (http://localhost:5173/@react-refresh:644:5)
+    at  (http://localhost:5173/src/components/SidePanel.tsx?t=1771121410189:3275:48)
+    at accept/< (http://localhost:5173/@vite/client:66:95)
+    at fetchUpdate/< (http://localhost:5173/@vite/client:218:54)
+    at queueUpdate/< (http://localhost:5173/@vite/client:196:55)
+    at queueUpdate (http://localhost:5173/@vite/client:196:33)
+    at async*handleMessage/< (http://localhost:5173/@vite/client:839:55)
+    at handleMessage (http://localhost:5173/@vite/client:838:38)
+    at async*createHMRHandler/</< (http://localhost:5173/@vite/client:458:49)
+    at dequeue (http://localhost:5173/@vite/client:480:8)
+    at enqueue/< (http://localhost:5173/@vite/client:472:9)
+    at enqueue (http://localhost:5173/@vite/client:466:10)
+    at createHMRHandler/< (http://localhost:5173/@vite/client:458:28)
+    at onMessage (http://localhost:5173/@vite/client:305:15)
+    at createWebSocketModuleRunnerTransport/connect/< (http://localhost:5173/@vite/client:413:14)
+    at EventListener.handleEvent*connect (http://localhost:5173/@vite/client:412:11)
+    at connect (http://localhost:5173/@vite/client:751:23)
+    at connect (http://localhost:5173/@vite/client:289:23)
+    at connect (http://localhost:5173/@vite/client:373:45)
+    at  (http://localhost:5173/@vite/client:823:11)
+[  125851ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[  131921ms] [WARNING] [JavaScript Warning: "WebGL context was lost." {file: "http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0" line: 23211}] @ http://localhost:5173/node_modules/.vite/deps/maplibre-gl.js?v=640ea4d0:23211
+[  133170ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  133170ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  133193ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  133194ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  133501ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  133532ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  133532ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
+[  133535ms] [WARNING] [JavaScript Warning: "WebGL warning: texImage: Alpha-premult and y-flip are deprecated for non-DOM-Element uploads."] @ :0
