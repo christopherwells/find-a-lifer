@@ -1061,6 +1061,7 @@ function GoalBirdsTab() {
   const [showSeasonalSpecialtiesSuggestions, setShowSeasonalSpecialtiesSuggestions] = useState(true)
   const [showColorfulCharactersSuggestions, setShowColorfulCharactersSuggestions] = useState(true)
   const [showOwlsNightbirdsSuggestions, setShowOwlsNightbirdsSuggestions] = useState(true)
+  const [showRaptorsSuggestions, setShowRaptorsSuggestions] = useState(true)
 
   // Curated Regional Icons — signature/must-see birds for each North American region
   // Derived from pipeline config curated data
@@ -1168,6 +1169,35 @@ function GoalBirdsTab() {
     'comnig',    // Common Nighthawk — aerial insectivore of open skies
     'lesnig',    // Lesser Nighthawk — southwestern nighthawk
     'compau',    // Common Pauraque — tropical nightjar of southern Texas
+  ]
+
+  // Curated Raptors — hawks, eagles, falcons, ospreys, kites, harriers, and vultures
+  const RAPTORS: string[] = [
+    'osprey',    // Osprey — fish-hunting raptor, dramatic dives
+    'baleag',    // Bald Eagle — national symbol, unmistakable adult plumage
+    'goleag',    // Golden Eagle — majestic mountain and cliff hunter
+    'swahaw',    // Swainson's Hawk — long-distance migrant, spectacular kettles
+    'rethaw',    // Red-tailed Hawk — quintessential North American hawk
+    'coohaw',    // Cooper's Hawk — agile accipiter of woodland edges
+    'shshaw',    // Sharp-shinned Hawk — smallest North American accipiter
+    'norhar2',   // Northern Harrier — low-coursing marsh hawk, buoyant flight
+    'miskit',    // Mississippi Kite — graceful kite of southern river bottoms
+    'swtkit',    // Swallow-tailed Kite — spectacular fork-tailed kite of SE US
+    'whtkit',    // White-tailed Kite — pale hovering kite of western grasslands
+    'snakit',    // Snail Kite — specialist on apple snails, Florida wetlands
+    'brwhaw',    // Broad-winged Hawk — spring/fall migration kettle spectacle
+    'reshaw',    // Red-shouldered Hawk — riparian forest hawk of eastern US
+    'ferhaw',    // Ferruginous Hawk — largest North American buteo, prairie specialist
+    'rolhaw',    // Rough-legged Hawk — Arctic breeder, winter visitor to grasslands
+    'prafal',    // Prairie Falcon — pale falcon of open western landscapes
+    'merlin',    // Merlin — compact, fast falcon of boreal forests and coasts
+    'amekes',    // American Kestrel — colorful smallest falcon, hovers in place
+    'perfal',    // Peregrine Falcon — fastest animal on Earth, stoops at prey
+    'gyrfal',    // Gyrfalcon — massive Arctic falcon, rare and thrilling winter visitor
+    'turvul',    // Turkey Vulture — widespread soaring scavenger, wobbling flight
+    'blkvul',    // Black Vulture — short-tailed vulture, flapping flight style
+    'calcon',    // California Condor — largest North American land bird, conservation story
+    'y00678',    // Crested Caracara — unusual raptor with carrion and insect diet
   ]
 
   // Species info card state
@@ -2829,6 +2859,126 @@ function GoalBirdsTab() {
                                 className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
                                 title={`Add ${sp.comName} to goal list`}
                                 data-testid={`owls-nightbirds-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Raptors Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter curated raptor species that are unseen
+              const raptorsSuggestions = RAPTORS
+                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
+                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
+
+              if (raptorsSuggestions.length === 0) return null
+
+              return (
+                <div className="mt-4" data-testid="raptors-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowRaptorsSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                    data-testid="raptors-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-600 font-bold text-sm">🦅</span>
+                      <span className="text-sm font-semibold text-amber-800">Raptors</span>
+                      <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {raptorsSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-amber-600 transition-transform ${showRaptorsSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showRaptorsSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="raptors-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Hawks, eagles, falcons, ospreys, vultures, and other birds of prey — crowd-pleasers known for power, speed, and drama. Tap + to add to this goal list.
+                      </p>
+                      {raptorsSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-2 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`raptors-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species photo thumbnail */}
+                            {sp.photoUrl ? (
+                              <img
+                                src={sp.photoUrl}
+                                alt={sp.comName}
+                                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 mr-2"
+                                data-testid={`raptors-photo-${sp.speciesCode}`}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mr-2"
+                                data-testid={`raptors-photo-placeholder-${sp.speciesCode}`}
+                              >
+                                <span className="text-lg">🦅</span>
+                              </div>
+                            )}
+
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`raptors-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`raptors-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`raptors-add-btn-${sp.speciesCode}`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
