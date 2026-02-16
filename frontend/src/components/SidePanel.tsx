@@ -1060,6 +1060,7 @@ function GoalBirdsTab() {
   const [showRegionalIconsSuggestions, setShowRegionalIconsSuggestions] = useState(true)
   const [showSeasonalSpecialtiesSuggestions, setShowSeasonalSpecialtiesSuggestions] = useState(true)
   const [showColorfulCharactersSuggestions, setShowColorfulCharactersSuggestions] = useState(true)
+  const [showOwlsNightbirdsSuggestions, setShowOwlsNightbirdsSuggestions] = useState(true)
 
   // Curated Regional Icons — signature/must-see birds for each North American region
   // Derived from pipeline config curated data
@@ -1137,6 +1138,36 @@ function GoalBirdsTab() {
     'bulori',   // Bullock's Oriole — vivid orange and black
     'vigswa',   // Violet-green Swallow — iridescent green and violet
     'cedwax',   // Cedar Waxwing — sleek with red/yellow wax-tips
+  ]
+
+  // Curated Owls & Nightbirds — nocturnal species requiring special effort to find
+  // Owls, nightjars, nighthawks, poorwills, and other nightbirds of North America
+  const OWLS_NIGHTBIRDS: string[] = [
+    'grhowl',    // Great Horned Owl — iconic large owl, widespread
+    'snoowl1',   // Snowy Owl — spectacular Arctic visitor, beloved irruptive species
+    'brdowl',    // Barred Owl — distinctive hooting owl of eastern forests
+    'grgowl',    // Great Gray Owl — massive boreal owl, highly sought after
+    'brnowl',    // American Barn Owl — ghostly pale barn owl
+    'easowl1',   // Eastern Screech-Owl — small cryptic owl of eastern woodlands
+    'wesowl1',   // Western Screech-Owl — western counterpart of Eastern Screech
+    'nohowl',    // Northern Hawk Owl — diurnal boreal owl, hunts like a hawk
+    'sheowl',    // Short-eared Owl — open-country owl, crepuscular hunter
+    'loeowl',    // Long-eared Owl — secretive roosting owl, rare to find
+    'borowl',    // Boreal Owl — elusive northern forest specialist
+    'nswowl',    // Northern Saw-whet Owl — tiny and endearing, migrates in large numbers
+    'burowl',    // Burrowing Owl — unique ground-nesting owl, often diurnal
+    'nopowl',    // Northern Pygmy-Owl — tiny but fierce predator of western forests
+    'elfowl',    // Elf Owl — world's smallest owl, nests in cacti
+    'flaowl',    // Flammulated Owl — tiny insectivorous mountain owl
+    'fepowl',    // Ferruginous Pygmy-Owl — small owl of southern borderlands
+    'spoowl',    // Spotted Owl — old-growth forest specialist, conservation icon
+    'easwpw1',   // Eastern Whip-poor-will — haunting song of eastern summer nights
+    'souwpw1',   // Mexican Whip-poor-will — western whip-poor-will of pine forests
+    'chwwid',    // Chuck-will's-widow — largest North American nightjar
+    'compoo',    // Common Poorwill — smallest North American nightjar, hibernates!
+    'comnig',    // Common Nighthawk — aerial insectivore of open skies
+    'lesnig',    // Lesser Nighthawk — southwestern nighthawk
+    'compau',    // Common Pauraque — tropical nightjar of southern Texas
   ]
 
   // Species info card state
@@ -2678,6 +2709,126 @@ function GoalBirdsTab() {
                                 className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
                                 title={`Add ${sp.comName} to goal list`}
                                 data-testid={`colorful-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Owls & Nightbirds Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter curated nocturnal species that are unseen
+              const owlsNightbirdsSuggestions = OWLS_NIGHTBIRDS
+                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
+                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
+
+              if (owlsNightbirdsSuggestions.length === 0) return null
+
+              return (
+                <div className="mt-4" data-testid="owls-nightbirds-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowOwlsNightbirdsSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
+                    data-testid="owls-nightbirds-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-indigo-600 font-bold text-sm">🦉</span>
+                      <span className="text-sm font-semibold text-indigo-800">Owls &amp; Nightbirds</span>
+                      <span className="text-xs bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {owlsNightbirdsSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-indigo-600 transition-transform ${showOwlsNightbirdsSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showOwlsNightbirdsSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="owls-nightbirds-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        Creatures of the night — owls, nightjars, nighthawks, and other nocturnal species that require special effort and late hours to find. Tap + to add to this goal list.
+                      </p>
+                      {owlsNightbirdsSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-2 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`owls-nightbirds-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species photo thumbnail */}
+                            {sp.photoUrl ? (
+                              <img
+                                src={sp.photoUrl}
+                                alt={sp.comName}
+                                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 mr-2"
+                                data-testid={`owls-nightbirds-photo-${sp.speciesCode}`}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0 mr-2"
+                                data-testid={`owls-nightbirds-photo-placeholder-${sp.speciesCode}`}
+                              >
+                                <span className="text-lg">🦉</span>
+                              </div>
+                            )}
+
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`owls-nightbirds-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`owls-nightbirds-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`owls-nightbirds-add-btn-${sp.speciesCode}`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
