@@ -74,6 +74,8 @@ export default function MapView({
   const [goalSpeciesIdSetVersion, setGoalSpeciesIdSetVersion] = useState(0)
   // Goal Birds click-to-inspect popup
   const [goalBirdsPopup, setGoalBirdsPopup] = useState<GoalBirdsPopup | null>(null)
+  // Species metadata for the selected species (used in legend)
+  const [selectedSpeciesMeta, setSelectedSpeciesMeta] = useState<SpeciesMeta | null>(null)
   // Refs for latest values accessible inside map click handler
   const viewModeRef = useRef(viewMode)
   const weeklyDataRef = useRef(weeklyData)
@@ -404,6 +406,7 @@ export default function MapView({
       // Species Range mode: highlight cells where the selected species occurs
       if (!selectedSpecies) {
         // No species selected: show faint neutral overlay
+        setSelectedSpeciesMeta(null)
         if (map.current.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(44, 62, 123, 0.04)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', 1)
@@ -429,9 +432,12 @@ export default function MapView({
         const speciesMeta = speciesMetaCache.find((s) => s.speciesCode === selectedSpecies)
         if (!speciesMeta) {
           console.warn(`Species Range: species ${selectedSpecies} not found in metadata`)
+          setSelectedSpeciesMeta(null)
           return
         }
         const speciesId = speciesMeta.species_id
+        // Update state for legend display
+        setSelectedSpeciesMeta(speciesMeta)
 
         // Find all cells with this species (probability > 0)
         const cellProbabilities = new Map<number, number>()
@@ -793,6 +799,11 @@ export default function MapView({
           <div className="flex items-center gap-2 mb-1">
             <div className="text-xs font-semibold text-[#2C3E50]">🐦 Species Range</div>
           </div>
+          {selectedSpeciesMeta && (
+            <div className="text-sm font-medium text-[#2C3E7B] mb-1">
+              {selectedSpeciesMeta.comName}
+            </div>
+          )}
           <div className="flex items-center gap-1 text-xs text-gray-600">
             <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgba(44,62,123,0.2)' }}></div>
             <span>Low</span>

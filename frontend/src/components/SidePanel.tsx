@@ -574,6 +574,7 @@ function SpeciesTab() {
   const [error, setError] = useState<string | null>(null)
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFamily, setSelectedFamily] = useState<string>('') // '' means "All Families"
   const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
 
   // Goal list management for adding species to goal lists
@@ -677,8 +678,13 @@ function SpeciesTab() {
     }
   }
 
-  // Filter species by search term
+  // Filter species by search term AND selected family
   const filteredFamilies = Object.keys(speciesByFamily).reduce((acc, familyName) => {
+    // If a family is selected, only include that family
+    if (selectedFamily && familyName !== selectedFamily) {
+      return acc
+    }
+
     const familySpecies = speciesByFamily[familyName]
     const filtered = familySpecies.filter((species) => {
       const search = searchTerm.toLowerCase()
@@ -721,6 +727,12 @@ function SpeciesTab() {
   const totalSpecies = allSpecies.length
   const seenSpecies = getTotalSeen()
 
+  // Calculate filtered counts
+  const filteredSpeciesCount = Object.values(filteredFamilies).reduce(
+    (sum, familySpecies) => sum + familySpecies.length,
+    0
+  )
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -731,6 +743,32 @@ function SpeciesTab() {
         <div className="text-sm text-gray-600">
           <span className="font-medium text-[#2C3E7B]">{seenSpecies}</span> of{' '}
           <span className="font-medium">{totalSpecies}</span> species seen
+          {selectedFamily && (
+            <span className="text-xs text-gray-500 ml-2">
+              (showing {filteredSpeciesCount} from {selectedFamily})
+            </span>
+          )}
+        </div>
+
+        {/* Family filter dropdown */}
+        <div>
+          <label htmlFor="family-filter" className="block text-xs font-medium text-gray-700 mb-1">
+            Filter by Family
+          </label>
+          <select
+            id="family-filter"
+            value={selectedFamily}
+            onChange={(e) => setSelectedFamily(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            data-testid="family-filter"
+          >
+            <option value="">All Families</option>
+            {Object.keys(speciesByFamily).sort().map((familyName) => (
+              <option key={familyName} value={familyName}>
+                {familyName} ({speciesByFamily[familyName].length})
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Search box */}
