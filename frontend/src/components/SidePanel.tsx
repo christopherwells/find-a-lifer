@@ -1049,6 +1049,9 @@ function GoalBirdsTab() {
   const [showSuccessToast, setShowSuccessToast] = useState('')
   const [showDuplicateToast, setShowDuplicateToast] = useState('')
 
+  // List picker for one-tap add with multiple goal lists
+  const [listPickerSpecies, setListPickerSpecies] = useState<Species | null>(null)
+
   // Filter within current list
   const [listFilterTerm, setListFilterTerm] = useState('')
 
@@ -1390,17 +1393,31 @@ function GoalBirdsTab() {
     setDeletingListId(null)
   }
 
-  // Handle species search and add
-  const handleAddSpecies = async (species: Species) => {
+  // Handle species search and add — shows list picker if multiple lists exist
+  const handleAddSpecies = (species: Species) => {
     if (!activeListId) return
 
+    if (goalLists.length > 1) {
+      // Multiple lists: show quick list selector (no confirmation dialog)
+      setListPickerSpecies(species)
+    } else {
+      // Single list: add directly, no picker needed
+      void handleAddSpeciesToList(species, activeListId)
+    }
+  }
+
+  // Performs the actual add to a specific list (called from list picker or directly)
+  const handleAddSpeciesToList = async (species: Species, listId: string) => {
+    // Close picker immediately (instant UX)
+    setListPickerSpecies(null)
+
     try {
-      const activeList = goalLists.find((list) => list.id === activeListId)
-      if (!activeList) return
+      const targetList = goalLists.find((list) => list.id === listId)
+      if (!targetList) return
 
       // Check for duplicates
-      if (activeList.speciesCodes.includes(species.speciesCode)) {
-        setShowDuplicateToast(`${species.comName} is already in this list`)
+      if (targetList.speciesCodes.includes(species.speciesCode)) {
+        setShowDuplicateToast(`${species.comName} is already in ${targetList.name}`)
         setTimeout(() => setShowDuplicateToast(''), 3000)
         setSearchQuery('')
         setShowSuggestions(false)
@@ -1408,20 +1425,20 @@ function GoalBirdsTab() {
       }
 
       // Add species to the list
-      await goalListsDB.addSpeciesToList(activeListId, species.speciesCode)
-      console.log(`Added ${species.comName} (${species.speciesCode}) to goal list`)
+      await goalListsDB.addSpeciesToList(listId, species.speciesCode)
+      console.log(`Added ${species.comName} (${species.speciesCode}) to goal list "${targetList.name}"`)
 
       // Update state
       setGoalLists((prev) =>
         prev.map((list) =>
-          list.id === activeListId
+          list.id === listId
             ? { ...list, speciesCodes: [...list.speciesCodes, species.speciesCode] }
             : list
         )
       )
 
       // Show success toast
-      setShowSuccessToast(`Added ${species.comName} to ${activeList.name}`)
+      setShowSuccessToast(`Added ${species.comName} to ${targetList.name}`)
       setTimeout(() => setShowSuccessToast(''), 3000)
 
       // Clear search
@@ -3147,6 +3164,60 @@ function GoalBirdsTab() {
           </div>
         ) : null}
       </div>
+
+      {/* List Picker — quick selector when multiple goal lists exist */}
+      {listPickerSpecies && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          data-testid="list-picker-overlay"
+          onClick={() => setListPickerSpecies(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl p-4 w-72 mx-4"
+            data-testid="list-picker-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3">
+              <p className="text-sm font-semibold text-[#2C3E50] truncate">Add to which list?</p>
+              <p className="text-xs text-gray-500 truncate mt-0.5">{listPickerSpecies.comName}</p>
+            </div>
+            <div className="flex flex-col gap-2" data-testid="list-picker-options">
+              {goalLists.map((list) => {
+                const alreadyIn = list.speciesCodes.includes(listPickerSpecies.speciesCode)
+                return (
+                  <button
+                    key={list.id}
+                    onClick={() => {
+                      if (!alreadyIn) void handleAddSpeciesToList(listPickerSpecies, list.id)
+                      else setListPickerSpecies(null)
+                    }}
+                    disabled={alreadyIn}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      alreadyIn
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-[#f4f6fa] hover:bg-[#e8ecf5] text-[#2C3E50] cursor-pointer'
+                    }`}
+                    data-testid={`list-picker-option-${list.id}`}
+                    title={alreadyIn ? `${listPickerSpecies.comName} is already in ${list.name}` : `Add to ${list.name}`}
+                  >
+                    <span className="truncate block">{list.name}</span>
+                    {alreadyIn && (
+                      <span className="text-xs text-green-600 font-normal">✓ Already added</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setListPickerSpecies(null)}
+              className="mt-3 w-full text-center text-xs text-gray-400 hover:text-gray-600 py-1"
+              data-testid="list-picker-cancel"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Success Toast */}
       {showSuccessToast && (
