@@ -1899,3 +1899,95 @@ Successfully implemented and verified the lifer density heatmap functionality. T
 - Ready for next feature assignment
 - All servers running, codebase in clean state
 
+
+=== Session 33: Feature #14 - Occurrence Probability View ===
+Date: 2026-02-16
+Assigned Feature: #14 "Occurrence probability view works"
+
+**Summary:**
+Verified that the occurrence probability view mode is fully functional. The feature was already implemented in a previous session (Feature #59 included probability view with Goal Birds filter). This session focused on comprehensive browser-based verification of all feature requirements.
+
+**Implementation Details:**
+
+1. **Existing Implementation (MapView.tsx lines 529-580):**
+   - Probability mode computes max occurrence probability per cell
+   - When goalBirdsOnlyFilter is active, only considers goal species
+   - Otherwise shows probability across all species in the weekly data
+   - Uses purple/violet color scheme: rgba(138, 43, 226, intensity)
+   - Color intensity scales from 0.12 (very low probability) to 0.85 (high probability)
+   - Formula: Math.min(0.85, maxProb * 0.9 + 0.1)
+
+2. **View Mode Toggle (SidePanel.tsx):**
+   - Probability button at data-testid="view-mode-probability"
+   - Active state shows blue highlight (bg-[#2C3E7B])
+   - Description text: "Show occurrence probability intensity across all species"
+
+3. **Legend Display (MapView.tsx lines 786-806):**
+   - Always shown in probability mode
+   - Title: "📊 Occurrence Probability" (or "🎯 Goal Birds Probability" when filter active)
+   - Shows gradient: Low/Med/High with purple color samples
+   - Subtitle: "Finding likelihood"
+
+**Verification Results (All 6 Steps):**
+
+✅ **Step 1**: Load the app and navigate to Explore tab
+   - App loaded successfully, Explore tab open by default
+   - Initial density view showing lifer density heatmap
+
+✅ **Step 2**: Toggle to occurrence probability view mode
+   - Clicked "Probability" button (ref=e53)
+   - Button highlighted with blue background
+   - Map switched from teal (density) to purple (probability) coloring
+
+✅ **Step 3**: Verify map cells show probability-based coloring
+   - All 312 cells displayed with purple/violet heatmap
+   - Console log: "Probability overlay: 312 cells, goal filter=false, goal species=0"
+   - Visual confirmation of color gradient across different cells
+
+✅ **Step 4**: Verify color intensity corresponds to likelihood of finding species
+   - Lighter purple cells = lower max probability
+   - Darker purple cells = higher max probability
+   - Color gradient matches legend (Low/Med/High)
+   - Intensity formula correctly applied (scaled 0.12 to 0.85)
+
+✅ **Step 5**: Verify the legend updates to show probability scale
+   - Legend displays: "📊 Occurrence Probability"
+   - Shows purple gradient with Low/Med/High labels
+   - Subtitle: "Finding likelihood"
+   - Legend positioned at bottom-left with proper styling
+
+✅ **Step 6**: Change week slider and verify probabilities update for new week
+   - Initial state: Week 26 (113,534 records)
+   - Changed to Week 10: Console shows "Loaded week 10 data: {recordCount: 74172}"
+   - Probability overlay recalculated: "Probability overlay: 312 cells, goal filter=false"
+   - Heatmap visually updated with different color intensities
+   - Changed to Week 35: Console shows "Loaded week 35 data: {recordCount: 102376}"
+   - Probability overlay recalculated again correctly
+   - Zero errors throughout all week changes
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- All console logs showed expected behavior
+- Screenshots captured for all key states:
+  - Initial load (week 26 density view)
+  - Probability view active (week 26)
+  - Week 10 probability view
+  - Week 35 probability view
+
+**Mock Data Verification:**
+- All data from real /api/weeks/{week} endpoint
+- No mock patterns detected
+- Data varies correctly by week (74172, 113534, 102376 records)
+
+**Status:**
+- Feature #14 marked as PASSING
+- Commit: f3fecb6
+- No code changes needed (feature already implemented)
+- Zero blockers
+- Current progress: 48/83 features passing (57.8%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running, codebase in clean state
+- Browser closed cleanly
+
