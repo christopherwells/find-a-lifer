@@ -1059,6 +1059,7 @@ function GoalBirdsTab() {
   const [showMigrantSuggestions, setShowMigrantSuggestions] = useState(true)
   const [showRegionalIconsSuggestions, setShowRegionalIconsSuggestions] = useState(true)
   const [showSeasonalSpecialtiesSuggestions, setShowSeasonalSpecialtiesSuggestions] = useState(true)
+  const [showColorfulCharactersSuggestions, setShowColorfulCharactersSuggestions] = useState(true)
 
   // Curated Regional Icons — signature/must-see birds for each North American region
   // Derived from pipeline config curated data
@@ -1111,6 +1112,31 @@ function GoalBirdsTab() {
       emoji: '🌺',
       speciesCodes: ['hawgoo', 'apapan', 'iiwi'],
     },
+  ]
+
+  // Curated Colorful Characters — show-stopper birds known for striking, vivid plumage
+  // Derived from curated species tags in pipeline config
+  const COLORFUL_CHARACTERS: string[] = [
+    'paibun',   // Painted Bunting — arguably North America's most colorful bird
+    'scatan',   // Scarlet Tanager — brilliant red with jet-black wings
+    'verfly',   // Vermilion Flycatcher — electric red male
+    'rosspo1',  // Roseate Spoonbill — hot pink wading bird
+    'wooduc',   // Wood Duck — intricate iridescent plumage
+    'purgal2',  // Purple Gallinule — vivid purple, blue, and green
+    'westan',   // Western Tanager — yellow, orange, and black
+    'lazbun',   // Lazuli Bunting — turquoise and cinnamon
+    'indbun',   // Indigo Bunting — deep blue male
+    'norcar',   // Northern Cardinal — brilliant red
+    'bkhgro',   // Black-headed Grosbeak — rich orange and black
+    'amegfi',   // American Goldfinch — canary yellow
+    'harduc',   // Harlequin Duck — bold harlequin pattern
+    'grefla2',  // American Flamingo — vivid pink
+    'varthr',   // Varied Thrush — striking orange and slate
+    'bkbwar',   // Blackburnian Warbler — brilliant orange throat
+    'amered',   // American Redstart — bright orange patches
+    'bulori',   // Bullock's Oriole — vivid orange and black
+    'vigswa',   // Violet-green Swallow — iridescent green and violet
+    'cedwax',   // Cedar Waxwing — sleek with red/yellow wax-tips
   ]
 
   // Species info card state
@@ -2532,6 +2558,126 @@ function GoalBirdsTab() {
                                 className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
                                 title={`Add ${sp.comName} to goal list`}
                                 data-testid={`seasonal-add-btn-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Colorful Characters Suggestions */}
+            {(() => {
+              const activeListCodes = new Set(activeList.speciesCodes)
+              // Filter curated colorful species that are unseen — curated show-stoppers
+              const colorfulSuggestions = COLORFUL_CHARACTERS
+                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
+                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
+
+              if (colorfulSuggestions.length === 0) return null
+
+              return (
+                <div className="mt-4" data-testid="colorful-characters-section">
+                  {/* Section header - collapsible */}
+                  <button
+                    onClick={() => setShowColorfulCharactersSuggestions((prev) => !prev)}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg hover:bg-fuchsia-100 transition-colors"
+                    data-testid="colorful-characters-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-fuchsia-600 font-bold text-sm">🎨</span>
+                      <span className="text-sm font-semibold text-fuchsia-800">Colorful Characters</span>
+                      <span className="text-xs bg-fuchsia-200 text-fuchsia-800 px-1.5 py-0.5 rounded-full font-medium">
+                        {colorfulSuggestions.length}
+                      </span>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-fuchsia-600 transition-transform ${showColorfulCharactersSuggestions ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {showColorfulCharactersSuggestions && (
+                    <div className="mt-1 space-y-1" data-testid="colorful-characters-list">
+                      <p className="text-xs text-gray-500 px-1 mb-2">
+                        The show-stoppers — birds famous for their stunning, vibrant plumage. A feast for the eyes and a joy to find! Tap + to add to this goal list.
+                      </p>
+                      {colorfulSuggestions.map((sp) => {
+                        const alreadyInList = activeListCodes.has(sp.speciesCode)
+                        return (
+                          <div
+                            key={sp.speciesCode}
+                            className={`flex items-center justify-between px-2 py-2 rounded-lg ${
+                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                            }`}
+                            data-testid={`colorful-suggestion-${sp.speciesCode}`}
+                          >
+                            {/* Species photo thumbnail */}
+                            {sp.photoUrl ? (
+                              <img
+                                src={sp.photoUrl}
+                                alt={sp.comName}
+                                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 mr-2"
+                                data-testid={`colorful-photo-${sp.speciesCode}`}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="w-10 h-10 rounded-lg bg-fuchsia-100 flex items-center justify-center flex-shrink-0 mr-2"
+                                data-testid={`colorful-photo-placeholder-${sp.speciesCode}`}
+                              >
+                                <span className="text-lg">🎨</span>
+                              </div>
+                            )}
+
+                            {/* Species info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-sm font-medium text-[#2C3E50] truncate">
+                                  {sp.comName}
+                                </span>
+                                {alreadyInList && (
+                                  <span
+                                    className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0"
+                                    data-testid={`colorful-in-list-badge-${sp.speciesCode}`}
+                                  >
+                                    ✓ In list
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs italic text-gray-500 truncate">{sp.sciName}</div>
+                            </div>
+
+                            {/* Add button */}
+                            {alreadyInList ? (
+                              <div
+                                className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default"
+                                title="Already in this goal list"
+                                data-testid={`colorful-already-added-${sp.speciesCode}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAddSpecies(sp)}
+                                className="ml-2 flex-shrink-0 p-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                                title={`Add ${sp.comName} to goal list`}
+                                data-testid={`colorful-add-btn-${sp.speciesCode}`}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
