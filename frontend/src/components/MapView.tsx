@@ -88,15 +88,8 @@ export default function MapView({
   // whenever goalSpeciesCodes or seenSpecies change
   useEffect(() => {
     const buildGoalSpeciesIdSet = async () => {
-      // Skip if no goal species
-      if (goalSpeciesCodes.size === 0) {
-        goalSpeciesIdSetRef.current = new Set()
-        setGoalSpeciesIdSetVersion(v => v + 1)
-        return
-      }
-
-      // Load species metadata if not cached
-      if (!speciesMetaCache) {
+      // Load species metadata if not cached (needed for both goal species and density calculation)
+      if (!speciesMetaCache && (goalSpeciesCodes.size > 0 || seenSpecies.size > 0)) {
         try {
           const response = await fetch('/api/species')
           if (!response.ok) {
@@ -112,9 +105,16 @@ export default function MapView({
         }
       }
 
+      // Skip if no goal species
+      if (goalSpeciesCodes.size === 0) {
+        goalSpeciesIdSetRef.current = new Set()
+        setGoalSpeciesIdSetVersion(v => v + 1)
+        return
+      }
+
       // Build set of species_ids that are goal birds AND not yet seen
       const idSet = new Set<number>()
-      speciesMetaCache.forEach((s) => {
+      speciesMetaCache?.forEach((s) => {
         if (goalSpeciesCodes.has(s.speciesCode) && !seenSpecies.has(s.speciesCode)) {
           idSet.add(s.species_id)
         }
@@ -638,27 +638,42 @@ export default function MapView({
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
       }
     } else {
-      // Default density mode: teal/cyan heatmap based on average occurrence probability
-      const cellAggregates = new Map<number, { total: number; count: number }>()
+      // Default density mode: lifer density heatmap based on number of UNSEEN species
+      // Build seenSpeciesIdSet from seenSpecies codes
+      const seenSpeciesIdSet = new Set<number>()
+      if (seenSpecies.size > 0 && speciesMetaCache) {
+        speciesMetaCache.forEach((s) => {
+          if (seenSpecies.has(s.speciesCode)) {
+            seenSpeciesIdSet.add(s.species_id)
+          }
+        })
+      }
+
+      // Count number of unseen species per cell
+      const cellLiferCounts = new Map<number, number>()
 
       weeklyData.forEach((record) => {
-        const existing = cellAggregates.get(record.cell_id) || { total: 0, count: 0 }
-        cellAggregates.set(record.cell_id, {
-          total: existing.total + record.probability,
-          count: existing.count + 1,
-        })
+        // Skip species that have been seen
+        if (seenSpeciesIdSet.has(record.species_id)) return
+        if (record.probability <= 0) return
+
+        const current = cellLiferCounts.get(record.cell_id) || 0
+        cellLiferCounts.set(record.cell_id, current + 1)
       })
+
+      const maxLifers = Math.max(...Array.from(cellLiferCounts.values()), 0)
 
       const paintExpression: any = ['case']
 
-      cellAggregates.forEach((aggregate, cellId) => {
-        const avgProbability = aggregate.total / aggregate.count
-        const opacity = Math.min(0.7, avgProbability * 2)
+      cellLiferCounts.forEach((liferCount, cellId) => {
+        // Scale opacity based on lifer count (more lifers = darker color)
+        const intensity = Math.min(0.85, (liferCount / maxLifers) * 0.7 + 0.15)
 
         paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(`rgba(8, 136, 136, ${opacity})`)
+        paintExpression.push(`rgba(8, 136, 136, ${intensity})`)
       })
 
+      // Default: cells with zero lifers or all species seen
       paintExpression.push('rgba(8, 136, 136, 0.05)')
 
       if (map.current.getLayer('grid-fill')) {
@@ -669,7 +684,7 @@ export default function MapView({
         map.current.setPaintProperty('grid-border', 'line-color', '#088')
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.5)
       }
-      console.log(`Updated density overlay with ${cellAggregates.size} cells`)
+      console.log(`Updated density overlay with ${cellLiferCounts.size} cells, max lifers=${maxLifers}, seen species=${seenSpeciesIdSet.size}`)
     }
   }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies])
 

@@ -130,6 +130,82 @@
           ]
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "region_id": "alaska",
+        "name": "Alaska",
+        "species_codes": [
+          "baleag",
+          "rethaw",
+          "amegol"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -170,
+              51
+            ],
+            [
+              -130,
+              51
+            ],
+            [
+              -130,
+              71
+            ],
+            [
+              -170,
+              71
+            ],
+            [
+              -170,
+              51
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "region_id": "hawaii",
+        "name": "Hawaii",
+        "species_codes": [
+          "baleag"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -160,
+              18
+            ],
+            [
+              -154,
+              18
+            ],
+            [
+              -154,
+              23
+            ],
+            [
+              -160,
+              23
+            ],
+            [
+              -160,
+              18
+            ]
+          ]
+        ]
+      }
     }
   ]
 }

@@ -23,6 +23,7 @@ function App() {
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [activeGoalListId, setActiveGoalListId] = useState<string | null>(null)
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
   const { seenSpecies } = useLifeList()
 
   // Load all goal lists on startup and when view/filter changes
