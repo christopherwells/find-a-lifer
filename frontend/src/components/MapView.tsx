@@ -41,6 +41,19 @@ interface GoalBirdsPopup {
   birds: GoalBirdInCell[]
 }
 
+interface LiferInCell {
+  speciesCode: string
+  comName: string
+  sciName: string
+  probability: number
+}
+
+interface LifersPopup {
+  cellId: number
+  coordinates: [number, number]
+  lifers: LiferInCell[]
+}
+
 // Module-level cache for species metadata (to avoid re-fetching)
 let speciesMetaCache: SpeciesMeta[] | null = null
 
@@ -74,6 +87,8 @@ export default function MapView({
   const [goalSpeciesIdSetVersion, setGoalSpeciesIdSetVersion] = useState(0)
   // Goal Birds click-to-inspect popup
   const [goalBirdsPopup, setGoalBirdsPopup] = useState<GoalBirdsPopup | null>(null)
+  // Lifer density click-to-inspect popup
+  const [lifersPopup, setLifersPopup] = useState<LifersPopup | null>(null)
   // Species metadata for the selected species (used in legend)
   const [selectedSpeciesMeta, setSelectedSpeciesMeta] = useState<SpeciesMeta | null>(null)
   // Refs for latest values accessible inside map click handler
@@ -96,6 +111,33 @@ export default function MapView({
       setGoalBirdsPopup(null)
     }
   }, [viewMode])
+
+  // Close lifer popup when switching away from density mode
+  useEffect(() => {
+    if (viewMode !== 'density') {
+      setLifersPopup(null)
+    }
+  }, [viewMode])
+
+  // Load species metadata on mount (needed for click-to-inspect popup)
+  useEffect(() => {
+    const loadSpeciesMetadata = async () => {
+      if (speciesMetaCache) return // Already loaded
+      try {
+        const response = await fetch('/api/species')
+        if (!response.ok) {
+          console.error('MapView: failed to fetch species metadata')
+          return
+        }
+        const data: SpeciesMeta[] = await response.json()
+        speciesMetaCache = data
+        console.log(`MapView: cached ${data.length} species metadata entries`)
+      } catch (err) {
+        console.error('MapView: error fetching species metadata', err)
+      }
+    }
+    loadSpeciesMetadata()
+  }, [])
 
   // Zoom to selected region
   useEffect(() => {
@@ -372,9 +414,53 @@ export default function MapView({
                 birds: goalBirds
               })
               console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
+            } else if (viewModeRef.current === 'density') {
+              // Density mode: show lifers (unseen species) in this cell
+              const currentWeeklyData = weeklyDataRef.current
+              const currentSeenSpecies = seenSpeciesRef.current
+
+              if (!speciesMetaCache) {
+                console.warn('MapView: species metadata not yet loaded for popup')
+                return
+              }
+
+              // Find all species records for this cell
+              const cellRecords = currentWeeklyData.filter(
+                (r) => r.cell_id === cellId && r.probability > 0
+              )
+
+              // Map species_id to speciesMeta for quick lookup
+              const idToMeta = new Map<number, SpeciesMeta>()
+              speciesMetaCache.forEach((s) => idToMeta.set(s.species_id, s))
+
+              // Build lifers list for this cell (unseen species only)
+              const lifers: LiferInCell[] = []
+              cellRecords.forEach((record) => {
+                const meta = idToMeta.get(record.species_id)
+                if (!meta) return
+                // Only include unseen species
+                if (currentSeenSpecies.has(meta.speciesCode)) return
+                lifers.push({
+                  speciesCode: meta.speciesCode,
+                  comName: meta.comName,
+                  sciName: meta.sciName,
+                  probability: record.probability
+                })
+              })
+
+              // Sort by probability descending (highest probability first)
+              lifers.sort((a, b) => b.probability - a.probability)
+
+              setLifersPopup({
+                cellId,
+                coordinates: coords,
+                lifers
+              })
+              console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
             } else {
               // Other modes: select location for trip planning
               setGoalBirdsPopup(null)
+              setLifersPopup(null)
               if (onLocationSelect) {
                 onLocationSelect({ cellId, coordinates: coords })
                 console.log('Selected location for trip planning:', { cellId, coordinates: coords })
@@ -932,6 +1018,79 @@ export default function MapView({
                       {bird.isSeen && (
                         <span className="text-xs text-green-600 font-medium ml-1" title="Already seen">✓</span>
                       )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Footer hint */}
+          <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 rounded-b-lg">
+            <p className="text-xs text-gray-400 text-center">
+              Click another cell to update · Sorted by probability
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Lifer density click-to-inspect popup */}
+      {viewMode === 'density' && lifersPopup && (
+        <div
+          data-testid="lifers-popup"
+          className="absolute top-4 right-4 bg-white rounded-lg shadow-xl border border-teal-200 w-72 max-h-96 flex flex-col z-10"
+          style={{ maxHeight: '80%' }}
+        >
+          {/* Popup header */}
+          <div className="flex items-center justify-between px-3 py-2 bg-teal-50 border-b border-teal-200 rounded-t-lg">
+            <div>
+              <div className="text-sm font-semibold text-teal-900">🔭 Lifers in Area</div>
+              <div className="text-xs text-teal-700">
+                {lifersPopup.lifers.length === 0
+                  ? 'No lifers here this week'
+                  : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} · Cell ${lifersPopup.cellId}`}
+              </div>
+            </div>
+            <button
+              onClick={() => setLifersPopup(null)}
+              className="text-teal-600 hover:text-teal-900 transition-colors p-1 rounded"
+              aria-label="Close popup"
+              data-testid="lifers-popup-close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Lifer list */}
+          <div className="overflow-y-auto flex-1">
+            {lifersPopup.lifers.length === 0 ? (
+              <div className="px-3 py-4 text-center text-sm text-gray-500">
+                <div className="text-2xl mb-2">🎉</div>
+                <p>You've seen all species in this cell!</p>
+                <p className="text-xs text-gray-400 mt-1">Try a different cell or week to find more lifers.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {lifersPopup.lifers.map((lifer) => (
+                  <li
+                    key={lifer.speciesCode}
+                    data-testid={`lifer-item-${lifer.speciesCode}`}
+                    className="px-3 py-2 flex items-center justify-between"
+                  >
+                    <div className="min-w-0 flex-1 mr-2">
+                      <div className="text-sm font-medium text-gray-800">
+                        {lifer.comName}
+                      </div>
+                      <div className="text-xs text-gray-500 italic">
+                        {lifer.sciName}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="text-xs font-medium text-teal-700">
+                        {(lifer.probability * 100).toFixed(1)}%
+                      </div>
                     </div>
                   </li>
                 ))}

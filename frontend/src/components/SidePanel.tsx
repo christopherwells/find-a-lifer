@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
@@ -585,6 +585,13 @@ function SpeciesTab() {
   // Species info card
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
 
+  // Autocomplete state
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [highlightedSpecies, setHighlightedSpecies] = useState<string | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const speciesRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
   // Fetch species data from API
   useEffect(() => {
     const fetchSpecies = async () => {
@@ -677,6 +684,72 @@ function SpeciesTab() {
       alert('Failed to add species to goal list. Please try again.')
     }
   }
+
+  // Generate autocomplete suggestions from search term
+  const suggestions = searchTerm.trim().length > 0
+    ? allSpecies
+        .filter((species) => {
+          const search = searchTerm.toLowerCase()
+          return (
+            species.comName.toLowerCase().includes(search) ||
+            species.sciName.toLowerCase().includes(search)
+          )
+        })
+        .slice(0, 10) // Limit to 10 suggestions
+    : []
+
+  // Handle selecting a species from autocomplete
+  const handleSelectSuggestion = (species: Species) => {
+    setSearchTerm('') // Clear search
+    setShowSuggestions(false)
+    setHighlightedSpecies(species.speciesCode)
+
+    // Expand the family if it's collapsed
+    if (collapsedFamilies.has(species.familyComName)) {
+      setCollapsedFamilies((prev) => {
+        const next = new Set(prev)
+        next.delete(species.familyComName)
+        return next
+      })
+    }
+
+    // Scroll to the species after a brief delay to ensure it's rendered
+    setTimeout(() => {
+      const speciesElement = speciesRefs.current[species.speciesCode]
+      if (speciesElement) {
+        speciesElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 100)
+
+    // Remove highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedSpecies(null)
+    }, 3000)
+  }
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchTerm(value)
+    setShowSuggestions(value.trim().length > 0)
+  }
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target as Node) &&
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Filter species by search term AND selected family
   const filteredFamilies = Object.keys(speciesByFamily).reduce((acc, familyName) => {
@@ -771,14 +844,41 @@ function SpeciesTab() {
           </select>
         </div>
 
-        {/* Search box */}
-        <input
-          type="text"
-          placeholder="Search species or family..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
-        />
+        {/* Search box with autocomplete */}
+        <div className="relative">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search species or family..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            onFocus={() => searchTerm.trim().length > 0 && setShowSuggestions(true)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            data-testid="species-search-input"
+          />
+
+          {/* Autocomplete suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+              data-testid="autocomplete-suggestions"
+            >
+              {suggestions.map((species) => (
+                <button
+                  key={species.speciesCode}
+                  onClick={() => handleSelectSuggestion(species)}
+                  className="w-full text-left px-3 py-2 hover:bg-[#2C3E7B] hover:bg-opacity-10 border-b border-gray-100 last:border-b-0 transition-colors"
+                  data-testid={`suggestion-${species.speciesCode}`}
+                >
+                  <div className="text-sm font-medium text-[#2C3E50]">{species.comName}</div>
+                  <div className="text-xs text-gray-500 italic">{species.sciName}</div>
+                  <div className="text-xs text-gray-400">{species.familyComName}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Species list by family */}
@@ -825,7 +925,15 @@ function SpeciesTab() {
                     {familySpecies.map((species) => (
                       <div
                         key={species.species_id}
-                        className="px-3 py-2 hover:bg-blue-50 transition-colors"
+                        ref={(el) => {
+                          speciesRefs.current[species.speciesCode] = el
+                        }}
+                        className={`px-3 py-2 transition-colors ${
+                          highlightedSpecies === species.speciesCode
+                            ? 'bg-yellow-100 ring-2 ring-yellow-400'
+                            : 'hover:bg-blue-50'
+                        }`}
+                        data-testid={`species-item-${species.speciesCode}`}
                       >
                         <div className="flex items-start gap-2">
                           {/* Functional checkbox with IndexedDB persistence */}
