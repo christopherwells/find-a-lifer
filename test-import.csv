@@ -1,0 +1,6 @@
+Row #,Taxon Order,Category,Common Name,Scientific Name,Count,Location,S/P,Date,LocID,SubID,Exotic,Countable
+1,13128,species,Nanday Parakeet,Aratinga nenday,22,Pompano Beach Pier,US-FL,24 Jan 2026,L1669570,S295983260,N,1
+2,575,species,Mottled Duck,Anas fulvigula,2,Test Location,US-FL,23 Jan 2026,L848926,S295783074,,1
+3,5533,species,Gray-headed Swamphen,Porphyrio poliocephalus,2,Test Location,US-FL,23 Jan 2026,L848926,S295783074,N,1
+4,8403,species,Snail Kite,Rostrhamus sociabilis,1,"Vía 151, Carrillo",CR-G,14 Jan 2026,L57209335,S294181602,,1
+5,999,slash,Unknown Bird X/Y,Fake species,1,Test Location,US-FL,24 Jan 2026,L123,S456,,0
