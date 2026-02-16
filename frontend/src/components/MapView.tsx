@@ -11,6 +11,7 @@ interface MapViewProps {
   goalSpeciesCodes?: Set<string>
   seenSpecies?: Set<string>
   selectedSpecies?: string | null
+  selectedRegion?: string | null
 }
 
 interface OccurrenceRecord {
@@ -43,6 +44,15 @@ interface GoalBirdsPopup {
 // Module-level cache for species metadata (to avoid re-fetching)
 let speciesMetaCache: SpeciesMeta[] | null = null
 
+// Region bounds for zoom presets
+const REGION_BOUNDS: Record<string, { center: [number, number]; zoom: number }> = {
+  us_northeast: { center: [-73.5, 42], zoom: 5.5 },
+  us_southeast: { center: [-83.5, 31], zoom: 5.5 },
+  us_west: { center: [-114.5, 40.5], zoom: 4.5 },
+  alaska: { center: [-150, 64], zoom: 4 },
+  hawaii: { center: [-157, 20.5], zoom: 6.5 }
+}
+
 export default function MapView({
   darkMode = false,
   currentWeek = 26,
@@ -51,7 +61,8 @@ export default function MapView({
   onLocationSelect,
   goalSpeciesCodes = new Set(),
   seenSpecies = new Set(),
-  selectedSpecies = null
+  selectedSpecies = null,
+  selectedRegion = null
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -83,6 +94,29 @@ export default function MapView({
       setGoalBirdsPopup(null)
     }
   }, [viewMode])
+
+  // Zoom to selected region
+  useEffect(() => {
+    if (!map.current) return
+
+    if (selectedRegion && REGION_BOUNDS[selectedRegion]) {
+      const { center, zoom } = REGION_BOUNDS[selectedRegion]
+      map.current.flyTo({
+        center,
+        zoom,
+        duration: 1500 // 1.5 second animation
+      })
+      console.log(`MapView: zooming to ${selectedRegion}`)
+    } else if (!selectedRegion) {
+      // Return to continental US view when no region selected
+      map.current.flyTo({
+        center: [-98.5, 39.8],
+        zoom: 3.5,
+        duration: 1500
+      })
+      console.log('MapView: returning to continental US view')
+    }
+  }, [selectedRegion])
 
   // Load species metadata and build the goal species ID set
   // whenever goalSpeciesCodes or seenSpecies change

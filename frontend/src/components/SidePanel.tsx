@@ -29,6 +29,8 @@ interface SidePanelProps {
   goalLists?: GoalList[]
   activeGoalListId?: string | null
   onActiveGoalListIdChange?: (id: string | null) => void
+  selectedRegion?: string | null
+  onSelectedRegionChange?: (regionId: string | null) => void
 }
 
 interface Tab {
@@ -61,7 +63,9 @@ export default function SidePanel({
   goalSpeciesCodes,
   goalLists = [],
   activeGoalListId = null,
-  onActiveGoalListIdChange
+  onActiveGoalListIdChange,
+  selectedRegion = null,
+  onSelectedRegionChange
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -141,6 +145,8 @@ export default function SidePanel({
               goalLists={goalLists}
               activeGoalListId={activeGoalListId}
               onActiveGoalListIdChange={onActiveGoalListIdChange}
+              selectedRegion={selectedRegion}
+              onSelectedRegionChange={onSelectedRegionChange}
             />
           )}
           {activeTab === 'species' && <SpeciesTab />}
@@ -180,6 +186,8 @@ interface ExploreTabProps {
   goalLists?: GoalList[]
   activeGoalListId?: string | null
   onActiveGoalListIdChange?: (id: string | null) => void
+  selectedRegion?: string | null
+  onSelectedRegionChange?: (regionId: string | null) => void
 }
 
 function ExploreTab({
@@ -194,7 +202,9 @@ function ExploreTab({
   goalSpeciesCodes = new Set(),
   goalLists = [],
   activeGoalListId = null,
-  onActiveGoalListIdChange
+  onActiveGoalListIdChange,
+  selectedRegion = null,
+  onSelectedRegionChange
 }: ExploreTabProps) {
   // Species picker state for Species Range view
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
@@ -257,6 +267,30 @@ function ExploreTab({
       <p className="text-sm text-gray-600">
         Use the map controls to explore where bird species can be found. Adjust the week slider to see seasonal changes.
       </p>
+
+      {/* Region Selector */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-[#2C3E50]">
+          Region
+        </label>
+        <select
+          value={selectedRegion || ''}
+          onChange={(e) => onSelectedRegionChange?.(e.target.value || null)}
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white"
+          data-testid="region-selector"
+          aria-label="Select geographic region"
+        >
+          <option value="">All Regions</option>
+          <option value="us_northeast">US Northeast</option>
+          <option value="us_southeast">US Southeast</option>
+          <option value="us_west">US West</option>
+          <option value="alaska">Alaska</option>
+          <option value="hawaii">Hawaii</option>
+        </select>
+        <p className="text-xs text-gray-500">
+          {selectedRegion ? 'Map zoomed to selected region' : 'Select a region to zoom the map'}
+        </p>
+      </div>
 
       {/* View Mode Toggle */}
       <div className="space-y-2">

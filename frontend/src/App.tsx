@@ -115,6 +115,8 @@ function App() {
             if (id) localStorage.setItem('activeGoalListId', id)
             else localStorage.removeItem('activeGoalListId')
           }}
+          selectedRegion={selectedRegion}
+          onSelectedRegionChange={setSelectedRegion}
         />
 
         {/* Map Area */}
@@ -128,6 +130,7 @@ function App() {
             goalSpeciesCodes={goalSpeciesCodes}
             seenSpecies={seenSpecies}
             selectedSpecies={selectedSpecies}
+            selectedRegion={selectedRegion}
           />
         </div>
       </div>

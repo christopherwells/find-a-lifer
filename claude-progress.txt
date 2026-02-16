@@ -1850,3 +1850,52 @@ The Goal Birds tab was already fully implemented in `frontend/src/components/Sid
 
 **Next feature to work on:** Check feature_get_ready for next available feature
 
+
+=== Session 32: Feature #12 - Lifer Density Heatmap ===
+Date: 2026-02-16
+Assigned Feature: #12 "Lifer density heatmap displays correctly"
+
+**Summary:**
+Successfully implemented and verified the lifer density heatmap functionality. The heatmap now correctly filters out seen species and displays cell colors based on the count of UNSEEN species available in each cell.
+
+**Implementation Details:**
+
+1. **Core Bug Fix:**
+   - BEFORE: Density mode showed all species regardless of life list (based on average probability)
+   - AFTER: Density mode filters to show only unseen species (proper lifer density)
+
+2. **Code Changes (MapView.tsx):**
+   - Modified density calculation (lines 640-673) to build seenSpeciesIdSet from seenSpecies codes
+   - Filter weeklyData to exclude species in seenSpeciesIdSet
+   - Count number of unseen species per cell (lifer count)
+   - Scale color intensity based on lifer count (0.05 for few, up to 0.85 for many)
+   - Updated species metadata loading effect to load when seenSpecies.size > 0 (even if no goal species)
+
+3. **Verification Results:**
+   ✓ Loaded app with empty life list (initial state)
+   ✓ Density view active by default
+   ✓ Cells colored based on total available species (594 max initially)
+   ✓ Marked 6 species as seen: Ostrich, Emu, Greater Rhea, American Robin, Northern Cardinal, Blue Jay
+   ✓ Heatmap automatically recalculated after each species mark
+   ✓ Max lifers decreased from 594 to 592 (confirming filtering works)
+   ✓ Console shows: "Updated density overlay with 312 cells, max lifers=592, seen species=6"
+   ✓ Legend displays correctly: "🔭 Lifer Density" with gradient (Few/Some/Many) and "Unseen species per area"
+   ✓ Zero JavaScript console errors
+   ✓ All cells rendered with appropriate opacity based on lifer count
+
+**Technical Notes:**
+- Species metadata (2490 species) loads asynchronously when there are seen species
+- seenSpeciesIdSet built from seenSpecies codes by looking up species_id in metadata cache
+- Density overlay updates automatically via useEffect dependency on [seenSpecies]
+- Color intensity formula: Math.min(0.85, (liferCount / maxLifers) * 0.7 + 0.15)
+
+**Status:**
+- Feature #12 marked as PASSING
+- Commit: 250465c
+- No blockers
+- Current progress: 46/83 features passing (55.4%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running, codebase in clean state
+
