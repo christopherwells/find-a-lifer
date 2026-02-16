@@ -2324,3 +2324,164 @@ The family filter was already implemented in `frontend/src/components/SidePanel.
 - Continue with remaining features (cell inspection, migration animation, trip planning)
 - All servers running, codebase in clean state
 
+
+
+=== Session 35: Feature #22 - Search Species with Autocomplete ===
+Date: 2026-02-16
+Assigned Feature: #22 "Search species with autocomplete"
+
+**Summary:**
+Successfully implemented and verified the species autocomplete search feature. Users can now type in the search box and see instant dropdown suggestions showing matching species by common name or scientific name. Clicking on a suggestion scrolls to and highlights that species in the checklist.
+
+**Implementation Details:**
+
+1. **New State Variables (SidePanel.tsx lines 588-592):**
+   - `showSuggestions`: boolean to control dropdown visibility
+   - `highlightedSpecies`: tracks species code for yellow highlight effect
+   - `searchInputRef`: ref for click-outside detection
+   - `speciesRefs`: ref object to store references to each species div for scrolling
+   - `suggestionsRef`: ref for dropdown container
+
+2. **Autocomplete Suggestions Logic (lines 689-697):**
+   - Filters `allSpecies` array by search term (case-insensitive)
+   - Matches both `comName` (common name) and `sciName` (scientific name)
+   - Limits results to 10 suggestions to avoid overwhelming UI
+   - Only shows suggestions when search term has at least 1 character
+
+3. **Selection Handler (lines 699-719):**
+   - Clears search box after selection
+   - Hides suggestions dropdown
+   - Sets highlighted species (yellow background + ring)
+   - Auto-expands collapsed family if needed
+   - Scrolls to species after 100ms delay (ensures rendering)
+   - Clears highlight after 3 seconds
+
+4. **Search Input Handler (lines 721-725):**
+   - Updates search term on every keystroke
+   - Shows suggestions dropdown when term length > 0
+
+5. **Click-Outside Detection (lines 727-740):**
+   - useEffect hook with mousedown event listener
+   - Closes suggestions when clicking outside search input or dropdown
+   - Cleanup function removes listener on unmount
+
+6. **UI Changes (lines 917-948):**
+   - Wrapped search input in relative-positioned div
+   - Added refs to input (searchInputRef) and dropdown (suggestionsRef)
+   - Autocomplete dropdown with absolute positioning, z-50, max-h-64, overflow-y-auto
+   - Each suggestion button shows: common name, scientific name (italic), family name
+   - Hover effect: bg-[#2C3E7B] with 10% opacity
+   - data-testid attributes for testing
+
+7. **Species Highlighting (lines 996-1005):**
+   - Added ref callback to each species div: `ref={(el) => speciesRefs.current[species.speciesCode] = el}`
+   - Conditional className: yellow-100 background + ring-2 ring-yellow-400 when highlighted
+   - data-testid="species-item-{speciesCode}" for testing
+
+**Verification Results (All 9 Steps):**
+
+✅ **Step 1**: Load the app and navigate to Species tab
+   - App loaded on http://localhost:5176
+   - Species tab clicked and activated successfully
+
+✅ **Step 2**: Click on the search input field
+   - Clicked search input (ref=e112, data-testid="species-search-input")
+   - Input focused, ready for typing
+
+✅ **Step 3**: Type 'Robin' and verify autocomplete suggestions appear
+   - Typed "Robin"
+   - Autocomplete dropdown appeared immediately with 6 suggestions:
+     - Rufous-collared Robin (Turdus rufitorques)
+     - American Robin (Turdus migratorius)
+     - Rufous-backed Robin (Turdus rufopalliatus)
+     - European Robin (Erithacus rubecula)
+     - Rufous-tailed Robin (Larvivora sibilans)
+     - Siberian Blue Robin (Larvivora cyane)
+
+✅ **Step 4**: Verify suggestions include 'American Robin' and other robin species
+   - Confirmed: American Robin present in suggestions (ref=e23673, data-testid="suggestion-amerob")
+   - All robin species from different families displayed correctly
+   - Each suggestion shows common name, scientific name, and family name
+
+✅ **Step 5**: Verify suggestions update as more characters are typed
+   - First test: Typed "North" → 10 suggestions with "Northern" prefix
+   - Second test: Typed "ern Card" (full text: "Northern Card") → filtered to 1 suggestion: Northern Cardinal
+   - Suggestions updated instantly on each keystroke
+
+✅ **Step 6**: Click on a suggestion to select it
+   - Clicked "American Robin" suggestion (ref=e23673)
+   - Selection registered, dropdown closed
+   - Search box cleared automatically
+
+✅ **Step 7**: Verify the checklist scrolls to and highlights the selected species
+   - American Robin scrolled into view in Thrushes and Allies family
+   - Species visible at ref=e18116 in snapshot
+   - Scrolling animation worked smoothly (scrollIntoView with behavior: 'smooth')
+   - Note: Yellow highlight applied but not visible in YAML snapshot (visual styling)
+
+✅ **Step 8**: Clear the search box and verify full list is restored
+   - Used playwright-cli fill to clear search box
+   - Full species list restored
+   - Started with Ostriches (taxonomic order maintained)
+   - All 2490 species accessible again
+
+✅ **Step 9**: Type a partial scientific name and verify matching results appear
+   - Typed "Turdus" (genus name)
+   - Autocomplete showed 10 matching species:
+     - Mistle Thrush (Turdus viscivorus)
+     - Song Thrush (Turdus philomelos)
+     - Redwing (Turdus iliacus)
+     - Eurasian Blackbird (Turdus merula)
+     - Eyebrowed Thrush (Turdus obscurus)
+     - Fieldfare (Turdus pilaris)
+     - Dusky Thrush (Turdus eunomus)
+     - (and 3+ more Turdus species)
+
+**Browser Automation Testing:**
+- Zero JavaScript console errors (0 errors, 0 warnings)
+- Console logs confirmed normal operation:
+  - "Loaded 0 species from IndexedDB life list"
+  - "App: loaded 0 goal lists"
+  - "Grid data loaded successfully: {featureCount: 312}"
+  - "Loaded week 26 data: {recordCount: 113534}"
+  - "Updated density overlay with 312 cells, max lifers=594, seen species=0"
+- All interactions smooth and responsive
+- Dropdown appeared instantly on typing
+- Selection and scrolling worked without lag
+
+**Mock Data Verification (Step 5.6):**
+- Grep search for mock patterns in frontend/src/: **0 matches**
+- No globalThis, devStore, dev-store, mockDb, mockData, fakeData, sampleData, dummyData, testData, STUB, or MOCK patterns
+- All species data from real /api/species endpoint (2490 species)
+
+**Files Modified:**
+- frontend/src/components/SidePanel.tsx:
+  - Added useRef import
+  - Added autocomplete state variables (5 new state/ref variables)
+  - Added suggestions computation logic
+  - Added handleSelectSuggestion function
+  - Added handleSearchChange function
+  - Added click-outside detection useEffect
+  - Modified search input to wrapped div with dropdown
+  - Added ref callbacks to species divs for scrolling
+  - Added conditional highlight styling
+
+**Technical Notes:**
+- Autocomplete uses client-side filtering (no API calls) for instant results
+- Limit of 10 suggestions prevents overwhelming UI with too many options
+- ScrollIntoView with 100ms delay ensures React has rendered expanded family section
+- Yellow highlight (bg-yellow-100 + ring-2 ring-yellow-400) persists for 3 seconds
+- Click-outside detection uses mousedown event (fires before click)
+- Case-insensitive matching works for both common and scientific names
+- Family auto-expansion handled by removing family from collapsedFamilies Set
+
+**Status:**
+- Feature #22 marked as PASSING
+- Commit: e27932c
+- Zero blockers
+- Current progress: 53/83 features passing (63.9%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running, codebase in clean state
+- Browser closed cleanly
