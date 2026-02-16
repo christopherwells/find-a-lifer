@@ -577,6 +577,7 @@ function SpeciesTab() {
   const [selectedFamily, setSelectedFamily] = useState<string>('') // '' means "All Families"
   const [selectedConservStatus, setSelectedConservStatus] = useState<string>('') // '' means "All"
   const [selectedInvasionStatus, setSelectedInvasionStatus] = useState<string>('') // '' means "All"
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('') // '' means "All Difficulties"
   const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
 
   // Goal list management for adding species to goal lists
@@ -774,7 +775,10 @@ function SpeciesTab() {
       const matchesInvasion =
         !selectedInvasionStatus || species.invasionStatus === selectedInvasionStatus
 
-      return matchesSearch && matchesConserv && matchesInvasion
+      const matchesDifficulty =
+        !selectedDifficulty || species.difficultyLabel === selectedDifficulty
+
+      return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty
     })
     if (filtered.length > 0) {
       acc[familyName] = filtered
@@ -825,7 +829,7 @@ function SpeciesTab() {
         <div className="text-sm text-gray-600">
           <span className="font-medium text-[#2C3E7B]">{seenSpecies}</span> of{' '}
           <span className="font-medium">{totalSpecies}</span> species seen
-          {(selectedFamily || selectedConservStatus || selectedInvasionStatus) && (
+          {(selectedFamily || selectedConservStatus || selectedInvasionStatus || selectedDifficulty) && (
             <span className="text-xs text-gray-500 ml-2">
               (showing {filteredSpeciesCount})
             </span>
@@ -896,6 +900,26 @@ function SpeciesTab() {
           </select>
         </div>
 
+        {/* Difficulty filter */}
+        <div>
+          <label htmlFor="difficulty-filter" className="block text-xs font-medium text-gray-700 mb-1">
+            Difficulty Level
+          </label>
+          <select
+            id="difficulty-filter"
+            value={selectedDifficulty}
+            onChange={(e) => setSelectedDifficulty(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            data-testid="difficulty-filter"
+          >
+            <option value="">All Difficulty Levels</option>
+            <option value="Easy">🟢 Easy</option>
+            <option value="Moderate">🟡 Moderate</option>
+            <option value="Hard">🟠 Hard</option>
+            <option value="Very Hard">🔴 Very Hard</option>
+          </select>
+        </div>
+
         {/* Search box with autocomplete */}
         <div className="relative">
           <input
@@ -939,7 +963,7 @@ function SpeciesTab() {
           <div className="text-sm text-gray-500 text-center py-4">
             {searchTerm
               ? `No species found matching "${searchTerm}"`
-              : selectedConservStatus || selectedInvasionStatus
+              : selectedConservStatus || selectedInvasionStatus || selectedDifficulty
               ? 'No species match the active filters'
               : 'No species found'}
           </div>
