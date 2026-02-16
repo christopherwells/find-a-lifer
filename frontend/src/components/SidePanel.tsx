@@ -575,6 +575,8 @@ function SpeciesTab() {
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFamily, setSelectedFamily] = useState<string>('') // '' means "All Families"
+  const [selectedConservStatus, setSelectedConservStatus] = useState<string>('') // '' means "All"
+  const [selectedInvasionStatus, setSelectedInvasionStatus] = useState<string>('') // '' means "All"
   const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
 
   // Goal list management for adding species to goal lists
@@ -751,7 +753,7 @@ function SpeciesTab() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Filter species by search term AND selected family
+  // Filter species by search term, selected family, conservation status, and invasion status
   const filteredFamilies = Object.keys(speciesByFamily).reduce((acc, familyName) => {
     // If a family is selected, only include that family
     if (selectedFamily && familyName !== selectedFamily) {
@@ -761,11 +763,18 @@ function SpeciesTab() {
     const familySpecies = speciesByFamily[familyName]
     const filtered = familySpecies.filter((species) => {
       const search = searchTerm.toLowerCase()
-      return (
+      const matchesSearch =
         species.comName.toLowerCase().includes(search) ||
         species.sciName.toLowerCase().includes(search) ||
         familyName.toLowerCase().includes(search)
-      )
+
+      const matchesConserv =
+        !selectedConservStatus || species.conservStatus === selectedConservStatus
+
+      const matchesInvasion =
+        !selectedInvasionStatus || species.invasionStatus === selectedInvasionStatus
+
+      return matchesSearch && matchesConserv && matchesInvasion
     })
     if (filtered.length > 0) {
       acc[familyName] = filtered
@@ -816,9 +825,9 @@ function SpeciesTab() {
         <div className="text-sm text-gray-600">
           <span className="font-medium text-[#2C3E7B]">{seenSpecies}</span> of{' '}
           <span className="font-medium">{totalSpecies}</span> species seen
-          {selectedFamily && (
+          {(selectedFamily || selectedConservStatus || selectedInvasionStatus) && (
             <span className="text-xs text-gray-500 ml-2">
-              (showing {filteredSpeciesCount} from {selectedFamily})
+              (showing {filteredSpeciesCount})
             </span>
           )}
         </div>
@@ -841,6 +850,49 @@ function SpeciesTab() {
                 {familyName} ({speciesByFamily[familyName].length})
               </option>
             ))}
+          </select>
+        </div>
+
+        {/* Conservation status filter */}
+        <div>
+          <label htmlFor="conservation-filter" className="block text-xs font-medium text-gray-700 mb-1">
+            Conservation Status
+          </label>
+          <select
+            id="conservation-filter"
+            value={selectedConservStatus}
+            onChange={(e) => setSelectedConservStatus(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            data-testid="conservation-filter"
+          >
+            <option value="">All Conservation Statuses</option>
+            <option value="Least Concern">🟢 Least Concern</option>
+            <option value="Near Threatened">🟡 Near Threatened</option>
+            <option value="Vulnerable">🟠 Vulnerable</option>
+            <option value="Endangered">🔴 Endangered</option>
+            <option value="Critically Endangered">🔴 Critically Endangered</option>
+            <option value="Extinct in the Wild">⚫ Extinct in the Wild</option>
+            <option value="Data Deficient">❓ Data Deficient</option>
+            <option value="Unknown">Unknown</option>
+          </select>
+        </div>
+
+        {/* Invasion status filter */}
+        <div>
+          <label htmlFor="invasion-filter" className="block text-xs font-medium text-gray-700 mb-1">
+            Origin Status
+          </label>
+          <select
+            id="invasion-filter"
+            value={selectedInvasionStatus}
+            onChange={(e) => setSelectedInvasionStatus(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            data-testid="invasion-filter"
+          >
+            <option value="">All Origins</option>
+            <option value="Native">🐦 Native</option>
+            <option value="Introduced">⚠️ Introduced</option>
+            <option value="Rare/Accidental">🔍 Rare/Accidental</option>
           </select>
         </div>
 
@@ -885,7 +937,11 @@ function SpeciesTab() {
       <div className="flex-1 overflow-y-auto mt-3 space-y-1">
         {Object.keys(filteredFamilies).length === 0 ? (
           <div className="text-sm text-gray-500 text-center py-4">
-            No species found matching "{searchTerm}"
+            {searchTerm
+              ? `No species found matching "${searchTerm}"`
+              : selectedConservStatus || selectedInvasionStatus
+              ? 'No species match the active filters'
+              : 'No species found'}
           </div>
         ) : (
           Object.keys(filteredFamilies).map((familyName) => {
