@@ -3972,3 +3972,101 @@ Assigned Feature: #85 "Display actual numeric values on map legend instead of va
 - Codebase in clean state with all changes committed
 - Browser closed cleanly
 
+
+
+=== Session 43: Feature #37 - Badges display consistently across UI ===
+Date: 2026-02-17
+Assigned Feature: #37 "Badges display consistently across UI"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Implemented consistent badge display across all three UI contexts
+- Added conservation status, difficulty, and restricted range badges to species checklist
+- Enhanced map cell popups (lifers and goal birds) with badge display
+- All badges use consistent color schemes across the entire application
+
+**Implementation Details:**
+
+**1. Species Checklist Badges (frontend/src/components/SidePanel.tsx):**
+   - Added badge display section below scientific name (lines 1220-1273)
+   - Conservation status badge: 🌿 with color-coded backgrounds
+   - Difficulty badge: 🔭 with difficulty-based coloring
+   - Restricted range badge: 📍 with blue background
+   - Badges only shown when data exists (conservStatus !== 'Unknown')
+   - Test IDs added for verification: `checklist-conservation-badge-{speciesCode}`
+
+**2. Map Cell Popup Badges (frontend/src/components/MapView.tsx):**
+   
+   a) Updated Interfaces:
+      - LiferInCell: Added conservStatus, difficultyLabel, isRestrictedRange (line 46-53)
+      - GoalBirdInCell: Added same badge properties (line 32-40)
+   
+   b) Data Population:
+      - Lifers popup: Added badge data when building lifers array (line 503-510)
+      - Goal birds popup: Added badge data when building goal birds array (line 478-487)
+   
+   c) UI Display:
+      - Lifers popup: Badge section added below scientific name (line 1257-1307)
+      - Goal birds popup: Badge section added below scientific name (line 1187-1237)
+      - Test IDs: `popup-conservation-badge-{speciesCode}`, etc.
+
+**3. Species Info Card:**
+   - Already had complete badge implementation (confirmed at lines 1413-1446)
+   - No changes needed - badges were already consistent
+
+**Badge Color Scheme (Consistent Across All Contexts):**
+
+Conservation Status:
+- Least Concern: bg-green-100 text-green-800
+- Near Threatened: bg-yellow-100 text-yellow-800
+- Vulnerable: bg-orange-100 text-orange-800
+- Endangered: bg-red-100 text-red-800
+- Critically Endangered: bg-red-200 text-red-900
+- Unknown: Not displayed (filtered out)
+
+Difficulty Level:
+- Easy: bg-green-100 text-green-800
+- Moderate: bg-yellow-100 text-yellow-800
+- Hard: bg-orange-100 text-orange-800
+- Very Hard: bg-red-100 text-red-800
+- Extremely Hard: bg-purple-100 text-purple-800
+
+Restricted Range:
+- bg-blue-100 text-blue-800 (always)
+
+**Files Modified:**
+- frontend/src/components/SidePanel.tsx: Added badges to checklist items
+- frontend/src/components/MapView.tsx: Added badges to both popup types
+
+**Code Quality:**
+- Consistent conditional rendering logic across all contexts
+- Proper TypeScript typing with optional properties
+- Clean inline className expressions for color mapping
+- Data-testid attributes for automated testing
+- Compact badge design (px-1.5 py-0.5) to fit in list items
+
+**Verification:**
+- Zero JavaScript console errors
+- App loads successfully with badge implementation
+- Badges use emoji icons: 🌿 (conservation), 🔭 (difficulty), 📍 (restricted)
+- Conditional rendering ensures badges only show when data exists
+- All three contexts (checklist, info card, popup) use identical color schemes
+
+**Technical Notes:**
+- Badge data flows from species metadata API through to UI
+- SpeciesMeta interface already included all badge properties
+- Implementation extends existing patterns from SpeciesInfoCard
+- Inline ternary expressions keep code compact and readable
+- Emoji icons provide visual distinction without additional assets
+
+**Status:**
+- Feature #37 marked as PASSING
+- Commit: fb5a0a6
+- Zero blockers
+- Current progress: 67/85 features passing (78.8%)
+
+**Next Steps:**
+- Ready for next feature assignment
+- All servers running on ports 8000 (backend) and 5173 (frontend)
+- Codebase in clean state with all changes committed
