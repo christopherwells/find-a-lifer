@@ -13,6 +13,7 @@ interface MapViewProps {
   selectedSpecies?: string | null
   selectedRegion?: string | null
   heatmapOpacity?: number
+  selectedLocation?: { cellId: number; coordinates: [number, number] } | null
 }
 
 interface OccurrenceRecord {
@@ -34,6 +35,9 @@ interface GoalBirdInCell {
   sciName: string
   probability: number
   isSeen: boolean
+  conservStatus?: string
+  difficultyLabel?: string
+  isRestrictedRange?: boolean
 }
 
 interface GoalBirdsPopup {
@@ -47,6 +51,9 @@ interface LiferInCell {
   comName: string
   sciName: string
   probability: number
+  conservStatus?: string
+  difficultyLabel?: string
+  isRestrictedRange?: boolean
 }
 
 /**
@@ -130,7 +137,8 @@ export default function MapView({
   seenSpecies = new Set(),
   selectedSpecies = null,
   selectedRegion = null,
-  heatmapOpacity = 0.8
+  heatmapOpacity = 0.8,
+  selectedLocation = null
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -288,6 +296,19 @@ export default function MapView({
 
     loadWeekData()
   }, [currentWeek])
+
+  // Zoom to selected location when it changes (from Trip Plan hotspots)
+  useEffect(() => {
+    if (!map.current || !selectedLocation) return
+
+    map.current.flyTo({
+      center: selectedLocation.coordinates,
+      zoom: 7,
+      duration: 1500
+    })
+
+    console.log(`Map: zooming to selected location Cell #${selectedLocation.cellId}`)
+  }, [selectedLocation])
 
   // Initialize map
   useEffect(() => {
@@ -459,7 +480,10 @@ export default function MapView({
                   comName: meta.comName,
                   sciName: meta.sciName,
                   probability: record.probability,
-                  isSeen: currentSeenSpecies.has(meta.speciesCode)
+                  isSeen: currentSeenSpecies.has(meta.speciesCode),
+                  conservStatus: meta.conservStatus,
+                  difficultyLabel: meta.difficultyLabel,
+                  isRestrictedRange: meta.isRestrictedRange
                 })
               })
 
@@ -502,7 +526,10 @@ export default function MapView({
                   speciesCode: meta.speciesCode,
                   comName: meta.comName,
                   sciName: meta.sciName,
-                  probability: record.probability
+                  probability: record.probability,
+                  conservStatus: meta.conservStatus,
+                  difficultyLabel: meta.difficultyLabel,
+                  isRestrictedRange: meta.isRestrictedRange
                 })
               })
 
@@ -1157,6 +1184,60 @@ export default function MapView({
                       >
                         {bird.sciName}
                       </div>
+                      {/* Badges */}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {/* Conservation status badge */}
+                        {bird.conservStatus && bird.conservStatus !== 'Unknown' && (
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                              bird.conservStatus === 'Least Concern'
+                                ? 'bg-green-100 text-green-800'
+                                : bird.conservStatus === 'Near Threatened'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : bird.conservStatus === 'Vulnerable'
+                                ? 'bg-orange-100 text-orange-800'
+                                : bird.conservStatus === 'Endangered'
+                                ? 'bg-red-100 text-red-800'
+                                : bird.conservStatus === 'Critically Endangered'
+                                ? 'bg-red-200 text-red-900'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                            data-testid={`goal-popup-conservation-badge-${bird.speciesCode}`}
+                          >
+                            🌿
+                          </span>
+                        )}
+                        {/* Difficulty badge */}
+                        {bird.difficultyLabel && (
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                              bird.difficultyLabel === 'Easy'
+                                ? 'bg-green-100 text-green-800'
+                                : bird.difficultyLabel === 'Moderate'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : bird.difficultyLabel === 'Hard'
+                                ? 'bg-orange-100 text-orange-800'
+                                : bird.difficultyLabel === 'Very Hard'
+                                ? 'bg-red-100 text-red-800'
+                                : bird.difficultyLabel === 'Extremely Hard'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                            data-testid={`goal-popup-difficulty-badge-${bird.speciesCode}`}
+                          >
+                            🔭
+                          </span>
+                        )}
+                        {/* Restricted range badge */}
+                        {bird.isRestrictedRange && (
+                          <span
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                            data-testid={`goal-popup-restricted-badge-${bird.speciesCode}`}
+                          >
+                            📍
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <div className="text-xs font-medium text-amber-700">
@@ -1232,6 +1313,60 @@ export default function MapView({
                       </div>
                       <div className="text-xs text-gray-500 italic">
                         {lifer.sciName}
+                      </div>
+                      {/* Badges */}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {/* Conservation status badge */}
+                        {lifer.conservStatus && lifer.conservStatus !== 'Unknown' && (
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                              lifer.conservStatus === 'Least Concern'
+                                ? 'bg-green-100 text-green-800'
+                                : lifer.conservStatus === 'Near Threatened'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : lifer.conservStatus === 'Vulnerable'
+                                ? 'bg-orange-100 text-orange-800'
+                                : lifer.conservStatus === 'Endangered'
+                                ? 'bg-red-100 text-red-800'
+                                : lifer.conservStatus === 'Critically Endangered'
+                                ? 'bg-red-200 text-red-900'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                            data-testid={`popup-conservation-badge-${lifer.speciesCode}`}
+                          >
+                            🌿
+                          </span>
+                        )}
+                        {/* Difficulty badge */}
+                        {lifer.difficultyLabel && (
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                              lifer.difficultyLabel === 'Easy'
+                                ? 'bg-green-100 text-green-800'
+                                : lifer.difficultyLabel === 'Moderate'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : lifer.difficultyLabel === 'Hard'
+                                ? 'bg-orange-100 text-orange-800'
+                                : lifer.difficultyLabel === 'Very Hard'
+                                ? 'bg-red-100 text-red-800'
+                                : lifer.difficultyLabel === 'Extremely Hard'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                            data-testid={`popup-difficulty-badge-${lifer.speciesCode}`}
+                          >
+                            🔭
+                          </span>
+                        )}
+                        {/* Restricted range badge */}
+                        {lifer.isRestrictedRange && (
+                          <span
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                            data-testid={`popup-restricted-badge-${lifer.speciesCode}`}
+                          >
+                            📍
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">

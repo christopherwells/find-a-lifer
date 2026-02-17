@@ -1214,6 +1214,18 @@ function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
                             <div className="text-xs italic text-gray-600 truncate">
                               {species.sciName}
                             </div>
+                            {/* Badges */}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {species.conservStatus && species.conservStatus !== 'Unknown' && (
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${species.conservStatus === 'Least Concern' ? 'bg-green-100 text-green-800' : species.conservStatus === 'Near Threatened' ? 'bg-yellow-100 text-yellow-800' : species.conservStatus === 'Vulnerable' ? 'bg-orange-100 text-orange-800' : species.conservStatus === 'Endangered' ? 'bg-red-100 text-red-800' : species.conservStatus === 'Critically Endangered' ? 'bg-red-200 text-red-900' : 'bg-gray-100 text-gray-600'}`} data-testid={`checklist-conservation-badge-${species.speciesCode}`}>🌿</span>
+                              )}
+                              {species.difficultyLabel && (
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${species.difficultyLabel === 'Easy' ? 'bg-green-100 text-green-800' : species.difficultyLabel === 'Moderate' ? 'bg-yellow-100 text-yellow-800' : species.difficultyLabel === 'Hard' ? 'bg-orange-100 text-orange-800' : species.difficultyLabel === 'Very Hard' ? 'bg-red-100 text-red-800' : species.difficultyLabel === 'Extremely Hard' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'}`} data-testid={`checklist-difficulty-badge-${species.speciesCode}`}>🔭</span>
+                              )}
+                              {species.isRestrictedRange && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" data-testid={`checklist-restricted-badge-${species.speciesCode}`}>📍</span>
+                              )}
+                            </div>
                           </button>
                           {/* Add to goal list button */}
                           <button
@@ -3712,6 +3724,7 @@ interface TripPlanTabProps {
   selectedLocation?: SelectedLocation | null
   currentWeek?: number
   onWeekChange?: (week: number) => void
+  onLocationSelect?: (location: SelectedLocation) => void
 }
 
 interface TripLifer {
@@ -3724,16 +3737,53 @@ interface TripLifer {
   difficultyLabel: string
 }
 
+interface HotspotLocation {
+  cellId: number
+  coordinates: [number, number]
+  liferCount: number
+  rank: number
+}
+
+interface WeekOpportunity {
+  week: number
+  avgProbability: number
+  topLocations: Array<{
+    cellId: number
+    coordinates: [number, number]
+    probability: number
+  }>
+}
+
 function TripPlanTab({
   selectedLocation,
   currentWeek = 26,
+  onLocationSelect,
 }: TripPlanTabProps) {
+  // Mode: 'location', 'hotspots', or 'window'
+  const [mode, setMode] = useState<'location' | 'hotspots' | 'window'>('location')
+
+  // Location mode
   const [startWeek, setStartWeek] = useState(currentWeek)
   const [endWeek, setEndWeek] = useState(Math.min(currentWeek + 2, 52))
   const [lifers, setLifers] = useState<TripLifer[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Hotspots mode
+  const [hotspotWeek, setHotspotWeek] = useState(currentWeek)
+  const [hotspots, setHotspots] = useState<HotspotLocation[]>([])
+  const [hotspotsLoading, setHotspotsLoading] = useState(false)
+
+  // Window mode
+  const [selectedSpeciesForWindow, setSelectedSpeciesForWindow] = useState<Species | null>(null)
+  const [weekOpportunities, setWeekOpportunities] = useState<WeekOpportunity[]>([])
+  const [windowLoading, setWindowLoading] = useState(false)
+  const [speciesSearchTerm, setSpeciesSearchTerm] = useState('')
+  const [showSpeciesSuggestions, setShowSpeciesSuggestions] = useState(false)
+
+  // Shared
   const [speciesData, setSpeciesData] = useState<Species[]>([])
   const [speciesLoaded, setSpeciesLoaded] = useState(false)
+  const [gridData, setGridData] = useState<any>(null)
   const { seenSpecies } = useLifeList()
 
   const getWeekLabel = (week: number): string => {
