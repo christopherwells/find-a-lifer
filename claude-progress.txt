@@ -4070,3 +4070,52 @@ Restricted Range:
 - Ready for next feature assignment
 - All servers running on ports 8000 (backend) and 5173 (frontend)
 - Codebase in clean state with all changes committed
+
+
+=== Session 43: Feature #39 - Lifer hotspot rankings ===
+Date: 2026-02-17
+Assigned Feature: #39 "Lifer hotspot rankings for a given week"
+
+**Status:** IN PROGRESS (syntax errors blocking testing)
+
+**What was accomplished:**
+- Implemented hotspot ranking logic in TripPlanTab component
+- Added mode toggle (Location / Hotspots / Window) to Trip Plan tab
+- Added hotspot week picker UI
+- Implemented hotspot calculation algorithm (counts unseen species per grid cell)
+- Added ranked hotspot list display with click-to-zoom functionality
+- Integrated map zoom when hotspot is clicked
+- Connected all props through App.tsx → SidePanel → TripPlanTab → MapView
+
+**Implementation details:**
+1. Added `HotspotLocation` interface with cellId, coordinates, liferCount, rank
+2. Added hotspot state management in TripPlanTab
+3. Implemented `calculateHotspots` useEffect that:
+   - Loads week data for selected week
+   - Counts unseen species per cell (excluding seen species)
+   - Ranks cells by lifer count (descending)
+   - Returns top 20 hotspots
+4. Added mode-based conditional rendering for results section
+5. Integrated map zoom via selectedLocation prop
+6. Added onLocationSelect callback to trigger zoom + location selection
+
+**Current blocker:**
+- Complex ternary expression has syntax errors (multiple closing parentheses issues)
+- Error: "Unexpected token, expected ',' (4331:18)"
+- Need to simplify or rewrite the results section conditional rendering
+- File: frontend/src/components/SidePanel.tsx lines 4224-4331
+
+**Next steps:**
+- Fix syntax errors in conditional rendering
+- Test hotspot rankings display
+- Test week slider updates hotspots
+- Test clicking hotspot zooms map
+- Test species marked as seen recalculates hotspots
+- Mark feature #39 as passing after verification
+
+**Files modified:**
+- frontend/src/components/SidePanel.tsx: Added hotspot mode and logic
+- frontend/src/components/MapView.tsx: Added selectedLocation prop and zoom functionality
+- frontend/src/App.tsx: Passed onSelectedLocationChange to SidePanel
+
+**Commit:** 256b0d0 (work in progress with syntax errors)
