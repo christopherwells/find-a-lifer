@@ -3760,7 +3760,7 @@ function TripPlanTab({
   onLocationSelect,
 }: TripPlanTabProps) {
   // Mode: 'location', 'hotspots', or 'window'
-  const [mode, setMode] = useState<'location' | 'hotspots' | 'window'>('location')
+  const [mode, setMode] = useState<'location' | 'hotspots' | 'window'>('hotspots')
 
   // Location mode
   const [startWeek, setStartWeek] = useState(currentWeek)
@@ -3810,15 +3810,148 @@ function TripPlanTab({
     fetchSpecies()
   }, [])
 
-  // Sync start/end weeks with currentWeek from Explore tab
+  // Load grid data
+  useEffect(() => {
+    const fetchGrid = async () => {
+      try {
+        const response = await fetch('/api/grid')
+        if (!response.ok) return
+        const data = await response.json()
+        setGridData(data)
+      } catch (error) {
+        console.error('Trip Plan: failed to load grid', error)
+      }
+    }
+    fetchGrid()
+  }, [])
+
+  // Sync weeks with currentWeek
   useEffect(() => {
     setStartWeek(currentWeek)
     setEndWeek(Math.min(currentWeek + 2, 52))
+    setHotspotWeek(currentWeek)
   }, [currentWeek])
 
-  // Load occurrence data when location or week range changes
+  // Calculate hotspots
   useEffect(() => {
-    if (!selectedLocation || !speciesLoaded) {
+    if (mode !== 'hotspots' || !speciesLoaded || !gridData) return
+
+    const calc = async () => {
+      setHotspotsLoading(true)
+      try {
+        const response = await fetch(`/api/weeks/${hotspotWeek}`)
+        if (!response.ok) {
+          setHotspots([])
+          setHotspotsLoading(false)
+          return
+        }
+
+        const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+        const speciesById = new Map<number, Species>()
+        speciesData.forEach(sp => speciesById.set(sp.species_id, sp))
+
+        const cellCounts = new Map<number, number>()
+        weekData.forEach(r => {
+          const sp = speciesById.get(r.species_id)
+          if (!sp || seenSpecies.has(sp.speciesCode)) return
+          cellCounts.set(r.cell_id, (cellCounts.get(r.cell_id) || 0) + 1)
+        })
+
+        const cellCoords = new Map<number, [number, number]>()
+        if (gridData.features) {
+          gridData.features.forEach((f: any) => {
+            const coords = f.geometry.coordinates[0][0]
+            if (f.properties.cell_id && coords) {
+              cellCoords.set(f.properties.cell_id, [coords[0], coords[1]])
+            }
+          })
+        }
+
+        const arr: HotspotLocation[] = []
+        cellCounts.forEach((count, cellId) => {
+          const coords = cellCoords.get(cellId)
+          if (coords) arr.push({ cellId, coordinates: coords, liferCount: count, rank: 0 })
+        })
+
+        arr.sort((a, b) => b.liferCount - a.liferCount)
+        arr.forEach((h, i) => h.rank = i + 1)
+
+        setHotspots(arr.slice(0, 20))
+      } catch (error) {
+        console.error('Trip Plan: hotspots error', error)
+        setHotspots([])
+      } finally {
+        setHotspotsLoading(false)
+      }
+    }
+    calc()
+  }, [mode, hotspotWeek, speciesLoaded, speciesData, gridData, seenSpecies])
+
+  // Calculate window of opportunity
+  useEffect(() => {
+    if (mode !== 'window' || !selectedSpeciesForWindow || !speciesLoaded || !gridData) {
+      setWeekOpportunities([])
+      return
+    }
+
+    const calc = async () => {
+      setWindowLoading(true)
+      try {
+        const targetId = selectedSpeciesForWindow.species_id
+        const weeklyData = new Map<number, Array<{ cell_id: number; probability: number }>>()
+
+        for (let week = 1; week <= 52; week++) {
+          try {
+            const response = await fetch(`/api/weeks/${week}`)
+            if (!response.ok) continue
+            const data: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+            weeklyData.set(week, data.filter(r => r.species_id === targetId))
+          } catch (err) {
+            console.error(`Window: week ${week} failed`, err)
+          }
+        }
+
+        const cellCoords = new Map<number, [number, number]>()
+        if (gridData.features) {
+          gridData.features.forEach((f: any) => {
+            const coords = f.geometry.coordinates[0][0]
+            if (f.properties.cell_id && coords) {
+              cellCoords.set(f.properties.cell_id, [coords[0], coords[1]])
+            }
+          })
+        }
+
+        const opps: WeekOpportunity[] = []
+        weeklyData.forEach((records, week) => {
+          if (records.length === 0) return
+          const avgProb = records.reduce((sum, r) => sum + r.probability, 0) / records.length
+          const topLocs = records
+            .sort((a, b) => b.probability - a.probability)
+            .slice(0, 5)
+            .map(r => ({
+              cellId: r.cell_id,
+              coordinates: cellCoords.get(r.cell_id) || [0, 0] as [number, number],
+              probability: r.probability
+            }))
+          opps.push({ week, avgProbability: avgProb, topLocations: topLocs })
+        })
+
+        opps.sort((a, b) => b.avgProbability - a.avgProbability)
+        setWeekOpportunities(opps.slice(0, 10))
+        console.log(`Window: found ${opps.length} weeks for ${selectedSpeciesForWindow.comName}`)
+      } catch (error) {
+        console.error('Window: error', error)
+        setWeekOpportunities([])
+      } finally {
+        setWindowLoading(false)
+      }
+    }
+    calc()
+  }, [mode, selectedSpeciesForWindow, speciesLoaded, gridData])
+
+  // Load location data
+  useEffect(() => {
+    if (mode !== 'location' || !selectedLocation || !speciesLoaded) {
       setLifers([])
       return
     }
@@ -3905,13 +4038,120 @@ function TripPlanTab({
       {/* Header */}
       <div className="space-y-3 pb-3 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-[#2C3E50]">Trip Planning</h3>
+
+        {/* Mode Toggle */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setMode('location')}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'location' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="location-mode-btn"
+          >
+            📍 Location
+          </button>
+          <button
+            onClick={() => setMode('hotspots')}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'hotspots' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="hotspots-mode-btn"
+          >
+            🔥 Hotspots
+          </button>
+          <button
+            onClick={() => setMode('window')}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'window' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="window-mode-btn"
+          >
+            🐦 Window
+          </button>
+        </div>
+
         <p className="text-sm text-gray-600">
-          Click a location on the map, then set your date range to see ranked lifers.
+          {mode === 'location'
+            ? 'Click a location on the map, then set your date range to see ranked lifers.'
+            : mode === 'hotspots'
+            ? 'Find top locations with the most unseen species for a given week.'
+            : 'Search for a species to see when and where it\'s most likely to be found.'}
         </p>
       </div>
 
-      {/* Location Display */}
-      <div className="mt-3 space-y-3">
+      {/* Hotspots Mode: Week Picker */}
+      {mode === 'hotspots' && (
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">Select Week</label>
+          <input
+            type="range"
+            min="1"
+            max="52"
+            value={hotspotWeek}
+            onChange={(e) => setHotspotWeek(parseInt(e.target.value, 10))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            data-testid="hotspot-week-slider"
+          />
+          <div className="text-xs text-center text-[#2C3E7B] font-medium mt-1">
+            Week {hotspotWeek} (~{getWeekLabel(hotspotWeek)})
+          </div>
+        </div>
+      )}
+
+      {/* Window Mode: Species Search */}
+      {mode === 'window' && (
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">Select Target Species</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search for a species..."
+              value={speciesSearchTerm}
+              onChange={(e) => {
+                setSpeciesSearchTerm(e.target.value)
+                setShowSpeciesSuggestions(true)
+              }}
+              onFocus={() => setShowSpeciesSuggestions(true)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+              data-testid="species-search-input"
+            />
+            {showSpeciesSuggestions && speciesSearchTerm.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {speciesData
+                  .filter(sp =>
+                    sp.comName.toLowerCase().includes(speciesSearchTerm.toLowerCase()) ||
+                    sp.sciName.toLowerCase().includes(speciesSearchTerm.toLowerCase())
+                  )
+                  .slice(0, 10)
+                  .map(sp => (
+                    <button
+                      key={sp.speciesCode}
+                      onClick={() => {
+                        setSelectedSpeciesForWindow(sp)
+                        setSpeciesSearchTerm(sp.comName)
+                        setShowSpeciesSuggestions(false)
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="text-sm font-medium text-[#2C3E50]">{sp.comName}</div>
+                      <div className="text-xs italic text-gray-500">{sp.sciName}</div>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+          {selectedSpeciesForWindow && (
+            <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2">
+              <div className="text-sm font-medium text-blue-800">{selectedSpeciesForWindow.comName}</div>
+              <div className="text-xs italic text-blue-600">{selectedSpeciesForWindow.sciName}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Location Mode: Location Display and Date Range */}
+      {mode === 'location' && (
+        <div className="mt-3 space-y-3">
         <div>
           <label className="block text-sm font-medium text-[#2C3E50] mb-1">
             Selected Location
@@ -3978,61 +4218,117 @@ function TripPlanTab({
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Ranked Lifer List */}
+      {/* Results Section */}
       <div className="mt-3 flex-1 overflow-y-auto">
-        {!selectedLocation ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <p className="text-sm text-blue-700">
-              <span className="font-medium">Select a location</span> on the map to see lifers you could find there.
-            </p>
-          </div>
-        ) : loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
-          </div>
-        ) : lifers.length === 0 ? (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <p className="text-sm text-green-700">
-              <span className="font-medium">No lifers found!</span> You have already seen all species recorded in this area during this period.
-            </p>
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-[#2C3E50]">
-                Potential Lifers ({lifers.length})
-              </h4>
-              <span className="text-xs text-gray-500">
-                Sorted by probability
-              </span>
+        {mode === 'hotspots' ? (
+          hotspotsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
             </div>
-            <div className="space-y-1">
-              {lifers.map((lifer, index) => (
-                <div
-                  key={lifer.speciesCode}
-                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg hover:bg-blue-50 transition-colors"
-                >
-                  <div className="text-xs text-gray-400 w-6 text-right font-mono">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[#2C3E50] truncate">
-                      {lifer.comName}
-                    </div>
-                    <div className="text-xs italic text-gray-500 truncate">
-                      {lifer.sciName}
-                    </div>
-                  </div>
-                  <div className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${getProbabilityColor(lifer.probability)}`}>
-                    {formatProbability(lifer.probability)}
-                  </div>
-                </div>
-              ))}
+          ) : hotspots.length === 0 ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-500">
+                <span className="font-medium">No hotspots found.</span> You may have already seen all species for this week.
+              </p>
             </div>
-          </div>
-        )}
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-[#2C3E50]">
+                  Top Lifer Hotspots ({hotspots.length})
+                </h4>
+                <span className="text-xs text-gray-500">
+                  Ranked by lifer count
+                </span>
+              </div>
+              <div className="space-y-1" data-testid="hotspot-list">
+                {hotspots.map((hotspot) => (
+                  <button
+                    key={hotspot.cellId}
+                    onClick={() => {
+                      if (onLocationSelect) {
+                        onLocationSelect({
+                          cellId: hotspot.cellId,
+                          coordinates: hotspot.coordinates
+                        })
+                      }
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg hover:bg-orange-50 hover:border-orange-200 transition-colors text-left"
+                    data-testid={`hotspot-${hotspot.cellId}`}
+                  >
+                    <div className="text-xs text-gray-400 w-6 text-right font-mono">
+                      #{hotspot.rank}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-[#2C3E50]">
+                        Cell #{hotspot.cellId}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {hotspot.coordinates[1].toFixed(2)}°N, {Math.abs(hotspot.coordinates[0]).toFixed(2)}°W
+                      </div>
+                    </div>
+                    <div className="px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap bg-orange-100 text-orange-800">
+                      {hotspot.liferCount} lifers
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        ) : mode === 'location' ? (
+          !selectedLocation ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-blue-700">
+                <span className="font-medium">Select a location</span> on the map to see lifers you could find there.
+              </p>
+            </div>
+          ) : loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+            </div>
+          ) : lifers.length === 0 ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-green-700">
+                <span className="font-medium">No lifers found!</span> You have already seen all species recorded in this area during this period.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-[#2C3E50]">
+                  Potential Lifers ({lifers.length})
+                </h4>
+                <span className="text-xs text-gray-500">
+                  Sorted by probability
+                </span>
+              </div>
+              <div className="space-y-1">
+                {lifers.map((lifer, index) => (
+                  <div
+                    key={lifer.speciesCode}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="text-xs text-gray-400 w-6 text-right font-mono">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-[#2C3E50] truncate">
+                        {lifer.comName}
+                      </div>
+                      <div className="text-xs italic text-gray-500 truncate">
+                        {lifer.sciName}
+                      </div>
+                    </div>
+                    <div className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${getProbabilityColor(lifer.probability)}`}>
+                      {formatProbability(lifer.probability)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
       </div>
     </div>
   )

@@ -106,6 +106,7 @@ function App() {
           goalBirdsOnlyFilter={goalBirdsOnlyFilter}
           onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
           selectedLocation={selectedLocation}
+          onSelectedLocationChange={setSelectedLocation}
           selectedSpecies={selectedSpecies}
           onSelectedSpeciesChange={setSelectedSpecies}
           goalSpeciesCodes={goalSpeciesCodes}
@@ -135,6 +136,7 @@ function App() {
             selectedSpecies={selectedSpecies}
             selectedRegion={selectedRegion}
             heatmapOpacity={heatmapOpacity}
+            selectedLocation={selectedLocation}
           />
         </div>
       </div>
