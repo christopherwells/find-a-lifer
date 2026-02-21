@@ -61,6 +61,7 @@ export default function SidePanel({
   goalBirdsOnlyFilter = false,
   onGoalBirdsOnlyFilterChange,
   selectedLocation,
+  onSelectedLocationChange,
   selectedSpecies,
   onSelectedSpeciesChange,
   goalSpeciesCodes,
@@ -163,6 +164,7 @@ export default function SidePanel({
               selectedLocation={selectedLocation}
               currentWeek={currentWeek}
               onWeekChange={onWeekChange}
+              onLocationSelect={onSelectedLocationChange}
             />
           )}
           {activeTab === 'progress' && <ProgressTab />}
@@ -3776,8 +3778,8 @@ function TripPlanTab({
 
   // Window mode
   const [selectedSpeciesForWindow, setSelectedSpeciesForWindow] = useState<Species | null>(null)
-  const [_weekOpportunities, setWeekOpportunities] = useState<WeekOpportunity[]>([])
-  const [_windowLoading, setWindowLoading] = useState(false)
+  const [weekOpportunities, setWeekOpportunities] = useState<WeekOpportunity[]>([])
+  const [windowLoading, setWindowLoading] = useState(false)
   const [speciesSearchTerm, setSpeciesSearchTerm] = useState('')
   const [showSpeciesSuggestions, setShowSpeciesSuggestions] = useState(false)
 
@@ -4325,6 +4327,97 @@ function TripPlanTab({
                     </div>
                     <div className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${getProbabilityColor(lifer.probability)}`}>
                       {formatProbability(lifer.probability)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        ) : mode === 'window' ? (
+          !selectedSpeciesForWindow ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-blue-700">
+                <span className="font-medium">Search for a species</span> above to see its window of opportunity.
+              </p>
+            </div>
+          ) : windowLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+            </div>
+          ) : weekOpportunities.length === 0 ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-500">
+                <span className="font-medium">No data found</span> for {selectedSpeciesForWindow.comName}. This species may not be recorded in this region.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="mb-3">
+                <h4 className="text-sm font-semibold text-[#2C3E50] mb-1">
+                  Window of Opportunity
+                </h4>
+                <p className="text-xs text-gray-600">
+                  Best weeks to find <span className="font-medium text-[#2C3E7B]">{selectedSpeciesForWindow.comName}</span>
+                </p>
+              </div>
+              <div className="space-y-2" data-testid="window-opportunity-list">
+                {weekOpportunities.map((opp, index) => (
+                  <div
+                    key={opp.week}
+                    className="bg-white border border-gray-200 rounded-lg p-3 hover:border-[#2C3E7B] transition-colors"
+                  >
+                    {/* Week Header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs text-gray-400 w-5 text-right font-mono">
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-[#2C3E50]">
+                            Week {opp.week}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            ~{getWeekLabel(opp.week)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded text-xs font-medium ${getProbabilityColor(opp.avgProbability)}`}>
+                        {formatProbability(opp.avgProbability)} avg
+                      </div>
+                    </div>
+
+                    {/* Top Locations */}
+                    <div className="mt-2 space-y-1">
+                      <div className="text-xs font-medium text-gray-500 mb-1">
+                        Best locations:
+                      </div>
+                      {opp.topLocations.slice(0, 3).map((loc, locIndex) => (
+                        <button
+                          key={loc.cellId}
+                          onClick={() => {
+                            onLocationSelect({
+                              cellId: loc.cellId,
+                              coordinates: loc.coordinates,
+                              liferCount: 0,
+                              rank: 0
+                            })
+                          }}
+                          className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-50 hover:bg-blue-50 rounded text-left transition-colors"
+                          data-testid={`window-location-${opp.week}-${locIndex}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-gray-600">
+                              Cell #{loc.cellId}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {loc.coordinates[1].toFixed(2)}°N, {Math.abs(loc.coordinates[0]).toFixed(2)}°W
+                            </div>
+                          </div>
+                          <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${getProbabilityColor(loc.probability)}`}>
+                            {formatProbability(loc.probability)}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ))}
