@@ -3762,14 +3762,18 @@ function TripPlanTab({
   currentWeek = 26,
   onLocationSelect,
 }: TripPlanTabProps) {
-  // Mode: 'location', 'hotspots', or 'window'
-  const [mode, setMode] = useState<'location' | 'hotspots' | 'window'>('hotspots')
+  // Mode: 'location', 'hotspots', 'window', or 'compare'
+  const [mode, setMode] = useState<'location' | 'hotspots' | 'window' | 'compare'>('hotspots')
 
   // Location mode
   const [startWeek, setStartWeek] = useState(currentWeek)
   const [endWeek, setEndWeek] = useState(Math.min(currentWeek + 2, 52))
   const [lifers, setLifers] = useState<TripLifer[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Track which location to set next in compare mode
+  const [nextCompareSlot, setNextCompareSlot] = useState<'A' | 'B'>('A')
+  const lastProcessedLocationRef = useRef<SelectedLocation | null>(null)
 
   // Hotspots mode
   const [hotspotWeek, setHotspotWeek] = useState(currentWeek)
@@ -3782,6 +3786,16 @@ function TripPlanTab({
   const [windowLoading, setWindowLoading] = useState(false)
   const [speciesSearchTerm, setSpeciesSearchTerm] = useState('')
   const [showSpeciesSuggestions, setShowSpeciesSuggestions] = useState(false)
+
+  // Compare mode
+  const [locationA, setLocationA] = useState<SelectedLocation | null>(null)
+  const [locationB, setLocationB] = useState<SelectedLocation | null>(null)
+  const [compareStartWeek, setCompareStartWeek] = useState(currentWeek)
+  const [compareEndWeek, setCompareEndWeek] = useState(Math.min(currentWeek + 2, 52))
+  const [compareLoading, setCompareLoading] = useState(false)
+  const [overlapLifers, setOverlapLifers] = useState<TripLifer[]>([])
+  const [uniqueToA, setUniqueToA] = useState<TripLifer[]>([])
+  const [uniqueToB, setUniqueToB] = useState<TripLifer[]>([])
 
   // Shared
   const [speciesData, setSpeciesData] = useState<Species[]>([])
@@ -3833,7 +3847,26 @@ function TripPlanTab({
     setStartWeek(currentWeek)
     setEndWeek(Math.min(currentWeek + 2, 52))
     setHotspotWeek(currentWeek)
+    setCompareStartWeek(currentWeek)
+    setCompareEndWeek(Math.min(currentWeek + 2, 52))
   }, [currentWeek])
+
+  // Handle location selection in compare mode
+  useEffect(() => {
+    if (mode === 'compare' && selectedLocation) {
+      // Only process if this is a new location (avoid infinite loop)
+      if (lastProcessedLocationRef.current?.cellId !== selectedLocation.cellId) {
+        lastProcessedLocationRef.current = selectedLocation
+        if (nextCompareSlot === 'A') {
+          setLocationA(selectedLocation)
+          setNextCompareSlot('B')
+        } else {
+          setLocationB(selectedLocation)
+          setNextCompareSlot('A')
+        }
+      }
+    }
+  }, [selectedLocation, mode, nextCompareSlot])
 
   // Calculate hotspots
   useEffect(() => {
@@ -3952,6 +3985,130 @@ function TripPlanTab({
     calc()
   }, [mode, selectedSpeciesForWindow, speciesLoaded, gridData])
 
+  // Compare two locations
+  useEffect(() => {
+    if (mode !== 'compare' || !locationA || !locationB || !speciesLoaded) {
+      setOverlapLifers([])
+      setUniqueToA([])
+      setUniqueToB([])
+      return
+    }
+
+    const compareLocations = async () => {
+      setCompareLoading(true)
+      try {
+        // Build species lookup map
+        const speciesById = new Map<number, Species>()
+        speciesData.forEach(sp => speciesById.set(sp.species_id, sp))
+
+        // Determine weeks to load
+        const weeksToLoad: number[] = []
+        for (let w = compareStartWeek; w <= compareEndWeek; w++) {
+          weeksToLoad.push(w)
+        }
+
+        // Accumulate probabilities for both locations
+        const speciesAtA = new Map<number, { total: number; count: number }>()
+        const speciesAtB = new Map<number, { total: number; count: number }>()
+
+        for (const week of weeksToLoad) {
+          try {
+            const response = await fetch(`/api/weeks/${week}`)
+            if (!response.ok) continue
+            const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+
+            // Filter for location A
+            weekData.filter(r => r.cell_id === locationA.cellId).forEach(record => {
+              const existing = speciesAtA.get(record.species_id) || { total: 0, count: 0 }
+              speciesAtA.set(record.species_id, {
+                total: existing.total + record.probability,
+                count: existing.count + 1
+              })
+            })
+
+            // Filter for location B
+            weekData.filter(r => r.cell_id === locationB.cellId).forEach(record => {
+              const existing = speciesAtB.get(record.species_id) || { total: 0, count: 0 }
+              speciesAtB.set(record.species_id, {
+                total: existing.total + record.probability,
+                count: existing.count + 1
+              })
+            })
+          } catch (err) {
+            console.error(`Compare: failed to load week ${week}`, err)
+          }
+        }
+
+        // Build lifer lists
+        const overlapList: TripLifer[] = []
+        const uniqueAList: TripLifer[] = []
+        const uniqueBList: TripLifer[] = []
+
+        // Find overlap and unique to A
+        speciesAtA.forEach((prob, speciesId) => {
+          const species = speciesById.get(speciesId)
+          if (!species || seenSpecies.has(species.speciesCode)) return
+
+          const lifer: TripLifer = {
+            species_id: speciesId,
+            speciesCode: species.speciesCode,
+            comName: species.comName,
+            sciName: species.sciName,
+            familyComName: species.familyComName,
+            probability: prob.total / prob.count,
+            difficultyLabel: species.difficultyLabel
+          }
+
+          if (speciesAtB.has(speciesId)) {
+            overlapList.push(lifer)
+          } else {
+            uniqueAList.push(lifer)
+          }
+        })
+
+        // Find unique to B
+        speciesAtB.forEach((prob, speciesId) => {
+          const species = speciesById.get(speciesId)
+          if (!species || seenSpecies.has(species.speciesCode)) return
+          if (speciesAtA.has(speciesId)) return // Already counted in overlap
+
+          const lifer: TripLifer = {
+            species_id: speciesId,
+            speciesCode: species.speciesCode,
+            comName: species.comName,
+            sciName: species.sciName,
+            familyComName: species.familyComName,
+            probability: prob.total / prob.count,
+            difficultyLabel: species.difficultyLabel
+          }
+
+          uniqueBList.push(lifer)
+        })
+
+        // Sort all lists by probability
+        overlapList.sort((a, b) => b.probability - a.probability)
+        uniqueAList.sort((a, b) => b.probability - a.probability)
+        uniqueBList.sort((a, b) => b.probability - a.probability)
+
+        setOverlapLifers(overlapList)
+        setUniqueToA(uniqueAList)
+        setUniqueToB(uniqueBList)
+
+        console.log(`Compare: Location A has ${speciesAtA.size} species, Location B has ${speciesAtB.size} species`)
+        console.log(`Compare: ${overlapList.length} overlap, ${uniqueAList.length} unique to A, ${uniqueBList.length} unique to B`)
+      } catch (error) {
+        console.error('Compare: error', error)
+        setOverlapLifers([])
+        setUniqueToA([])
+        setUniqueToB([])
+      } finally {
+        setCompareLoading(false)
+      }
+    }
+
+    compareLocations()
+  }, [mode, locationA, locationB, compareStartWeek, compareEndWeek, speciesLoaded, speciesData, seenSpecies])
+
   // Load location data
   useEffect(() => {
     if (mode !== 'location' || !selectedLocation || !speciesLoaded) {
@@ -4043,10 +4200,10 @@ function TripPlanTab({
         <h3 className="text-lg font-semibold text-[#2C3E50]">Trip Planning</h3>
 
         {/* Mode Toggle */}
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setMode('location')}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               mode === 'location' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
             data-testid="location-mode-btn"
@@ -4055,7 +4212,7 @@ function TripPlanTab({
           </button>
           <button
             onClick={() => setMode('hotspots')}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               mode === 'hotspots' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
             data-testid="hotspots-mode-btn"
@@ -4064,12 +4221,21 @@ function TripPlanTab({
           </button>
           <button
             onClick={() => setMode('window')}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               mode === 'window' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
             data-testid="window-mode-btn"
           >
             🐦 Window
+          </button>
+          <button
+            onClick={() => setMode('compare')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'compare' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="compare-mode-btn"
+          >
+            ⚖️ Compare
           </button>
         </div>
 
@@ -4078,7 +4244,9 @@ function TripPlanTab({
             ? 'Click a location on the map, then set your date range to see ranked lifers.'
             : mode === 'hotspots'
             ? 'Find top locations with the most unseen species for a given week.'
-            : 'Search for a species to see when and where it\'s most likely to be found.'}
+            : mode === 'window'
+            ? 'Search for a species to see when and where it\'s most likely to be found.'
+            : 'Select two locations on the map and compare their lifer availability.'}
         </p>
       </div>
 
@@ -4221,6 +4389,126 @@ function TripPlanTab({
             </div>
           </div>
         </div>
+        </div>
+      )}
+
+      {/* Compare Mode: Two Locations and Date Range */}
+      {mode === 'compare' && (
+        <div className="mt-3 space-y-3">
+          {/* Location A */}
+          <div>
+            <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              Location A
+            </label>
+            {locationA ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-blue-800">
+                      Cell #{locationA.cellId}
+                    </div>
+                    <div className="text-xs text-blue-600">
+                      {locationA.coordinates[1].toFixed(2)}°N, {Math.abs(locationA.coordinates[0]).toFixed(2)}°W
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setLocationA(null)}
+                    className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                    data-testid="clear-location-a-btn"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p className="text-sm text-gray-500 italic">
+                  Click on the map to select Location A
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Location B */}
+          <div>
+            <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              Location B
+            </label>
+            {locationB ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-green-800">
+                      Cell #{locationB.cellId}
+                    </div>
+                    <div className="text-xs text-green-600">
+                      {locationB.coordinates[1].toFixed(2)}°N, {Math.abs(locationB.coordinates[0]).toFixed(2)}°W
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setLocationB(null)}
+                    className="text-green-600 hover:text-green-800 text-xs font-medium"
+                    data-testid="clear-location-b-btn"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p className="text-sm text-gray-500 italic">
+                  Click on the map to select Location B
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Date Range (Week Range) Picker */}
+          <div>
+            <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              Date Range
+            </label>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Start Week</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="52"
+                  value={compareStartWeek}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    setCompareStartWeek(val)
+                    if (val > compareEndWeek) setCompareEndWeek(val)
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                  data-testid="compare-start-week-slider"
+                />
+                <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                  Week {compareStartWeek} (~{getWeekLabel(compareStartWeek)})
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">End Week</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="52"
+                  value={compareEndWeek}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    setCompareEndWeek(val)
+                    if (val < compareStartWeek) setCompareStartWeek(val)
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                  data-testid="compare-end-week-slider"
+                />
+                <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                  Week {compareEndWeek} (~{getWeekLabel(compareEndWeek)})
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -4395,12 +4683,12 @@ function TripPlanTab({
                         <button
                           key={loc.cellId}
                           onClick={() => {
-                            onLocationSelect({
-                              cellId: loc.cellId,
-                              coordinates: loc.coordinates,
-                              liferCount: 0,
-                              rank: 0
-                            })
+                            if (onLocationSelect) {
+                              onLocationSelect({
+                                cellId: loc.cellId,
+                                coordinates: loc.coordinates
+                              })
+                            }
                           }}
                           className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-50 hover:bg-blue-50 rounded text-left transition-colors"
                           data-testid={`window-location-${opp.week}-${locIndex}`}
@@ -4422,6 +4710,123 @@ function TripPlanTab({
                   </div>
                 ))}
               </div>
+            </div>
+          )
+        ) : mode === 'compare' ? (
+          !locationA || !locationB ? (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-purple-700">
+                <span className="font-medium">Select two locations</span> on the map to compare their lifer availability.
+              </p>
+            </div>
+          ) : compareLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+            </div>
+          ) : (
+            <div className="space-y-3" data-testid="compare-results">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
+                  <div className="text-xs text-blue-600 font-medium mb-1">Location A</div>
+                  <div className="text-lg font-bold text-blue-800">{uniqueToA.length + overlapLifers.length}</div>
+                  <div className="text-xs text-blue-600">total lifers</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 text-center">
+                  <div className="text-xs text-purple-600 font-medium mb-1">Overlap</div>
+                  <div className="text-lg font-bold text-purple-800">{overlapLifers.length}</div>
+                  <div className="text-xs text-purple-600">at both</div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
+                  <div className="text-xs text-green-600 font-medium mb-1">Location B</div>
+                  <div className="text-lg font-bold text-green-800">{uniqueToB.length + overlapLifers.length}</div>
+                  <div className="text-xs text-green-600">total lifers</div>
+                </div>
+              </div>
+
+              {/* Overlap Species */}
+              {overlapLifers.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-purple-800 mb-2" data-testid="overlap-heading">
+                    🔗 Overlap ({overlapLifers.length})
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-2">Available at both locations</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="overlap-list">
+                    {overlapLifers.slice(0, 20).map((lifer, index) => (
+                      <div
+                        key={lifer.speciesCode}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-purple-50 border border-purple-100 rounded text-xs"
+                      >
+                        <div className="text-gray-400 w-5 text-right font-mono">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 truncate font-medium text-purple-900">
+                          {lifer.comName}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unique to Location A */}
+              {uniqueToA.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-blue-800 mb-2" data-testid="unique-a-heading">
+                    📍 Unique to Location A ({uniqueToA.length})
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-2">Only at Location A</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="unique-a-list">
+                    {uniqueToA.slice(0, 20).map((lifer, index) => (
+                      <div
+                        key={lifer.speciesCode}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-blue-50 border border-blue-100 rounded text-xs"
+                      >
+                        <div className="text-gray-400 w-5 text-right font-mono">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 truncate font-medium text-blue-900">
+                          {lifer.comName}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unique to Location B */}
+              {uniqueToB.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-green-800 mb-2" data-testid="unique-b-heading">
+                    📍 Unique to Location B ({uniqueToB.length})
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-2">Only at Location B</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="unique-b-list">
+                    {uniqueToB.slice(0, 20).map((lifer, index) => (
+                      <div
+                        key={lifer.speciesCode}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-green-50 border border-green-100 rounded text-xs"
+                      >
+                        <div className="text-gray-400 w-5 text-right font-mono">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 truncate font-medium text-green-900">
+                          {lifer.comName}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No lifers */}
+              {overlapLifers.length === 0 && uniqueToA.length === 0 && uniqueToB.length === 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                  <p className="text-sm text-green-700">
+                    <span className="font-medium">No lifers found!</span> You have already seen all species at both locations during this period.
+                  </p>
+                </div>
+              )}
             </div>
           )
         ) : null}

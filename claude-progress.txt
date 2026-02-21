@@ -4220,3 +4220,33 @@ Assigned Feature: #39 "Lifer hotspot rankings for a given week"
 - frontend/src/App.tsx: Passed onSelectedLocationChange to SidePanel
 
 **Commit:** 256b0d0 (work in progress with syntax errors)
+
+
+=== Session 44: Feature #40 - Window of opportunity for target species ===
+Date: 2026-02-20
+Assigned Feature: #40 "Window of opportunity for target species"
+
+**Status:** ✅ PASSING
+
+**What was accomplished:**
+- Implemented complete window of opportunity display for trip planning
+- Shows best weeks and locations to find any selected bird species
+- Calculates occurrence probabilities across all 52 weeks of the year
+- Displays ranked weeks with average probability and top 3 locations per week
+- Clickable locations zoom map to selected grid cell
+- Comprehensive browser automation testing with multiple species
+
+**Implementation Details (frontend/src/components/SidePanel.tsx):**
+
+1. **State Management (lines 3778-3780):**
+   - Renamed _weekOpportunities to weekOpportunities (removed unused prefix)
+   - Renamed _windowLoading to windowLoading
+   - Both states now actively used for window display
+
+2. **Window Calculation Logic (lines 3891-3951):**
+   - Already implemented - fetches all 52 weeks of data
+   - Filters for target species occurrence across all cells
+   - Calculates average probability per week
+   - Finds top 5 locations per week by probability
+   - Sorts weeks by average probability (descending)
+   - Returns top 10 best weeks
