@@ -1,2 +1,0 @@
-[     240ms] SyntaxError: The requested module 'http://localhost:5173/node_modules/.vite/deps/idb.js?v=640ea4d0' doesn't provide an export named: 'IDBPDatabase'
-

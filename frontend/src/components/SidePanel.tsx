@@ -23,6 +23,7 @@ interface SidePanelProps {
   goalBirdsOnlyFilter?: boolean
   onGoalBirdsOnlyFilterChange?: (value: boolean) => void
   selectedLocation?: SelectedLocation | null
+  onSelectedLocationChange?: (location: SelectedLocation | null) => void
   selectedSpecies?: string | null
   onSelectedSpeciesChange?: (speciesCode: string | null) => void
   goalSpeciesCodes?: Set<string>
@@ -3775,8 +3776,8 @@ function TripPlanTab({
 
   // Window mode
   const [selectedSpeciesForWindow, setSelectedSpeciesForWindow] = useState<Species | null>(null)
-  const [weekOpportunities, setWeekOpportunities] = useState<WeekOpportunity[]>([])
-  const [windowLoading, setWindowLoading] = useState(false)
+  const [_weekOpportunities, setWeekOpportunities] = useState<WeekOpportunity[]>([])
+  const [_windowLoading, setWindowLoading] = useState(false)
   const [speciesSearchTerm, setSpeciesSearchTerm] = useState('')
   const [showSpeciesSuggestions, setShowSpeciesSuggestions] = useState(false)
 
@@ -4218,6 +4219,7 @@ function TripPlanTab({
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {/* Results Section */}
@@ -4328,7 +4330,8 @@ function TripPlanTab({
                 ))}
               </div>
             </div>
-          ) : null}
+          )
+        ) : null}
       </div>
     </div>
   )

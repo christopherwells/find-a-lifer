@@ -27,6 +27,9 @@ interface SpeciesMeta {
   speciesCode: string
   comName: string
   sciName: string
+  conservStatus?: string
+  difficultyLabel?: string
+  isRestrictedRange?: boolean
 }
 
 interface GoalBirdInCell {
