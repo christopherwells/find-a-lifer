@@ -27,7 +27,7 @@ function App() {
   const [heatmapOpacity, setHeatmapOpacity] = useState(0.8) // Default to 80% opacity
   const { seenSpecies } = useLifeList()
 
-  // Load all goal lists on startup and when view/filter changes
+  // Load all goal lists on startup
   useEffect(() => {
     const loadGoalLists = async () => {
       try {
@@ -52,32 +52,23 @@ function App() {
     }
 
     loadGoalLists()
-  }, [viewMode, goalBirdsOnlyFilter]) // Re-load when view mode or filter changes to pick up latest list changes
+  }, [])
 
-  // Compute goal species codes from the ACTIVE list — reads fresh from DB to avoid stale cache
+  // Compute goal species codes from the ACTIVE list using already-loaded goalLists state
   useEffect(() => {
     if (!activeGoalListId) {
       setGoalSpeciesCodes(new Set())
       return
     }
-    const loadActiveListSpecies = async () => {
-      try {
-        const lists = await goalListsDB.getAllLists()
-        const activeList = lists.find((l) => l.id === activeGoalListId)
-        if (!activeList) {
-          setGoalSpeciesCodes(new Set())
-          return
-        }
-        const codes = new Set<string>(activeList.speciesCodes)
-        setGoalSpeciesCodes(codes)
-        console.log(`App: active goal list "${activeList.name}" has ${codes.size} species`)
-      } catch (error) {
-        console.error('App: failed to load active list species', error)
-        setGoalSpeciesCodes(new Set())
-      }
+    const activeList = goalLists.find((l) => l.id === activeGoalListId)
+    if (!activeList) {
+      setGoalSpeciesCodes(new Set())
+      return
     }
-    loadActiveListSpecies()
-  }, [activeGoalListId])
+    const codes = new Set<string>(activeList.speciesCodes)
+    setGoalSpeciesCodes(codes)
+    console.log(`App: active goal list "${activeList.name}" has ${codes.size} species`)
+  }, [activeGoalListId, goalLists])
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">

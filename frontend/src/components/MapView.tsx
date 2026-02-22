@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -64,36 +64,34 @@ interface LiferInCell {
  * Rainbow spectrum: red → orange → yellow → green → blue → indigo → violet
  * Returns an RGBA string with the given alpha value
  */
-function getRainbowColor(normalizedValue: number, alpha: number = 0.8): string {
-  // Clamp value between 0 and 1
-  const t = Math.max(0, Math.min(1, normalizedValue))
+// MapLibre expression for rainbow color gradient using feature-state 'value' (0-1)
+function buildRainbowExpression(): maplibregl.ExpressionSpecification {
+  // 7 color stops matching getRainbowColor at normalized positions 0..1
+  return [
+    'interpolate',
+    ['linear'],
+    ['coalesce', ['feature-state', 'value'], -1],
+    -1, 'rgba(200, 200, 200, 0.1)',  // Default: no data
+    0, 'rgba(255, 0, 0, 1)',          // Red
+    0.167, 'rgba(255, 127, 0, 1)',    // Orange
+    0.333, 'rgba(255, 255, 0, 1)',    // Yellow
+    0.5, 'rgba(0, 255, 0, 1)',        // Green
+    0.667, 'rgba(0, 0, 255, 1)',      // Blue
+    0.833, 'rgba(75, 0, 130, 1)',     // Indigo
+    1, 'rgba(148, 0, 211, 1)',        // Violet
+  ] as maplibregl.ExpressionSpecification
+}
 
-  // Define rainbow color stops (RGB values)
-  const colorStops = [
-    { r: 255, g: 0, b: 0 },     // Red
-    { r: 255, g: 127, b: 0 },   // Orange
-    { r: 255, g: 255, b: 0 },   // Yellow
-    { r: 0, g: 255, b: 0 },     // Green
-    { r: 0, g: 0, b: 255 },     // Blue
-    { r: 75, g: 0, b: 130 },    // Indigo
-    { r: 148, g: 0, b: 211 }    // Violet
-  ]
-
-  // Calculate which two color stops to interpolate between
-  const scaledValue = t * (colorStops.length - 1)
-  const lowerIndex = Math.floor(scaledValue)
-  const upperIndex = Math.ceil(scaledValue)
-  const fraction = scaledValue - lowerIndex
-
-  // Interpolate between the two color stops
-  const lowerColor = colorStops[lowerIndex]
-  const upperColor = colorStops[upperIndex]
-
-  const r = Math.round(lowerColor.r + (upperColor.r - lowerColor.r) * fraction)
-  const g = Math.round(lowerColor.g + (upperColor.g - lowerColor.g) * fraction)
-  const b = Math.round(lowerColor.b + (upperColor.b - lowerColor.b) * fraction)
-
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+// MapLibre expression for amber/gold intensity using feature-state 'value' (0-1)
+function buildAmberExpression(): maplibregl.ExpressionSpecification {
+  return [
+    'interpolate',
+    ['linear'],
+    ['coalesce', ['feature-state', 'value'], -1],
+    -1, 'rgba(200, 200, 200, 0.1)',       // Default: no data
+    0, 'rgba(212, 160, 23, 0.1)',          // Low intensity
+    1, 'rgba(212, 160, 23, 0.85)',         // High intensity
+  ] as maplibregl.ExpressionSpecification
 }
 
 interface LifersPopup {
@@ -104,6 +102,27 @@ interface LifersPopup {
 
 // Module-level cache for species metadata (to avoid re-fetching)
 let speciesMetaCache: SpeciesMeta[] | null = null
+let speciesMetaPromise: Promise<SpeciesMeta[]> | null = null
+
+async function loadSpeciesMetaCache(): Promise<SpeciesMeta[]> {
+  if (speciesMetaCache) return speciesMetaCache
+  if (speciesMetaPromise) return speciesMetaPromise
+  speciesMetaPromise = fetch('/api/species')
+    .then((response) => {
+      if (!response.ok) throw new Error('Failed to fetch species metadata')
+      return response.json() as Promise<SpeciesMeta[]>
+    })
+    .then((data) => {
+      speciesMetaCache = data
+      console.log(`MapView: cached ${data.length} species metadata entries`)
+      return data
+    })
+    .catch((err) => {
+      speciesMetaPromise = null // Allow retry on failure
+      throw err
+    })
+  return speciesMetaPromise
+}
 
 // Helper function to generate legend tick labels
 function getLegendTicks(min: number, max: number, isPercentage: boolean, numTicks: number = 3): string[] {
@@ -130,7 +149,7 @@ const REGION_BOUNDS: Record<string, { center: [number, number]; zoom: number }> 
   hawaii: { center: [-157, 20.5], zoom: 6.5 }
 }
 
-export default function MapView({
+export default memo(function MapView({
   darkMode = false,
   currentWeek = 26,
   viewMode = 'density',
@@ -160,6 +179,9 @@ export default function MapView({
   // Legend data range values (for numeric labels)
   const [legendMin, setLegendMin] = useState(0)
   const [legendMax, setLegendMax] = useState(0)
+  // Track which cells have feature-state set (for efficient clearing)
+  const featureStateCellIds = useRef<Set<number>>(new Set())
+
   // Refs for latest values accessible inside map click handler
   const viewModeRef = useRef(viewMode)
   const weeklyDataRef = useRef(weeklyData)
@@ -190,22 +212,9 @@ export default function MapView({
 
   // Load species metadata on mount (needed for click-to-inspect popup)
   useEffect(() => {
-    const loadSpeciesMetadata = async () => {
-      if (speciesMetaCache) return // Already loaded
-      try {
-        const response = await fetch('/api/species')
-        if (!response.ok) {
-          console.error('MapView: failed to fetch species metadata')
-          return
-        }
-        const data: SpeciesMeta[] = await response.json()
-        speciesMetaCache = data
-        console.log(`MapView: cached ${data.length} species metadata entries`)
-      } catch (err) {
-        console.error('MapView: error fetching species metadata', err)
-      }
-    }
-    loadSpeciesMetadata()
+    loadSpeciesMetaCache().catch((err) => {
+      console.error('MapView: error fetching species metadata', err)
+    })
   }, [])
 
   // Zoom to selected region
@@ -238,16 +247,11 @@ export default function MapView({
       // Load species metadata if not cached (needed for both goal species and density calculation)
       if (!speciesMetaCache && (goalSpeciesCodes.size > 0 || seenSpecies.size > 0)) {
         try {
-          const response = await fetch('/api/species')
-          if (!response.ok) {
-            console.error('MapView: failed to fetch species metadata')
-            return
-          }
-          const data: SpeciesMeta[] = await response.json()
-          speciesMetaCache = data
-          console.log(`MapView: cached ${data.length} species metadata entries`)
+          await loadSpeciesMetaCache()
         } catch (err) {
           console.error('MapView: error fetching species metadata', err)
+          goalSpeciesIdSetRef.current = new Set()
+          setGoalSpeciesIdSetVersion(v => v + 1)
           return
         }
       }
@@ -276,28 +280,37 @@ export default function MapView({
 
   // Load weekly occurrence data when currentWeek changes
   useEffect(() => {
+    let cancelled = false
+
     const loadWeekData = async () => {
       setIsLoadingWeek(true)
       try {
         const response = await fetch(`/api/weeks/${currentWeek}`)
+        if (cancelled) return
         if (!response.ok) {
           console.error(`Failed to load week ${currentWeek} data:`, response.statusText)
           return
         }
         const data: OccurrenceRecord[] = await response.json()
+        if (cancelled) return
         setWeeklyData(data)
         console.log(`Loaded week ${currentWeek} data:`, {
           recordCount: data.length,
           sample: data.slice(0, 3),
         })
       } catch (error) {
-        console.error(`Error loading week ${currentWeek} data:`, error)
+        if (!cancelled) {
+          console.error(`Error loading week ${currentWeek} data:`, error)
+        }
       } finally {
-        setIsLoadingWeek(false)
+        if (!cancelled) {
+          setIsLoadingWeek(false)
+        }
       }
     }
 
     loadWeekData()
+    return () => { cancelled = true }
   }, [currentWeek])
 
   // Zoom to selected location when it changes (from Trip Plan hotspots)
@@ -405,6 +418,7 @@ export default function MapView({
         map.current.addSource('grid', {
           type: 'geojson',
           data: gridData,
+          promoteId: 'cell_id',
         })
 
         // Add grid cell fill layer (semi-transparent)
@@ -573,19 +587,46 @@ export default function MapView({
 
   // Update map overlay when weekly data, view mode, or goal species changes
   useEffect(() => {
+    let cancelled = false
+
     if (!map.current || !map.current.isStyleLoaded()) return
     if (weeklyData.length === 0) return
+
+    // Helper: clear previous feature states and apply new ones
+    const applyFeatureStates = (cellValues: Map<number, number>) => {
+      if (!map.current) return
+      // Clear previous states
+      featureStateCellIds.current.forEach((cellId) => {
+        map.current!.removeFeatureState({ source: 'grid', id: cellId })
+      })
+      featureStateCellIds.current.clear()
+      // Set new states
+      cellValues.forEach((value, cellId) => {
+        map.current!.setFeatureState({ source: 'grid', id: cellId }, { value })
+        featureStateCellIds.current.add(cellId)
+      })
+    }
+
+    // Helper: clear all feature states (for empty/neutral overlays)
+    const clearFeatureStates = () => {
+      if (!map.current) return
+      featureStateCellIds.current.forEach((cellId) => {
+        map.current!.removeFeatureState({ source: 'grid', id: cellId })
+      })
+      featureStateCellIds.current.clear()
+    }
 
     if (viewMode === 'species') {
       // Species Range mode: highlight cells where the selected species occurs
       if (!selectedSpecies) {
         // No species selected: show faint neutral overlay
         setSelectedSpeciesMeta(null)
-        if (map.current.getLayer('grid-fill')) {
+        clearFeatureStates()
+        if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
-        if (map.current.getLayer('grid-border')) {
+        if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
         }
@@ -597,12 +638,10 @@ export default function MapView({
       const lookupAndRender = async () => {
         if (!speciesMetaCache) {
           try {
-            const response = await fetch('/api/species')
-            if (!response.ok) return
-            const data: SpeciesMeta[] = await response.json()
-            speciesMetaCache = data
+            await loadSpeciesMetaCache()
           } catch { return }
         }
+        if (cancelled || !speciesMetaCache) return
         const speciesMeta = speciesMetaCache.find((s) => s.speciesCode === selectedSpecies)
         if (!speciesMeta) {
           console.warn(`Species Range: species ${selectedSpecies} not found in metadata`)
@@ -632,35 +671,26 @@ export default function MapView({
 
         if (cellProbabilities.size === 0) {
           // Species not present anywhere this week
-          if (map.current && map.current.getLayer('grid-fill')) {
+          clearFeatureStates()
+          if (map.current && map.current?.getLayer('grid-fill')) {
             map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
             map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
           }
-          if (map.current && map.current.getLayer('grid-border')) {
+          if (map.current && map.current?.getLayer('grid-border')) {
             map.current.setPaintProperty('grid-border', 'line-color', '#999')
             map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
           }
           return
         }
 
-        // Build paint expression: blue intensity scaled by probability
-        const paintExpression: any = ['case']
+        // Use feature-state for efficient per-cell coloring
+        applyFeatureStates(cellProbabilities)
 
-        cellProbabilities.forEach((prob, cellId) => {
-          // Use probability directly as normalized value (already 0-1)
-          const color = getRainbowColor(prob, 1.0)
-          paintExpression.push(['==', ['get', 'cell_id'], cellId])
-          paintExpression.push(color)
-        })
-
-        // Default: species not present in this cell (light gray)
-        paintExpression.push('rgba(200, 200, 200, 0.1)')
-
-        if (map.current && map.current.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+        if (map.current && map.current?.getLayer('grid-fill')) {
+          map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
-        if (map.current && map.current.getLayer('grid-border')) {
+        if (map.current && map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#666')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
         }
@@ -672,11 +702,12 @@ export default function MapView({
       // Goal Birds mode: count unseen goal species per cell (amber/gold heatmap)
       if (goalSpeciesCodes.size === 0) {
         // No goal species defined: show empty overlay
-        if (map.current.getLayer('grid-fill')) {
+        clearFeatureStates()
+        if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
-        if (map.current.getLayer('grid-border')) {
+        if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
@@ -709,36 +740,32 @@ export default function MapView({
 
       if (maxCount === 0) {
         // No goal birds present anywhere this week
-        if (map.current.getLayer('grid-fill')) {
+        clearFeatureStates()
+        if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
-        if (map.current.getLayer('grid-border')) {
+        if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
         return
       }
 
-      // Build paint expression: amber/gold color scaled by goal bird count
-      const paintExpression: any = ['case']
-
+      // Normalize counts to 0-1 and apply via feature-state
+      const normalizedCounts = new Map<number, number>()
       cellCounts.forEach((count, cellId) => {
-        if (count === 0) return
-        // Scale from 0.1 (1 goal bird) to 0.85 (max goal birds)
-        const intensity = Math.min(0.85, (count / maxCount) * 0.75 + 0.1)
-        paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(`rgba(212, 160, 23, ${intensity.toFixed(3)})`)
+        if (count > 0) {
+          normalizedCounts.set(cellId, count / maxCount)
+        }
       })
+      applyFeatureStates(normalizedCounts)
 
-      // Default: no goal birds in this cell — very faint
-      paintExpression.push('rgba(212, 160, 23, 0.02)')
-
-      if (map.current.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+      if (map.current?.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', buildAmberExpression())
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
-      if (map.current.getLayer('grid-border')) {
+      if (map.current?.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#666')
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
@@ -772,35 +799,26 @@ export default function MapView({
       setLegendMax(maxProb)
 
       if (cellMaxProbability.size === 0) {
-        if (map.current.getLayer('grid-fill')) {
+        clearFeatureStates()
+        if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
-        if (map.current.getLayer('grid-border')) {
+        if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
         }
         return
       }
 
-      // Build paint expression: purple/violet color scaled by max probability
-      const paintExpression: any = ['case']
+      // Probabilities are already 0-1, apply via feature-state
+      applyFeatureStates(cellMaxProbability)
 
-      cellMaxProbability.forEach((maxProb, cellId) => {
-        // Use max probability directly as normalized value (already 0-1)
-        const color = getRainbowColor(maxProb, 1.0)
-        paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(color)
-      })
-
-      // Default: no occurrence data in this cell (light gray)
-      paintExpression.push('rgba(200, 200, 200, 0.1)')
-
-      if (map.current.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+      if (map.current?.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
-      if (map.current.getLayer('grid-border')) {
+      if (map.current?.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#666')
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
@@ -808,11 +826,12 @@ export default function MapView({
       // Density mode with Goal Birds Only filter: count unseen goal species per cell (teal)
       if (goalSpeciesCodes.size === 0) {
         // No goal species defined: show very faint overlay
-        if (map.current.getLayer('grid-fill')) {
+        clearFeatureStates()
+        if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
-        if (map.current.getLayer('grid-border')) {
+        if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
@@ -844,37 +863,32 @@ export default function MapView({
       setLegendMax(maxCount)
 
       if (maxCount === 0) {
-        if (map.current.getLayer('grid-fill')) {
+        clearFeatureStates()
+        if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
         }
-        if (map.current.getLayer('grid-border')) {
+        if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
         return
       }
 
-      // Build paint expression: rainbow gradient scaled by goal bird count
-      const paintExpression: any = ['case']
-
+      // Normalize counts to 0-1 and apply via feature-state
+      const normalizedCounts = new Map<number, number>()
       cellCounts.forEach((count, cellId) => {
-        if (count === 0) return
-        // Calculate normalized value based on goal bird count
-        const normalizedValue = count / maxCount
-        const color = getRainbowColor(normalizedValue, 1.0)
-        paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(color)
+        if (count > 0) {
+          normalizedCounts.set(cellId, count / maxCount)
+        }
       })
+      applyFeatureStates(normalizedCounts)
 
-      // Default: no goal birds in this cell (light gray)
-      paintExpression.push('rgba(200, 200, 200, 0.1)')
-
-      if (map.current.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+      if (map.current?.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
-      if (map.current.getLayer('grid-border')) {
+      if (map.current?.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#666')
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
@@ -909,31 +923,27 @@ export default function MapView({
       setLegendMin(minLifers)
       setLegendMax(maxLifers)
 
-      const paintExpression: any = ['case']
+      // Normalize lifer counts to 0-1 and apply via feature-state
+      const normalizedCounts = new Map<number, number>()
+      if (maxLifers > 0) {
+        cellLiferCounts.forEach((liferCount, cellId) => {
+          normalizedCounts.set(cellId, liferCount / maxLifers)
+        })
+      }
+      applyFeatureStates(normalizedCounts)
 
-      cellLiferCounts.forEach((liferCount, cellId) => {
-        // Calculate normalized value (0 to 1) based on lifer count
-        const normalizedValue = liferCount / maxLifers
-        // Get rainbow color with full opacity (alpha controlled by heatmapOpacity prop)
-        const color = getRainbowColor(normalizedValue, 1.0)
-
-        paintExpression.push(['==', ['get', 'cell_id'], cellId])
-        paintExpression.push(color)
-      })
-
-      // Default: cells with zero lifers or all species seen (light gray)
-      paintExpression.push('rgba(200, 200, 200, 0.1)')
-
-      if (map.current.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', paintExpression)
+      if (map.current?.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
         map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
       }
-      if (map.current.getLayer('grid-border')) {
+      if (map.current?.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#666')
         map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
       }
       console.log(`Updated density overlay with ${cellLiferCounts.size} cells, max lifers=${maxLifers}, seen species=${seenSpeciesIdSet.size}`)
     }
+
+    return () => { cancelled = true }
   }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity])
 
   return (
@@ -1393,4 +1403,4 @@ export default function MapView({
       )}
     </div>
   )
-}
+})

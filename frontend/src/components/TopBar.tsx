@@ -9,13 +9,36 @@ export default function TopBar({ darkMode, onToggleDarkMode }: TopBarProps) {
   const [serverStatus, setServerStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then(() => setServerStatus('connected'))
-      .catch(() => setServerStatus('error'))
+    let cancelled = false
+    let retryTimeout: ReturnType<typeof setTimeout>
+
+    const checkHealth = (attempt: number) => {
+      fetch('/api/health')
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        })
+        .then(() => {
+          if (!cancelled) setServerStatus('connected')
+        })
+        .catch(() => {
+          if (cancelled) return
+          if (attempt < 3) {
+            // Retry with exponential backoff: 2s, 4s, 8s
+            const delay = Math.pow(2, attempt + 1) * 1000
+            setServerStatus('connecting')
+            retryTimeout = setTimeout(() => checkHealth(attempt + 1), delay)
+          } else {
+            setServerStatus('error')
+          }
+        })
+    }
+
+    checkHealth(0)
+    return () => {
+      cancelled = true
+      clearTimeout(retryTimeout)
+    }
   }, [])
 
   return (

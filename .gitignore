@@ -12,10 +12,24 @@ frontend/.vite/
 .vscode/
 .idea/
 
-# R data files
+# R project files
 .RData
 .RDataTmp
 .Rhistory
+*.Rproj
+
+# Legacy data files
+*.shp
+*.shx
+*.dbf
+*.prj
+*.sbn
+*.sbx
+*.cpg
+*.shp.xml
+avibase.*
+regional_presence_ebird.csv
+ebird_world_life_list.csv
 
 # Environment
 .env
@@ -31,10 +45,16 @@ Thumbs.db
 # AutoForge
 .autoforge/
 
-# Large data files (R-based originals)
+# Large data files
 app_data/
 regions_starter.gpkg
-avibase.xlsx
+
+# Logs and artifacts
+*.log
+*.docx
+session*-summary.txt
+feature*-*.txt
+feature*-*.md
 
 # Generated sample data is committed (small enough for dev)
 

@@ -1,0 +1,1140 @@
+import { useState, useEffect, useRef } from 'react'
+import { useLifeList } from '../contexts/LifeListContext'
+import type { Species, TripPlanTabProps, TripLifer, HotspotLocation, WeekOpportunity, SelectedLocation } from './types'
+import SpeciesInfoCard from './SpeciesInfoCard'
+
+export default function TripPlanTab({
+  selectedLocation,
+  currentWeek = 26,
+  onLocationSelect,
+}: TripPlanTabProps) {
+  // Mode: 'location', 'hotspots', 'window', or 'compare'
+  const [mode, setMode] = useState<'location' | 'hotspots' | 'window' | 'compare'>('hotspots')
+
+  // Location mode
+  const [startWeek, setStartWeek] = useState(currentWeek)
+  const [endWeek, setEndWeek] = useState(Math.min(currentWeek + 2, 52))
+  const [lifers, setLifers] = useState<TripLifer[]>([])
+  const [loading, setLoading] = useState(false)
+
+  // Track which location to set next in compare mode
+  const [nextCompareSlot, setNextCompareSlot] = useState<'A' | 'B'>('A')
+  const lastProcessedLocationRef = useRef<SelectedLocation | null>(null)
+
+  // Hotspots mode
+  const [hotspotWeek, setHotspotWeek] = useState(currentWeek)
+  const [hotspots, setHotspots] = useState<HotspotLocation[]>([])
+  const [hotspotsLoading, setHotspotsLoading] = useState(false)
+
+  // Window mode
+  const [selectedSpeciesForWindow, setSelectedSpeciesForWindow] = useState<Species | null>(null)
+  const [weekOpportunities, setWeekOpportunities] = useState<WeekOpportunity[]>([])
+  const [windowLoading, setWindowLoading] = useState(false)
+  const [speciesSearchTerm, setSpeciesSearchTerm] = useState('')
+  const [showSpeciesSuggestions, setShowSpeciesSuggestions] = useState(false)
+
+  // Compare mode
+  const [locationA, setLocationA] = useState<SelectedLocation | null>(null)
+  const [locationB, setLocationB] = useState<SelectedLocation | null>(null)
+  const [compareStartWeek, setCompareStartWeek] = useState(currentWeek)
+  const [compareEndWeek, setCompareEndWeek] = useState(Math.min(currentWeek + 2, 52))
+  const [compareLoading, setCompareLoading] = useState(false)
+  const [overlapLifers, setOverlapLifers] = useState<TripLifer[]>([])
+  const [uniqueToA, setUniqueToA] = useState<TripLifer[]>([])
+  const [uniqueToB, setUniqueToB] = useState<TripLifer[]>([])
+
+  // Shared
+  const [speciesData, setSpeciesData] = useState<Species[]>([])
+  const [speciesLoaded, setSpeciesLoaded] = useState(false)
+  const [gridData, setGridData] = useState<any>(null)
+  const [dataError, setDataError] = useState<string | null>(null)
+  const { seenSpecies } = useLifeList()
+
+  const getWeekLabel = (week: number): string => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const dayOfYear = week * 7 - 3
+    const date = new Date(2024, 0, dayOfYear)
+    return `${monthNames[date.getMonth()]} ${date.getDate()}`
+  }
+
+  // Load species metadata once
+  useEffect(() => {
+    const fetchSpecies = async () => {
+      try {
+        const response = await fetch('/api/species')
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const data: Species[] = await response.json()
+        setSpeciesData(data)
+        setSpeciesLoaded(true)
+        setDataError(null)
+        console.log('Trip Plan: loaded species metadata', data.length)
+      } catch (error) {
+        console.error('Trip Plan: failed to load species', error)
+        setDataError('Failed to load species data. Is the server running?')
+      }
+    }
+    fetchSpecies()
+  }, [])
+
+  // Load grid data
+  useEffect(() => {
+    const fetchGrid = async () => {
+      try {
+        const response = await fetch('/api/grid')
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const data = await response.json()
+        setGridData(data)
+      } catch (error) {
+        console.error('Trip Plan: failed to load grid', error)
+        setDataError('Failed to load grid data. Is the server running?')
+      }
+    }
+    fetchGrid()
+  }, [])
+
+  // Sync weeks with currentWeek
+  useEffect(() => {
+    setStartWeek(currentWeek)
+    setEndWeek(Math.min(currentWeek + 2, 52))
+    setHotspotWeek(currentWeek)
+    setCompareStartWeek(currentWeek)
+    setCompareEndWeek(Math.min(currentWeek + 2, 52))
+  }, [currentWeek])
+
+  // Handle location selection in compare mode
+  useEffect(() => {
+    if (mode === 'compare' && selectedLocation) {
+      // Only process if this is a new location (avoid infinite loop)
+      if (lastProcessedLocationRef.current?.cellId !== selectedLocation.cellId) {
+        lastProcessedLocationRef.current = selectedLocation
+        if (nextCompareSlot === 'A') {
+          setLocationA(selectedLocation)
+          setNextCompareSlot('B')
+        } else {
+          setLocationB(selectedLocation)
+          setNextCompareSlot('A')
+        }
+      }
+    }
+  }, [selectedLocation, mode, nextCompareSlot])
+
+  // Calculate hotspots
+  useEffect(() => {
+    if (mode !== 'hotspots' || !speciesLoaded || !gridData) return
+
+    const calc = async () => {
+      setHotspotsLoading(true)
+      try {
+        const response = await fetch(`/api/weeks/${hotspotWeek}`)
+        if (!response.ok) {
+          setHotspots([])
+          setHotspotsLoading(false)
+          return
+        }
+
+        const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+        const speciesById = new Map<number, Species>()
+        speciesData.forEach(sp => speciesById.set(sp.species_id, sp))
+
+        const cellCounts = new Map<number, number>()
+        weekData.forEach(r => {
+          const sp = speciesById.get(r.species_id)
+          if (!sp || seenSpecies.has(sp.speciesCode)) return
+          cellCounts.set(r.cell_id, (cellCounts.get(r.cell_id) || 0) + 1)
+        })
+
+        const cellCoords = new Map<number, [number, number]>()
+        if (gridData.features) {
+          gridData.features.forEach((f: any) => {
+            const coords = f.geometry.coordinates[0][0]
+            if (f.properties.cell_id && coords) {
+              cellCoords.set(f.properties.cell_id, [coords[0], coords[1]])
+            }
+          })
+        }
+
+        const arr: HotspotLocation[] = []
+        cellCounts.forEach((count, cellId) => {
+          const coords = cellCoords.get(cellId)
+          if (coords) arr.push({ cellId, coordinates: coords, liferCount: count, rank: 0 })
+        })
+
+        arr.sort((a, b) => b.liferCount - a.liferCount)
+        arr.forEach((h, i) => h.rank = i + 1)
+
+        setHotspots(arr.slice(0, 20))
+      } catch (error) {
+        console.error('Trip Plan: hotspots error', error)
+        setHotspots([])
+      } finally {
+        setHotspotsLoading(false)
+      }
+    }
+    calc()
+  }, [mode, hotspotWeek, speciesLoaded, speciesData, gridData, seenSpecies])
+
+  // Calculate window of opportunity
+  useEffect(() => {
+    if (mode !== 'window' || !selectedSpeciesForWindow || !speciesLoaded || !gridData) {
+      setWeekOpportunities([])
+      return
+    }
+
+    const calc = async () => {
+      setWindowLoading(true)
+      try {
+        const targetId = selectedSpeciesForWindow.species_id
+        const weeklyData = new Map<number, Array<{ cell_id: number; probability: number }>>()
+
+        for (let week = 1; week <= 52; week++) {
+          try {
+            const response = await fetch(`/api/weeks/${week}`)
+            if (!response.ok) continue
+            const data: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+            weeklyData.set(week, data.filter(r => r.species_id === targetId))
+          } catch (err) {
+            console.error(`Window: week ${week} failed`, err)
+          }
+        }
+
+        const cellCoords = new Map<number, [number, number]>()
+        if (gridData.features) {
+          gridData.features.forEach((f: any) => {
+            const coords = f.geometry.coordinates[0][0]
+            if (f.properties.cell_id && coords) {
+              cellCoords.set(f.properties.cell_id, [coords[0], coords[1]])
+            }
+          })
+        }
+
+        const opps: WeekOpportunity[] = []
+        weeklyData.forEach((records, week) => {
+          if (records.length === 0) return
+          const avgProb = records.reduce((sum, r) => sum + r.probability, 0) / records.length
+          const topLocs = records
+            .sort((a, b) => b.probability - a.probability)
+            .slice(0, 5)
+            .map(r => ({
+              cellId: r.cell_id,
+              coordinates: cellCoords.get(r.cell_id) || [0, 0] as [number, number],
+              probability: r.probability
+            }))
+          opps.push({ week, avgProbability: avgProb, topLocations: topLocs })
+        })
+
+        opps.sort((a, b) => b.avgProbability - a.avgProbability)
+        setWeekOpportunities(opps.slice(0, 10))
+        console.log(`Window: found ${opps.length} weeks for ${selectedSpeciesForWindow.comName}`)
+      } catch (error) {
+        console.error('Window: error', error)
+        setWeekOpportunities([])
+      } finally {
+        setWindowLoading(false)
+      }
+    }
+    calc()
+  }, [mode, selectedSpeciesForWindow, speciesLoaded, gridData])
+
+  // Compare two locations
+  useEffect(() => {
+    if (mode !== 'compare' || !locationA || !locationB || !speciesLoaded) {
+      setOverlapLifers([])
+      setUniqueToA([])
+      setUniqueToB([])
+      return
+    }
+
+    const compareLocations = async () => {
+      setCompareLoading(true)
+      try {
+        // Build species lookup map
+        const speciesById = new Map<number, Species>()
+        speciesData.forEach(sp => speciesById.set(sp.species_id, sp))
+
+        // Determine weeks to load
+        const weeksToLoad: number[] = []
+        for (let w = compareStartWeek; w <= compareEndWeek; w++) {
+          weeksToLoad.push(w)
+        }
+
+        // Accumulate probabilities for both locations
+        const speciesAtA = new Map<number, { total: number; count: number }>()
+        const speciesAtB = new Map<number, { total: number; count: number }>()
+
+        for (const week of weeksToLoad) {
+          try {
+            const response = await fetch(`/api/weeks/${week}`)
+            if (!response.ok) continue
+            const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+
+            // Filter for location A
+            weekData.filter(r => r.cell_id === locationA.cellId).forEach(record => {
+              const existing = speciesAtA.get(record.species_id) || { total: 0, count: 0 }
+              speciesAtA.set(record.species_id, {
+                total: existing.total + record.probability,
+                count: existing.count + 1
+              })
+            })
+
+            // Filter for location B
+            weekData.filter(r => r.cell_id === locationB.cellId).forEach(record => {
+              const existing = speciesAtB.get(record.species_id) || { total: 0, count: 0 }
+              speciesAtB.set(record.species_id, {
+                total: existing.total + record.probability,
+                count: existing.count + 1
+              })
+            })
+          } catch (err) {
+            console.error(`Compare: failed to load week ${week}`, err)
+          }
+        }
+
+        // Build lifer lists
+        const overlapList: TripLifer[] = []
+        const uniqueAList: TripLifer[] = []
+        const uniqueBList: TripLifer[] = []
+
+        // Find overlap and unique to A
+        speciesAtA.forEach((prob, speciesId) => {
+          const species = speciesById.get(speciesId)
+          if (!species || seenSpecies.has(species.speciesCode)) return
+
+          const lifer: TripLifer = {
+            species_id: speciesId,
+            speciesCode: species.speciesCode,
+            comName: species.comName,
+            sciName: species.sciName,
+            familyComName: species.familyComName,
+            probability: prob.total / prob.count,
+            difficultyLabel: species.difficultyLabel
+          }
+
+          if (speciesAtB.has(speciesId)) {
+            overlapList.push(lifer)
+          } else {
+            uniqueAList.push(lifer)
+          }
+        })
+
+        // Find unique to B
+        speciesAtB.forEach((prob, speciesId) => {
+          const species = speciesById.get(speciesId)
+          if (!species || seenSpecies.has(species.speciesCode)) return
+          if (speciesAtA.has(speciesId)) return // Already counted in overlap
+
+          const lifer: TripLifer = {
+            species_id: speciesId,
+            speciesCode: species.speciesCode,
+            comName: species.comName,
+            sciName: species.sciName,
+            familyComName: species.familyComName,
+            probability: prob.total / prob.count,
+            difficultyLabel: species.difficultyLabel
+          }
+
+          uniqueBList.push(lifer)
+        })
+
+        // Sort all lists by probability
+        overlapList.sort((a, b) => b.probability - a.probability)
+        uniqueAList.sort((a, b) => b.probability - a.probability)
+        uniqueBList.sort((a, b) => b.probability - a.probability)
+
+        setOverlapLifers(overlapList)
+        setUniqueToA(uniqueAList)
+        setUniqueToB(uniqueBList)
+
+        console.log(`Compare: Location A has ${speciesAtA.size} species, Location B has ${speciesAtB.size} species`)
+        console.log(`Compare: ${overlapList.length} overlap, ${uniqueAList.length} unique to A, ${uniqueBList.length} unique to B`)
+      } catch (error) {
+        console.error('Compare: error', error)
+        setOverlapLifers([])
+        setUniqueToA([])
+        setUniqueToB([])
+      } finally {
+        setCompareLoading(false)
+      }
+    }
+
+    compareLocations()
+  }, [mode, locationA, locationB, compareStartWeek, compareEndWeek, speciesLoaded, speciesData, seenSpecies])
+
+  // Load location data
+  useEffect(() => {
+    if (mode !== 'location' || !selectedLocation || !speciesLoaded) {
+      setLifers([])
+      return
+    }
+
+    const loadTripData = async () => {
+      setLoading(true)
+      try {
+        // Build species lookup map
+        const speciesById = new Map<number, Species>()
+        speciesData.forEach(sp => speciesById.set(sp.species_id, sp))
+
+        // Determine weeks to load
+        const weeksToLoad: number[] = []
+        for (let w = startWeek; w <= endWeek; w++) {
+          weeksToLoad.push(w)
+        }
+
+        // Accumulate probabilities for species in the selected cell
+        const speciesProbabilities = new Map<number, { total: number; count: number }>()
+
+        for (const week of weeksToLoad) {
+          try {
+            const response = await fetch(`/api/weeks/${week}`)
+            if (!response.ok) continue
+            const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+            const cellRecords = weekData.filter(r => r.cell_id === selectedLocation.cellId)
+            cellRecords.forEach(record => {
+              const existing = speciesProbabilities.get(record.species_id) || { total: 0, count: 0 }
+              speciesProbabilities.set(record.species_id, {
+                total: existing.total + record.probability,
+                count: existing.count + 1
+              })
+            })
+          } catch (err) {
+            console.error(`Trip Plan: failed to load week ${week}`, err)
+          }
+        }
+
+        // Build ranked lifer list (unseen species only)
+        const liferList: TripLifer[] = []
+        speciesProbabilities.forEach((prob, speciesId) => {
+          const species = speciesById.get(speciesId)
+          if (!species) return
+          if (seenSpecies.has(species.speciesCode)) return
+
+          liferList.push({
+            species_id: speciesId,
+            speciesCode: species.speciesCode,
+            comName: species.comName,
+            sciName: species.sciName,
+            familyComName: species.familyComName,
+            probability: prob.total / prob.count,
+            difficultyLabel: species.difficultyLabel
+          })
+        })
+
+        // Sort by occurrence probability (highest first)
+        liferList.sort((a, b) => b.probability - a.probability)
+        setLifers(liferList)
+        console.log(`Trip Plan: found ${liferList.length} lifers at cell ${selectedLocation.cellId} for weeks ${startWeek}-${endWeek}`)
+      } catch (error) {
+        console.error('Trip Plan: error loading data', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTripData()
+  }, [selectedLocation, startWeek, endWeek, speciesLoaded, speciesData, seenSpecies])
+
+  const formatProbability = (prob: number): string => {
+    return (prob * 100).toFixed(1) + '%'
+  }
+
+  const getProbabilityColor = (prob: number): string => {
+    if (prob >= 0.5) return 'text-green-700 bg-green-50'
+    if (prob >= 0.2) return 'text-yellow-700 bg-yellow-50'
+    if (prob >= 0.05) return 'text-orange-700 bg-orange-50'
+    return 'text-red-700 bg-red-50'
+  }
+
+  // Clear/Reset all trip planning selections
+  const handleClearAll = () => {
+    // Clear location mode
+    if (onLocationSelect) {
+      onLocationSelect(null)
+    }
+    setStartWeek(currentWeek)
+    setEndWeek(Math.min(currentWeek + 2, 52))
+    setLifers([])
+    setLoading(false)
+
+    // Clear hotspots mode
+    setHotspotWeek(currentWeek)
+    setHotspots([])
+    setHotspotsLoading(false)
+
+    // Clear window mode
+    setSelectedSpeciesForWindow(null)
+    setSpeciesSearchTerm('')
+    setShowSpeciesSuggestions(false)
+    setWeekOpportunities([])
+    setWindowLoading(false)
+
+    // Clear compare mode
+    setLocationA(null)
+    setLocationB(null)
+    setCompareStartWeek(currentWeek)
+    setCompareEndWeek(Math.min(currentWeek + 2, 52))
+    setOverlapLifers([])
+    setUniqueToA([])
+    setUniqueToB([])
+    setCompareLoading(false)
+    setNextCompareSlot('A')
+    lastProcessedLocationRef.current = null
+
+    console.log('Trip Plan: cleared all selections')
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="space-y-3 pb-3 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-[#2C3E50]">Trip Planning</h3>
+          <button
+            onClick={handleClearAll}
+            className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+            data-testid="clear-trip-plan-btn"
+            title="Clear all trip planning selections"
+          >
+            🔄 Reset
+          </button>
+        </div>
+
+        {dataError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+            {dataError}
+          </div>
+        )}
+
+        {/* Mode Toggle */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setMode('location')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'location' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="location-mode-btn"
+          >
+            📍 Location
+          </button>
+          <button
+            onClick={() => setMode('hotspots')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'hotspots' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="hotspots-mode-btn"
+          >
+            🔥 Hotspots
+          </button>
+          <button
+            onClick={() => setMode('window')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'window' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="window-mode-btn"
+          >
+            🐦 Window
+          </button>
+          <button
+            onClick={() => setMode('compare')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'compare' ? 'bg-[#2C3E7B] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            data-testid="compare-mode-btn"
+          >
+            ⚖️ Compare
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-600">
+          {mode === 'location'
+            ? 'Click a location on the map, then set your date range to see ranked lifers.'
+            : mode === 'hotspots'
+            ? 'Find top locations with the most unseen species for a given week.'
+            : mode === 'window'
+            ? 'Search for a species to see when and where it\'s most likely to be found.'
+            : 'Select two locations on the map and compare their lifer availability.'}
+        </p>
+      </div>
+
+      {/* Hotspots Mode: Week Picker */}
+      {mode === 'hotspots' && (
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">Select Week</label>
+          <input
+            type="range"
+            min="1"
+            max="52"
+            value={hotspotWeek}
+            onChange={(e) => setHotspotWeek(parseInt(e.target.value, 10))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            data-testid="hotspot-week-slider"
+          />
+          <div className="text-xs text-center text-[#2C3E7B] font-medium mt-1">
+            Week {hotspotWeek} (~{getWeekLabel(hotspotWeek)})
+          </div>
+        </div>
+      )}
+
+      {/* Window Mode: Species Search */}
+      {mode === 'window' && (
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">Select Target Species</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search for a species..."
+              value={speciesSearchTerm}
+              onChange={(e) => {
+                setSpeciesSearchTerm(e.target.value)
+                setShowSpeciesSuggestions(true)
+              }}
+              onFocus={() => setShowSpeciesSuggestions(true)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+              data-testid="species-search-input"
+            />
+            {showSpeciesSuggestions && speciesSearchTerm.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {speciesData
+                  .filter(sp =>
+                    sp.comName.toLowerCase().includes(speciesSearchTerm.toLowerCase()) ||
+                    sp.sciName.toLowerCase().includes(speciesSearchTerm.toLowerCase())
+                  )
+                  .slice(0, 10)
+                  .map(sp => (
+                    <button
+                      key={sp.speciesCode}
+                      onClick={() => {
+                        setSelectedSpeciesForWindow(sp)
+                        setSpeciesSearchTerm(sp.comName)
+                        setShowSpeciesSuggestions(false)
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="text-sm font-medium text-[#2C3E50]">{sp.comName}</div>
+                      <div className="text-xs italic text-gray-500">{sp.sciName}</div>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+          {selectedSpeciesForWindow && (
+            <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2">
+              <div className="text-sm font-medium text-blue-800">{selectedSpeciesForWindow.comName}</div>
+              <div className="text-xs italic text-blue-600">{selectedSpeciesForWindow.sciName}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Location Mode: Location Display and Date Range */}
+      {mode === 'location' && (
+        <div className="mt-3 space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+            Selected Location
+          </label>
+          {selectedLocation ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-sm font-medium text-blue-800">
+                Cell #{selectedLocation.cellId}
+              </div>
+              <div className="text-xs text-blue-600">
+                {selectedLocation.coordinates[1].toFixed(2)}°N, {Math.abs(selectedLocation.coordinates[0]).toFixed(2)}°W
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-sm text-gray-500 italic">
+                Click on the map to select a location
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Date Range (Week Range) Picker */}
+        <div>
+          <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+            Date Range
+          </label>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">Start Week</label>
+              <input
+                type="range"
+                min="1"
+                max="52"
+                value={startWeek}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  setStartWeek(val)
+                  if (val > endWeek) setEndWeek(val)
+                }}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              />
+              <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                Week {startWeek} (~{getWeekLabel(startWeek)})
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">End Week</label>
+              <input
+                type="range"
+                min="1"
+                max="52"
+                value={endWeek}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  setEndWeek(val)
+                  if (val < startWeek) setStartWeek(val)
+                }}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              />
+              <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                Week {endWeek} (~{getWeekLabel(endWeek)})
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* Compare Mode: Two Locations and Date Range */}
+      {mode === 'compare' && (
+        <div className="mt-3 space-y-3">
+          {/* Location A */}
+          <div>
+            <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              Location A
+            </label>
+            {locationA ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-blue-800">
+                      Cell #{locationA.cellId}
+                    </div>
+                    <div className="text-xs text-blue-600">
+                      {locationA.coordinates[1].toFixed(2)}°N, {Math.abs(locationA.coordinates[0]).toFixed(2)}°W
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setLocationA(null)}
+                    className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                    data-testid="clear-location-a-btn"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p className="text-sm text-gray-500 italic">
+                  Click on the map to select Location A
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Location B */}
+          <div>
+            <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              Location B
+            </label>
+            {locationB ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-green-800">
+                      Cell #{locationB.cellId}
+                    </div>
+                    <div className="text-xs text-green-600">
+                      {locationB.coordinates[1].toFixed(2)}°N, {Math.abs(locationB.coordinates[0]).toFixed(2)}°W
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setLocationB(null)}
+                    className="text-green-600 hover:text-green-800 text-xs font-medium"
+                    data-testid="clear-location-b-btn"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p className="text-sm text-gray-500 italic">
+                  Click on the map to select Location B
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Date Range (Week Range) Picker */}
+          <div>
+            <label className="block text-sm font-medium text-[#2C3E50] mb-1">
+              Date Range
+            </label>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Start Week</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="52"
+                  value={compareStartWeek}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    setCompareStartWeek(val)
+                    if (val > compareEndWeek) setCompareEndWeek(val)
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                  data-testid="compare-start-week-slider"
+                />
+                <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                  Week {compareStartWeek} (~{getWeekLabel(compareStartWeek)})
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">End Week</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="52"
+                  value={compareEndWeek}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    setCompareEndWeek(val)
+                    if (val < compareStartWeek) setCompareStartWeek(val)
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                  data-testid="compare-end-week-slider"
+                />
+                <div className="text-xs text-center text-[#2C3E7B] font-medium">
+                  Week {compareEndWeek} (~{getWeekLabel(compareEndWeek)})
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Results Section */}
+      <div className="mt-3 flex-1 overflow-y-auto">
+        {mode === 'hotspots' ? (
+          hotspotsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+            </div>
+          ) : hotspots.length === 0 ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-500">
+                <span className="font-medium">No hotspots found.</span> You may have already seen all species for this week.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-[#2C3E50]">
+                  Top Lifer Hotspots ({hotspots.length})
+                </h4>
+                <span className="text-xs text-gray-500">
+                  Ranked by lifer count
+                </span>
+              </div>
+              <div className="space-y-1" data-testid="hotspot-list">
+                {hotspots.map((hotspot) => (
+                  <button
+                    key={hotspot.cellId}
+                    onClick={() => {
+                      if (onLocationSelect) {
+                        onLocationSelect({
+                          cellId: hotspot.cellId,
+                          coordinates: hotspot.coordinates
+                        })
+                      }
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg hover:bg-orange-50 hover:border-orange-200 transition-colors text-left"
+                    data-testid={`hotspot-${hotspot.cellId}`}
+                  >
+                    <div className="text-xs text-gray-400 w-6 text-right font-mono">
+                      #{hotspot.rank}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-[#2C3E50]">
+                        Cell #{hotspot.cellId}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {hotspot.coordinates[1].toFixed(2)}°N, {Math.abs(hotspot.coordinates[0]).toFixed(2)}°W
+                      </div>
+                    </div>
+                    <div className="px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap bg-orange-100 text-orange-800">
+                      {hotspot.liferCount} lifers
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        ) : mode === 'location' ? (
+          !selectedLocation ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-blue-700">
+                <span className="font-medium">Select a location</span> on the map to see lifers you could find there.
+              </p>
+            </div>
+          ) : loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+            </div>
+          ) : lifers.length === 0 ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-green-700">
+                <span className="font-medium">No lifers found!</span> You have already seen all species recorded in this area during this period.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-[#2C3E50]">
+                  Potential Lifers ({lifers.length})
+                </h4>
+                <span className="text-xs text-gray-500">
+                  Sorted by probability
+                </span>
+              </div>
+              <div className="space-y-1">
+                {lifers.map((lifer, index) => (
+                  <div
+                    key={lifer.speciesCode}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="text-xs text-gray-400 w-6 text-right font-mono">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-[#2C3E50] truncate">
+                        {lifer.comName}
+                      </div>
+                      <div className="text-xs italic text-gray-500 truncate">
+                        {lifer.sciName}
+                      </div>
+                    </div>
+                    <div className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${getProbabilityColor(lifer.probability)}`}>
+                      {formatProbability(lifer.probability)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        ) : mode === 'window' ? (
+          !selectedSpeciesForWindow ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-blue-700">
+                <span className="font-medium">Search for a species</span> above to see its window of opportunity.
+              </p>
+            </div>
+          ) : windowLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+            </div>
+          ) : weekOpportunities.length === 0 ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-500">
+                <span className="font-medium">No data found</span> for {selectedSpeciesForWindow.comName}. This species may not be recorded in this region.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="mb-3">
+                <h4 className="text-sm font-semibold text-[#2C3E50] mb-1">
+                  Window of Opportunity
+                </h4>
+                <p className="text-xs text-gray-600">
+                  Best weeks to find <span className="font-medium text-[#2C3E7B]">{selectedSpeciesForWindow.comName}</span>
+                </p>
+              </div>
+              <div className="space-y-2" data-testid="window-opportunity-list">
+                {weekOpportunities.map((opp, index) => (
+                  <div
+                    key={opp.week}
+                    className="bg-white border border-gray-200 rounded-lg p-3 hover:border-[#2C3E7B] transition-colors"
+                  >
+                    {/* Week Header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs text-gray-400 w-5 text-right font-mono">
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-[#2C3E50]">
+                            Week {opp.week}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            ~{getWeekLabel(opp.week)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded text-xs font-medium ${getProbabilityColor(opp.avgProbability)}`}>
+                        {formatProbability(opp.avgProbability)} avg
+                      </div>
+                    </div>
+
+                    {/* Top Locations */}
+                    <div className="mt-2 space-y-1">
+                      <div className="text-xs font-medium text-gray-500 mb-1">
+                        Best locations:
+                      </div>
+                      {opp.topLocations.slice(0, 3).map((loc, locIndex) => (
+                        <button
+                          key={loc.cellId}
+                          onClick={() => {
+                            if (onLocationSelect) {
+                              onLocationSelect({
+                                cellId: loc.cellId,
+                                coordinates: loc.coordinates
+                              })
+                            }
+                          }}
+                          className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-50 hover:bg-blue-50 rounded text-left transition-colors"
+                          data-testid={`window-location-${opp.week}-${locIndex}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-gray-600">
+                              Cell #{loc.cellId}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {loc.coordinates[1].toFixed(2)}°N, {Math.abs(loc.coordinates[0]).toFixed(2)}°W
+                            </div>
+                          </div>
+                          <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${getProbabilityColor(loc.probability)}`}>
+                            {formatProbability(loc.probability)}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        ) : mode === 'compare' ? (
+          !locationA || !locationB ? (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-purple-700">
+                <span className="font-medium">Select two locations</span> on the map to compare their lifer availability.
+              </p>
+            </div>
+          ) : compareLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+            </div>
+          ) : (
+            <div className="space-y-3" data-testid="compare-results">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
+                  <div className="text-xs text-blue-600 font-medium mb-1">Location A</div>
+                  <div className="text-lg font-bold text-blue-800">{uniqueToA.length + overlapLifers.length}</div>
+                  <div className="text-xs text-blue-600">total lifers</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 text-center">
+                  <div className="text-xs text-purple-600 font-medium mb-1">Overlap</div>
+                  <div className="text-lg font-bold text-purple-800">{overlapLifers.length}</div>
+                  <div className="text-xs text-purple-600">at both</div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
+                  <div className="text-xs text-green-600 font-medium mb-1">Location B</div>
+                  <div className="text-lg font-bold text-green-800">{uniqueToB.length + overlapLifers.length}</div>
+                  <div className="text-xs text-green-600">total lifers</div>
+                </div>
+              </div>
+
+              {/* Overlap Species */}
+              {overlapLifers.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-purple-800 mb-2" data-testid="overlap-heading">
+                    🔗 Overlap ({overlapLifers.length})
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-2">Available at both locations</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="overlap-list">
+                    {overlapLifers.slice(0, 20).map((lifer, index) => (
+                      <div
+                        key={lifer.speciesCode}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-purple-50 border border-purple-100 rounded text-xs"
+                      >
+                        <div className="text-gray-400 w-5 text-right font-mono">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 truncate font-medium text-purple-900">
+                          {lifer.comName}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unique to Location A */}
+              {uniqueToA.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-blue-800 mb-2" data-testid="unique-a-heading">
+                    📍 Unique to Location A ({uniqueToA.length})
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-2">Only at Location A</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="unique-a-list">
+                    {uniqueToA.slice(0, 20).map((lifer, index) => (
+                      <div
+                        key={lifer.speciesCode}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-blue-50 border border-blue-100 rounded text-xs"
+                      >
+                        <div className="text-gray-400 w-5 text-right font-mono">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 truncate font-medium text-blue-900">
+                          {lifer.comName}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unique to Location B */}
+              {uniqueToB.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-green-800 mb-2" data-testid="unique-b-heading">
+                    📍 Unique to Location B ({uniqueToB.length})
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-2">Only at Location B</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="unique-b-list">
+                    {uniqueToB.slice(0, 20).map((lifer, index) => (
+                      <div
+                        key={lifer.speciesCode}
+                        className="flex items-center gap-2 px-2 py-1.5 bg-green-50 border border-green-100 rounded text-xs"
+                      >
+                        <div className="text-gray-400 w-5 text-right font-mono">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 truncate font-medium text-green-900">
+                          {lifer.comName}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No lifers */}
+              {overlapLifers.length === 0 && uniqueToA.length === 0 && uniqueToB.length === 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                  <p className="text-sm text-green-700">
+                    <span className="font-medium">No lifers found!</span> You have already seen all species at both locations during this period.
+                  </p>
+                </div>
+              )}
+            </div>
+          )
+        ) : null}
+      </div>
+    </div>
+  )
+}

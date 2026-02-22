@@ -12,8 +12,13 @@ const DB_NAME = 'find-a-lifer-db'
 const DB_VERSION = 2 // Bumped to 2 to add goalLists store (lifeList exists at v1)
 const STORE_NAME = 'goalLists'
 
-// Open or create the database
+// Cached database connection (avoids reopening on every operation)
+let dbInstance: IDBDatabase | null = null
+
+// Open or create the database (with connection caching)
 function openDB(): Promise<IDBDatabase> {
+  if (dbInstance) return Promise.resolve(dbInstance)
+
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
 
@@ -22,7 +27,14 @@ function openDB(): Promise<IDBDatabase> {
     }
 
     request.onsuccess = () => {
-      resolve(request.result)
+      dbInstance = request.result
+      // Clear cache if the connection closes unexpectedly
+      dbInstance.onclose = () => { dbInstance = null }
+      dbInstance.onversionchange = () => {
+        dbInstance?.close()
+        dbInstance = null
+      }
+      resolve(dbInstance)
     }
 
     request.onupgradeneeded = (event) => {
