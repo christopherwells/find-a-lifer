@@ -1,7 +1,65 @@
 # Find-A-Lifer — Implementation Progress
-**70/85 features passing (82.4%)** | Latest commit: d256b41
+**85/85 tracked features passing** | Branch: master
 **Refer to app_spec for full feature descriptions and requirements.**
 **Implementation plan:** `.claude/plans/golden-moseying-beacon.md`
+
+---
+
+## Current Status (2026-02-24)
+
+**Phases 0-2: COMPLETE.** All 85 tracked features passing.
+**Phase 3: IN PROGRESS** — 3B (CSV export) and 3D (progress enhancements) done. 3C (suggestions) was already complete. 3A, 3E, 3F remain.
+**TypeScript compiles clean** (`npx tsc --noEmit` from `frontend/` — zero errors).
+
+### Data Pipeline Complete (2026-02-23)
+**Full eBird S&T extraction DONE.** 1,865 species × 52 weeks processed.
+- `backend/data/species.json` — 2,490 species with full metadata
+- `backend/data/weeks/week_01.json` through `week_52.json` — cell-grouped format: `[[cell_id, [sp_id, ...]], ...]`
+- `backend/data/weeks/week_*_summary.json` — 52 summary files: `[[cell_id, species_count], ...]`
+- `backend/data/grid_27km.geojson` — 229,814 grid cells (optimized, 37.9MB raw, 3.1MB gzip)
+- Total: 443.6M species-cell records across 612,875 unique cells
+- Peak: Week 30 (49.6MB, 470K cells, 10.6M records), Min: Week 01 (29.8MB, 268K cells)
+- Source: `C:\Users\Christopher Wells\AppData\Roaming\R\data\R\ebirdst\2023`
+- Scripts: `backend/extract_st_data.py` (extraction), `backend/build_species_metadata.py` (metadata)
+
+### Backend v2.0 (2026-02-23)
+`backend/main.py` rewritten to handle new cell-grouped format:
+- `_load_week_data()` auto-detects format (cell-grouped vs record-based), normalizes to `{cell_id: [species_ids]}` dict
+- In-memory `_week_cache` for loaded week data
+- All endpoints updated: summary, full week, species, species-batch, cell, lifer-summary
+- Summary endpoint falls back to computing from main data if no summary file exists
+
+### Heatmap Gradient Update (2026-02-24)
+- Switched from magma to **extended viridis** gradient: purple → teal → green → yellow → orange → red
+- `buildHeatExpression()` in MapView.tsx uses 11 color stops (#440154 → #E23028)
+- Legend CSS gradient updated to match all 11 stops
+- `getLegendTicks()` now renders 5 ticks (was 3), linear scale
+- Legend minWidth increased from 180px to 220px
+- Goal Birds heatmap retains its own amber gradient
+
+### Backend Port Change (2026-02-24)
+- Backend moved from port 8000 → **port 8001** (ghost TCP entries blocked 8000 on Windows)
+- `frontend/vite.config.ts` proxy updated: both `/api` and `/data` targets → `http://localhost:8001`
+
+### Next Steps
+- Continue Phase 3 features (3A dark mode, 3E map enhancements, 3F UX polish)
+- **Performance check** — week files are 30-50MB each, may need lazy loading or streaming
+- Regenerate grid_27km.geojson if cells are missing (current has 229K, extraction found 612K unique)
+
+### What's Done in Phase 3
+- **3A Dark Mode**: Partially started — App.tsx has localStorage persistence + `document.documentElement.classList.toggle('dark')`. SidePanel.tsx has `dark:` classes. TopBar already had dark mode styling. Other tabs NOT yet dark-mode styled.
+- **3B CSV Export**: DONE — ProfileTab has "Export Life List as CSV" button, generates CSV with Common Name, Scientific Name, Species Code, Family columns, triggers browser download.
+- **3C Suggestion Categories**: DONE (was already complete) — 11 categories: Rarest, Easy Wins, Hardest, Migrants, Regional Icons, Seasonal Specialties, Colorful Characters, Owls & Nightbirds, Raptors, LBJs, Almost Complete Families.
+- **3D Progress Enhancements**: DONE — Quick stats cards (Families Started/Completed), milestones tracker (100-2490), "Top Families to Target" section replacing basic "What's Left".
+
+### What Remains in Phase 3
+- **3A Dark Mode**: Need to add `dark:` Tailwind classes to ExploreTab, SpeciesTab, GoalBirdsTab, TripPlanTab, ProgressTab, ProfileTab. Map already handles dark tiles.
+- **3E Map Enhancements**: City/airport labels, lifer count range filter, region-based trip filtering
+- **3F UX Polish**: Loading skeletons, responsive mobile layout, region-aware checklist filtering
+
+### What Remains After Phase 3
+- **Phase 4**: Automated testing (Vitest + Playwright)
+- **Phase 5**: Final verification & ship prep
 
 ---
 
@@ -15,44 +73,59 @@
 - ~20+ MB reclaimed
 
 ### Phase 1: SidePanel Refactor (COMPLETE)
-- Broke `SidePanel.tsx` (5,280 lines) into 9 files:
-  - `SidePanel.tsx` — 174 lines (thin shell: tab nav + routing)
-  - `types.ts` — 96 lines (shared interfaces: MapViewMode, SelectedLocation, Species, etc.)
-  - `ExploreTab.tsx` — 463 lines
-  - `SpeciesTab.tsx` — 675 lines
-  - `SpeciesInfoCard.tsx` — 138 lines
-  - `GoalBirdsTab.tsx` — 2,258 lines (largest — has suggestion categories + curated arrays)
-  - `TripPlanTab.tsx` — 1,140 lines
-  - `ProgressTab.tsx` — 152 lines
-  - `ProfileTab.tsx` — 216 lines
+- Broke `SidePanel.tsx` (5,280 lines) into 9 files
 - TypeScript: zero errors (`tsc --noEmit` clean)
-- Vite build: succeeds (3.4s)
 - Re-exports `MapViewMode` and `SelectedLocation` from SidePanel for App.tsx compatibility
 
-**Next:** Phase 2A — Selection & Import (Features #24, #25, #29) in `SpeciesTab.tsx` and `LifeListContext.tsx`
+### Phase 2: Core Feature Completion (COMPLETE)
+All 15 tracked features completed across 3 parallel development streams:
+- **Stream A** (SpeciesTab + LifeListContext): Select all/none per family (#24), global select all/none (#25), import merge stats (#29), clear filters button (#35)
+- **Stream B** (TripPlanTab): Sort dropdowns for lifers and hotspots (#43), reset button (#42)
+- **Stream C** (GoalBirdsTab + goalListsDB): Almost Complete Families suggestion (#78), edge cases — empty name, duplicate name, delete active list (#83), addSpeciesToList returns boolean
+
+### Visual Overhaul (mutable-purring-dahl plan — COMPLETE)
+- Hex grid tessellation (27km cells)
+- Extended viridis color gradient for heatmaps (purple→teal→green→yellow→orange→red)
+- Modern UI polish across all tabs
+- Backend lifer-summary endpoint
+
+### UI Feedback Fixes
+- Removed Cell # references from TripPlanTab (5 locations) — now shows coordinates only
+- Compacted GoalBirdsTab suggestions: removed scientific names, smaller badges, reduced padding
+- Fixed nested `<button>` HTML violation in SpeciesTab family headers
 
 ---
 
 ## Servers
-- Backend: FastAPI on port 8000
-- Frontend: Vite dev server on port 5173
+- Backend: FastAPI on port **8001** (changed from 8000 due to ghost TCP entries on Windows)
+- Frontend: Vite dev server on port 5173 (proxy → localhost:8001)
 
 ## Key Files & Architecture
 
 ### Frontend
 - `frontend/src/main.tsx` — App wrapped in `<LifeListProvider>`
 - `frontend/src/App.tsx` — Root state: currentWeek, viewMode, heatmapOpacity, goalSpeciesCodes, selectedRegion, selectedSpecies, sidePanelCollapsed, goalBirdsOnlyFilter. Loads goal species from IndexedDB when viewMode or filter changes. Passes all state as props to SidePanel and MapView.
-- `frontend/src/components/SidePanel.tsx` — **~4300+ lines. All tab components defined inline:** ExploreTab, SpeciesTab, GoalBirdsTab, TripPlanTab, ProgressTab, ProfileTab, plus SpeciesInfoCard. This file is the bulk of the app UI.
-- `frontend/src/components/MapView.tsx` — MapLibre map, grid overlay rendering, all 4 heatmap view modes, click-to-inspect popups (lifers + goal birds), region flyTo zoom, opacity control. Uses module-level `speciesMetaCache` to avoid re-fetching species. Uses React refs (`goalSpeciesIdSetRef`, `viewModeRef`, `weeklyDataRef`, etc.) for access inside map click handlers.
+- `frontend/src/components/SidePanel.tsx` — **182 lines.** Tab nav shell only; imports all 6 tab components from separate files (ExploreTab, SpeciesTab, GoalBirdsTab, TripPlanTab, ProgressTab, ProfileTab).
+- `frontend/src/components/MapView.tsx` — **1,372 lines.** MapLibre map, grid overlay rendering, all 4 heatmap view modes (extended viridis gradient), click-to-inspect popups (lifers + goal birds), region flyTo zoom, opacity control. Uses module-level `speciesMetaCache` to avoid re-fetching species. Uses React refs (`goalSpeciesIdSetRef`, `viewModeRef`, `weeklyDataRef`, etc.) for access inside map click handlers.
+- `frontend/src/components/GoalBirdsTab.tsx` — **2,365 lines.** Goal list CRUD, 11 suggestion categories with curated arrays.
+- `frontend/src/components/TripPlanTab.tsx` — **1,137 lines.** Location lifers, hotspots, window of opportunity, compare.
+- `frontend/src/components/SpeciesTab.tsx` — **698 lines.** Species checklist, search, filters, family groups.
+- `frontend/src/components/ExploreTab.tsx` — **453 lines.** Map controls, week slider, animation, view modes.
+- `frontend/src/components/ProgressTab.tsx` — **246 lines.** Stats dashboard, milestones, family breakdown.
+- `frontend/src/components/ProfileTab.tsx` — **277 lines.** CSV import/export, life list stats, clear/reset.
+- `frontend/src/components/types.ts` — **99 lines.** Shared interfaces (MapViewMode, Species, SelectedLocation, etc.).
 - `frontend/src/contexts/LifeListContext.tsx` — IndexedDB CRUD: markSpeciesSeen/Unseen, toggleSpecies, importSpeciesList (source: 'import'), getTotalSeen, isSpeciesSeen. DB: `find-a-lifer-db` v2, store `lifeList`, keyPath `speciesCode`.
 - `frontend/src/lib/goalListsDB.ts` — IndexedDB CRUD for goal lists: saveList (put), deleteList, renameList, addSpeciesToList, removeSpeciesFromList. Store `goalLists`, keyPath `id` (UUID). Active list ID in localStorage key `activeGoalListId`.
 
 ### Backend
-- `backend/main.py` — FastAPI with CORS, endpoints: /api/health, /api/species, /api/weeks/{1-52}, /api/grid, /api/regions
-- `backend/app_data/species.json` — 2490 species with fields: species_id, speciesCode, comName, sciName, familyComName, taxonOrder, conservStatus, difficultyScore, difficultyLabel, isRestrictedRange, invasionStatus, seasonalityScore, peakWeek, rangeShiftScore, photoUrl
+- `backend/main.py` — FastAPI v2.0 with CORS + GZip middleware. Auto-detects cell-grouped format. In-memory `_week_cache`. Endpoints: /api/health, /api/species, /api/weeks/{1-52}, /api/grid, /api/regions, /api/weeks/{n}/summary, /api/weeks/{n}/species/{id}, /api/weeks/{n}/species-batch, /api/weeks/{n}/cell/{id}, /api/weeks/{n}/lifer-summary
+- `backend/data/species.json` — 2,490 species with fields: species_id, speciesCode, comName, sciName, familyComName, taxonOrder, conservStatus, difficultyScore, difficultyLabel, isRestrictedRange, invasionStatus, seasonalityScore, peakWeek, rangeShiftScore, photoUrl
 - `backend/data/regions.geojson` — Regions: US Northeast, Southeast, West, Alaska, Hawaii
-- Weekly data: ~62K records (winter) to ~117K records (spring peak), each: {cell_id, species_id, probability}
-- Grid: 312 cells covering continental US
+- `backend/data/weeks/week_XX.json` — Cell-grouped format: `[[cell_id, [sp_id, ...]], ...]`. 29-50MB each.
+- `backend/data/weeks/week_XX_summary.json` — Per-cell species counts: `[[cell_id, species_count], ...]`
+- `backend/data/grid_27km.geojson` — 229,814 grid cells (37.9MB raw, ~3.1MB gzip)
+- `backend/extract_st_data.py` — S&T raster extraction script (1,865 species × 52 weeks)
+- `backend/build_species_metadata.py` — Builds species.json from eBird taxonomy + S&T data
 
 ---
 
@@ -72,8 +145,8 @@ All endpoints serving real data. No mock data anywhere in codebase.
 - **Migration animation** (#19): setInterval 1s/week, play/pause toggle. Uses `currentWeekRef` pattern to solve closure issue with interval callback. Loops 52→1
 - **Opacity slider** (#20): 0-100%, applies via `map.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)`. Added to overlay useEffect deps
 - **Zoom/pan** (#21): MapLibre NavigationControl at top-right, minZoom 2, maxZoom 15
-- **Rainbow gradient** (#84): All heatmaps use HSL-based rainbow (red→violet). Replaces old single-color gradients
-- **Numeric legends** (#85): `getLegendTicks(min, max, isPercentage, numTicks=5)` helper. Data-driven labels update with each view/week change
+- **Extended viridis gradient** (#84): All heatmaps use extended viridis (purple→teal→green→yellow→orange→red) via `buildHeatExpression()` with 11 color stops. Goal Birds mode retains amber gradient. Replaces earlier magma/rainbow gradients
+- **Numeric legends** (#85): `getLegendTicks(min, max, isPercentage, numTicks=5)` helper with 5 ticks, linear scale. Legend CSS gradient matches the 11 viridis stops. Data-driven labels update with each view/week change
 - **Week slider** (#10, #16): Range input 1-52, `getWeekLabel()` converts to "Week N (~MonthName Day)"
 
 ### Side Panel & Navigation (#7-8)
@@ -129,7 +202,7 @@ All endpoints serving real data. No mock data anywhere in codebase.
 
 ## Important Patterns & Gotchas
 
-1. **SidePanel.tsx is massive (~4300+ lines)** — all tab components are inline functions, not separate files
+1. **SidePanel refactored** — tab nav shell (182 lines) imports 6 separate tab files + types.ts. GoalBirdsTab (2,365 lines) is now the largest component file
 2. **Module-level caches**: `speciesMetaCache` in MapView.tsx shared across overlay calculations
 3. **Ref pattern for map handlers**: viewModeRef, weeklyDataRef, goalSpeciesCodesRef, seenSpeciesRef — because map click callbacks capture stale closures
 4. **goalSpeciesIdSetVersion counter** (not boolean): Incremented to trigger re-renders after async ID set build
@@ -140,21 +213,32 @@ All endpoints serving real data. No mock data anywhere in codebase.
 
 ---
 
-## Features NOT Yet Implemented
-The following feature areas from app_spec are not yet built:
-- Light/dark mode (map and UI)
-- Select all / select none (per family and global)
-- Region-aware checklist filtering
-- Trip plan sorting (by probability/name/family)
-- Clear/reset trip planning
-- Region-based trip filtering
-- Lifer count range filter
-- Clear all filters button + active filter indicators
-- Export life list as CSV
-- Clear/reset life list with confirmation
-- Responsive mobile layout
-- Loading skeletons
-- Base map city/airport labels
-- Progress breakdown by region
-- "What's left" targeting in progress dashboard
-- Some suggestion categories (Water Birds, Shorebirds, Warblers, Easy Wins, Regional Icons)
+### Data Pipeline & Gradient Session (2026-02-24)
+- Verified full S&T extraction: 1,865 species × 52 weeks = 443.6M records, 0 errors
+- Iterated on heatmap gradient: magma → log-scaled magma → viridis → extended viridis (final)
+- Added 5-tick legend (was 3), linear scale, wider legend (220px min)
+- Fixed species checklist showing 50 instead of 2,490: backend had cached old species.json at startup
+- Moved backend to port 8001 (port 8000 had ghost TCP entries on Windows), updated vite proxy
+- Updated backend main.py v2.0 for cell-grouped data format with GZip middleware
+
+## Features NOT Yet Implemented (Phase 3 Remaining)
+- Dark mode `dark:` classes on tab components (infrastructure in App.tsx done, tabs not styled)
+- Base map city/airport labels (MapView.tsx)
+- Lifer count range filter (MapView.tsx — min/max slider)
+- Region-based trip filtering (TripPlanTab)
+- Responsive mobile layout (stack panel below map < 768px)
+- Loading skeletons (shimmer placeholders while data loads)
+
+## Features Completed Since Last Update
+- Select all/none per family + global (#24, #25) ✓
+- Clear all filters button (#35) ✓
+- Import merge stats (#29) ✓
+- Trip plan sort dropdowns (#43) ✓
+- Clear/reset trip planning (#42) ✓
+- Almost Complete Families suggestion (#78) ✓
+- Goal list edge cases (#83) ✓
+- CSV export from ProfileTab ✓
+- Progress milestones + quick stats + top families to target ✓
+- Dark mode localStorage persistence + root class toggle ✓
+- SidePanel dark mode classes ✓
+- 11 suggestion categories (all done) ✓

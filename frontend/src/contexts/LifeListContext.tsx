@@ -36,7 +36,7 @@ interface LifeListContextValue {
   markSpeciesSeen: (speciesCode: string, comName: string, source?: 'manual' | 'import') => Promise<void>
   markSpeciesUnseen: (speciesCode: string) => Promise<void>
   clearAllSpecies: () => Promise<void>
-  importSpeciesList: (speciesCodes: string[], comNames: string[]) => Promise<void>
+  importSpeciesList: (speciesCodes: string[], comNames: string[]) => Promise<{newCount: number, existingCount: number}>
   getTotalSeen: () => number
 }
 
@@ -152,9 +152,13 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const importSpeciesList = async (speciesCodes: string[], comNames: string[]) => {
+  const importSpeciesList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
     try {
       const db = await getDB()
+
+      // Snapshot existing species before import to determine new vs existing
+      const existingCodes = new Set(seenSpecies)
+
       const tx = db.transaction(STORE_NAME, 'readwrite')
 
       for (let i = 0; i < speciesCodes.length; i++) {
@@ -172,7 +176,20 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
       const allEntries = await db.getAll(STORE_NAME)
       const codes = new Set(allEntries.map(entry => entry.speciesCode))
       setSeenSpecies(codes)
-      console.log(`Imported ${speciesCodes.length} species`)
+
+      // Count new vs existing from the imported list
+      let newCount = 0
+      let existingCount = 0
+      for (const code of speciesCodes) {
+        if (existingCodes.has(code)) {
+          existingCount++
+        } else {
+          newCount++
+        }
+      }
+
+      console.log(`Imported ${speciesCodes.length} species (${newCount} new, ${existingCount} already existed)`)
+      return { newCount, existingCount }
     } catch (error) {
       console.error('Error importing species list:', error)
       throw error

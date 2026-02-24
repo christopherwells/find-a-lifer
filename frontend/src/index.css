@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Cornell Lab of Ornithology inspired design system */
 :root {
   --color-primary: #2C3E7B;

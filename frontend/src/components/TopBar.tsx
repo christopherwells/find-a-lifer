@@ -44,48 +44,32 @@ export default function TopBar({ darkMode, onToggleDarkMode }: TopBarProps) {
   return (
     <header
       data-testid="top-bar"
-      className={`h-14 flex items-center justify-between px-4 shadow-md z-10 ${
+      className={`h-11 flex items-center justify-between px-4 z-10 ${
         darkMode
           ? 'bg-[#1A1A2E] text-white'
           : 'bg-[#2C3E7B] text-white'
       }`}
     >
       {/* Left: Logo and Title */}
-      <div className="flex items-center gap-3">
-        <span className="text-2xl" role="img" aria-label="bird">
-          {'\u{1F426}'}
-        </span>
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight leading-tight">
-            Find-A-Lifer
-          </h1>
-          <p className="text-xs text-blue-200 leading-tight">
-            Discover your next life bird
-          </p>
-        </div>
+      <div className="flex items-center gap-2">
+        <h1 className="text-sm font-semibold tracking-tight">
+          Find-A-Lifer
+        </h1>
       </div>
 
       {/* Right: Status + Dark Mode Toggle */}
-      <div className="flex items-center gap-4">
-        {/* Server Status Indicator */}
-        <div className="flex items-center gap-2 text-sm">
-          <span
-            className={`w-2 h-2 rounded-full inline-block ${
-              serverStatus === 'connected'
-                ? 'bg-green-400 animate-pulse'
-                : serverStatus === 'connecting'
-                ? 'bg-yellow-400 animate-pulse'
-                : 'bg-red-400'
-            }`}
-          />
-          <span className="text-blue-200 text-xs hidden sm:inline">
-            {serverStatus === 'connected'
-              ? 'Connected'
+      <div className="flex items-center gap-3">
+        {/* Server Status — just a dot */}
+        <span
+          className={`w-1.5 h-1.5 rounded-full inline-block ${
+            serverStatus === 'connected'
+              ? 'bg-green-400'
               : serverStatus === 'connecting'
-              ? 'Connecting...'
-              : 'Disconnected'}
-          </span>
-        </div>
+              ? 'bg-yellow-400 animate-pulse'
+              : 'bg-red-400'
+          }`}
+          title={serverStatus === 'connected' ? 'Connected' : serverStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+        />
 
         {/* Dark Mode Toggle */}
         <button

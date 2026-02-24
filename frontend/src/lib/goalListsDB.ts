@@ -127,8 +127,8 @@ export async function deleteList(id: string): Promise<void> {
   })
 }
 
-// Add a species to a goal list
-export async function addSpeciesToList(listId: string, speciesCode: string): Promise<void> {
+// Add a species to a goal list. Returns true if added, false if already present (duplicate).
+export async function addSpeciesToList(listId: string, speciesCode: string): Promise<boolean> {
   const list = await getList(listId)
   if (!list) {
     throw new Error('Goal list not found')
@@ -138,7 +138,10 @@ export async function addSpeciesToList(listId: string, speciesCode: string): Pro
     list.speciesCodes.push(speciesCode)
     list.updatedAt = new Date().toISOString()
     await saveList(list)
+    return true
   }
+
+  return false
 }
 
 // Remove a species from a goal list

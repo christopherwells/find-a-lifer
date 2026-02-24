@@ -32,6 +32,9 @@ interface SidePanelProps {
   onSelectedRegionChange?: (regionId: string | null) => void
   heatmapOpacity?: number
   onHeatmapOpacityChange?: (opacity: number) => void
+  liferCountRange?: [number, number]
+  onLiferCountRangeChange?: (range: [number, number]) => void
+  dataRange?: [number, number]
 }
 
 interface Tab {
@@ -41,12 +44,12 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { id: 'explore', label: 'Explore', icon: '\u{1F5FA}' },
-  { id: 'species', label: 'Species', icon: '\u{1F426}' },
-  { id: 'goals', label: 'Goal Birds', icon: '\u{1F3AF}' },
-  { id: 'trip', label: 'Trip Plan', icon: '\u{2708}' },
-  { id: 'progress', label: 'Progress', icon: '\u{1F4CA}' },
-  { id: 'profile', label: 'Profile', icon: '\u{1F464}' },
+  { id: 'explore', label: 'Explore', icon: '' },
+  { id: 'species', label: 'Species', icon: '' },
+  { id: 'goals', label: 'Goals', icon: '' },
+  { id: 'trip', label: 'Plan', icon: '' },
+  { id: 'progress', label: 'Stats', icon: '' },
+  { id: 'profile', label: 'Profile', icon: '' },
 ]
 
 export default memo(function SidePanel({
@@ -69,7 +72,10 @@ export default memo(function SidePanel({
   selectedRegion = null,
   onSelectedRegionChange,
   heatmapOpacity = 0.8,
-  onHeatmapOpacityChange
+  onHeatmapOpacityChange,
+  liferCountRange,
+  onLiferCountRangeChange,
+  dataRange
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -83,22 +89,22 @@ export default memo(function SidePanel({
   return (
     <div
       data-testid="side-panel"
-      className={`h-full bg-white shadow-lg flex flex-col transition-all duration-300 ${
+      className={`h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ${
         collapsed ? 'w-12' : 'w-80'
       }`}
     >
       {/* Tab Navigation */}
       <nav
         data-testid="tab-navigation"
-        className="flex border-b border-gray-200 bg-gray-50"
+        className="flex border-b border-gray-200 dark:border-gray-700"
       >
         {collapsed ? (
           <button
             onClick={onToggle}
-            className="w-12 h-12 flex items-center justify-center text-[#2C3E7B] hover:bg-gray-100"
+            className="w-12 h-10 flex items-center justify-center text-[#2C3E7B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
             title="Expand panel"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
             </svg>
           </button>
@@ -108,23 +114,22 @@ export default memo(function SidePanel({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-2.5 px-1 text-xs font-medium text-center transition-colors ${
+                className={`flex-1 py-2 px-1 text-[11px] font-medium text-center transition-colors ${
                   activeTab === tab.id
-                    ? 'text-[#2C3E7B] border-b-2 border-[#2C3E7B] bg-white'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'text-[#2C3E7B] dark:text-blue-400 border-b-2 border-[#2C3E7B] dark:border-blue-400'
+                    : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                 }`}
                 title={tab.label}
               >
-                <span className="block text-base mb-0.5">{tab.icon}</span>
-                <span className="block truncate">{tab.label}</span>
+                {tab.label}
               </button>
             ))}
             <button
               onClick={onToggle}
-              className="px-2 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              className="px-1.5 flex items-center justify-center text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400"
               title="Collapse panel"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </button>
@@ -134,7 +139,7 @@ export default memo(function SidePanel({
 
       {/* Tab Content */}
       {!collapsed && (
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-3 dark:text-gray-200">
           {activeTab === 'explore' && (
             <ExploreTab
               currentWeek={currentWeek}
@@ -153,6 +158,9 @@ export default memo(function SidePanel({
               onSelectedRegionChange={onSelectedRegionChange}
               heatmapOpacity={heatmapOpacity}
               onHeatmapOpacityChange={onHeatmapOpacityChange}
+              liferCountRange={liferCountRange}
+              onLiferCountRangeChange={onLiferCountRangeChange}
+              dataRange={dataRange}
             />
           )}
           {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} />}

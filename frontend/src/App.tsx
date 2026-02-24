@@ -13,7 +13,9 @@ export interface SelectedLocation {
 }
 
 function App() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true'
+  })
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(26) // Default to week 26 (late June)
   const [viewMode, setViewMode] = useState<MapViewMode>('density')
@@ -25,7 +27,15 @@ function App() {
   const [activeGoalListId, setActiveGoalListId] = useState<string | null>(null)
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
   const [heatmapOpacity, setHeatmapOpacity] = useState(0.8) // Default to 80% opacity
+  const [liferCountRange, setLiferCountRange] = useState<[number, number]>([0, 9999])
+  const [dataRange, setDataRange] = useState<[number, number]>([0, 0])
   const { seenSpecies } = useLifeList()
+
+  // Persist dark mode and toggle class on document root
+  useEffect(() => {
+    localStorage.setItem('darkMode', String(darkMode))
+    document.documentElement.classList.toggle('dark', darkMode)
+  }, [darkMode])
 
   // Load all goal lists on startup
   useEffect(() => {
@@ -71,7 +81,7 @@ function App() {
   }, [activeGoalListId, goalLists])
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900">
       {/* Top Bar */}
       <TopBar
         darkMode={darkMode}
@@ -90,7 +100,7 @@ function App() {
           onViewModeChange={(mode) => {
             setViewMode(mode)
             // Reset goal birds only filter when switching away from density, probability, and species
-            if (mode !== 'density' && mode !== 'probability' && mode !== 'species') setGoalBirdsOnlyFilter(false)
+            if (mode !== 'density' && mode !== 'species') setGoalBirdsOnlyFilter(false)
             // Reset selected species when switching away from species view
             if (mode !== 'species') setSelectedSpecies(null)
           }}
@@ -112,6 +122,9 @@ function App() {
           onSelectedRegionChange={setSelectedRegion}
           heatmapOpacity={heatmapOpacity}
           onHeatmapOpacityChange={setHeatmapOpacity}
+          liferCountRange={liferCountRange}
+          onLiferCountRangeChange={setLiferCountRange}
+          dataRange={dataRange}
         />
 
         {/* Map Area */}
@@ -128,6 +141,8 @@ function App() {
             selectedRegion={selectedRegion}
             heatmapOpacity={heatmapOpacity}
             selectedLocation={selectedLocation}
+            liferCountRange={liferCountRange}
+            onDataRangeChange={setDataRange}
           />
         </div>
       </div>

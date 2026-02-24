@@ -2,6 +2,22 @@ import { memo, useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
+// Safe min/max for large arrays (avoids call stack overflow with spread on 100K+ elements)
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return 0
+  let min = arr[0]
+  for (let i = 1; i < arr.length; i++) if (arr[i] < min) min = arr[i]
+  return min
+}
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return 0
+  let max = arr[0]
+  for (let i = 1; i < arr.length; i++) if (arr[i] > max) max = arr[i]
+  return max
+}
+
+
+
 interface MapViewProps {
   darkMode?: boolean
   currentWeek?: number
@@ -14,6 +30,8 @@ interface MapViewProps {
   selectedRegion?: string | null
   heatmapOpacity?: number
   selectedLocation?: { cellId: number; coordinates: [number, number] } | null
+  liferCountRange?: [number, number]
+  onDataRangeChange?: (range: [number, number]) => void
 }
 
 interface OccurrenceRecord {
@@ -22,11 +40,16 @@ interface OccurrenceRecord {
   probability: number
 }
 
+// Summary data: [cell_id, species_count, max_prob_uint8]
+type WeeklySummary = [number, number, number][]
+
 interface SpeciesMeta {
   species_id: number
   speciesCode: string
   comName: string
   sciName: string
+  familyComName?: string
+  taxonOrder?: number
   conservStatus?: string
   difficultyLabel?: string
   isRestrictedRange?: boolean
@@ -54,31 +77,38 @@ interface LiferInCell {
   comName: string
   sciName: string
   probability: number
+  familyComName?: string
+  taxonOrder?: number
   conservStatus?: string
   difficultyLabel?: string
   isRestrictedRange?: boolean
 }
 
 /**
- * Generate a rainbow gradient color based on a normalized value (0 to 1)
- * Rainbow spectrum: red → orange → yellow → green → blue → indigo → violet
- * Returns an RGBA string with the given alpha value
+ * Viridis perceptual color gradient — designed for uniform readability.
+ * Dark purple (low) → teal → green → yellow (high).
+ * Perceptually uniform: equal steps in data produce equal visual contrast.
+ * Empty cells (no data) are fully transparent.
  */
-// MapLibre expression for rainbow color gradient using feature-state 'value' (0-1)
-function buildRainbowExpression(): maplibregl.ExpressionSpecification {
-  // 7 color stops matching getRainbowColor at normalized positions 0..1
+function buildHeatExpression(): maplibregl.ExpressionSpecification {
+  // Extended viridis: purple → teal → green → yellow → orange → red
+  // Stretches the classic viridis into warm tones for a wider perceptual range.
   return [
     'interpolate',
     ['linear'],
     ['coalesce', ['feature-state', 'value'], -1],
-    -1, 'rgba(200, 200, 200, 0.1)',  // Default: no data
-    0, 'rgba(255, 0, 0, 1)',          // Red
-    0.167, 'rgba(255, 127, 0, 1)',    // Orange
-    0.333, 'rgba(255, 255, 0, 1)',    // Yellow
-    0.5, 'rgba(0, 255, 0, 1)',        // Green
-    0.667, 'rgba(0, 0, 255, 1)',      // Blue
-    0.833, 'rgba(75, 0, 130, 1)',     // Indigo
-    1, 'rgba(148, 0, 211, 1)',        // Violet
+    -1,    'rgba(0, 0, 0, 0)',             // No data: fully transparent
+    0.001, '#440154',                       // Lowest: deep purple
+    0.1,   '#482878',                       // Very low: purple
+    0.2,   '#3E4A89',                       // Low: blue-purple
+    0.3,   '#31688E',                       // Low-mid: slate blue
+    0.4,   '#26838F',                       // Mid-low: teal
+    0.5,   '#1F9D8A',                       // Mid: green-teal
+    0.6,   '#6CCE59',                       // Mid-high: lime green
+    0.7,   '#B5DE2B',                       // High: yellow-green
+    0.8,   '#FDE725',                       // Very high: vivid yellow
+    0.9,   '#FCA50A',                       // Near-max: bright orange
+    1.0,   '#E23028',                       // Highest: red
   ] as maplibregl.ExpressionSpecification
 }
 
@@ -125,8 +155,8 @@ async function loadSpeciesMetaCache(): Promise<SpeciesMeta[]> {
 }
 
 // Helper function to generate legend tick labels
-function getLegendTicks(min: number, max: number, isPercentage: boolean, numTicks: number = 3): string[] {
-  if (max === 0) return ['0', '0', '0']
+function getLegendTicks(min: number, max: number, isPercentage: boolean, numTicks: number = 5): string[] {
+  if (max === 0) return Array(numTicks).fill('0')
 
   const ticks: string[] = []
   for (let i = 0; i < numTicks; i++) {
@@ -160,12 +190,16 @@ export default memo(function MapView({
   selectedSpecies = null,
   selectedRegion = null,
   heatmapOpacity = 0.8,
-  selectedLocation = null
+  selectedLocation = null,
+  liferCountRange = [0, 9999],
+  onDataRangeChange
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary>([])
   const [weeklyData, setWeeklyData] = useState<OccurrenceRecord[]>([])
   const [isLoadingWeek, setIsLoadingWeek] = useState(false)
+  const [gridReady, setGridReady] = useState(false)
   // Ref to track the set of species_ids that are unseen goal species
   const goalSpeciesIdSetRef = useRef<Set<number>>(new Set())
   // Counter incremented each time the goal species ID set is rebuilt, to trigger overlay re-render
@@ -181,6 +215,8 @@ export default memo(function MapView({
   const [legendMax, setLegendMax] = useState(0)
   // Track which cells have feature-state set (for efficient clearing)
   const featureStateCellIds = useRef<Set<number>>(new Set())
+  // Track last reported data range to avoid redundant callbacks
+  const lastReportedRangeRef = useRef<[number, number]>([0, 0])
 
   // Refs for latest values accessible inside map click handler
   const viewModeRef = useRef(viewMode)
@@ -188,6 +224,7 @@ export default memo(function MapView({
   const goalSpeciesCodesRef = useRef(goalSpeciesCodes)
   const seenSpeciesRef = useRef(seenSpecies)
   const selectedSpeciesRef = useRef(selectedSpecies)
+  const onDataRangeChangeRef = useRef(onDataRangeChange)
 
   // Keep refs updated with latest values for use in map event handlers
   useEffect(() => { viewModeRef.current = viewMode }, [viewMode])
@@ -195,6 +232,7 @@ export default memo(function MapView({
   useEffect(() => { goalSpeciesCodesRef.current = goalSpeciesCodes }, [goalSpeciesCodes])
   useEffect(() => { seenSpeciesRef.current = seenSpecies }, [seenSpecies])
   useEffect(() => { selectedSpeciesRef.current = selectedSpecies }, [selectedSpecies])
+  useEffect(() => { onDataRangeChangeRef.current = onDataRangeChange }, [onDataRangeChange])
 
   // Close popup when switching away from goal-birds mode
   useEffect(() => {
@@ -278,26 +316,53 @@ export default memo(function MapView({
     buildGoalSpeciesIdSet()
   }, [goalSpeciesCodes, seenSpecies])
 
-  // Load weekly occurrence data when currentWeek changes
+  // Load weekly summary data when currentWeek changes
+  // Summary is tiny (~80KB gzipped) and serves density + probability modes
   useEffect(() => {
     let cancelled = false
 
     const loadWeekData = async () => {
       setIsLoadingWeek(true)
       try {
-        const response = await fetch(`/api/weeks/${currentWeek}`)
+        // Try summary endpoint first (new format), fall back to full data
+        const summaryResponse = await fetch(`/api/weeks/${currentWeek}/summary`)
         if (cancelled) return
-        if (!response.ok) {
-          console.error(`Failed to load week ${currentWeek} data:`, response.statusText)
-          return
+        if (summaryResponse.ok) {
+          const summary: WeeklySummary = await summaryResponse.json()
+          if (cancelled) return
+          setWeeklySummary(summary)
+          setWeeklyData([]) // Clear full data — loaded on demand
+          console.log(`Loaded week ${currentWeek} summary: ${summary.length} cells`)
+        } else {
+          // Fallback: load full data (old format)
+          const response = await fetch(`/api/weeks/${currentWeek}`)
+          if (cancelled) return
+          if (!response.ok) {
+            console.error(`Failed to load week ${currentWeek} data:`, response.statusText)
+            return
+          }
+          const data: OccurrenceRecord[] = await response.json()
+          if (cancelled) return
+          setWeeklyData(data)
+          // Build summary from full data
+          const cellStats = new Map<number, { count: number; maxProb: number }>()
+          data.forEach((r) => {
+            if (r.probability <= 0) return
+            const existing = cellStats.get(r.cell_id)
+            if (existing) {
+              existing.count++
+              if (r.probability > existing.maxProb) existing.maxProb = r.probability
+            } else {
+              cellStats.set(r.cell_id, { count: 1, maxProb: r.probability })
+            }
+          })
+          const summary: WeeklySummary = []
+          cellStats.forEach(({ count, maxProb }, cellId) => {
+            summary.push([cellId, count, Math.round(maxProb * 200)])
+          })
+          setWeeklySummary(summary)
+          console.log(`Loaded week ${currentWeek} full data: ${data.length} records, built summary: ${summary.length} cells`)
         }
-        const data: OccurrenceRecord[] = await response.json()
-        if (cancelled) return
-        setWeeklyData(data)
-        console.log(`Loaded week ${currentWeek} data:`, {
-          recordCount: data.length,
-          sample: data.slice(0, 3),
-        })
       } catch (error) {
         if (!cancelled) {
           console.error(`Error loading week ${currentWeek} data:`, error)
@@ -406,13 +471,20 @@ export default memo(function MapView({
       if (!map.current) return
 
       try {
-        // Fetch grid GeoJSON from API
-        const response = await fetch('/api/grid')
+        // Fetch grid GeoJSON from API (cache: no-store avoids stale cached responses)
+        const response = await fetch('/api/grid', { cache: 'no-store' })
         if (!response.ok) {
           console.error('Failed to load grid data:', response.statusText)
           return
         }
         const gridData = await response.json()
+
+        // Validate response is GeoJSON
+        if (gridData.type !== 'FeatureCollection' || !Array.isArray(gridData.features)) {
+          console.error('Grid data is not valid GeoJSON:', Object.keys(gridData))
+          return
+        }
+        console.log(`Grid GeoJSON: ${gridData.features.length} features`)
 
         // Add grid data as a source
         map.current.addSource('grid', {
@@ -432,15 +504,26 @@ export default memo(function MapView({
           },
         })
 
-        // Add grid cell border layer
+        // Add grid cell border layer — subtle white outlines that define hex boundaries
         map.current.addLayer({
           id: 'grid-border',
           type: 'line',
           source: 'grid',
           paint: {
-            'line-color': '#088',
-            'line-width': 1,
-            'line-opacity': 0.5,
+            'line-color': 'rgba(255, 255, 255, 0.15)',
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              4, 0,
+              6, 0.3,
+              8, 0.5,
+              10, 0.8,
+            ],
+            'line-opacity': [
+              'interpolate', ['linear'], ['zoom'],
+              4, 0,
+              6, 0.15,
+              8, 0.3,
+            ],
           },
         })
 
@@ -467,98 +550,76 @@ export default memo(function MapView({
             const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat]
 
             if (viewModeRef.current === 'goal-birds') {
-              // Goal Birds mode: show inspect popup for this cell
-              const currentWeeklyData = weeklyDataRef.current
+              // Goal Birds mode: load cell data from API
               const currentGoalCodes = goalSpeciesCodesRef.current
               const currentSeenSpecies = seenSpeciesRef.current
 
-              if (!speciesMetaCache) {
-                console.warn('MapView: species metadata not yet loaded for popup')
-                return
-              }
+              // Use currentWeek from closure — get it from the slider's current value
+              const weekEl = document.querySelector<HTMLInputElement>('[data-testid="week-slider"]')
+              const week = weekEl ? parseInt(weekEl.value) : 26
 
-              // Find all goal species records for this cell
-              const cellRecords = currentWeeklyData.filter(
-                (r) => r.cell_id === cellId && r.probability > 0
-              )
+              fetch(`/api/weeks/${week}/cells/${cellId}`)
+                .then(r => r.json())
+                .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                  const goalBirds: GoalBirdInCell[] = []
+                  const idToMeta = new Map<number, SpeciesMeta>()
+                  if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
 
-              // Map species_id to speciesMeta for quick lookup
-              const idToMeta = new Map<number, SpeciesMeta>()
-              speciesMetaCache.forEach((s) => idToMeta.set(s.species_id, s))
+                  records.forEach((record) => {
+                    if (!currentGoalCodes.has(record.speciesCode)) return
+                    const meta = idToMeta.get(record.species_id)
+                    goalBirds.push({
+                      speciesCode: record.speciesCode,
+                      comName: record.comName,
+                      sciName: meta?.sciName || '',
+                      probability: record.probability,
+                      isSeen: currentSeenSpecies.has(record.speciesCode),
+                      conservStatus: meta?.conservStatus,
+                      difficultyLabel: meta?.difficultyLabel,
+                      isRestrictedRange: meta?.isRestrictedRange
+                    })
+                  })
 
-              // Build goal birds list for this cell
-              const goalBirds: GoalBirdInCell[] = []
-              cellRecords.forEach((record) => {
-                const meta = idToMeta.get(record.species_id)
-                if (!meta) return
-                if (!currentGoalCodes.has(meta.speciesCode)) return
-                goalBirds.push({
-                  speciesCode: meta.speciesCode,
-                  comName: meta.comName,
-                  sciName: meta.sciName,
-                  probability: record.probability,
-                  isSeen: currentSeenSpecies.has(meta.speciesCode),
-                  conservStatus: meta.conservStatus,
-                  difficultyLabel: meta.difficultyLabel,
-                  isRestrictedRange: meta.isRestrictedRange
+                  goalBirds.sort((a, b) => b.probability - a.probability)
+                  setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds })
+                  console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
                 })
-              })
-
-              // Sort by probability descending (highest probability first)
-              goalBirds.sort((a, b) => b.probability - a.probability)
-
-              setGoalBirdsPopup({
-                cellId,
-                coordinates: coords,
-                birds: goalBirds
-              })
-              console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
+                .catch(err => console.error('Goal Birds popup: error loading cell data', err))
             } else if (viewModeRef.current === 'density') {
-              // Density mode: show lifers (unseen species) in this cell
-              const currentWeeklyData = weeklyDataRef.current
+              // Density mode: load cell data from API
               const currentSeenSpecies = seenSpeciesRef.current
 
-              if (!speciesMetaCache) {
-                console.warn('MapView: species metadata not yet loaded for popup')
-                return
-              }
+              const weekEl = document.querySelector<HTMLInputElement>('[data-testid="week-slider"]')
+              const week = weekEl ? parseInt(weekEl.value) : 26
 
-              // Find all species records for this cell
-              const cellRecords = currentWeeklyData.filter(
-                (r) => r.cell_id === cellId && r.probability > 0
-              )
+              fetch(`/api/weeks/${week}/cells/${cellId}`)
+                .then(r => r.json())
+                .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                  const idToMeta = new Map<number, SpeciesMeta>()
+                  if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
 
-              // Map species_id to speciesMeta for quick lookup
-              const idToMeta = new Map<number, SpeciesMeta>()
-              speciesMetaCache.forEach((s) => idToMeta.set(s.species_id, s))
+                  const lifers: LiferInCell[] = []
+                  records.forEach((record) => {
+                    if (currentSeenSpecies.has(record.speciesCode)) return
+                    const meta = idToMeta.get(record.species_id)
+                    lifers.push({
+                      speciesCode: record.speciesCode,
+                      comName: record.comName,
+                      sciName: meta?.sciName || '',
+                      probability: record.probability,
+                      familyComName: meta?.familyComName,
+                      taxonOrder: meta?.taxonOrder,
+                      conservStatus: meta?.conservStatus,
+                      difficultyLabel: meta?.difficultyLabel,
+                      isRestrictedRange: meta?.isRestrictedRange
+                    })
+                  })
 
-              // Build lifers list for this cell (unseen species only)
-              const lifers: LiferInCell[] = []
-              cellRecords.forEach((record) => {
-                const meta = idToMeta.get(record.species_id)
-                if (!meta) return
-                // Only include unseen species
-                if (currentSeenSpecies.has(meta.speciesCode)) return
-                lifers.push({
-                  speciesCode: meta.speciesCode,
-                  comName: meta.comName,
-                  sciName: meta.sciName,
-                  probability: record.probability,
-                  conservStatus: meta.conservStatus,
-                  difficultyLabel: meta.difficultyLabel,
-                  isRestrictedRange: meta.isRestrictedRange
+                  lifers.sort((a, b) => b.probability - a.probability)
+                  setLifersPopup({ cellId, coordinates: coords, lifers })
+                  console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
                 })
-              })
-
-              // Sort by probability descending (highest probability first)
-              lifers.sort((a, b) => b.probability - a.probability)
-
-              setLifersPopup({
-                cellId,
-                coordinates: coords,
-                lifers
-              })
-              console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
+                .catch(err => console.error('Lifers popup: error loading cell data', err))
             } else {
               // Other modes: select location for trip planning
               setGoalBirdsPopup(null)
@@ -574,6 +635,9 @@ export default memo(function MapView({
         console.log('Grid data loaded successfully:', {
           featureCount: gridData.features?.length || 0,
         })
+        // Mark grid ready immediately — feature states work as soon as source is added.
+        // The previous once('idle') approach failed with 229K features (event never fired).
+        setGridReady(true)
       } catch (error) {
         console.error('Error loading grid data:', error)
       }
@@ -582,6 +646,7 @@ export default memo(function MapView({
     return () => {
       map.current?.remove()
       map.current = null
+      setGridReady(false)
     }
   }, [darkMode])
 
@@ -589,25 +654,22 @@ export default memo(function MapView({
   useEffect(() => {
     let cancelled = false
 
-    if (!map.current || !map.current.isStyleLoaded()) return
-    if (weeklyData.length === 0) return
+    if (!map.current || !gridReady) return
+    if (weeklySummary.length === 0 && weeklyData.length === 0) return
 
     // Helper: clear previous feature states and apply new ones
     const applyFeatureStates = (cellValues: Map<number, number>) => {
       if (!map.current) return
-      // Clear previous states
       featureStateCellIds.current.forEach((cellId) => {
         map.current!.removeFeatureState({ source: 'grid', id: cellId })
       })
       featureStateCellIds.current.clear()
-      // Set new states
       cellValues.forEach((value, cellId) => {
         map.current!.setFeatureState({ source: 'grid', id: cellId }, { value })
         featureStateCellIds.current.add(cellId)
       })
     }
 
-    // Helper: clear all feature states (for empty/neutral overlays)
     const clearFeatureStates = () => {
       if (!map.current) return
       featureStateCellIds.current.forEach((cellId) => {
@@ -616,30 +678,41 @@ export default memo(function MapView({
       featureStateCellIds.current.clear()
     }
 
+    const setNeutralOverlay = () => {
+      clearFeatureStates()
+      if (map.current?.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+      }
+      if (map.current?.getLayer('grid-border')) {
+        map.current.setPaintProperty('grid-border', 'line-color', '#999')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
+      }
+    }
+
+    const setHeatOverlay = () => {
+      if (map.current?.getLayer('grid-fill')) {
+        map.current.setPaintProperty('grid-fill', 'fill-color', buildHeatExpression())
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+      }
+      if (map.current?.getLayer('grid-border')) {
+        map.current.setPaintProperty('grid-border', 'line-color', '#666')
+        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+      }
+    }
+
     if (viewMode === 'species') {
-      // Species Range mode: highlight cells where the selected species occurs
+      // Species Range mode: load per-species data on demand from API
       if (!selectedSpecies) {
-        // No species selected: show faint neutral overlay
         setSelectedSpeciesMeta(null)
-        clearFeatureStates()
-        if (map.current?.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
-        }
-        if (map.current?.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#999')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
-        }
+        setNeutralOverlay()
         console.log('Species Range: no species selected')
         return
       }
 
-      // Look up species_id from cache (may need to load first)
       const lookupAndRender = async () => {
         if (!speciesMetaCache) {
-          try {
-            await loadSpeciesMetaCache()
-          } catch { return }
+          try { await loadSpeciesMetaCache() } catch { return }
         }
         if (cancelled || !speciesMetaCache) return
         const speciesMeta = speciesMetaCache.find((s) => s.speciesCode === selectedSpecies)
@@ -648,60 +721,48 @@ export default memo(function MapView({
           setSelectedSpeciesMeta(null)
           return
         }
-        const speciesId = speciesMeta.species_id
-        // Update state for legend display
         setSelectedSpeciesMeta(speciesMeta)
 
-        // Find all cells with this species (probability > 0)
-        const cellProbabilities = new Map<number, number>()
-        weeklyData.forEach((record) => {
-          if (record.species_id === speciesId && record.probability > 0) {
-            cellProbabilities.set(record.cell_id, record.probability)
+        // Load per-species data from API
+        try {
+          const response = await fetch(`/api/weeks/${currentWeek}/species/${selectedSpecies}`)
+          if (cancelled) return
+          if (!response.ok) {
+            console.warn(`Species Range: failed to load ${selectedSpecies} data`)
+            setNeutralOverlay()
+            return
           }
-        })
+          const records: { cell_id: number; probability: number }[] = await response.json()
+          if (cancelled) return
 
-        console.log(`Species Range: ${selectedSpecies} (id=${speciesId}) found in ${cellProbabilities.size} cells this week`)
+          const cellProbabilities = new Map<number, number>()
+          records.forEach((r) => {
+            if (r.probability > 0) cellProbabilities.set(r.cell_id, r.probability)
+          })
 
-        // Calculate min/max probabilities for legend
-        const probabilities = Array.from(cellProbabilities.values())
-        const minProb = probabilities.length > 0 ? Math.min(...probabilities) : 0
-        const maxProb = probabilities.length > 0 ? Math.max(...probabilities) : 0
-        setLegendMin(minProb)
-        setLegendMax(maxProb)
+          console.log(`Species Range: ${selectedSpecies} found in ${cellProbabilities.size} cells`)
 
-        if (cellProbabilities.size === 0) {
-          // Species not present anywhere this week
-          clearFeatureStates()
-          if (map.current && map.current?.getLayer('grid-fill')) {
-            map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-            map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+          const probabilities = Array.from(cellProbabilities.values())
+          setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
+          setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 0)
+
+          if (cellProbabilities.size === 0) {
+            setNeutralOverlay()
+            return
           }
-          if (map.current && map.current?.getLayer('grid-border')) {
-            map.current.setPaintProperty('grid-border', 'line-color', '#999')
-            map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
-          }
-          return
-        }
 
-        // Use feature-state for efficient per-cell coloring
-        applyFeatureStates(cellProbabilities)
-
-        if (map.current && map.current?.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
-        }
-        if (map.current && map.current?.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#666')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+          applyFeatureStates(cellProbabilities)
+          setHeatOverlay()
+        } catch (error) {
+          if (!cancelled) console.error('Species Range: error loading data', error)
         }
       }
 
       lookupAndRender()
       return
     } else if (viewMode === 'goal-birds') {
-      // Goal Birds mode: count unseen goal species per cell (amber/gold heatmap)
+      // Goal Birds mode: load batch species data from API
       if (goalSpeciesCodes.size === 0) {
-        // No goal species defined: show empty overlay
         clearFeatureStates()
         if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
@@ -711,121 +772,140 @@ export default memo(function MapView({
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
           map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
         }
-        console.log('Goal Birds: no goal species defined in any list')
+        console.log('Goal Birds: no goal species defined')
         return
       }
 
-      const goalSpeciesIdSet = goalSpeciesIdSetRef.current
-
-      // Count unseen goal species present in each cell (probability > 0)
-      const cellCounts = new Map<number, number>()
-      let maxCount = 0
-
-      weeklyData.forEach((record) => {
-        if (record.probability > 0 && goalSpeciesIdSet.has(record.species_id)) {
-          const prev = cellCounts.get(record.cell_id) || 0
-          const next = prev + 1
-          cellCounts.set(record.cell_id, next)
-          if (next > maxCount) maxCount = next
+      const loadGoalBirds = async () => {
+        const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+        if (goalSpeciesIdSet.size === 0) {
+          setNeutralOverlay()
+          return
         }
-      })
 
-      console.log(`Goal Birds overlay: ${cellCounts.size} cells with goal birds, max=${maxCount}, unseen goal species=${goalSpeciesIdSet.size}`)
+        try {
+          const ids = Array.from(goalSpeciesIdSet).join(',')
+          const response = await fetch(`/api/weeks/${currentWeek}/species-batch?ids=${ids}`)
+          if (cancelled) return
+          if (!response.ok) {
+            console.warn('Goal Birds: failed to load batch data')
+            setNeutralOverlay()
+            return
+          }
+          const batchData: Record<string, { cell_id: number; probability: number }[]> = await response.json()
+          if (cancelled) return
 
-      // Calculate min/max for legend
-      const counts = Array.from(cellCounts.values()).filter(c => c > 0)
-      const minCount = counts.length > 0 ? Math.min(...counts) : 0
-      setLegendMin(minCount)
-      setLegendMax(maxCount)
+          // Count goal species per cell
+          const cellCounts = new Map<number, number>()
+          let maxCount = 0
+          Object.values(batchData).forEach((records) => {
+            records.forEach((r) => {
+              if (r.probability > 0) {
+                const prev = cellCounts.get(r.cell_id) || 0
+                const next = prev + 1
+                cellCounts.set(r.cell_id, next)
+                if (next > maxCount) maxCount = next
+              }
+            })
+          })
 
-      if (maxCount === 0) {
-        // No goal birds present anywhere this week
-        clearFeatureStates()
-        if (map.current?.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+          console.log(`Goal Birds overlay: ${cellCounts.size} cells, max=${maxCount}, goal species=${goalSpeciesIdSet.size}`)
+
+          const counts = Array.from(cellCounts.values()).filter(c => c > 0)
+          setLegendMin(counts.length > 0 ? safeMin(counts) : 0)
+          setLegendMax(maxCount)
+
+          if (maxCount === 0) {
+            setNeutralOverlay()
+            return
+          }
+
+          const normalizedCounts = new Map<number, number>()
+          cellCounts.forEach((count, cellId) => {
+            if (count > 0) normalizedCounts.set(cellId, count / maxCount)
+          })
+          applyFeatureStates(normalizedCounts)
+
+          if (map.current?.getLayer('grid-fill')) {
+            map.current.setPaintProperty('grid-fill', 'fill-color', buildAmberExpression())
+            map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+          }
+          if (map.current?.getLayer('grid-border')) {
+            map.current.setPaintProperty('grid-border', 'line-color', '#666')
+            map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+          }
+        } catch (error) {
+          if (!cancelled) console.error('Goal Birds: error loading data', error)
         }
-        if (map.current?.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#999')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
-        }
-        return
       }
 
-      // Normalize counts to 0-1 and apply via feature-state
-      const normalizedCounts = new Map<number, number>()
-      cellCounts.forEach((count, cellId) => {
-        if (count > 0) {
-          normalizedCounts.set(cellId, count / maxCount)
-        }
-      })
-      applyFeatureStates(normalizedCounts)
-
-      if (map.current?.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', buildAmberExpression())
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
-      }
-      if (map.current?.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#666')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
-      }
-    } else if (viewMode === 'probability') {
-      // Probability mode: show max occurrence probability per cell
-      // When goalBirdsOnlyFilter is active, only consider goal species
+      loadGoalBirds()
+      return
+    } else if (viewMode === ('probability' as string)) {
+      // DISABLED — hidden from UI, kept for future redesign.
+      // S&T data provides relative abundance, not true detection probability.
       const goalSpeciesIdSet = goalSpeciesIdSetRef.current
       const useGoalFilter = goalBirdsOnlyFilter && goalSpeciesCodes.size > 0
 
-      // Compute max probability per cell (across all or goal species)
-      const cellMaxProbability = new Map<number, number>()
+      if (useGoalFilter) {
+        // Need per-species data for goal filter
+        const loadGoalProbability = async () => {
+          if (goalSpeciesIdSet.size === 0) {
+            setNeutralOverlay()
+            return
+          }
+          try {
+            const ids = Array.from(goalSpeciesIdSet).join(',')
+            const response = await fetch(`/api/weeks/${currentWeek}/species-batch?ids=${ids}`)
+            if (cancelled) return
+            if (!response.ok) { setNeutralOverlay(); return }
+            const batchData: Record<string, { cell_id: number; probability: number }[]> = await response.json()
+            if (cancelled) return
 
-      weeklyData.forEach((record) => {
-        if (record.probability <= 0) return
-        // When filter active, skip non-goal species
-        if (useGoalFilter && !goalSpeciesIdSet.has(record.species_id)) return
+            const cellMaxProbability = new Map<number, number>()
+            Object.values(batchData).forEach((records) => {
+              records.forEach((r) => {
+                if (r.probability > 0) {
+                  const existing = cellMaxProbability.get(r.cell_id) || 0
+                  if (r.probability > existing) cellMaxProbability.set(r.cell_id, r.probability)
+                }
+              })
+            })
 
-        const existing = cellMaxProbability.get(record.cell_id) || 0
-        if (record.probability > existing) {
-          cellMaxProbability.set(record.cell_id, record.probability)
+            console.log(`Probability overlay (goal filter): ${cellMaxProbability.size} cells`)
+            const probabilities = Array.from(cellMaxProbability.values())
+            setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
+            setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 1)
+
+            if (cellMaxProbability.size === 0) { setNeutralOverlay(); return }
+            applyFeatureStates(cellMaxProbability)
+            setHeatOverlay()
+          } catch (error) {
+            if (!cancelled) console.error('Probability: error loading goal data', error)
+          }
         }
-      })
-
-      console.log(`Probability overlay: ${cellMaxProbability.size} cells, goal filter=${useGoalFilter}, goal species=${goalSpeciesIdSet.size}`)
-
-      // Calculate min/max probabilities for legend
-      const probabilities = Array.from(cellMaxProbability.values())
-      const minProb = probabilities.length > 0 ? Math.min(...probabilities) : 0
-      const maxProb = probabilities.length > 0 ? Math.max(...probabilities) : 1
-      setLegendMin(minProb)
-      setLegendMax(maxProb)
-
-      if (cellMaxProbability.size === 0) {
-        clearFeatureStates()
-        if (map.current?.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
-        }
-        if (map.current?.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#999')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
-        }
+        loadGoalProbability()
         return
       }
 
-      // Probabilities are already 0-1, apply via feature-state
-      applyFeatureStates(cellMaxProbability)
+      // Use summary for max probability (no goal filter)
+      const cellMaxProbability = new Map<number, number>()
+      weeklySummary.forEach(([cellId, , maxProbU8]) => {
+        const prob = maxProbU8 / 200
+        if (prob > 0) cellMaxProbability.set(cellId, prob)
+      })
 
-      if (map.current?.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
-      }
-      if (map.current?.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#666')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
-      }
+      console.log(`Probability overlay: ${cellMaxProbability.size} cells (from summary)`)
+      const probabilities = Array.from(cellMaxProbability.values())
+      setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
+      setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 1)
+
+      if (cellMaxProbability.size === 0) { setNeutralOverlay(); return }
+      applyFeatureStates(cellMaxProbability)
+      setHeatOverlay()
     } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
-      // Density mode with Goal Birds Only filter: count unseen goal species per cell (teal)
+      // Density mode with Goal Birds Only filter: need batch species data
       if (goalSpeciesCodes.size === 0) {
-        // No goal species defined: show very faint overlay
         clearFeatureStates()
         if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
@@ -839,112 +919,138 @@ export default memo(function MapView({
         return
       }
 
-      const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+      const loadGoalDensity = async () => {
+        const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+        if (goalSpeciesIdSet.size === 0) { setNeutralOverlay(); return }
+        try {
+          const ids = Array.from(goalSpeciesIdSet).join(',')
+          const response = await fetch(`/api/weeks/${currentWeek}/species-batch?ids=${ids}`)
+          if (cancelled) return
+          if (!response.ok) { setNeutralOverlay(); return }
+          const batchData: Record<string, { cell_id: number; probability: number }[]> = await response.json()
+          if (cancelled) return
 
-      // Count unseen goal species present in each cell (probability > 0)
-      const cellCounts = new Map<number, number>()
-      let maxCount = 0
+          const cellCounts = new Map<number, number>()
+          let maxCount = 0
+          Object.values(batchData).forEach((records) => {
+            records.forEach((r) => {
+              if (r.probability > 0) {
+                const prev = cellCounts.get(r.cell_id) || 0
+                const next = prev + 1
+                cellCounts.set(r.cell_id, next)
+                if (next > maxCount) maxCount = next
+              }
+            })
+          })
 
-      weeklyData.forEach((record) => {
-        if (record.probability > 0 && goalSpeciesIdSet.has(record.species_id)) {
-          const prev = cellCounts.get(record.cell_id) || 0
-          const next = prev + 1
-          cellCounts.set(record.cell_id, next)
-          if (next > maxCount) maxCount = next
+          console.log(`Goal Birds Only density: ${cellCounts.size} cells, max=${maxCount}`)
+          const counts = Array.from(cellCounts.values()).filter(c => c > 0)
+          setLegendMin(counts.length > 0 ? safeMin(counts) : 0)
+          setLegendMax(maxCount)
+
+          if (maxCount === 0) { setNeutralOverlay(); return }
+          const normalizedCounts = new Map<number, number>()
+          cellCounts.forEach((count, cellId) => {
+            if (count > 0) normalizedCounts.set(cellId, count / maxCount)
+          })
+          applyFeatureStates(normalizedCounts)
+          setHeatOverlay()
+        } catch (error) {
+          if (!cancelled) console.error('Goal density: error loading data', error)
         }
-      })
-
-      console.log(`Goal Birds Only density: ${cellCounts.size} cells with goal birds, max=${maxCount}, unseen goal species=${goalSpeciesIdSet.size}`)
-
-      // Calculate min/max for legend
-      const counts = Array.from(cellCounts.values()).filter(c => c > 0)
-      const minCount = counts.length > 0 ? Math.min(...counts) : 0
-      setLegendMin(minCount)
-      setLegendMax(maxCount)
-
-      if (maxCount === 0) {
-        clearFeatureStates()
-        if (map.current?.getLayer('grid-fill')) {
-          map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
-        }
-        if (map.current?.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#999')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
-        }
-        return
       }
-
-      // Normalize counts to 0-1 and apply via feature-state
-      const normalizedCounts = new Map<number, number>()
-      cellCounts.forEach((count, cellId) => {
-        if (count > 0) {
-          normalizedCounts.set(cellId, count / maxCount)
-        }
-      })
-      applyFeatureStates(normalizedCounts)
-
-      if (map.current?.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
-      }
-      if (map.current?.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#666')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
-      }
+      loadGoalDensity()
+      return
     } else {
-      // Default density mode: lifer density heatmap based on number of UNSEEN species
-      // Build seenSpeciesIdSet from seenSpecies codes
-      const seenSpeciesIdSet = new Set<number>()
-      if (seenSpecies.size > 0 && speciesMetaCache) {
-        speciesMetaCache.forEach((s) => {
-          if (seenSpecies.has(s.speciesCode)) {
-            seenSpeciesIdSet.add(s.species_id)
+      // Default density mode
+      // If user has a life list, use the lifer-summary endpoint to subtract seen species
+      // Otherwise, use the pre-computed summary (total species per cell)
+      const loadDensity = async () => {
+        let cellLiferCounts = new Map<number, number>()
+
+        if (seenSpecies.size > 0) {
+          try {
+            const response = await fetch(`/api/weeks/${currentWeek}/lifer-summary`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ seen_species_codes: Array.from(seenSpecies) }),
+            })
+            if (cancelled) return
+            if (response.ok) {
+              const liferData: [number, number, number][] = await response.json()
+              liferData.forEach(([cellId, liferCount]) => {
+                if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
+              })
+            } else {
+              // Fallback to summary on error
+              weeklySummary.forEach(([cellId, speciesCount]) => {
+                if (speciesCount > 0) cellLiferCounts.set(cellId, speciesCount)
+              })
+            }
+          } catch (error) {
+            if (!cancelled) console.error('Lifer summary: error loading data', error)
+            // Fallback to summary
+            weeklySummary.forEach(([cellId, speciesCount]) => {
+              if (speciesCount > 0) cellLiferCounts.set(cellId, speciesCount)
+            })
+          }
+        } else {
+          // No life list — use pre-computed summary (total species per cell)
+          weeklySummary.forEach(([cellId, speciesCount]) => {
+            if (speciesCount > 0) cellLiferCounts.set(cellId, speciesCount)
+          })
+        }
+
+        if (cancelled) return
+
+        let maxLifers = 0
+        let minLifers = Infinity
+        cellLiferCounts.forEach((v) => {
+          if (v > maxLifers) maxLifers = v
+          if (v < minLifers) minLifers = v
+        })
+        if (cellLiferCounts.size === 0) minLifers = 0
+
+        // Report the unfiltered data range so the slider knows the bounds (only when changed)
+        if (lastReportedRangeRef.current[0] !== minLifers || lastReportedRangeRef.current[1] !== maxLifers) {
+          lastReportedRangeRef.current = [minLifers, maxLifers]
+          onDataRangeChangeRef.current?.([minLifers, maxLifers])
+        }
+
+        // Apply lifer count range filter
+        const [filterMin, filterMax] = liferCountRange
+        const filteredCounts = new Map<number, number>()
+        cellLiferCounts.forEach((liferCount, cellId) => {
+          if (liferCount >= filterMin && liferCount <= filterMax) {
+            filteredCounts.set(cellId, liferCount)
           }
         })
-      }
 
-      // Count number of unseen species per cell
-      const cellLiferCounts = new Map<number, number>()
-
-      weeklyData.forEach((record) => {
-        // Skip species that have been seen
-        if (seenSpeciesIdSet.has(record.species_id)) return
-        if (record.probability <= 0) return
-
-        const current = cellLiferCounts.get(record.cell_id) || 0
-        cellLiferCounts.set(record.cell_id, current + 1)
-      })
-
-      const maxLifers = Math.max(...Array.from(cellLiferCounts.values()), 0)
-      const minLifers = cellLiferCounts.size > 0 ? Math.min(...Array.from(cellLiferCounts.values())) : 0
-
-      // Update legend data range
-      setLegendMin(minLifers)
-      setLegendMax(maxLifers)
-
-      // Normalize lifer counts to 0-1 and apply via feature-state
-      const normalizedCounts = new Map<number, number>()
-      if (maxLifers > 0) {
-        cellLiferCounts.forEach((liferCount, cellId) => {
-          normalizedCounts.set(cellId, liferCount / maxLifers)
+        let filteredMax = 0
+        let filteredMin = Infinity
+        filteredCounts.forEach((v) => {
+          if (v > filteredMax) filteredMax = v
+          if (v < filteredMin) filteredMin = v
         })
-      }
-      applyFeatureStates(normalizedCounts)
+        if (filteredCounts.size === 0) filteredMin = 0
 
-      if (map.current?.getLayer('grid-fill')) {
-        map.current.setPaintProperty('grid-fill', 'fill-color', buildRainbowExpression())
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+        setLegendMin(filteredMin)
+        setLegendMax(filteredMax)
+
+        const normalizedCounts = new Map<number, number>()
+        if (filteredMax > 0) {
+          filteredCounts.forEach((liferCount, cellId) => {
+            normalizedCounts.set(cellId, liferCount / filteredMax)
+          })
+        }
+        applyFeatureStates(normalizedCounts)
+        setHeatOverlay()
       }
-      if (map.current?.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#666')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
-      }
-      console.log(`Updated density overlay with ${cellLiferCounts.size} cells, max lifers=${maxLifers}, seen species=${seenSpeciesIdSet.size}`)
+      loadDensity()
     }
 
     return () => { cancelled = true }
-  }, [weeklyData, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity])
+  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange])
 
   return (
     <div className="relative w-full h-full">
@@ -962,184 +1068,63 @@ export default memo(function MapView({
           </div>
         </div>
       )}
-      {viewMode === 'goal-birds' && (
-        <div
-          data-testid="goal-birds-legend"
-          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds Density</div>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            {(() => {
-              const ticks = getLegendTicks(legendMin, legendMax, false, 5)
-              return (
-                <>
-                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
-                  <span>{ticks[0]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
-                  <span>{ticks[1]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
-                  <span>{ticks[2]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
-                  <span>{ticks[3]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
-                  <span>{ticks[4]}</span>
-                </>
-              )
-            })()}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">Goal birds per cell</div>
-          {goalSpeciesCodes.size === 0 && (
-            <div className="text-xs text-amber-600 mt-1">
-              Add goal birds in the Goal Birds tab
-            </div>
-          )}
-        </div>
-      )}
+      {/* ── Unified gradient legend bar ── */}
+      {(() => {
+        // Determine legend config based on current view mode
+        let legendTitle = ''
+        let legendSubtitle = ''
+        let gradient = 'linear-gradient(to right, #440154, #482878, #3E4A89, #31688E, #26838F, #1F9D8A, #6CCE59, #B5DE2B, #FDE725, #FCA50A, #E23028)'
+        let showLegend = false
+        let isPercentage = false
+        let emptyMessage = ''
 
-      {/* Standard Lifer Density legend */}
-      {viewMode === 'density' && !goalBirdsOnlyFilter && (
-        <div
-          data-testid="lifer-density-legend"
-          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="text-xs font-semibold text-[#2C3E50]">🔭 Lifer Density</div>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            {(() => {
-              const ticks = getLegendTicks(legendMin, legendMax, false, 5)
-              return (
-                <>
-                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
-                  <span>{ticks[0]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
-                  <span>{ticks[1]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
-                  <span>{ticks[2]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
-                  <span>{ticks[3]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
-                  <span>{ticks[4]}</span>
-                </>
-              )
-            })()}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">Unseen species per area</div>
-        </div>
-      )}
+        if (viewMode === 'goal-birds') {
+          legendTitle = 'Goal Birds Density'
+          legendSubtitle = 'Goal birds per cell'
+          gradient = 'linear-gradient(to right, rgba(212,160,23,0.1), rgba(212,160,23,0.4), rgba(218,165,32,0.7), rgba(255,193,7,0.9), rgba(255,215,0,1))'
+          showLegend = true
+          emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
+        } else if (viewMode === 'density' && !goalBirdsOnlyFilter) {
+          legendTitle = seenSpecies.size > 0 ? 'Lifer Density' : 'Species Richness'
+          legendSubtitle = seenSpecies.size > 0 ? 'Unseen species per area' : 'Species present per area'
+          showLegend = true
+        } else if (viewMode === 'species' && selectedSpecies) {
+          legendTitle = selectedSpeciesMeta ? selectedSpeciesMeta.comName : 'Species Range'
+          legendSubtitle = 'Relative abundance'
+          isPercentage = true
+          showLegend = true
+        } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
+          legendTitle = 'Goal Birds Only'
+          legendSubtitle = 'Filtered species count'
+          showLegend = true
+          emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
+        }
 
-      {/* Species Range legend */}
-      {viewMode === 'species' && selectedSpecies && (
-        <div
-          data-testid="species-range-legend"
-          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="text-xs font-semibold text-[#2C3E50]">🐦 Species Range</div>
-          </div>
-          {selectedSpeciesMeta && (
-            <div className="text-sm font-medium text-[#2C3E7B] mb-1">
-              {selectedSpeciesMeta.comName}
-            </div>
-          )}
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            {(() => {
-              const ticks = getLegendTicks(legendMin, legendMax, true, 5)
-              return (
-                <>
-                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
-                  <span>{ticks[0]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
-                  <span>{ticks[1]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
-                  <span>{ticks[2]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
-                  <span>{ticks[3]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
-                  <span>{ticks[4]}</span>
-                </>
-              )
-            })()}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">Occurrence probability</div>
-        </div>
-      )}
+        if (!showLegend) return null
 
-      {/* Probability view legend */}
-      {viewMode === 'probability' && (
-        <div
-          data-testid="probability-legend"
-          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="text-xs font-semibold text-[#2C3E50]">
-              {goalBirdsOnlyFilter ? '🎯 Goal Birds Probability' : '📊 Occurrence Probability'}
+        const ticks = getLegendTicks(legendMin, legendMax, isPercentage, 5)
+        return (
+          <div
+            data-testid="map-legend"
+            className="absolute bottom-8 left-4 backdrop-blur-md bg-white/90 rounded-xl shadow-sm border border-white/60 px-3 py-2"
+            style={{ minWidth: '220px' }}
+          >
+            <div className="text-[11px] font-semibold text-gray-700 mb-1.5">{legendTitle}</div>
+            <div
+              className="h-2.5 rounded-full"
+              style={{ background: gradient }}
+            />
+            <div className="flex justify-between mt-1">
+              {ticks.map((tick, i) => (
+                <span key={i} className="text-[10px] text-gray-500">{tick}</span>
+              ))}
             </div>
+            {emptyMessage && (
+              <div className="text-[10px] text-amber-600 mt-1">{emptyMessage}</div>
+            )}
           </div>
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            {(() => {
-              const ticks = getLegendTicks(legendMin, legendMax, true, 5)
-              return (
-                <>
-                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
-                  <span>{ticks[0]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
-                  <span>{ticks[1]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
-                  <span>{ticks[2]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
-                  <span>{ticks[3]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
-                  <span>{ticks[4]}</span>
-                </>
-              )
-            })()}
-          </div>
-          {goalBirdsOnlyFilter && goalSpeciesCodes.size === 0 && (
-            <div className="text-xs text-purple-600 mt-1">
-              Add goal birds in the Goal Birds tab
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Goal Birds Only filter legend in density mode */}
-      {viewMode === 'density' && goalBirdsOnlyFilter && (
-        <div
-          data-testid="goal-birds-only-density-legend"
-          className="absolute bottom-12 left-4 bg-white bg-opacity-90 rounded-lg shadow-md border border-gray-200 px-3 py-2"
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="text-xs font-semibold text-[#2C3E50]">🎯 Goal Birds Only</div>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            {(() => {
-              const ticks = getLegendTicks(legendMin, legendMax, false, 5)
-              return (
-                <>
-                  <div className="w-4 h-3 rounded" style={{ backgroundColor: 'rgb(255, 0, 0)' }}></div>
-                  <span>{ticks[0]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(255, 255, 0)' }}></div>
-                  <span>{ticks[1]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 255, 0)' }}></div>
-                  <span>{ticks[2]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></div>
-                  <span>{ticks[3]}</span>
-                  <div className="w-4 h-3 rounded ml-1" style={{ backgroundColor: 'rgb(148, 0, 211)' }}></div>
-                  <span>{ticks[4]}</span>
-                </>
-              )
-            })()}
-          </div>
-          {goalSpeciesCodes.size === 0 && (
-            <div className="text-xs text-teal-600 mt-1">
-              Add goal birds in the Goal Birds tab
-            </div>
-          )}
-        </div>
-      )}
+        )
+      })()}
 
       {/* Goal Birds click-to-inspect popup */}
       {viewMode === 'goal-birds' && goalBirdsPopup && (
@@ -1253,11 +1238,8 @@ export default memo(function MapView({
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <div className="text-xs font-medium text-amber-700">
-                        {(bird.probability * 100).toFixed(1)}%
-                      </div>
                       {bird.isSeen && (
-                        <span className="text-xs text-green-600 font-medium ml-1" title="Already seen">✓</span>
+                        <span className="text-xs text-green-600 font-medium" title="Already seen">✓</span>
                       )}
                     </div>
                   </li>
@@ -1269,7 +1251,7 @@ export default memo(function MapView({
           {/* Footer hint */}
           <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 rounded-b-lg">
             <p className="text-xs text-gray-400 text-center">
-              Click another cell to update · Sorted by probability
+              Click another cell to update · Sorted by abundance
             </p>
           </div>
         </div>
@@ -1313,90 +1295,74 @@ export default memo(function MapView({
                 <p className="text-xs text-gray-400 mt-1">Try a different cell or week to find more lifers.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100">
-                {lifersPopup.lifers.map((lifer) => (
-                  <li
-                    key={lifer.speciesCode}
-                    data-testid={`lifer-item-${lifer.speciesCode}`}
-                    className="px-3 py-2 flex items-center justify-between"
-                  >
-                    <div className="min-w-0 flex-1 mr-2">
-                      <div className="text-sm font-medium text-gray-800">
-                        {lifer.comName}
+              <div>
+                {(() => {
+                  // Group lifers by family in eBird taxonomic order
+                  const familyMap = new Map<string, LiferInCell[]>()
+                  const familyMinOrder = new Map<string, number>()
+                  lifersPopup.lifers.forEach((lifer) => {
+                    const family = lifer.familyComName || 'Other'
+                    if (!familyMap.has(family)) familyMap.set(family, [])
+                    familyMap.get(family)!.push(lifer)
+                    const order = lifer.taxonOrder ?? 99999
+                    const cur = familyMinOrder.get(family) ?? 99999
+                    if (order < cur) familyMinOrder.set(family, order)
+                  })
+                  // Sort families by taxonomic order, species within by taxonOrder too
+                  const families = Array.from(familyMap.entries()).sort(
+                    (a, b) => (familyMinOrder.get(a[0]) ?? 99999) - (familyMinOrder.get(b[0]) ?? 99999)
+                  )
+                  families.forEach(([, lifers]) => lifers.sort((a, b) => (a.taxonOrder ?? 99999) - (b.taxonOrder ?? 99999)))
+                  return families.map(([family, lifers]) => (
+                    <div key={family}>
+                      <div className="px-2 py-0.5 bg-gray-100 border-b border-gray-200 sticky top-0">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{family}</span>
                       </div>
-                      <div className="text-xs text-gray-500 italic">
-                        {lifer.sciName}
-                      </div>
-                      {/* Badges */}
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {/* Conservation status badge */}
-                        {lifer.conservStatus && lifer.conservStatus !== 'Unknown' && (
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                              lifer.conservStatus === 'Least Concern'
-                                ? 'bg-green-100 text-green-800'
-                                : lifer.conservStatus === 'Near Threatened'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : lifer.conservStatus === 'Vulnerable'
-                                ? 'bg-orange-100 text-orange-800'
-                                : lifer.conservStatus === 'Endangered'
-                                ? 'bg-red-100 text-red-800'
-                                : lifer.conservStatus === 'Critically Endangered'
-                                ? 'bg-red-200 text-red-900'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                            data-testid={`popup-conservation-badge-${lifer.speciesCode}`}
-                          >
-                            🌿
-                          </span>
-                        )}
-                        {/* Difficulty badge */}
-                        {lifer.difficultyLabel && (
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                              lifer.difficultyLabel === 'Easy'
-                                ? 'bg-green-100 text-green-800'
-                                : lifer.difficultyLabel === 'Moderate'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : lifer.difficultyLabel === 'Hard'
-                                ? 'bg-orange-100 text-orange-800'
-                                : lifer.difficultyLabel === 'Very Hard'
-                                ? 'bg-red-100 text-red-800'
-                                : lifer.difficultyLabel === 'Extremely Hard'
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                            data-testid={`popup-difficulty-badge-${lifer.speciesCode}`}
-                          >
-                            🔭
-                          </span>
-                        )}
-                        {/* Restricted range badge */}
-                        {lifer.isRestrictedRange && (
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                            data-testid={`popup-restricted-badge-${lifer.speciesCode}`}
-                          >
-                            📍
-                          </span>
-                        )}
-                      </div>
+                      {lifers.map((lifer) => (
+                        <div
+                          key={lifer.speciesCode}
+                          data-testid={`lifer-item-${lifer.speciesCode}`}
+                          className="px-2 py-0.5 flex items-center border-b border-gray-50 leading-tight"
+                        >
+                          <span className="text-xs text-gray-800 truncate flex-1">{lifer.comName}</span>
+                          <div className="flex items-center gap-px flex-shrink-0 ml-1">
+                            {lifer.conservStatus && lifer.conservStatus !== 'Unknown' && lifer.conservStatus !== 'Least Concern' && (
+                              <span
+                                className={`text-[10px] w-4 h-4 flex items-center justify-center rounded ${
+                                  lifer.conservStatus === 'Near Threatened' ? 'bg-yellow-100 text-yellow-700'
+                                  : lifer.conservStatus === 'Vulnerable' ? 'bg-orange-100 text-orange-700'
+                                  : lifer.conservStatus === 'Endangered' ? 'bg-red-100 text-red-700'
+                                  : lifer.conservStatus === 'Critically Endangered' ? 'bg-red-200 text-red-900'
+                                  : 'bg-gray-100 text-gray-500'
+                                }`}
+                                title={lifer.conservStatus}
+                              >!</span>
+                            )}
+                            {lifer.difficultyLabel && lifer.difficultyLabel !== 'Easy' && lifer.difficultyLabel !== 'Moderate' && (
+                              <span
+                                className={`text-[10px] w-4 h-4 flex items-center justify-center rounded ${
+                                  lifer.difficultyLabel === 'Hard' ? 'bg-orange-100 text-orange-700'
+                                  : lifer.difficultyLabel === 'Very Hard' ? 'bg-red-100 text-red-700'
+                                  : lifer.difficultyLabel === 'Extremely Hard' ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-gray-100 text-gray-500'
+                                }`}
+                                title={lifer.difficultyLabel}
+                              >H</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <div className="text-xs font-medium text-teal-700">
-                        {(lifer.probability * 100).toFixed(1)}%
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                  ))
+                })()}
+              </div>
             )}
           </div>
 
           {/* Footer hint */}
           <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 rounded-b-lg">
             <p className="text-xs text-gray-400 text-center">
-              Click another cell to update · Sorted by probability
+              Click another cell to update · Sorted by abundance
             </p>
           </div>
         </div>

@@ -16,7 +16,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const [selectedConservStatus, setSelectedConservStatus] = useState<string>('') // '' means "All"
   const [selectedInvasionStatus, setSelectedInvasionStatus] = useState<string>('') // '' means "All"
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('') // '' means "All Difficulties"
-  const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
+  const { isSpeciesSeen, toggleSpecies, markSpeciesSeen, markSpeciesUnseen, getTotalSeen } = useLifeList()
 
   // Region filtering state
   const [regionSpeciesCodes, setRegionSpeciesCodes] = useState<Set<string> | null>(null)
@@ -287,10 +287,10 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#2C3E50]">Species Checklist</h3>
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
+        <div className="flex items-center justify-center py-6">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2C3E7B]"></div>
         </div>
       </div>
     )
@@ -298,12 +298,10 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
 
   if (error) {
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#2C3E50]">Species Checklist</h3>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p className="text-xs text-red-700">
-            <span className="font-medium">Error:</span> {error}
-          </p>
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
+        <div className="bg-red-50 dark:bg-red-900/30 rounded-lg p-2">
+          <p className="text-[11px] text-red-700 dark:text-red-400">{error}</p>
         </div>
       </div>
     )
@@ -318,42 +316,93 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     0
   )
 
+  // Count active filters for the clear filters button
+  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty].filter(v => v !== '').length
+
+  const clearAllFilters = () => {
+    setSelectedFamily('')
+    setSelectedConservStatus('')
+    setSelectedInvasionStatus('')
+    setSelectedDifficulty('')
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="space-y-3 pb-3 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-[#2C3E50]">Species Checklist</h3>
-
-        {/* Species count */}
-        <div className="text-sm text-gray-600">
-          <span className="font-medium text-[#2C3E7B]">{seenSpecies}</span> of{' '}
-          <span className="font-medium">{totalSpecies}</span> species seen
-          {(selectedFamily || selectedConservStatus || selectedInvasionStatus || selectedDifficulty || regionSpeciesCodes) && (
-            <span className="text-xs text-gray-500 ml-2">
-              (showing {filteredSpeciesCount})
-            </span>
-          )}
+      <div className="space-y-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="text-[11px] text-red-500 hover:text-red-700 flex items-center gap-0.5"
+                data-testid="clear-filters-btn"
+              >
+                Clear Filters
+                <span className="bg-red-100 text-red-600 rounded-full px-1 text-[10px] font-semibold">{activeFilterCount}</span>
+              </button>
+            )}
+          </div>
+          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+            <span className="font-semibold text-[#2C3E7B] dark:text-blue-400">{seenSpecies}</span>/{totalSpecies}
+            {(selectedFamily || selectedConservStatus || selectedInvasionStatus || selectedDifficulty || regionSpeciesCodes) && (
+              <span className="text-gray-400 dark:text-gray-500 ml-1">({filteredSpeciesCount} shown)</span>
+            )}
+          </span>
         </div>
 
         {/* Region filter indicator */}
         {regionName && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-2" data-testid="region-filter-indicator">
-            <p className="text-xs text-blue-700">
-              <span className="font-medium">📍 Region Filter:</span> Showing only species found in {regionName}
+          <div className="bg-blue-50 dark:bg-blue-900/30 rounded px-2 py-1" data-testid="region-filter-indicator">
+            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+              Filtered to {regionName}
             </p>
           </div>
         )}
 
-        {/* Family filter dropdown */}
-        <div>
-          <label htmlFor="family-filter" className="block text-xs font-medium text-gray-700 mb-1">
-            Filter by Family
-          </label>
+        {/* Search box with autocomplete */}
+        <div className="relative">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search species..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            onFocus={() => searchTerm.trim().length > 0 && setShowSuggestions(true)}
+            className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+            data-testid="species-search-input"
+          />
+
+          {/* Autocomplete suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+              data-testid="autocomplete-suggestions"
+            >
+              {suggestions.map((species) => (
+                <button
+                  key={species.speciesCode}
+                  onClick={() => handleSelectSuggestion(species)}
+                  className="w-full text-left px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-50 dark:border-gray-700 last:border-b-0 transition-colors"
+                  data-testid={`suggestion-${species.speciesCode}`}
+                >
+                  <div className="text-xs font-medium text-[#2C3E50] dark:text-gray-200">{species.comName}</div>
+                  <div className="text-[10px] text-gray-400 italic">{species.sciName} · {species.familyComName}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 2x2 Filter Grid — no labels, placeholder text serves as label */}
+        <div className="grid grid-cols-2 gap-1.5">
           <select
             id="family-filter"
             value={selectedFamily}
             onChange={(e) => setSelectedFamily(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
             data-testid="family-filter"
           >
             <option value="">All Families</option>
@@ -363,117 +412,87 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Conservation status filter */}
-        <div>
-          <label htmlFor="conservation-filter" className="block text-xs font-medium text-gray-700 mb-1">
-            Conservation Status
-          </label>
           <select
             id="conservation-filter"
             value={selectedConservStatus}
             onChange={(e) => setSelectedConservStatus(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
             data-testid="conservation-filter"
           >
-            <option value="">All Conservation Statuses</option>
-            <option value="Least Concern">🟢 Least Concern</option>
-            <option value="Near Threatened">🟡 Near Threatened</option>
-            <option value="Vulnerable">🟠 Vulnerable</option>
-            <option value="Endangered">🔴 Endangered</option>
-            <option value="Critically Endangered">🔴 Critically Endangered</option>
-            <option value="Extinct in the Wild">⚫ Extinct in the Wild</option>
-            <option value="Data Deficient">❓ Data Deficient</option>
+            <option value="">All Statuses</option>
+            <option value="Least Concern">Least Concern</option>
+            <option value="Near Threatened">Near Threatened</option>
+            <option value="Vulnerable">Vulnerable</option>
+            <option value="Endangered">Endangered</option>
+            <option value="Critically Endangered">Critically Endangered</option>
+            <option value="Extinct in the Wild">Extinct in Wild</option>
+            <option value="Data Deficient">Data Deficient</option>
             <option value="Unknown">Unknown</option>
           </select>
-        </div>
-
-        {/* Invasion status filter */}
-        <div>
-          <label htmlFor="invasion-filter" className="block text-xs font-medium text-gray-700 mb-1">
-            Origin Status
-          </label>
           <select
             id="invasion-filter"
             value={selectedInvasionStatus}
             onChange={(e) => setSelectedInvasionStatus(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
             data-testid="invasion-filter"
           >
             <option value="">All Origins</option>
-            <option value="Native">🐦 Native</option>
-            <option value="Introduced">⚠️ Introduced</option>
-            <option value="Rare/Accidental">🔍 Rare/Accidental</option>
+            <option value="Native">Native</option>
+            <option value="Introduced">Introduced</option>
+            <option value="Rare/Accidental">Rare/Accidental</option>
           </select>
-        </div>
-
-        {/* Difficulty filter */}
-        <div>
-          <label htmlFor="difficulty-filter" className="block text-xs font-medium text-gray-700 mb-1">
-            Difficulty Level
-          </label>
           <select
             id="difficulty-filter"
             value={selectedDifficulty}
             onChange={(e) => setSelectedDifficulty(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
             data-testid="difficulty-filter"
           >
-            <option value="">All Difficulty Levels</option>
-            <option value="Easy">🟢 Easy</option>
-            <option value="Moderate">🟡 Moderate</option>
-            <option value="Hard">🟠 Hard</option>
-            <option value="Very Hard">🔴 Very Hard</option>
+            <option value="">All Levels</option>
+            <option value="Easy">Easy</option>
+            <option value="Moderate">Moderate</option>
+            <option value="Hard">Hard</option>
+            <option value="Very Hard">Very Hard</option>
           </select>
         </div>
 
-        {/* Search box with autocomplete */}
-        <div className="relative">
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search species or family..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            onFocus={() => searchTerm.trim().length > 0 && setShowSuggestions(true)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
-            data-testid="species-search-input"
-          />
-
-          {/* Autocomplete suggestions dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div
-              ref={suggestionsRef}
-              className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
-              data-testid="autocomplete-suggestions"
+        {/* Global Select All/None */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-1 text-[11px]">
+            <span className="text-gray-500 dark:text-gray-400">Select:</span>
+            <button
+              onClick={() => {
+                const allFiltered = Object.values(filteredFamilies).flat()
+                allFiltered.forEach(s => markSpeciesSeen(s.speciesCode, s.comName, 'manual'))
+              }}
+              className="text-[#2C3E7B] hover:underline font-medium"
+              data-testid="global-select-all"
             >
-              {suggestions.map((species) => (
-                <button
-                  key={species.speciesCode}
-                  onClick={() => handleSelectSuggestion(species)}
-                  className="w-full text-left px-3 py-2 hover:bg-[#2C3E7B] hover:bg-opacity-10 border-b border-gray-100 last:border-b-0 transition-colors"
-                  data-testid={`suggestion-${species.speciesCode}`}
-                >
-                  <div className="text-sm font-medium text-[#2C3E50]">{species.comName}</div>
-                  <div className="text-xs text-gray-500 italic">{species.sciName}</div>
-                  <div className="text-xs text-gray-400">{species.familyComName}</div>
-                </button>
-              ))}
-            </div>
-          )}
+              All
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              onClick={() => {
+                const allFiltered = Object.values(filteredFamilies).flat()
+                allFiltered.forEach(s => markSpeciesUnseen(s.speciesCode))
+              }}
+              className="text-[#2C3E7B] hover:underline font-medium"
+              data-testid="global-select-none"
+            >
+              None
+            </button>
+          </div>
+          <span className="text-[11px] text-gray-400 dark:text-gray-500">({filteredSpeciesCount} filtered)</span>
         </div>
       </div>
 
       {/* Species list by family */}
-      <div className="flex-1 overflow-y-auto mt-3 space-y-1">
+      <div className="flex-1 overflow-y-auto mt-2">
         {Object.keys(filteredFamilies).length === 0 ? (
-          <div className="text-sm text-gray-500 text-center py-4">
+          <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">
             {searchTerm
-              ? `No species found matching "${searchTerm}"`
-              : selectedConservStatus || selectedInvasionStatus || selectedDifficulty
-              ? 'No species match the active filters'
-              : 'No species found'}
+              ? `No species matching "${searchTerm}"`
+              : 'No species match the active filters'}
           </div>
         ) : (
           Object.keys(filteredFamilies).map((familyName) => {
@@ -481,16 +500,19 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
             const isCollapsed = collapsedFamilies.has(familyName)
 
             return (
-              <div key={familyName} className="border border-gray-200 rounded-lg overflow-hidden">
-                {/* Family header */}
-                <button
+              <div key={familyName}>
+                {/* Family header — compact, matching Lifers popup */}
+                <div
                   onClick={() => toggleFamily(familyName)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between px-2 py-1 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors sticky top-0 z-10 cursor-pointer select-none"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleFamily(familyName) }}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className={`h-4 w-4 text-gray-500 transition-transform ${
+                      className={`h-3 w-3 text-gray-400 transition-transform ${
                         isCollapsed ? '' : 'rotate-90'
                       }`}
                       viewBox="0 0 20 20"
@@ -502,84 +524,85 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span className="text-sm font-semibold text-[#2C3E50]">{familyName}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{familyName}</span>
                   </div>
-                  <span className="text-xs text-gray-500">{familySpecies.length}</span>
-                </button>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-400">{familySpecies.length}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        familySpecies.forEach(s => markSpeciesSeen(s.speciesCode, s.comName, 'manual'))
+                      }}
+                      className="text-[10px] text-[#2C3E7B] hover:underline font-medium px-0.5"
+                      data-testid={`family-select-all-${familyName}`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        familySpecies.forEach(s => markSpeciesUnseen(s.speciesCode))
+                      }}
+                      className="text-[10px] text-[#2C3E7B] hover:underline font-medium px-0.5"
+                      data-testid={`family-select-none-${familyName}`}
+                    >
+                      None
+                    </button>
+                  </div>
+                </div>
 
-                {/* Species in family */}
+                {/* Species in family — compact single-line items */}
                 {!isCollapsed && (
-                  <div className="divide-y divide-gray-100">
+                  <div>
                     {familySpecies.map((species) => (
                       <div
                         key={species.species_id}
                         ref={(el) => {
                           speciesRefs.current[species.speciesCode] = el
                         }}
-                        className={`px-3 py-2 transition-colors ${
+                        className={`flex items-center gap-1.5 px-2 py-1 border-b border-gray-50 dark:border-gray-800 transition-colors ${
                           highlightedSpecies === species.speciesCode
-                            ? 'bg-yellow-100 ring-2 ring-yellow-400'
-                            : 'hover:bg-blue-50'
+                            ? 'bg-yellow-50 dark:bg-yellow-900/30 ring-1 ring-yellow-300 dark:ring-yellow-600'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                         data-testid={`species-item-${species.speciesCode}`}
                       >
-                        <div className="flex items-start gap-2">
-                          {/* Functional checkbox with IndexedDB persistence */}
-                          <input
-                            type="checkbox"
-                            checked={isSpeciesSeen(species.speciesCode)}
-                            onChange={() => toggleSpecies(species.speciesCode, species.comName)}
-                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer"
-                          />
-                          {/* Clickable species name area opens info card */}
-                          <button
-                            className="flex-1 min-w-0 text-left"
-                            onClick={() => setSelectedSpeciesCard(species)}
-                            title={`View ${species.comName} info`}
-                            data-testid={`species-info-btn-${species.speciesCode}`}
-                          >
-                            {/* Common name */}
-                            <div className="text-sm font-medium text-[#2C3E50] hover:text-[#2C3E7B] truncate">
-                              {species.comName}
-                            </div>
-                            {/* Scientific name */}
-                            <div className="text-xs italic text-gray-600 truncate">
-                              {species.sciName}
-                            </div>
-                            {/* Badges */}
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {species.conservStatus && species.conservStatus !== 'Unknown' && (
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${species.conservStatus === 'Least Concern' ? 'bg-green-100 text-green-800' : species.conservStatus === 'Near Threatened' ? 'bg-yellow-100 text-yellow-800' : species.conservStatus === 'Vulnerable' ? 'bg-orange-100 text-orange-800' : species.conservStatus === 'Endangered' ? 'bg-red-100 text-red-800' : species.conservStatus === 'Critically Endangered' ? 'bg-red-200 text-red-900' : 'bg-gray-100 text-gray-600'}`} data-testid={`checklist-conservation-badge-${species.speciesCode}`}>🌿</span>
-                              )}
-                              {species.difficultyLabel && (
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${species.difficultyLabel === 'Easy' ? 'bg-green-100 text-green-800' : species.difficultyLabel === 'Moderate' ? 'bg-yellow-100 text-yellow-800' : species.difficultyLabel === 'Hard' ? 'bg-orange-100 text-orange-800' : species.difficultyLabel === 'Very Hard' ? 'bg-red-100 text-red-800' : species.difficultyLabel === 'Extremely Hard' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'}`} data-testid={`checklist-difficulty-badge-${species.speciesCode}`}>🔭</span>
-                              )}
-                              {species.isRestrictedRange && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" data-testid={`checklist-restricted-badge-${species.speciesCode}`}>📍</span>
-                              )}
-                            </div>
-                          </button>
-                          {/* Add to goal list button */}
-                          <button
-                            onClick={() => handleStartAddToGoalList(species.speciesCode, species.comName)}
-                            className="flex-shrink-0 p-1 text-[#2C3E7B] hover:bg-[#2C3E7B] hover:text-white rounded transition-colors"
-                            title="Add to goal list"
-                            data-testid={`add-to-goal-${species.speciesCode}`}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </button>
+                        {/* Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={isSpeciesSeen(species.speciesCode)}
+                          onChange={() => toggleSpecies(species.speciesCode, species.comName)}
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer flex-shrink-0"
+                        />
+                        {/* Species name — single line */}
+                        <button
+                          className="flex-1 min-w-0 text-left truncate"
+                          onClick={() => setSelectedSpeciesCard(species)}
+                          title={`${species.comName} (${species.sciName})`}
+                          data-testid={`species-info-btn-${species.speciesCode}`}
+                        >
+                          <span className="text-xs font-medium text-[#2C3E50] dark:text-gray-200 hover:text-[#2C3E7B] dark:hover:text-blue-400">
+                            {species.comName}
+                          </span>
+                        </button>
+                        {/* Inline status dots */}
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          {species.conservStatus && species.conservStatus !== 'Least Concern' && species.conservStatus !== 'Unknown' && (
+                            <span className={`w-1.5 h-1.5 rounded-full ${species.conservStatus === 'Near Threatened' ? 'bg-yellow-400' : species.conservStatus === 'Vulnerable' ? 'bg-orange-400' : 'bg-red-500'}`} title={species.conservStatus} data-testid={`checklist-conservation-badge-${species.speciesCode}`} />
+                          )}
+                          {species.isRestrictedRange && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Restricted range" data-testid={`checklist-restricted-badge-${species.speciesCode}`} />
+                          )}
                         </div>
+                        {/* Add to goal list */}
+                        <button
+                          onClick={() => handleStartAddToGoalList(species.speciesCode, species.comName)}
+                          className="flex-shrink-0 text-gray-300 hover:text-[#2C3E7B] transition-colors text-xs"
+                          title="Add to goal list"
+                          data-testid={`add-to-goal-${species.speciesCode}`}
+                        >
+                          +
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -597,13 +620,13 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
           onClick={handleCancelAddToGoalList}
         >
           <div
-            className="bg-white rounded-lg shadow-lg p-6 w-96 max-w-[90vw]"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-96 max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-[#2C3E50] mb-2">
+            <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-2">
               Add to Goal List
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               Select a goal list to add <span className="font-medium">{addingSpecies.name}</span>:
             </p>
 
@@ -619,10 +642,10 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
                   <button
                     key={list.id}
                     onClick={() => handleAddToGoalList(list.id)}
-                    className="w-full text-left px-4 py-3 border border-gray-300 rounded-lg hover:border-[#2C3E7B] hover:bg-blue-50 transition-colors"
+                    className="w-full text-left px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#2C3E7B] hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <div className="font-medium text-[#2C3E50]">{list.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="font-medium text-[#2C3E50] dark:text-gray-200">{list.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
                       {list.speciesCodes.length} bird{list.speciesCodes.length !== 1 ? 's' : ''}
                     </div>
                   </button>

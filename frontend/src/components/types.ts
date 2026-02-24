@@ -1,6 +1,6 @@
 import type { GoalList } from '../lib/goalListsDB'
 
-export type MapViewMode = 'density' | 'probability' | 'species' | 'goal-birds'
+export type MapViewMode = 'density' | 'species' | 'goal-birds'
 
 export interface SelectedLocation {
   cellId: number
@@ -55,6 +55,9 @@ export interface ExploreTabProps {
   onSelectedRegionChange?: (regionId: string | null) => void
   heatmapOpacity?: number
   onHeatmapOpacityChange?: (opacity: number) => void
+  liferCountRange?: [number, number]
+  onLiferCountRangeChange?: (range: [number, number]) => void
+  dataRange?: [number, number]
 }
 
 export interface SpeciesTabProps {
