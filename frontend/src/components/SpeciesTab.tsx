@@ -3,6 +3,7 @@ import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species, SpeciesByFamily, SpeciesTabProps } from './types'
 import SpeciesInfoCard from './SpeciesInfoCard'
+import { fetchSpecies } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
 
 export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
@@ -52,16 +53,12 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     return () => clearTimeout(timer)
   }, [highlightedSpecies])
 
-  // Fetch species data from API
+  // Fetch species data from API (shared cache)
   useEffect(() => {
-    const fetchSpecies = async () => {
+    const loadSpecies = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/species')
-        if (!response.ok) {
-          throw new Error(`Failed to fetch species: ${response.status}`)
-        }
-        const data: Species[] = await response.json()
+        const data: Species[] = await fetchSpecies()
 
         // Sort by taxonomic order
         const sorted = data.sort((a, b) => a.taxonOrder - b.taxonOrder)
@@ -84,7 +81,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
       }
     }
 
-    fetchSpecies()
+    loadSpecies()
   }, [])
 
   // Load goal lists on mount

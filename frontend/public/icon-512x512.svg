@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="64" fill="#0d9488"/>
+  <g transform="translate(256,256)">
+    <!-- Binoculars silhouette -->
+    <circle cx="-75" cy="-26" r="80" fill="none" stroke="#f0fdfa" stroke-width="14"/>
+    <circle cx="75" cy="-26" r="80" fill="none" stroke="#f0fdfa" stroke-width="14"/>
+    <rect x="-22" y="-42" width="44" height="32" rx="8" fill="#f0fdfa"/>
+    <!-- Bird silhouette -->
+    <path d="M-54 80 Q-28 26 26 54 Q54 58 80 48 L66 58 Q40 74 14 70 Q-14 64 -28 80 Z" fill="#f0fdfa"/>
+  </g>
+</svg>

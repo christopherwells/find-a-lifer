@@ -130,9 +130,8 @@ interface LifersPopup {
   lifers: LiferInCell[]
 }
 
-// Module-level cache for species metadata (to avoid re-fetching)
+// Module-level cache for species metadata (populated by shared dataCache, used for sync access)
 let speciesMetaCache: SpeciesMeta[] | null = null
-let speciesMetaPromise: Promise<SpeciesMeta[]> | null = null
 
 // Module-level cache for grid GeoJSON (persisted in IndexedDB)
 let gridGeoJsonCache: GeoJSON.FeatureCollection | null = null
@@ -189,22 +188,10 @@ const cellDataCache = new Map<string, { speciesCode: string; comName: string; pr
 
 async function loadSpeciesMetaCache(): Promise<SpeciesMeta[]> {
   if (speciesMetaCache) return speciesMetaCache
-  if (speciesMetaPromise) return speciesMetaPromise
-  speciesMetaPromise = fetch('/api/species')
-    .then((response) => {
-      if (!response.ok) throw new Error('Failed to fetch species metadata')
-      return response.json() as Promise<SpeciesMeta[]>
-    })
-    .then((data) => {
-      speciesMetaCache = data
-      console.log(`MapView: cached ${data.length} species metadata entries`)
-      return data
-    })
-    .catch((err) => {
-      speciesMetaPromise = null // Allow retry on failure
-      throw err
-    })
-  return speciesMetaPromise
+  const { fetchSpecies } = await import('../lib/dataCache')
+  const data = await fetchSpecies() as SpeciesMeta[]
+  speciesMetaCache = data
+  return data
 }
 
 // Helper function to generate legend tick labels
@@ -227,6 +214,7 @@ function getLegendTicks(min: number, max: number, isPercentage: boolean, numTick
 const REGION_BOUNDS: Record<string, { center: [number, number]; zoom: number }> = {
   us_northeast: { center: [-73.5, 42], zoom: 5.5 },
   us_southeast: { center: [-83.5, 31], zoom: 5.5 },
+  us_midwest: { center: [-93, 42], zoom: 5 },
   us_west: { center: [-114.5, 40.5], zoom: 4.5 },
   alaska: { center: [-150, 64], zoom: 4 },
   hawaii: { center: [-157, 20.5], zoom: 6.5 }
@@ -507,12 +495,8 @@ export default memo(function MapView({
           }
         }
         if (!gridData) {
-          const response = await fetch('/api/grid')
-          if (!response.ok) {
-            console.error('Failed to load grid data:', response.statusText)
-            return
-          }
-          const fetched = await response.json() as GeoJSON.FeatureCollection
+          const { fetchGrid } = await import('../lib/dataCache')
+          const fetched = await fetchGrid() as GeoJSON.FeatureCollection
           // Validate response is GeoJSON
           if (fetched.type !== 'FeatureCollection' || !Array.isArray(fetched.features)) {
             console.error('Grid data is not valid GeoJSON:', Object.keys(fetched))

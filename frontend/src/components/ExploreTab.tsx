@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ExploreTabProps, SpeciesMeta } from './types'
+import { fetchSpecies } from '../lib/dataCache'
 
 export default function ExploreTab({
   currentWeek = 26,
@@ -37,8 +38,7 @@ export default function ExploreTab({
     if (viewMode !== 'species') return
     if (allSpecies.length > 0) return // already loaded
     setIsLoadingSpecies(true)
-    fetch('/api/species')
-      .then((r) => r.json())
+    fetchSpecies()
       .then((data: SpeciesMeta[]) => {
         setAllSpecies(data)
         setIsLoadingSpecies(false)
@@ -133,6 +133,7 @@ export default function ExploreTab({
           <option value="">All Regions</option>
           <option value="us_northeast">US Northeast</option>
           <option value="us_southeast">US Southeast</option>
+          <option value="us_midwest">US Midwest</option>
           <option value="us_west">US West</option>
           <option value="alaska">Alaska</option>
           <option value="hawaii">Hawaii</option>

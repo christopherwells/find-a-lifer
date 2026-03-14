@@ -3,6 +3,7 @@ import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species } from './types'
 import { FamilyGroupSkeleton } from './Skeleton'
+import { fetchSpecies } from '../lib/dataCache'
 import SpeciesInfoCard from './SpeciesInfoCard'
 
 export default function GoalBirdsTab() {
@@ -269,9 +270,7 @@ export default function GoalBirdsTab() {
   useEffect(() => {
     const loadSpecies = async () => {
       try {
-        const response = await fetch('/api/species')
-        if (!response.ok) return
-        const data: Species[] = await response.json()
+        const data: Species[] = await fetchSpecies()
         setAllSpecies(data)
         console.log('Goal Birds: Loaded species metadata', data.length)
       } catch (error) {

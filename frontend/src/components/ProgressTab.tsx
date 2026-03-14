@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import type { Species } from './types'
 import { ProgressSkeleton } from './Skeleton'
+import { fetchSpecies } from '../lib/dataCache'
 
 export default function ProgressTab() {
   const { isSpeciesSeen, getTotalSeen } = useLifeList()
@@ -13,9 +14,7 @@ export default function ProgressTab() {
     const loadSpecies = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/species')
-        if (!response.ok) throw new Error('Failed to fetch species data')
-        const data = await response.json() as Species[]
+        const data = await fetchSpecies()
         setAllSpecies(data)
       } catch (error) {
         console.error('ProgressTab: failed to load species', error)

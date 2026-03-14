@@ -1,6 +1,55 @@
 import { useState, useRef } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
-import type { Species } from './types'
+import { fetchSpecies } from '../lib/dataCache'
+
+/**
+ * Parse a single CSV line into fields, handling:
+ * - Quoted fields containing commas (e.g., "Warbler, Yellow")
+ * - Escaped quotes within quoted fields (doubled quotes: "")
+ * - Different line endings (\r\n, \r, \n)
+ */
+function parseCSVLine(line: string): string[] {
+  const fields: string[] = []
+  let current = ''
+  let inQuotes = false
+  let i = 0
+
+  while (i < line.length) {
+    const ch = line[i]
+
+    if (inQuotes) {
+      if (ch === '"') {
+        // Check for escaped quote (doubled "")
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"'
+          i += 2
+        } else {
+          // End of quoted field
+          inQuotes = false
+          i++
+        }
+      } else {
+        current += ch
+        i++
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true
+        i++
+      } else if (ch === ',') {
+        fields.push(current)
+        current = ''
+        i++
+      } else {
+        current += ch
+        i++
+      }
+    }
+  }
+
+  fields.push(current)
+  return fields
+}
 
 export default function ProfileTab() {
   const { importSpeciesList, clearAllSpecies, getTotalSeen, isSpeciesSeen } = useLifeList()
@@ -23,12 +72,12 @@ export default function ProfileTab() {
     setImportError(null)
 
     try {
-      // Read the CSV file
+      // Read the CSV file, normalizing line endings
       const text = await file.text()
-      const lines = text.split('\n')
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
 
       // Parse CSV header to find column indices
-      const header = lines[0].split(',')
+      const header = parseCSVLine(lines[0])
       const comNameIndex = header.findIndex(col => col.toLowerCase().includes('common name'))
       const sciNameIndex = header.findIndex(col => col.toLowerCase().includes('scientific name'))
 
@@ -36,12 +85,8 @@ export default function ProfileTab() {
         throw new Error('CSV file must contain either "Common Name" or "Scientific Name" column')
       }
 
-      // Fetch species metadata from API
-      const response = await fetch('/api/species')
-      if (!response.ok) {
-        throw new Error('Failed to fetch species data')
-      }
-      const allSpecies = await response.json() as Array<{
+      // Fetch species metadata (shared cache)
+      const allSpecies = await fetchSpecies() as Array<{
         speciesCode: string
         comName: string
         sciName: string
@@ -67,7 +112,7 @@ export default function ProfileTab() {
         const line = lines[i].trim()
         if (!line) continue
 
-        const cols = line.split(',')
+        const cols = parseCSVLine(line)
 
         // Try to match by common name first, then scientific name
         let matched = false
@@ -128,9 +173,7 @@ export default function ProfileTab() {
   const handleExport = async () => {
     setExporting(true)
     try {
-      const response = await fetch('/api/species')
-      if (!response.ok) throw new Error('Failed to fetch species data')
-      const allSpecies = await response.json() as Species[]
+      const allSpecies = await fetchSpecies()
 
       const seenSpecies = allSpecies.filter(s => isSpeciesSeen(s.speciesCode))
 

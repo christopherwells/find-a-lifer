@@ -2,11 +2,13 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import type { Species, TripPlanTabProps, TripLifer, HotspotLocation, WeekOpportunity, SelectedLocation } from './types'
 import { ListSkeleton } from './Skeleton'
+import { fetchSpecies, fetchGrid } from '../lib/dataCache'
 
 // Bounding boxes for region filtering [west, south, east, north]
 const REGION_BBOX: Record<string, [number, number, number, number]> = {
   us_northeast: [-82, 37, -66, 48],
   us_southeast: [-92, 24, -75, 37],
+  us_midwest: [-105, 36, -80, 49],
   us_west: [-125, 31, -100, 49],
   alaska: [-180, 51, -130, 72],
   hawaii: [-161, 18, -154, 23],
@@ -71,39 +73,26 @@ export default function TripPlanTab({
     return `${monthNames[date.getMonth()]} ${date.getDate()}`
   }
 
-  // Load species metadata once
+  // Load species metadata once (shared cache)
   useEffect(() => {
-    const fetchSpecies = async () => {
-      try {
-        const response = await fetch('/api/species')
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data: Species[] = await response.json()
+    fetchSpecies()
+      .then(data => {
         setSpeciesData(data)
         setSpeciesLoaded(true)
         setDataError(null)
-        console.log('Trip Plan: loaded species metadata', data.length)
-      } catch (error) {
-        console.error('Trip Plan: failed to load species', error)
+      })
+      .catch(() => {
         setDataError('Failed to load species data. Is the server running?')
-      }
-    }
-    fetchSpecies()
+      })
   }, [])
 
-  // Load grid data
+  // Load grid data (shared cache)
   useEffect(() => {
-    const fetchGrid = async () => {
-      try {
-        const response = await fetch('/api/grid')
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const data = await response.json()
-        setGridData(data)
-      } catch (error) {
-        console.error('Trip Plan: failed to load grid', error)
-        setDataError('Failed to load grid data. Is the server running?')
-      }
-    }
     fetchGrid()
+      .then(data => setGridData(data))
+      .catch(() => {
+        setDataError('Failed to load grid data. Is the server running?')
+      })
   }, [])
 
   // Sync weeks with currentWeek
@@ -132,37 +121,42 @@ export default function TripPlanTab({
     }
   }, [selectedLocation, mode, nextCompareSlot])
 
-  // Calculate hotspots
+  // Calculate hotspots using lightweight lifer-summary endpoint
   useEffect(() => {
     if (mode !== 'hotspots' || !speciesLoaded || !gridData) return
+
+    const controller = new AbortController()
 
     const calc = async () => {
       setHotspotsLoading(true)
       try {
-        const response = await fetch(`/api/weeks/${hotspotWeek}`)
+        // Use lifer-summary endpoint: sends seen species, gets back per-cell lifer counts
+        const seenCodes = Array.from(seenSpecies)
+        const response = await fetch(`/api/weeks/${hotspotWeek}/lifer-summary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seen_species_codes: seenCodes }),
+          signal: controller.signal,
+        })
         if (!response.ok) {
           setHotspots([])
           setHotspotsLoading(false)
           return
         }
 
-        const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
-        const speciesById = new Map<number, Species>()
-        speciesData.forEach(sp => speciesById.set(sp.species_id, sp))
-
-        const cellCounts = new Map<number, number>()
-        weekData.forEach(r => {
-          const sp = speciesById.get(r.species_id)
-          if (!sp || seenSpecies.has(sp.speciesCode)) return
-          cellCounts.set(r.cell_id, (cellCounts.get(r.cell_id) || 0) + 1)
-        })
+        // Response: [[cell_id, lifer_count, max_prob_uint8], ...]
+        const summaryData: [number, number, number][] = await response.json()
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
           gridData.features.forEach((f: any) => {
-            const coords = f.geometry.coordinates[0][0]
-            if (f.properties.cell_id && coords) {
-              cellCoords.set(f.properties.cell_id, [coords[0], coords[1]])
+            const id = f.properties?.cell_id
+            if (id != null && f.properties.center_lng != null && f.properties.center_lat != null) {
+              cellCoords.set(id, [f.properties.center_lng, f.properties.center_lat])
+            } else if (id != null && f.geometry?.coordinates?.[0]?.[0]) {
+              // Fallback to first polygon vertex
+              const coords = f.geometry.coordinates[0][0]
+              cellCoords.set(id, [coords[0], coords[1]])
             }
           })
         }
@@ -170,61 +164,76 @@ export default function TripPlanTab({
         const regionBbox = selectedRegion ? REGION_BBOX[selectedRegion] : null
 
         const arr: HotspotLocation[] = []
-        cellCounts.forEach((count, cellId) => {
+        for (const [cellId, liferCount] of summaryData) {
+          if (liferCount === 0) continue
           const coords = cellCoords.get(cellId)
-          if (!coords) return
-          // Filter by region bounding box if a region is selected
+          if (!coords) continue
           if (regionBbox) {
             const [west, south, east, north] = regionBbox
-            if (coords[0] < west || coords[0] > east || coords[1] < south || coords[1] > north) return
+            if (coords[0] < west || coords[0] > east || coords[1] < south || coords[1] > north) continue
           }
-          arr.push({ cellId, coordinates: coords, liferCount: count, rank: 0 })
-        })
+          arr.push({ cellId, coordinates: coords, liferCount, rank: 0 })
+        }
 
         arr.sort((a, b) => b.liferCount - a.liferCount)
         arr.forEach((h, i) => h.rank = i + 1)
 
         setHotspots(arr.slice(0, 20))
       } catch (error) {
-        console.error('Trip Plan: hotspots error', error)
-        setHotspots([])
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Trip Plan: hotspots error', error)
+          setHotspots([])
+        }
       } finally {
         setHotspotsLoading(false)
       }
     }
     calc()
+
+    return () => controller.abort()
   }, [mode, hotspotWeek, speciesLoaded, speciesData, gridData, seenSpecies, selectedRegion])
 
-  // Calculate window of opportunity
+  // Calculate window of opportunity using per-species endpoint (parallel)
   useEffect(() => {
     if (mode !== 'window' || !selectedSpeciesForWindow || !speciesLoaded || !gridData) {
       setWeekOpportunities([])
       return
     }
 
+    const controller = new AbortController()
+
     const calc = async () => {
       setWindowLoading(true)
       try {
-        const targetId = selectedSpeciesForWindow.species_id
-        const weeklyData = new Map<number, Array<{ cell_id: number; probability: number }>>()
+        const speciesCode = selectedSpeciesForWindow.speciesCode
 
-        for (let week = 1; week <= 52; week++) {
+        // Fetch all 52 weeks in parallel using lightweight per-species endpoint
+        // Each response is ~50KB instead of ~40MB (full week data)
+        const weekPromises = Array.from({ length: 52 }, (_, i) => i + 1).map(async (week) => {
           try {
-            const response = await fetch(`/api/weeks/${week}`)
-            if (!response.ok) continue
-            const data: { cell_id: number; species_id: number; probability: number }[] = await response.json()
-            weeklyData.set(week, data.filter(r => r.species_id === targetId))
+            const response = await fetch(`/api/weeks/${week}/species/${speciesCode}`, {
+              signal: controller.signal,
+            })
+            if (!response.ok) return { week, records: [] as { cell_id: number; probability: number }[] }
+            const records: { cell_id: number; probability: number }[] = await response.json()
+            return { week, records }
           } catch (err) {
-            console.error(`Window: week ${week} failed`, err)
+            if ((err as Error).name === 'AbortError') throw err
+            return { week, records: [] as { cell_id: number; probability: number }[] }
           }
-        }
+        })
+
+        const weeklyResults = await Promise.all(weekPromises)
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
           gridData.features.forEach((f: any) => {
-            const coords = f.geometry.coordinates[0][0]
-            if (f.properties.cell_id && coords) {
-              cellCoords.set(f.properties.cell_id, [coords[0], coords[1]])
+            const id = f.properties?.cell_id
+            if (id != null && f.properties.center_lng != null && f.properties.center_lat != null) {
+              cellCoords.set(id, [f.properties.center_lng, f.properties.center_lat])
+            } else if (id != null && f.geometry?.coordinates?.[0]?.[0]) {
+              const coords = f.geometry.coordinates[0][0]
+              cellCoords.set(id, [coords[0], coords[1]])
             }
           })
         }
@@ -232,8 +241,7 @@ export default function TripPlanTab({
         const regionBbox = selectedRegion ? REGION_BBOX[selectedRegion] : null
 
         const opps: WeekOpportunity[] = []
-        weeklyData.forEach((records, week) => {
-          // Filter records by region if selected
+        for (const { week, records } of weeklyResults) {
           const filtered = regionBbox
             ? records.filter(r => {
                 const coords = cellCoords.get(r.cell_id)
@@ -242,7 +250,7 @@ export default function TripPlanTab({
                 return coords[0] >= west && coords[0] <= east && coords[1] >= south && coords[1] <= north
               })
             : records
-          if (filtered.length === 0) return
+          if (filtered.length === 0) continue
           const avgProb = filtered.reduce((sum, r) => sum + r.probability, 0) / filtered.length
           const topLocs = filtered
             .sort((a, b) => b.probability - a.probability)
@@ -253,19 +261,23 @@ export default function TripPlanTab({
               probability: r.probability
             }))
           opps.push({ week, avgProbability: avgProb, topLocations: topLocs })
-        })
+        }
 
         opps.sort((a, b) => b.avgProbability - a.avgProbability)
         setWeekOpportunities(opps.slice(0, 10))
         console.log(`Window: found ${opps.length} weeks for ${selectedSpeciesForWindow.comName}`)
       } catch (error) {
-        console.error('Window: error', error)
-        setWeekOpportunities([])
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Window: error', error)
+          setWeekOpportunities([])
+        }
       } finally {
         setWindowLoading(false)
       }
     }
     calc()
+
+    return () => controller.abort()
   }, [mode, selectedSpeciesForWindow, speciesLoaded, gridData, selectedRegion])
 
   // Compare two locations
@@ -279,6 +291,7 @@ export default function TripPlanTab({
 
     const compareLocations = async () => {
       setCompareLoading(true)
+      const controller = new AbortController()
       try {
         // Build species lookup map
         const speciesById = new Map<number, Species>()
@@ -290,35 +303,32 @@ export default function TripPlanTab({
           weeksToLoad.push(w)
         }
 
-        // Accumulate probabilities for both locations
+        // Accumulate probabilities for both locations using per-cell endpoint
         const speciesAtA = new Map<number, { total: number; count: number }>()
         const speciesAtB = new Map<number, { total: number; count: number }>()
 
-        for (const week of weeksToLoad) {
-          try {
-            const response = await fetch(`/api/weeks/${week}`)
-            if (!response.ok) continue
-            const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
+        // Fetch cell data for both locations across all weeks in parallel
+        const cellFetches = weeksToLoad.flatMap(week => [
+          fetch(`/api/weeks/${week}/cells/${locationA!.cellId}`, { signal: controller.signal })
+            .then(r => r.ok ? r.json() : [])
+            .then(data => ({ week, location: 'A' as const, data: data as { species_id: number; probability: number }[] }))
+            .catch(() => ({ week, location: 'A' as const, data: [] as { species_id: number; probability: number }[] })),
+          fetch(`/api/weeks/${week}/cells/${locationB!.cellId}`, { signal: controller.signal })
+            .then(r => r.ok ? r.json() : [])
+            .then(data => ({ week, location: 'B' as const, data: data as { species_id: number; probability: number }[] }))
+            .catch(() => ({ week, location: 'B' as const, data: [] as { species_id: number; probability: number }[] })),
+        ])
 
-            // Filter for location A
-            weekData.filter(r => r.cell_id === locationA.cellId).forEach(record => {
-              const existing = speciesAtA.get(record.species_id) || { total: 0, count: 0 }
-              speciesAtA.set(record.species_id, {
-                total: existing.total + record.probability,
-                count: existing.count + 1
-              })
-            })
+        const results = await Promise.all(cellFetches)
 
-            // Filter for location B
-            weekData.filter(r => r.cell_id === locationB.cellId).forEach(record => {
-              const existing = speciesAtB.get(record.species_id) || { total: 0, count: 0 }
-              speciesAtB.set(record.species_id, {
-                total: existing.total + record.probability,
-                count: existing.count + 1
-              })
+        for (const { location, data } of results) {
+          const target = location === 'A' ? speciesAtA : speciesAtB
+          for (const record of data) {
+            const existing = target.get(record.species_id) || { total: 0, count: 0 }
+            target.set(record.species_id, {
+              total: existing.total + record.probability,
+              count: existing.count + 1
             })
-          } catch (err) {
-            console.error(`Compare: failed to load week ${week}`, err)
           }
         }
 
@@ -401,6 +411,7 @@ export default function TripPlanTab({
 
     const loadTripData = async () => {
       setLoading(true)
+      const controller = new AbortController()
       try {
         // Build species lookup map
         const speciesById = new Map<number, Species>()
@@ -412,24 +423,31 @@ export default function TripPlanTab({
           weeksToLoad.push(w)
         }
 
-        // Accumulate probabilities for species in the selected cell
+        // Accumulate probabilities for species in the selected cell using per-cell endpoint
         const speciesProbabilities = new Map<number, { total: number; count: number }>()
 
-        for (const week of weeksToLoad) {
-          try {
-            const response = await fetch(`/api/weeks/${week}`)
-            if (!response.ok) continue
-            const weekData: { cell_id: number; species_id: number; probability: number }[] = await response.json()
-            const cellRecords = weekData.filter(r => r.cell_id === selectedLocation.cellId)
-            cellRecords.forEach(record => {
-              const existing = speciesProbabilities.get(record.species_id) || { total: 0, count: 0 }
-              speciesProbabilities.set(record.species_id, {
-                total: existing.total + record.probability,
-                count: existing.count + 1
+        // Fetch all weeks in parallel using lightweight per-cell endpoint (~50KB each instead of ~40MB)
+        const weekResults = await Promise.all(
+          weeksToLoad.map(async (week) => {
+            try {
+              const response = await fetch(`/api/weeks/${week}/cells/${selectedLocation.cellId}`, {
+                signal: controller.signal,
               })
+              if (!response.ok) return []
+              return await response.json() as { species_id: number; probability: number }[]
+            } catch {
+              return [] as { species_id: number; probability: number }[]
+            }
+          })
+        )
+
+        for (const cellRecords of weekResults) {
+          for (const record of cellRecords) {
+            const existing = speciesProbabilities.get(record.species_id) || { total: 0, count: 0 }
+            speciesProbabilities.set(record.species_id, {
+              total: existing.total + record.probability,
+              count: existing.count + 1
             })
-          } catch (err) {
-            console.error(`Trip Plan: failed to load week ${week}`, err)
           }
         }
 
