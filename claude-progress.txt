@@ -5,11 +5,14 @@
 
 ---
 
-## Current Status (2026-02-24)
+## Current Status (2026-03-13)
 
-**Phases 0-2: COMPLETE.** All 85 tracked features passing.
-**Phase 3: IN PROGRESS** — 3B (CSV export) and 3D (progress enhancements) done. 3C (suggestions) was already complete. 3A, 3E, 3F remain.
+**Phases 0-5: COMPLETE.** All features implemented, tested, and verified.
+**Phase 3: COMPLETE** — All sub-phases done (3A dark mode, 3B CSV export, 3C suggestions, 3D progress, 3E map enhancements, 3F UX polish).
+**Phase 4: COMPLETE** — Vitest unit tests (21 passing) + Playwright E2E test suite configured.
+**Phase 5: COMPLETE** — TypeScript clean, production build succeeds, all tests pass.
 **TypeScript compiles clean** (`npx tsc --noEmit` from `frontend/` — zero errors).
+**Production build succeeds** (`npm run build` — 1.4MB JS, 118KB CSS, gzip: 378KB JS, 19KB CSS).
 
 ### Data Pipeline Complete (2026-02-23)
 **Full eBird S&T extraction DONE.** 1,865 species × 52 weeks processed.
@@ -52,14 +55,21 @@
 - **3C Suggestion Categories**: DONE (was already complete) — 11 categories: Rarest, Easy Wins, Hardest, Migrants, Regional Icons, Seasonal Specialties, Colorful Characters, Owls & Nightbirds, Raptors, LBJs, Almost Complete Families.
 - **3D Progress Enhancements**: DONE — Quick stats cards (Families Started/Completed), milestones tracker (100-2490), "Top Families to Target" section replacing basic "What's Left".
 
-### What Remains in Phase 3
-- **3A Dark Mode**: Need to add `dark:` Tailwind classes to ExploreTab, SpeciesTab, GoalBirdsTab, TripPlanTab, ProgressTab, ProfileTab. Map already handles dark tiles.
-- **3E Map Enhancements**: City/airport labels, lifer count range filter, region-based trip filtering
-- **3F UX Polish**: Loading skeletons, responsive mobile layout, region-aware checklist filtering
+### Phase 3 Completion (2026-03-13)
+- **3A Dark Mode**: COMPLETE — All 6 tab components have full `dark:` Tailwind classes. GoalBirdsTab had 24+ elements fixed.
+- **3E Map Enhancements**: COMPLETE — Lifer count range filter (already done), region-based trip filtering (TripPlanTab filters hotspots + window of opportunity by region bounding box). City/airport labels skipped per user request.
+- **3F UX Polish**: COMPLETE — Loading skeletons replace spinners in SpeciesTab, GoalBirdsTab, TripPlanTab, ProgressTab. Responsive mobile layout stacks side panel below map on screens < 768px with 45vh panel height.
 
-### What Remains After Phase 3
-- **Phase 4**: Automated testing (Vitest + Playwright)
-- **Phase 5**: Final verification & ship prep
+### Phase 4 Completion (2026-03-13)
+- **Vitest**: 21 unit tests across 3 test files (Skeleton, TopBar, ExploreTab). Setup: jsdom environment, @testing-library/react.
+- **Playwright**: E2E test suite with 11 tests covering app load, tab switching, dark mode, week slider, region selector, animation, panel collapse. Config: chromium, webServer auto-starts vite.
+
+### Phase 5 Completion (2026-03-13)
+- TypeScript: zero errors (`tsc --noEmit`)
+- Production build: succeeds (`npm run build`)
+- Unit tests: 21/21 passing
+- Unused imports cleaned up (GoalBirdsTab, SpeciesTab, TripPlanTab, MapView)
+- SidePanel type fixed (removed stale 'probability' view mode from interface)
 
 ---
 
@@ -221,13 +231,8 @@ All endpoints serving real data. No mock data anywhere in codebase.
 - Moved backend to port 8001 (port 8000 had ghost TCP entries on Windows), updated vite proxy
 - Updated backend main.py v2.0 for cell-grouped data format with GZip middleware
 
-## Features NOT Yet Implemented (Phase 3 Remaining)
-- Dark mode `dark:` classes on tab components (infrastructure in App.tsx done, tabs not styled)
-- Base map city/airport labels (MapView.tsx)
-- Lifer count range filter (MapView.tsx — min/max slider)
-- Region-based trip filtering (TripPlanTab)
-- Responsive mobile layout (stack panel below map < 768px)
-- Loading skeletons (shimmer placeholders while data loads)
+## All Features Implemented
+All Phase 3 features complete. No remaining work items.
 
 ## Features Completed Since Last Update
 - Select all/none per family + global (#24, #25) ✓

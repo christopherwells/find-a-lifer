@@ -2,7 +2,27 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git checkout:*)",
+      "Bash(python -c:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(npx tsc:*)",
+      "Bash(dir:*)",
+      "Bash(python backend/build_species_metadata.py:*)",
+      "Bash(python:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(node:*)",
+      "Bash(for pid in 38596 14220 36028 44772 42092)",
+      "Bash(do taskkill //PID $pid //F)",
+      "Bash(done)",
+      "Bash(git status:*)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
