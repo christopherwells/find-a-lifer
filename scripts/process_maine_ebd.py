@@ -32,6 +32,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
 OUTPUT_DIR = PROJECT_DIR / "frontend" / "public" / "data"
+TAXONOMY_FILE = DATA_DIR / "ebird_taxonomy.json"
 
 # Effort filters (eBird best practices)
 MAX_DURATION = 360  # minutes
@@ -79,6 +80,25 @@ def main():
     if not sed_file.exists():
         print(f"ERROR: Sampling file not found: {sed_file}")
         sys.exit(1)
+
+    # Load eBird taxonomy for family names and species codes
+    ebird_taxonomy = {}  # sciName -> {familyComName, speciesCode, taxonOrder}
+    if TAXONOMY_FILE.exists():
+        print("  Loading eBird taxonomy...")
+        with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
+            taxonomy_data = json.load(f)
+        for entry in taxonomy_data:
+            sci = entry.get("sciName", "")
+            if sci and entry.get("category") == "species":
+                ebird_taxonomy[sci] = {
+                    "familyComName": entry.get("familyComName", ""),
+                    "speciesCode": entry.get("speciesCode", ""),
+                    "taxonOrder": entry.get("taxonOrder", 99999),
+                }
+        print(f"  eBird taxonomy loaded: {len(ebird_taxonomy)} species")
+    else:
+        print("  WARNING: eBird taxonomy file not found, family names will be missing")
+        print(f"  Expected: {TAXONOMY_FILE}")
 
     # --- Step 1: Read sampling events, apply effort filters ---
     print("\n[1/5] Reading sampling events...")
@@ -182,6 +202,8 @@ def main():
     detections = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     species_names = {}  # code -> common name
     species_scinames = {}  # code -> scientific name
+    species_taxon_order = {}  # taxon_id -> float (eBird taxonomic order)
+    species_family = {}  # taxon_id -> family common name
     total_obs = 0
     matched_obs = 0
 
@@ -216,10 +238,19 @@ def main():
             detections[taxon_id][cell_id][week] += 1
             matched_obs += 1
 
-            # Track names
+            # Track names, taxonomic order, and family
             if taxon_id not in species_names:
                 species_names[taxon_id] = common_name
                 species_scinames[taxon_id] = sci_name
+                raw_order = row.get("TAXONOMIC ORDER", "")
+                if raw_order:
+                    try:
+                        species_taxon_order[taxon_id] = float(raw_order)
+                    except ValueError:
+                        pass
+                family = row.get("FAMILY NAME", "")
+                if family:
+                    species_family[taxon_id] = family
 
             if total_obs % 2000000 == 0:
                 print(f"    {total_obs:,} observations, {matched_obs:,} matched, {len(species_names):,} species...")
@@ -285,7 +316,7 @@ def main():
     (OUTPUT_DIR / "weeks").mkdir(exist_ok=True)
     (OUTPUT_DIR / "species-weeks").mkdir(exist_ok=True)
 
-    # Generate species codes from common name (e.g., "Black-capped Chickadee" -> "bkcchi")
+    # Generate species codes from common name (fallback if taxonomy not available)
     def make_species_code(common_name):
         """Generate a 6-letter species code from common name (eBird convention)."""
         words = common_name.replace("-", " ").replace("'", "").split()
@@ -299,14 +330,24 @@ def main():
             return (words[0][:2] + words[1][:1] + words[2][:1] + words[3][:2]).lower()
 
     # Assign integer species IDs and generate codes
+    # Use eBird taxonomy for real species codes when available
     taxon_to_code = {}
     taxon_to_id = {}
     used_codes = set()
     sp_id = 1
+    taxonomy_matches = 0
 
     for taxon_id in sorted(species_names.keys()):
+        sci_name = species_scinames.get(taxon_id, "")
         name = species_names[taxon_id]
-        code = make_species_code(name)
+
+        # Try to get real eBird species code from taxonomy
+        if sci_name in ebird_taxonomy:
+            code = ebird_taxonomy[sci_name]["speciesCode"]
+            taxonomy_matches += 1
+        else:
+            code = make_species_code(name)
+
         # Handle duplicates
         orig_code = code
         suffix = 1
@@ -318,16 +359,29 @@ def main():
         taxon_to_id[taxon_id] = sp_id
         sp_id += 1
 
+    print(f"  Species codes: {taxonomy_matches} from eBird taxonomy, {len(species_names) - taxonomy_matches} generated")
+
     # Write species.json
     species_list = []
     for taxon_id in sorted(species_names.keys()):
-        species_list.append({
+        sci_name = species_scinames.get(taxon_id, "")
+        entry = {
             "species_id": taxon_to_id[taxon_id],
             "speciesCode": taxon_to_code[taxon_id],
             "comName": species_names[taxon_id],
-            "sciName": species_scinames.get(taxon_id, ""),
-            "taxonOrder": taxon_to_id[taxon_id],
-        })
+            "sciName": sci_name,
+            "taxonOrder": species_taxon_order.get(taxon_id, 99999),
+        }
+        # Add family name from eBird taxonomy
+        if sci_name in ebird_taxonomy:
+            entry["familyComName"] = ebird_taxonomy[sci_name]["familyComName"]
+            # Use eBird's taxon order if we don't have it from the EBD
+            if taxon_id not in species_taxon_order:
+                entry["taxonOrder"] = ebird_taxonomy[sci_name]["taxonOrder"]
+        elif taxon_id in species_family:
+            entry["familyComName"] = species_family[taxon_id]
+        species_list.append(entry)
+    species_list.sort(key=lambda s: s["taxonOrder"])
     with open(OUTPUT_DIR / "species.json", "w") as f:
         json.dump(species_list, f, separators=(",", ":"))
     print(f"  species.json: {len(species_list)} species")

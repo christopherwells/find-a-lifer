@@ -15,8 +15,8 @@ export default function ExploreTab({
   goalLists = [],
   activeGoalListId = null,
   onActiveGoalListIdChange,
-  selectedRegion = null,
-  onSelectedRegionChange,
+  selectedRegion: _selectedRegion = null,
+  onSelectedRegionChange: _onSelectedRegionChange,
   heatmapOpacity = 0.8,
   onHeatmapOpacityChange,
   liferCountRange = [0, 9999],
@@ -75,12 +75,11 @@ export default function ExploreTab({
   // Convert week number to approximate date label
   const getWeekLabel = (week: number): string => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    // Approximate: week 1 = early January, week 52 = late December
-    const dayOfYear = week * 7 - 3 // Approximate day of year
-    const date = new Date(2024, 0, dayOfYear) // Use 2024 as a reference year (leap year)
+    const dayOfYear = week * 7 - 3
+    const date = new Date(2024, 0, dayOfYear)
     const monthIndex = date.getMonth()
     const day = date.getDate()
-    return `Week ${week} (~${monthNames[monthIndex]} ${day})`
+    return `${monthNames[monthIndex]} ${day}`
   }
 
   // Keep ref in sync with currentWeek prop
@@ -90,13 +89,12 @@ export default function ExploreTab({
 
   // Animation controls
   const startAnimation = () => {
-    if (animationIntervalRef.current !== null) return // Already running
+    if (animationIntervalRef.current !== null) return
     setIsAnimating(true)
     animationIntervalRef.current = window.setInterval(() => {
-      // Auto-advance to next week, loop back to 1 after 52
       const nextWeek = currentWeekRef.current >= 52 ? 1 : currentWeekRef.current + 1
       onWeekChange?.(nextWeek)
-    }, 1000) // Advance every 1 second for smooth animation
+    }, 1000)
   }
 
   const stopAnimation = () => {
@@ -117,88 +115,48 @@ export default function ExploreTab({
   }, [])
 
   return (
-    <div className="space-y-3">
-      {/* Region Selector */}
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-[#2C3E50] dark:text-gray-300">
-          Region
-        </label>
-        <select
-          value={selectedRegion || ''}
-          onChange={(e) => onSelectedRegionChange?.(e.target.value || null)}
-          className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
-          data-testid="region-selector"
-          aria-label="Select geographic region"
-        >
-          <option value="">All Regions</option>
-          <option value="us_northeast">US Northeast</option>
-          <option value="us_southeast">US Southeast</option>
-          <option value="us_midwest">US Midwest</option>
-          <option value="us_west">US West</option>
-          <option value="alaska">Alaska</option>
-          <option value="hawaii">Hawaii</option>
-        </select>
-      </div>
-
+    <div className="space-y-5">
       {/* View Mode Toggle */}
-      <div className="space-y-1">
-        <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          View Mode
-        </label>
-        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 flex">
-          <button
-            data-testid="view-mode-density"
-            onClick={() => onViewModeChange?.('density')}
-            className={`flex-1 py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
-              viewMode === 'density'
-                ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            Richness
-          </button>
-          <button
-            data-testid="view-mode-species"
-            onClick={() => onViewModeChange?.('species')}
-            className={`flex-1 py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
-              viewMode === 'species'
-                ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            Range
-          </button>
-          <button
-            onClick={() => onViewModeChange?.('goal-birds')}
-            data-testid="view-mode-goal-birds"
-            className={`flex-1 py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
-              viewMode === 'goal-birds'
-                ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            Goals
-          </button>
+      <div>
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex gap-1">
+          {[
+            { mode: 'density' as const, label: 'Richness' },
+            { mode: 'species' as const, label: 'Range' },
+            { mode: 'goal-birds' as const, label: 'Goals' },
+          ].map(({ mode, label }) => (
+            <button
+              key={mode}
+              data-testid={`view-mode-${mode}`}
+              onClick={() => onViewModeChange?.(mode)}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg text-center transition-all ${
+                viewMode === mode
+                  ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:bg-gray-200 dark:active:bg-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Active Goal List Selector — shown when in Goal Birds view OR when Goal Birds Only filter is active */}
+      {/* Active Goal List Selector */}
       {(viewMode === 'goal-birds' || ((viewMode === 'density' || viewMode === 'species') && goalBirdsOnlyFilter)) && (
-        <div className="space-y-1">
-          <label className="block text-xs font-medium text-[#2C3E50] dark:text-gray-300">
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             Active Goal List
           </label>
           {goalLists.length === 0 ? (
-            <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-2">
+            <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-2.5">
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                No goal lists yet. Create one in the Goal Birds tab.
+                No goal lists yet. Create one in the Goals tab.
               </p>
             </div>
           ) : (
             <select
               value={activeGoalListId || ''}
               onChange={(e) => onActiveGoalListIdChange?.(e.target.value || null)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4A017] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[#2C3E7B] bg-white dark:bg-gray-800 dark:text-gray-200"
               data-testid="active-goal-list-selector"
               aria-label="Select active goal list for map"
             >
@@ -212,29 +170,27 @@ export default function ExploreTab({
         </div>
       )}
 
-      {/* Goal Birds Only Filter — shown in Species Richness and Species Range views */}
+      {/* Goal Birds Only Filter */}
       {(viewMode === 'density' || viewMode === 'species') && (
         <button
           data-testid="goal-birds-only-toggle"
           onClick={() => onGoalBirdsOnlyFilterChange?.(!goalBirdsOnlyFilter)}
-          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg border transition-colors text-xs font-medium ${
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-sm font-medium ${
             goalBirdsOnlyFilter
-              ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white'
-              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white shadow-sm'
+              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
           }`}
           aria-pressed={goalBirdsOnlyFilter}
         >
           <span>Goal Birds Only</span>
           <span
-            className={`inline-flex items-center justify-center w-8 h-4 rounded-full transition-colors ${
-              goalBirdsOnlyFilter ? 'bg-white/30' : 'bg-gray-200'
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              goalBirdsOnlyFilter ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
             }`}
           >
             <span
-              className={`inline-block w-3 h-3 rounded-full transition-transform ${
-                goalBirdsOnlyFilter
-                  ? 'bg-white translate-x-2'
-                  : 'bg-white -translate-x-2'
+              className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                goalBirdsOnlyFilter ? 'translate-x-4.5' : 'translate-x-1'
               }`}
             />
           </span>
@@ -243,8 +199,8 @@ export default function ExploreTab({
 
       {/* Species Picker — shown in Species Range view */}
       {viewMode === 'species' && (
-        <div className="space-y-1">
-          <label className="block text-xs font-medium text-[#2C3E50] dark:text-gray-300">
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             Select Species
           </label>
           {/* Search input */}
@@ -254,18 +210,18 @@ export default function ExploreTab({
             value={speciesSearch}
             onChange={(e) => setSpeciesSearch(e.target.value)}
             data-testid="species-range-search"
-            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[#2C3E7B] bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
           />
           {/* Selected species display */}
           {selectedSpecies && selectedSpeciesMeta && (
-            <div className="flex items-center justify-between bg-[#2C3E7B] text-white px-3 py-2 rounded-lg text-sm">
+            <div className="flex items-center justify-between bg-[#2C3E7B] text-white px-3 py-2.5 rounded-xl text-sm mt-2 shadow-sm">
               <div className="min-w-0 flex-1">
-                <div className="font-medium truncate">{selectedSpeciesMeta.comName}</div>
+                <div className="font-semibold truncate">{selectedSpeciesMeta.comName}</div>
                 <div className="text-xs text-blue-200 italic truncate">{selectedSpeciesMeta.sciName}</div>
               </div>
               <button
                 onClick={() => onSelectedSpeciesChange?.(null)}
-                className="ml-2 text-blue-200 hover:text-white transition-colors flex-shrink-0"
+                className="ml-2 text-blue-200 hover:text-white transition-colors flex-shrink-0 p-1"
                 aria-label="Clear selected species"
                 data-testid="clear-selected-species"
               >
@@ -277,19 +233,19 @@ export default function ExploreTab({
           )}
           {/* Species list */}
           {isLoadingSpecies ? (
-            <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-              <div className="animate-spin inline-block rounded-full h-4 w-4 border-2 border-[#2C3E7B] border-t-transparent mr-2"></div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+              <div className="animate-spin inline-block rounded-full h-5 w-5 border-2 border-[#2C3E7B] border-t-transparent mr-2"></div>
               Loading species...
             </div>
           ) : (
             <div
               data-testid="species-range-list"
-              className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg divide-y divide-gray-100 dark:divide-gray-700"
+              className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-xl mt-2 divide-y divide-gray-100 dark:divide-gray-700"
             >
               {filteredSpecies.length === 0 ? (
-                <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
                   {goalBirdsOnlyFilter && goalSpeciesCodes.size === 0
-                    ? 'No goal birds in your list. Add some in the Goal Birds tab.'
+                    ? 'No goal birds in your list. Add some in the Goals tab.'
                     : 'No species found.'}
                 </div>
               ) : (
@@ -301,12 +257,12 @@ export default function ExploreTab({
                       onSelectedSpeciesChange?.(s.speciesCode)
                       setSpeciesSearch('')
                     }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-blue-50 dark:hover:bg-gray-700 ${
-                      selectedSpecies === s.speciesCode ? 'bg-blue-100 dark:bg-gray-700 font-medium' : ''
+                    className={`w-full text-left px-3 py-2.5 text-sm transition-colors hover:bg-blue-50 dark:hover:bg-gray-700 ${
+                      selectedSpecies === s.speciesCode ? 'bg-blue-50 dark:bg-gray-700 font-medium' : ''
                     }`}
                   >
                     <div className="font-medium text-gray-800 dark:text-gray-200">{s.comName}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">{s.sciName}</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500 italic">{s.sciName}</div>
                   </button>
                 ))
               )}
@@ -321,61 +277,56 @@ export default function ExploreTab({
       )}
 
       {/* Week Slider */}
-      <div className="space-y-1">
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <label htmlFor="week-slider" className="text-xs font-medium text-[#2C3E50] dark:text-gray-300">
+          <label htmlFor="week-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300">
             Week
           </label>
-          <span className="text-xs font-medium text-[#2C3E7B] dark:text-blue-400">
-            {getWeekLabel(currentWeek)}
+          <span className="text-xs font-bold text-[#2C3E7B] dark:text-blue-400 bg-white dark:bg-gray-700 px-2.5 py-1 rounded-lg shadow-sm">
+            Wk {currentWeek} · {getWeekLabel(currentWeek)}
           </span>
         </div>
-        <input
-          id="week-slider"
-          type="range"
-          min="1"
-          max="52"
-          value={currentWeek}
-          onChange={(e) => onWeekChange?.(parseInt(e.target.value, 10))}
-          className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
-          data-testid="week-slider"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            id="week-slider"
+            type="range"
+            min="1"
+            max="52"
+            value={currentWeek}
+            onChange={(e) => onWeekChange?.(parseInt(e.target.value, 10))}
+            className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            data-testid="week-slider"
+          />
+          <button
+            onClick={isAnimating ? stopAnimation : startAnimation}
+            data-testid={isAnimating ? 'animation-pause-button' : 'animation-play-button'}
+            className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all shadow-sm ${
+              isAnimating
+                ? 'bg-gray-500 hover:bg-gray-600 text-white'
+                : 'bg-[#2C3E7B] hover:bg-[#243267] text-white'
+            }`}
+            aria-label={isAnimating ? 'Pause migration animation' : 'Play migration animation'}
+          >
+            {isAnimating ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Migration Animation */}
-      {!isAnimating ? (
-        <button
-          onClick={startAnimation}
-          data-testid="animation-play-button"
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-[#2C3E7B] hover:bg-[#243267] text-white text-xs rounded-lg transition-colors font-medium"
-          aria-label="Play migration animation"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-          </svg>
-          Animate Migration
-        </button>
-      ) : (
-        <button
-          onClick={stopAnimation}
-          data-testid="animation-pause-button"
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors font-medium"
-          aria-label="Pause migration animation"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          Pause
-        </button>
-      )}
-
-      {/* Heatmap Opacity */}
-      <div className="space-y-1">
+      {/* Opacity Slider */}
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label htmlFor="opacity-slider" className="text-xs font-medium text-[#2C3E50] dark:text-gray-300">
+          <label htmlFor="opacity-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300">
             Opacity
           </label>
-          <span className="text-xs font-medium text-[#2C3E7B] dark:text-blue-400">
+          <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
             {Math.round(heatmapOpacity * 100)}%
           </span>
         </div>
@@ -392,18 +343,18 @@ export default function ExploreTab({
         />
       </div>
 
-      {/* Lifer Count Range Filter — shown in density mode without goal filter */}
+      {/* Lifer Count Range Filter */}
       {viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-[#2C3E50] dark:text-gray-300">
+            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
               Lifer Range
             </label>
-            <span className="text-xs font-medium text-[#2C3E7B] dark:text-blue-400">
+            <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 tabular-nums">
               {liferCountRange[0]}–{Math.min(liferCountRange[1], dataRange[1])}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="space-y-1">
             <input
               type="range"
               min={dataRange[0]}
@@ -413,12 +364,10 @@ export default function ExploreTab({
                 const val = parseInt(e.target.value, 10)
                 onLiferCountRangeChange?.([Math.min(val, liferCountRange[1]), liferCountRange[1]])
               }}
-              className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
               data-testid="lifer-range-min-slider"
               aria-label="Minimum lifer count"
             />
-          </div>
-          <div className="flex items-center gap-2">
             <input
               type="range"
               min={dataRange[0]}
@@ -428,7 +377,7 @@ export default function ExploreTab({
                 const val = parseInt(e.target.value, 10)
                 onLiferCountRangeChange?.([liferCountRange[0], Math.max(val, liferCountRange[0])])
               }}
-              className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
               data-testid="lifer-range-max-slider"
               aria-label="Maximum lifer count"
             />
@@ -441,7 +390,7 @@ export default function ExploreTab({
           {(liferCountRange[0] > dataRange[0] || liferCountRange[1] < dataRange[1]) && (
             <button
               onClick={() => onLiferCountRangeChange?.([dataRange[0], dataRange[1]])}
-              className="w-full text-[10px] text-[#2C3E7B] dark:text-blue-400 hover:underline"
+              className="w-full text-[11px] text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
               data-testid="reset-lifer-range"
             >
               Reset range

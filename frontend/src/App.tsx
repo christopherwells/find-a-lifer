@@ -16,8 +16,18 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true'
   })
-  const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false)
-  const [currentWeek, setCurrentWeek] = useState(26) // Default to week 26 (late June)
+  // Start collapsed on mobile so the map is visible
+  const [sidePanelCollapsed, setSidePanelCollapsed] = useState(() => {
+    return window.innerWidth < 768
+  })
+  const [currentWeek, setCurrentWeek] = useState(() => {
+    // Default to current week of year
+    const now = new Date()
+    const start = new Date(now.getFullYear(), 0, 1)
+    const diff = now.getTime() - start.getTime()
+    const oneWeek = 7 * 24 * 60 * 60 * 1000
+    return Math.min(52, Math.max(1, Math.ceil(diff / oneWeek)))
+  })
   const [viewMode, setViewMode] = useState<MapViewMode>('density')
   const [goalBirdsOnlyFilter, setGoalBirdsOnlyFilter] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
@@ -88,8 +98,27 @@ function App() {
         onToggleDarkMode={() => setDarkMode((prev) => !prev)}
       />
 
-      {/* Main Content: Side Panel + Map */}
-      <div className="flex-1 flex flex-col-reverse md:flex-row overflow-hidden">
+      {/* Main Content: Map + Side Panel */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Map Area — pb-[52px] on mobile for bottom tab bar */}
+        <div className="flex-1 relative order-first pb-[52px] md:pb-0">
+          <MapView
+            darkMode={darkMode}
+            currentWeek={currentWeek}
+            viewMode={viewMode}
+            goalBirdsOnlyFilter={goalBirdsOnlyFilter}
+            onLocationSelect={setSelectedLocation}
+            goalSpeciesCodes={goalSpeciesCodes}
+            seenSpecies={seenSpecies}
+            selectedSpecies={selectedSpecies}
+            selectedRegion={selectedRegion}
+            heatmapOpacity={heatmapOpacity}
+            selectedLocation={selectedLocation}
+            liferCountRange={liferCountRange}
+            onDataRangeChange={setDataRange}
+          />
+        </div>
+
         {/* Side Panel */}
         <SidePanel
           collapsed={sidePanelCollapsed}
@@ -126,25 +155,6 @@ function App() {
           onLiferCountRangeChange={setLiferCountRange}
           dataRange={dataRange}
         />
-
-        {/* Map Area */}
-        <div className="flex-1 relative">
-          <MapView
-            darkMode={darkMode}
-            currentWeek={currentWeek}
-            viewMode={viewMode}
-            goalBirdsOnlyFilter={goalBirdsOnlyFilter}
-            onLocationSelect={setSelectedLocation}
-            goalSpeciesCodes={goalSpeciesCodes}
-            seenSpecies={seenSpecies}
-            selectedSpecies={selectedSpecies}
-            selectedRegion={selectedRegion}
-            heatmapOpacity={heatmapOpacity}
-            selectedLocation={selectedLocation}
-            liferCountRange={liferCountRange}
-            onDataRangeChange={setDataRange}
-          />
-        </div>
       </div>
     </div>
   )
