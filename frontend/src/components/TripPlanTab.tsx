@@ -279,7 +279,6 @@ export default function TripPlanTab({
 
     const compareLocations = async () => {
       setCompareLoading(true)
-      const controller = new AbortController()
       try {
         // Build species lookup map
         const speciesById = new Map<number, Species>()
@@ -404,7 +403,6 @@ export default function TripPlanTab({
 
     const loadTripData = async () => {
       setLoading(true)
-      const controller = new AbortController()
       try {
         // Build species lookup map
         const speciesById = new Map<number, Species>()

@@ -6,6 +6,9 @@ import type { Species } from '../components/types'
  * No backend API at runtime.
  */
 
+/** Base URL for data files — respects Vite's base path for GitHub Pages */
+const DATA_BASE = `${import.meta.env.BASE_URL}data`
+
 let speciesPromise: Promise<Species[]> | null = null
 let gridPromise: Promise<any> | null = null
 let regionsPromise: Promise<any> | null = null
@@ -22,7 +25,7 @@ const speciesWeeksCache = new Map<string, Promise<Record<string, [number, number
 /** Fetch species metadata (cached) */
 export function fetchSpecies(): Promise<Species[]> {
   if (!speciesPromise) {
-    speciesPromise = fetch('/data/species.json')
+    speciesPromise = fetch(`${DATA_BASE}/species.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -38,7 +41,7 @@ export function fetchSpecies(): Promise<Species[]> {
 /** Fetch grid GeoJSON (cached) */
 export function fetchGrid(): Promise<any> {
   if (!gridPromise) {
-    gridPromise = fetch('/data/grid.geojson')
+    gridPromise = fetch(`${DATA_BASE}/grid.geojson`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -54,7 +57,7 @@ export function fetchGrid(): Promise<any> {
 /** Fetch regions GeoJSON (cached) */
 export function fetchRegions(): Promise<any> {
   if (!regionsPromise) {
-    regionsPromise = fetch('/data/regions.geojson')
+    regionsPromise = fetch(`${DATA_BASE}/regions.geojson`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -72,7 +75,7 @@ export function fetchWeekSummary(week: number): Promise<[number, number, number]
   let p = weekSummaryCache.get(week)
   if (!p) {
     const ww = String(week).padStart(2, '0')
-    p = fetch(`/data/weeks/week_${ww}_summary.json`)
+    p = fetch(`${DATA_BASE}/weeks/week_${ww}_summary.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -94,7 +97,7 @@ export function fetchWeekCells(week: number): Promise<Map<number, number[]>> {
   let p = weekCellsCache.get(week)
   if (!p) {
     const ww = String(week).padStart(2, '0')
-    p = fetch(`/data/weeks/week_${ww}_cells.json`)
+    p = fetch(`${DATA_BASE}/weeks/week_${ww}_cells.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -122,7 +125,7 @@ export function fetchWeekCells(week: number): Promise<Map<number, number[]>> {
 export function fetchSpeciesWeeks(speciesCode: string): Promise<Record<string, [number, number][]>> {
   let p = speciesWeeksCache.get(speciesCode)
   if (!p) {
-    p = fetch(`/data/species-weeks/${speciesCode}.json`)
+    p = fetch(`${DATA_BASE}/species-weeks/${speciesCode}.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()

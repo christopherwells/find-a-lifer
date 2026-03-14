@@ -10,11 +10,11 @@
 # ---------------------------------------------------------------------------
 # Path to the eBird Basic Dataset (EBD) observations file (.txt)
 # Download from: https://ebird.org/data/download
-EBD_FILE <- "path/to/ebd_US-ME_relXXX.txt"
+EBD_FILE <- file.path(dirname(getwd()), "data", "ebd_US-ME_smp_relJan-2026.txt")
 
 # Path to the Sampling Event Data (SED) file (.txt)
 # Must be downloaded alongside the EBD for the same region/date range
-SED_FILE <- "path/to/ebd_sampling_relXXX.txt"
+SED_FILE <- file.path(dirname(getwd()), "data", "ebd_US-ME_smp_relJan-2026_sampling.txt")
 
 # ---------------------------------------------------------------------------
 # 2. Output directory

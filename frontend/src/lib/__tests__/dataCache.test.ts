@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // We need to reset module state between tests since dataCache uses module-level caching
 let fetchSpecies: () => Promise<any>
 let fetchGrid: () => Promise<any>
-let fetchRegions: () => Promise<any>
 let fetchWeekSummary: (week: number) => Promise<any>
 let fetchWeekCells: (week: number) => Promise<any>
 let computeLiferSummary: (weekCells: Map<number, number[]>, seenIds: Set<number>) => any
@@ -17,7 +16,6 @@ beforeEach(async () => {
   const mod = await import('../dataCache')
   fetchSpecies = mod.fetchSpecies
   fetchGrid = mod.fetchGrid
-  fetchRegions = mod.fetchRegions
   fetchWeekSummary = mod.fetchWeekSummary
   fetchWeekCells = mod.fetchWeekCells
   computeLiferSummary = mod.computeLiferSummary
