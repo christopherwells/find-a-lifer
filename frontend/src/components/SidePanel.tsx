@@ -7,6 +7,7 @@ import TripPlanTab from './TripPlanTab'
 import ProgressTab from './ProgressTab'
 import ProfileTab from './ProfileTab'
 
+import type { MapViewMode } from './types'
 export type { MapViewMode, SelectedLocation } from './types'
 
 type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress' | 'profile'
@@ -16,8 +17,8 @@ interface SidePanelProps {
   onToggle: () => void
   currentWeek?: number
   onWeekChange?: (week: number) => void
-  viewMode?: 'density' | 'probability' | 'species' | 'goal-birds'
-  onViewModeChange?: (mode: 'density' | 'probability' | 'species' | 'goal-birds') => void
+  viewMode?: MapViewMode
+  onViewModeChange?: (mode: MapViewMode) => void
   goalBirdsOnlyFilter?: boolean
   onGoalBirdsOnlyFilterChange?: (value: boolean) => void
   selectedLocation?: { cellId: number; coordinates: [number, number]; name?: string } | null
@@ -89,8 +90,8 @@ export default memo(function SidePanel({
   return (
     <div
       data-testid="side-panel"
-      className={`h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ${
-        collapsed ? 'w-12' : 'w-80'
+      className={`bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 w-full md:h-full md:border-r border-t md:border-t-0 ${
+        collapsed ? 'h-10 md:w-12' : 'h-[45vh] md:h-full md:w-80'
       }`}
     >
       {/* Tab Navigation */}
@@ -101,10 +102,11 @@ export default memo(function SidePanel({
         {collapsed ? (
           <button
             onClick={onToggle}
-            className="w-12 h-10 flex items-center justify-center text-[#2C3E7B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+            className="flex-1 md:flex-none md:w-12 h-10 flex items-center justify-center text-[#2C3E7B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
             title="Expand panel"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            {/* Up arrow on mobile, right arrow on desktop */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 -rotate-90 md:rotate-0" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
             </svg>
           </button>
@@ -129,7 +131,8 @@ export default memo(function SidePanel({
               className="px-1.5 flex items-center justify-center text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400"
               title="Collapse panel"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              {/* Down arrow on mobile, left arrow on desktop */}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 rotate-90 md:rotate-0" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </button>
@@ -171,6 +174,7 @@ export default memo(function SidePanel({
               currentWeek={currentWeek}
               onWeekChange={onWeekChange}
               onLocationSelect={onSelectedLocationChange}
+              selectedRegion={selectedRegion}
             />
           )}
           {activeTab === 'progress' && <ProgressTab />}

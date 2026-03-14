@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species, SpeciesByFamily, SpeciesTabProps } from './types'
 import SpeciesInfoCard from './SpeciesInfoCard'
+import { FamilyGroupSkeleton } from './Skeleton'
 
 export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
@@ -289,9 +289,9 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     return (
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
-        <div className="flex items-center justify-center py-6">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2C3E7B]"></div>
-        </div>
+        <FamilyGroupSkeleton itemCount={4} />
+        <FamilyGroupSkeleton itemCount={3} />
+        <FamilyGroupSkeleton itemCount={5} />
       </div>
     )
   }

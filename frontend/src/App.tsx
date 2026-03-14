@@ -89,7 +89,7 @@ function App() {
       />
 
       {/* Main Content: Side Panel + Map */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col-reverse md:flex-row overflow-hidden">
         {/* Side Panel */}
         <SidePanel
           collapsed={sidePanelCollapsed}

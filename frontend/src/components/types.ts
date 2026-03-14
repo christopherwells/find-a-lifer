@@ -69,6 +69,7 @@ export interface TripPlanTabProps {
   currentWeek?: number
   onWeekChange?: (week: number) => void
   onLocationSelect?: (location: SelectedLocation | null) => void
+  selectedRegion?: string | null
 }
 
 export interface TripLifer {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import type { Species } from './types'
+import { ProgressSkeleton } from './Skeleton'
 
 export default function ProgressTab() {
   const { isSpeciesSeen, getTotalSeen } = useLifeList()
@@ -26,14 +27,7 @@ export default function ProgressTab() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100">My Progress</h3>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
-        </div>
-      </div>
-    )
+    return <ProgressSkeleton />
   }
 
   const totalSpecies = allSpecies.length

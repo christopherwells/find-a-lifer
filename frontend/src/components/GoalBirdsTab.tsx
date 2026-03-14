@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species } from './types'
+import { FamilyGroupSkeleton } from './Skeleton'
 import SpeciesInfoCard from './SpeciesInfoCard'
 
 export default function GoalBirdsTab() {
@@ -514,9 +514,8 @@ export default function GoalBirdsTab() {
     return (
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Goal Birds</h3>
-        <div className="flex items-center justify-center py-6">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2C3E7B]"></div>
-        </div>
+        <FamilyGroupSkeleton itemCount={3} />
+        <FamilyGroupSkeleton itemCount={2} />
       </div>
     )
   }
@@ -565,7 +564,7 @@ export default function GoalBirdsTab() {
                 </button>
                 <button
                   onClick={handleCancelRename}
-                  className="px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                   title="Cancel rename"
                   data-testid="rename-cancel-btn"
                 >
@@ -601,7 +600,7 @@ export default function GoalBirdsTab() {
                     </button>
                     <button
                       onClick={() => handleStartDelete(activeList)}
-                      className="px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors"
+                      className="px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-colors"
                       title="Delete list"
                       data-testid="delete-list-btn"
                     >
@@ -657,7 +656,7 @@ export default function GoalBirdsTab() {
                     setNewListName('')
                     setCreateListError('')
                   }}
-                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   Cancel
                 </button>
@@ -681,8 +680,8 @@ export default function GoalBirdsTab() {
             <h4 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-4">Delete Goal List?</h4>
 
             <div className="space-y-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-800">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p className="text-sm text-red-800 dark:text-red-300">
                   <span className="font-semibold">Warning:</span> You are about to delete the goal list{' '}
                   <span className="font-semibold">"{deletingList.name}"</span>
                   {deletingList.speciesCodes.length > 0 && (
@@ -691,7 +690,7 @@ export default function GoalBirdsTab() {
                     </>
                   )}.
                 </p>
-                <p className="text-sm text-red-800 mt-2">
+                <p className="text-sm text-red-800 dark:text-red-300 mt-2">
                   This action cannot be undone.
                 </p>
               </div>
@@ -699,7 +698,7 @@ export default function GoalBirdsTab() {
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={handleCancelDelete}
-                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                   data-testid="delete-cancel-btn"
                 >
                   Cancel
@@ -752,7 +751,7 @@ export default function GoalBirdsTab() {
                 />
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="absolute right-3 top-2.5 h-5 w-5 text-gray-400"
+                  className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -819,7 +818,7 @@ export default function GoalBirdsTab() {
                   {listFilterTerm ? (
                     <button
                       onClick={() => setListFilterTerm('')}
-                      className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
+                      className="absolute right-2 top-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                       title="Clear filter"
                       data-testid="goal-list-filter-clear"
                     >
@@ -828,7 +827,7 @@ export default function GoalBirdsTab() {
                       </svg>
                     </button>
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2 top-1.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2 top-1.5 h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   )}
@@ -848,7 +847,7 @@ export default function GoalBirdsTab() {
                             : `${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''} in list`}
                         </div>
                         <div
-                          className="text-xs font-semibold text-green-700"
+                          className="text-xs font-semibold text-green-700 dark:text-green-400"
                           data-testid="goal-list-seen-count"
                         >
                           {seenCount} of {total} seen
@@ -871,8 +870,8 @@ export default function GoalBirdsTab() {
                 })()}
 
                 {filteredListCodes.length === 0 ? (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
-                    <p className="text-sm text-gray-500">No species match "{listFilterTerm}"</p>
+                  <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No species match "{listFilterTerm}"</p>
                   </div>
                 ) : (
                   filteredListCodes.map((code) => {
@@ -906,7 +905,7 @@ export default function GoalBirdsTab() {
                             {species ? species.comName : code}
                           </div>
                           {species && (
-                            <div className={`text-xs italic truncate ${seen ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                            <div className={`text-xs italic truncate ${seen ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}>
                               {species.sciName}
                             </div>
                           )}
@@ -934,7 +933,7 @@ export default function GoalBirdsTab() {
                           {/* Remove button */}
                           <button
                             onClick={() => handleRemoveSpecies(code, species?.comName || code)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors opacity-0 group-hover:opacity-100"
                             title="Remove from list"
                             data-testid={`remove-species-${code}`}
                           >
@@ -1002,7 +1001,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-1 rounded ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`rarest-suggestion-${sp.speciesCode}`}
                           >
@@ -1106,7 +1105,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-1 rounded ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`easy-wins-suggestion-${sp.speciesCode}`}
                           >
@@ -1214,7 +1213,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-1 rounded ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`hardest-suggestion-${sp.speciesCode}`}
                           >
@@ -1321,7 +1320,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-1 rounded ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`migrants-suggestion-${sp.speciesCode}`}
                           >
@@ -1470,7 +1469,7 @@ export default function GoalBirdsTab() {
                                   <div
                                     key={entry.speciesCode}
                                     className={`flex items-center justify-between px-2 py-1 rounded ${
-                                      alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                                      alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                     data-testid={`regional-icons-suggestion-${entry.speciesCode}`}
                                   >
@@ -1596,7 +1595,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-1 rounded ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`seasonal-suggestion-${sp.speciesCode}`}
                           >
@@ -1694,7 +1693,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-2 rounded-lg ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`colorful-suggestion-${sp.speciesCode}`}
                           >
@@ -1806,7 +1805,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-2 rounded-lg ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`owls-nightbirds-suggestion-${sp.speciesCode}`}
                           >
@@ -1918,7 +1917,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-2 rounded-lg ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`raptors-suggestion-${sp.speciesCode}`}
                           >
@@ -2030,7 +2029,7 @@ export default function GoalBirdsTab() {
                           <div
                             key={sp.speciesCode}
                             className={`flex items-center justify-between px-2 py-2 rounded-lg ${
-                              alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                              alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`lbjs-suggestion-${sp.speciesCode}`}
                           >
@@ -2194,7 +2193,7 @@ export default function GoalBirdsTab() {
                                   <div
                                     key={sp.speciesCode}
                                     className={`flex items-center justify-between px-2 py-1 rounded ${
-                                      alreadyInList ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+                                      alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                     data-testid={`almost-complete-suggestion-${sp.speciesCode}`}
                                   >
@@ -2302,7 +2301,7 @@ export default function GoalBirdsTab() {
             </div>
             <button
               onClick={() => setListPickerSpecies(null)}
-              className="mt-3 w-full text-center text-xs text-gray-400 hover:text-gray-600 py-1"
+              className="mt-3 w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 py-1"
               data-testid="list-picker-cancel"
             >
               Cancel

@@ -1,12 +1,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import type { Species, TripPlanTabProps, TripLifer, HotspotLocation, WeekOpportunity, SelectedLocation } from './types'
-import SpeciesInfoCard from './SpeciesInfoCard'
+import { ListSkeleton } from './Skeleton'
+
+// Bounding boxes for region filtering [west, south, east, north]
+const REGION_BBOX: Record<string, [number, number, number, number]> = {
+  us_northeast: [-82, 37, -66, 48],
+  us_southeast: [-92, 24, -75, 37],
+  us_west: [-125, 31, -100, 49],
+  alaska: [-180, 51, -130, 72],
+  hawaii: [-161, 18, -154, 23],
+}
 
 export default function TripPlanTab({
   selectedLocation,
   currentWeek = 26,
   onLocationSelect,
+  selectedRegion = null,
 }: TripPlanTabProps) {
   // Mode: 'location', 'hotspots', 'window', or 'compare'
   const [mode, setMode] = useState<'location' | 'hotspots' | 'window' | 'compare'>('hotspots')
@@ -157,10 +167,18 @@ export default function TripPlanTab({
           })
         }
 
+        const regionBbox = selectedRegion ? REGION_BBOX[selectedRegion] : null
+
         const arr: HotspotLocation[] = []
         cellCounts.forEach((count, cellId) => {
           const coords = cellCoords.get(cellId)
-          if (coords) arr.push({ cellId, coordinates: coords, liferCount: count, rank: 0 })
+          if (!coords) return
+          // Filter by region bounding box if a region is selected
+          if (regionBbox) {
+            const [west, south, east, north] = regionBbox
+            if (coords[0] < west || coords[0] > east || coords[1] < south || coords[1] > north) return
+          }
+          arr.push({ cellId, coordinates: coords, liferCount: count, rank: 0 })
         })
 
         arr.sort((a, b) => b.liferCount - a.liferCount)
@@ -175,7 +193,7 @@ export default function TripPlanTab({
       }
     }
     calc()
-  }, [mode, hotspotWeek, speciesLoaded, speciesData, gridData, seenSpecies])
+  }, [mode, hotspotWeek, speciesLoaded, speciesData, gridData, seenSpecies, selectedRegion])
 
   // Calculate window of opportunity
   useEffect(() => {
@@ -211,11 +229,22 @@ export default function TripPlanTab({
           })
         }
 
+        const regionBbox = selectedRegion ? REGION_BBOX[selectedRegion] : null
+
         const opps: WeekOpportunity[] = []
         weeklyData.forEach((records, week) => {
-          if (records.length === 0) return
-          const avgProb = records.reduce((sum, r) => sum + r.probability, 0) / records.length
-          const topLocs = records
+          // Filter records by region if selected
+          const filtered = regionBbox
+            ? records.filter(r => {
+                const coords = cellCoords.get(r.cell_id)
+                if (!coords) return false
+                const [west, south, east, north] = regionBbox
+                return coords[0] >= west && coords[0] <= east && coords[1] >= south && coords[1] <= north
+              })
+            : records
+          if (filtered.length === 0) return
+          const avgProb = filtered.reduce((sum, r) => sum + r.probability, 0) / filtered.length
+          const topLocs = filtered
             .sort((a, b) => b.probability - a.probability)
             .slice(0, 5)
             .map(r => ({
@@ -237,7 +266,7 @@ export default function TripPlanTab({
       }
     }
     calc()
-  }, [mode, selectedSpeciesForWindow, speciesLoaded, gridData])
+  }, [mode, selectedSpeciesForWindow, speciesLoaded, gridData, selectedRegion])
 
   // Compare two locations
   useEffect(() => {
@@ -810,9 +839,7 @@ export default function TripPlanTab({
       <div className="mt-3 flex-1 overflow-y-auto">
         {mode === 'hotspots' ? (
           hotspotsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
-            </div>
+            <ListSkeleton count={4} />
           ) : hotspots.length === 0 ? (
             <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -824,6 +851,11 @@ export default function TripPlanTab({
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">
                   Top Lifer Hotspots ({hotspots.length})
+                  {selectedRegion && (
+                    <span className="ml-1 text-[10px] font-normal text-blue-600 dark:text-blue-400">
+                      ({selectedRegion.replace('us_', 'US ').replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())})
+                    </span>
+                  )}
                 </h4>
                 <select
                   value={hotspotSortMode}
@@ -874,9 +906,7 @@ export default function TripPlanTab({
               </p>
             </div>
           ) : loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
-            </div>
+            <ListSkeleton count={4} />
           ) : lifers.length === 0 ? (
             <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4 text-center">
               <p className="text-sm text-green-700 dark:text-green-400">
@@ -933,9 +963,7 @@ export default function TripPlanTab({
               </p>
             </div>
           ) : windowLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
-            </div>
+            <ListSkeleton count={4} />
           ) : weekOpportunities.length === 0 ? (
             <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -1021,9 +1049,7 @@ export default function TripPlanTab({
               </p>
             </div>
           ) : compareLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C3E7B]"></div>
-            </div>
+            <ListSkeleton count={4} />
           ) : (
             <div className="space-y-3" data-testid="compare-results">
               {/* Summary Stats */}
