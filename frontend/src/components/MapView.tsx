@@ -134,6 +134,59 @@ interface LifersPopup {
 let speciesMetaCache: SpeciesMeta[] | null = null
 let speciesMetaPromise: Promise<SpeciesMeta[]> | null = null
 
+// Module-level cache for grid GeoJSON (persisted in IndexedDB)
+let gridGeoJsonCache: GeoJSON.FeatureCollection | null = null
+
+const GRID_CACHE_DB = 'find-a-lifer-grid-cache'
+const GRID_CACHE_STORE = 'grid'
+const GRID_CACHE_KEY = 'gridGeoJson'
+
+async function loadGridFromCache(): Promise<GeoJSON.FeatureCollection | null> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open(GRID_CACHE_DB, 1)
+      req.onupgradeneeded = () => req.result.createObjectStore(GRID_CACHE_STORE)
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const tx = db.transaction(GRID_CACHE_STORE, 'readonly')
+    const store = tx.objectStore(GRID_CACHE_STORE)
+    const data = await new Promise<GeoJSON.FeatureCollection | undefined>((resolve, reject) => {
+      const req = store.get(GRID_CACHE_KEY)
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    db.close()
+    return data || null
+  } catch {
+    return null
+  }
+}
+
+async function saveGridToCache(data: GeoJSON.FeatureCollection): Promise<void> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open(GRID_CACHE_DB, 1)
+      req.onupgradeneeded = () => req.result.createObjectStore(GRID_CACHE_STORE)
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const tx = db.transaction(GRID_CACHE_STORE, 'readwrite')
+    const store = tx.objectStore(GRID_CACHE_STORE)
+    store.put(data, GRID_CACHE_KEY)
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch (err) {
+    console.warn('Failed to cache grid data:', err)
+  }
+}
+
+// Session-level cache for per-cell click data (week -> cellId -> records)
+const cellDataCache = new Map<string, { speciesCode: string; comName: string; probability: number; species_id: number }[]>()
+
 async function loadSpeciesMetaCache(): Promise<SpeciesMeta[]> {
   if (speciesMetaCache) return speciesMetaCache
   if (speciesMetaPromise) return speciesMetaPromise
@@ -319,63 +372,37 @@ export default memo(function MapView({
   // Load weekly summary data when currentWeek changes
   // Summary is tiny (~80KB gzipped) and serves density + probability modes
   useEffect(() => {
-    let cancelled = false
+    const abortController = new AbortController()
 
     const loadWeekData = async () => {
       setIsLoadingWeek(true)
       try {
-        // Try summary endpoint first (new format), fall back to full data
-        const summaryResponse = await fetch(`/api/weeks/${currentWeek}/summary`)
-        if (cancelled) return
-        if (summaryResponse.ok) {
-          const summary: WeeklySummary = await summaryResponse.json()
-          if (cancelled) return
-          setWeeklySummary(summary)
-          setWeeklyData([]) // Clear full data — loaded on demand
-          console.log(`Loaded week ${currentWeek} summary: ${summary.length} cells`)
-        } else {
-          // Fallback: load full data (old format)
-          const response = await fetch(`/api/weeks/${currentWeek}`)
-          if (cancelled) return
-          if (!response.ok) {
-            console.error(`Failed to load week ${currentWeek} data:`, response.statusText)
-            return
-          }
-          const data: OccurrenceRecord[] = await response.json()
-          if (cancelled) return
-          setWeeklyData(data)
-          // Build summary from full data
-          const cellStats = new Map<number, { count: number; maxProb: number }>()
-          data.forEach((r) => {
-            if (r.probability <= 0) return
-            const existing = cellStats.get(r.cell_id)
-            if (existing) {
-              existing.count++
-              if (r.probability > existing.maxProb) existing.maxProb = r.probability
-            } else {
-              cellStats.set(r.cell_id, { count: 1, maxProb: r.probability })
-            }
-          })
-          const summary: WeeklySummary = []
-          cellStats.forEach(({ count, maxProb }, cellId) => {
-            summary.push([cellId, count, Math.round(maxProb * 200)])
-          })
-          setWeeklySummary(summary)
-          console.log(`Loaded week ${currentWeek} full data: ${data.length} records, built summary: ${summary.length} cells`)
+        const summaryResponse = await fetch(`/api/weeks/${currentWeek}/summary`, {
+          signal: abortController.signal,
+        })
+        if (abortController.signal.aborted) return
+        if (!summaryResponse.ok) {
+          console.error(`Failed to load week ${currentWeek} summary:`, summaryResponse.statusText)
+          return
         }
+        const summary: WeeklySummary = await summaryResponse.json()
+        if (abortController.signal.aborted) return
+        setWeeklySummary(summary)
+        setWeeklyData([]) // Clear full data — loaded on demand
+        console.log(`Loaded week ${currentWeek} summary: ${summary.length} cells`)
       } catch (error) {
-        if (!cancelled) {
+        if (!abortController.signal.aborted) {
           console.error(`Error loading week ${currentWeek} data:`, error)
         }
       } finally {
-        if (!cancelled) {
+        if (!abortController.signal.aborted) {
           setIsLoadingWeek(false)
         }
       }
     }
 
     loadWeekData()
-    return () => { cancelled = true }
+    return () => { abortController.abort() }
   }, [currentWeek])
 
   // Zoom to selected location when it changes (from Trip Plan hotspots)
@@ -471,20 +498,32 @@ export default memo(function MapView({
       if (!map.current) return
 
       try {
-        // Fetch grid GeoJSON from API (cache: no-store avoids stale cached responses)
-        const response = await fetch('/api/grid', { cache: 'no-store' })
-        if (!response.ok) {
-          console.error('Failed to load grid data:', response.statusText)
-          return
+        // Load grid GeoJSON from IndexedDB cache, or fetch from API
+        let gridData = gridGeoJsonCache
+        if (!gridData) {
+          gridData = await loadGridFromCache()
+          if (gridData) {
+            console.log(`Grid GeoJSON loaded from IndexedDB cache: ${gridData.features.length} features`)
+          }
         }
-        const gridData = await response.json()
-
-        // Validate response is GeoJSON
-        if (gridData.type !== 'FeatureCollection' || !Array.isArray(gridData.features)) {
-          console.error('Grid data is not valid GeoJSON:', Object.keys(gridData))
-          return
+        if (!gridData) {
+          const response = await fetch('/api/grid')
+          if (!response.ok) {
+            console.error('Failed to load grid data:', response.statusText)
+            return
+          }
+          const fetched = await response.json() as GeoJSON.FeatureCollection
+          // Validate response is GeoJSON
+          if (fetched.type !== 'FeatureCollection' || !Array.isArray(fetched.features)) {
+            console.error('Grid data is not valid GeoJSON:', Object.keys(fetched))
+            return
+          }
+          gridData = fetched
+          // Cache in IndexedDB for future page loads
+          saveGridToCache(gridData)
+          console.log(`Grid GeoJSON fetched from API: ${gridData.features.length} features`)
         }
-        console.log(`Grid GeoJSON: ${gridData.features.length} features`)
+        gridGeoJsonCache = gridData
 
         // Add grid data as a source
         map.current.addSource('grid', {
@@ -558,33 +597,44 @@ export default memo(function MapView({
               const weekEl = document.querySelector<HTMLInputElement>('[data-testid="week-slider"]')
               const week = weekEl ? parseInt(weekEl.value) : 26
 
-              fetch(`/api/weeks/${week}/cells/${cellId}`)
-                .then(r => r.json())
-                .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
-                  const goalBirds: GoalBirdInCell[] = []
-                  const idToMeta = new Map<number, SpeciesMeta>()
-                  if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
+              const cacheKey = `${week}-${cellId}`
+              const processGoalBirds = (records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                const goalBirds: GoalBirdInCell[] = []
+                const idToMeta = new Map<number, SpeciesMeta>()
+                if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
 
-                  records.forEach((record) => {
-                    if (!currentGoalCodes.has(record.speciesCode)) return
-                    const meta = idToMeta.get(record.species_id)
-                    goalBirds.push({
-                      speciesCode: record.speciesCode,
-                      comName: record.comName,
-                      sciName: meta?.sciName || '',
-                      probability: record.probability,
-                      isSeen: currentSeenSpecies.has(record.speciesCode),
-                      conservStatus: meta?.conservStatus,
-                      difficultyLabel: meta?.difficultyLabel,
-                      isRestrictedRange: meta?.isRestrictedRange
-                    })
+                records.forEach((record) => {
+                  if (!currentGoalCodes.has(record.speciesCode)) return
+                  const meta = idToMeta.get(record.species_id)
+                  goalBirds.push({
+                    speciesCode: record.speciesCode,
+                    comName: record.comName,
+                    sciName: meta?.sciName || '',
+                    probability: record.probability,
+                    isSeen: currentSeenSpecies.has(record.speciesCode),
+                    conservStatus: meta?.conservStatus,
+                    difficultyLabel: meta?.difficultyLabel,
+                    isRestrictedRange: meta?.isRestrictedRange
                   })
-
-                  goalBirds.sort((a, b) => b.probability - a.probability)
-                  setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds })
-                  console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
                 })
-                .catch(err => console.error('Goal Birds popup: error loading cell data', err))
+
+                goalBirds.sort((a, b) => b.probability - a.probability)
+                setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds })
+                console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
+              }
+
+              const cached = cellDataCache.get(cacheKey)
+              if (cached) {
+                processGoalBirds(cached)
+              } else {
+                fetch(`/api/weeks/${week}/cells/${cellId}`)
+                  .then(r => r.json())
+                  .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                    cellDataCache.set(cacheKey, records)
+                    processGoalBirds(records)
+                  })
+                  .catch(err => console.error('Goal Birds popup: error loading cell data', err))
+              }
             } else if (viewModeRef.current === 'density') {
               // Density mode: load cell data from API
               const currentSeenSpecies = seenSpeciesRef.current
@@ -592,34 +642,45 @@ export default memo(function MapView({
               const weekEl = document.querySelector<HTMLInputElement>('[data-testid="week-slider"]')
               const week = weekEl ? parseInt(weekEl.value) : 26
 
-              fetch(`/api/weeks/${week}/cells/${cellId}`)
-                .then(r => r.json())
-                .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
-                  const idToMeta = new Map<number, SpeciesMeta>()
-                  if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
+              const densityCacheKey = `${week}-${cellId}`
+              const processLifers = (records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                const idToMeta = new Map<number, SpeciesMeta>()
+                if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
 
-                  const lifers: LiferInCell[] = []
-                  records.forEach((record) => {
-                    if (currentSeenSpecies.has(record.speciesCode)) return
-                    const meta = idToMeta.get(record.species_id)
-                    lifers.push({
-                      speciesCode: record.speciesCode,
-                      comName: record.comName,
-                      sciName: meta?.sciName || '',
-                      probability: record.probability,
-                      familyComName: meta?.familyComName,
-                      taxonOrder: meta?.taxonOrder,
-                      conservStatus: meta?.conservStatus,
-                      difficultyLabel: meta?.difficultyLabel,
-                      isRestrictedRange: meta?.isRestrictedRange
-                    })
+                const lifers: LiferInCell[] = []
+                records.forEach((record) => {
+                  if (currentSeenSpecies.has(record.speciesCode)) return
+                  const meta = idToMeta.get(record.species_id)
+                  lifers.push({
+                    speciesCode: record.speciesCode,
+                    comName: record.comName,
+                    sciName: meta?.sciName || '',
+                    probability: record.probability,
+                    familyComName: meta?.familyComName,
+                    taxonOrder: meta?.taxonOrder,
+                    conservStatus: meta?.conservStatus,
+                    difficultyLabel: meta?.difficultyLabel,
+                    isRestrictedRange: meta?.isRestrictedRange
                   })
-
-                  lifers.sort((a, b) => b.probability - a.probability)
-                  setLifersPopup({ cellId, coordinates: coords, lifers })
-                  console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
                 })
-                .catch(err => console.error('Lifers popup: error loading cell data', err))
+
+                lifers.sort((a, b) => b.probability - a.probability)
+                setLifersPopup({ cellId, coordinates: coords, lifers })
+                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
+              }
+
+              const densityCached = cellDataCache.get(densityCacheKey)
+              if (densityCached) {
+                processLifers(densityCached)
+              } else {
+                fetch(`/api/weeks/${week}/cells/${cellId}`)
+                  .then(r => r.json())
+                  .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                    cellDataCache.set(densityCacheKey, records)
+                    processLifers(records)
+                  })
+                  .catch(err => console.error('Lifers popup: error loading cell data', err))
+              }
             } else {
               // Other modes: select location for trip planning
               setGoalBirdsPopup(null)
@@ -633,7 +694,7 @@ export default memo(function MapView({
         })
 
         console.log('Grid data loaded successfully:', {
-          featureCount: gridData.features?.length || 0,
+          featureCount: gridData!.features?.length || 0,
         })
         // Mark grid ready immediately — feature states work as soon as source is added.
         // The previous once('idle') approach failed with 229K features (event never fired).
@@ -1072,7 +1133,6 @@ export default memo(function MapView({
       {(() => {
         // Determine legend config based on current view mode
         let legendTitle = ''
-        let legendSubtitle = ''
         let gradient = 'linear-gradient(to right, #440154, #482878, #3E4A89, #31688E, #26838F, #1F9D8A, #6CCE59, #B5DE2B, #FDE725, #FCA50A, #E23028)'
         let showLegend = false
         let isPercentage = false
@@ -1080,22 +1140,18 @@ export default memo(function MapView({
 
         if (viewMode === 'goal-birds') {
           legendTitle = 'Goal Birds Density'
-          legendSubtitle = 'Goal birds per cell'
           gradient = 'linear-gradient(to right, rgba(212,160,23,0.1), rgba(212,160,23,0.4), rgba(218,165,32,0.7), rgba(255,193,7,0.9), rgba(255,215,0,1))'
           showLegend = true
           emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
         } else if (viewMode === 'density' && !goalBirdsOnlyFilter) {
           legendTitle = seenSpecies.size > 0 ? 'Lifer Density' : 'Species Richness'
-          legendSubtitle = seenSpecies.size > 0 ? 'Unseen species per area' : 'Species present per area'
           showLegend = true
         } else if (viewMode === 'species' && selectedSpecies) {
           legendTitle = selectedSpeciesMeta ? selectedSpeciesMeta.comName : 'Species Range'
-          legendSubtitle = 'Relative abundance'
           isPercentage = true
           showLegend = true
         } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
           legendTitle = 'Goal Birds Only'
-          legendSubtitle = 'Filtered species count'
           showLegend = true
           emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
         }
