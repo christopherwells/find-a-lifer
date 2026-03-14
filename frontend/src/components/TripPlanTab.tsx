@@ -130,22 +130,17 @@ export default function TripPlanTab({
     const calc = async () => {
       setHotspotsLoading(true)
       try {
-        // Use lifer-summary endpoint: sends seen species, gets back per-cell lifer counts
-        const seenCodes = Array.from(seenSpecies)
-        const response = await fetch(`/api/weeks/${hotspotWeek}/lifer-summary`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seen_species_codes: seenCodes }),
-          signal: controller.signal,
-        })
-        if (!response.ok) {
-          setHotspots([])
-          setHotspotsLoading(false)
-          return
-        }
+        const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
+        const weekCells = await fetchWeekCells(hotspotWeek)
+        if (controller.signal.aborted) return
 
-        // Response: [[cell_id, lifer_count, max_prob_uint8], ...]
-        const summaryData: [number, number, number][] = await response.json()
+        // Build seen species ID set from species codes
+        const seenIds = new Set<number>()
+        speciesData.forEach(sp => {
+          if (seenSpecies.has(sp.speciesCode)) seenIds.add(sp.species_id)
+        })
+
+        const summaryData = computeLiferSummary(weekCells, seenIds)
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
@@ -207,23 +202,16 @@ export default function TripPlanTab({
       try {
         const speciesCode = selectedSpeciesForWindow.speciesCode
 
-        // Fetch all 52 weeks in parallel using lightweight per-species endpoint
-        // Each response is ~50KB instead of ~40MB (full week data)
-        const weekPromises = Array.from({ length: 52 }, (_, i) => i + 1).map(async (week) => {
-          try {
-            const response = await fetch(`/api/weeks/${week}/species/${speciesCode}`, {
-              signal: controller.signal,
-            })
-            if (!response.ok) return { week, records: [] as { cell_id: number; probability: number }[] }
-            const records: { cell_id: number; probability: number }[] = await response.json()
-            return { week, records }
-          } catch (err) {
-            if ((err as Error).name === 'AbortError') throw err
-            return { week, records: [] as { cell_id: number; probability: number }[] }
-          }
-        })
+        // Fetch all 52 weeks from a single species-weeks file (instead of 52 API calls)
+        const { fetchSpeciesWeeks } = await import('../lib/dataCache')
+        const speciesWeekData = await fetchSpeciesWeeks(speciesCode)
+        if (controller.signal.aborted) return
 
-        const weeklyResults = await Promise.all(weekPromises)
+        const weeklyResults = Array.from({ length: 52 }, (_, i) => i + 1).map(week => {
+          const weekEntries = speciesWeekData[String(week)] || []
+          const records = weekEntries.map(([cellId]) => ({ cell_id: cellId, probability: 1.0 }))
+          return { week, records }
+        })
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
@@ -307,15 +295,20 @@ export default function TripPlanTab({
         const speciesAtA = new Map<number, { total: number; count: number }>()
         const speciesAtB = new Map<number, { total: number; count: number }>()
 
-        // Fetch cell data for both locations across all weeks in parallel
+        // Load week cells and extract data for both locations
+        const { fetchWeekCells } = await import('../lib/dataCache')
         const cellFetches = weeksToLoad.flatMap(week => [
-          fetch(`/api/weeks/${week}/cells/${locationA!.cellId}`, { signal: controller.signal })
-            .then(r => r.ok ? r.json() : [])
-            .then(data => ({ week, location: 'A' as const, data: data as { species_id: number; probability: number }[] }))
+          fetchWeekCells(week)
+            .then(weekCells => {
+              const speciesIds = weekCells.get(locationA!.cellId) || []
+              return { week, location: 'A' as const, data: speciesIds.map(sid => ({ species_id: sid, probability: 1.0 })) }
+            })
             .catch(() => ({ week, location: 'A' as const, data: [] as { species_id: number; probability: number }[] })),
-          fetch(`/api/weeks/${week}/cells/${locationB!.cellId}`, { signal: controller.signal })
-            .then(r => r.ok ? r.json() : [])
-            .then(data => ({ week, location: 'B' as const, data: data as { species_id: number; probability: number }[] }))
+          fetchWeekCells(week)
+            .then(weekCells => {
+              const speciesIds = weekCells.get(locationB!.cellId) || []
+              return { week, location: 'B' as const, data: speciesIds.map(sid => ({ species_id: sid, probability: 1.0 })) }
+            })
             .catch(() => ({ week, location: 'B' as const, data: [] as { species_id: number; probability: number }[] })),
         ])
 
@@ -426,15 +419,14 @@ export default function TripPlanTab({
         // Accumulate probabilities for species in the selected cell using per-cell endpoint
         const speciesProbabilities = new Map<number, { total: number; count: number }>()
 
-        // Fetch all weeks in parallel using lightweight per-cell endpoint (~50KB each instead of ~40MB)
+        // Load week cells and extract data for selected location
+        const { fetchWeekCells } = await import('../lib/dataCache')
         const weekResults = await Promise.all(
           weeksToLoad.map(async (week) => {
             try {
-              const response = await fetch(`/api/weeks/${week}/cells/${selectedLocation.cellId}`, {
-                signal: controller.signal,
-              })
-              if (!response.ok) return []
-              return await response.json() as { species_id: number; probability: number }[]
+              const weekCells = await fetchWeekCells(week)
+              const speciesIds = weekCells.get(selectedLocation.cellId) || []
+              return speciesIds.map(sid => ({ species_id: sid, probability: 1.0 }))
             } catch {
               return [] as { species_id: number; probability: number }[]
             }

@@ -109,11 +109,8 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
       }
 
       try {
-        const response = await fetch('/api/regions')
-        if (!response.ok) {
-          throw new Error(`Failed to fetch regions: ${response.status}`)
-        }
-        const data = await response.json()
+        const { fetchRegions } = await import('../lib/dataCache')
+        const data = await fetchRegions()
 
         // Find the selected region
         const region = data.features?.find(

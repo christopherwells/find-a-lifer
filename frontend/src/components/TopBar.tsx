@@ -1,46 +1,9 @@
-import { useEffect, useState } from 'react'
-
 interface TopBarProps {
   darkMode: boolean
   onToggleDarkMode: () => void
 }
 
 export default function TopBar({ darkMode, onToggleDarkMode }: TopBarProps) {
-  const [serverStatus, setServerStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
-
-  useEffect(() => {
-    let cancelled = false
-    let retryTimeout: ReturnType<typeof setTimeout>
-
-    const checkHealth = (attempt: number) => {
-      fetch('/api/health')
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          return res.json()
-        })
-        .then(() => {
-          if (!cancelled) setServerStatus('connected')
-        })
-        .catch(() => {
-          if (cancelled) return
-          if (attempt < 3) {
-            // Retry with exponential backoff: 2s, 4s, 8s
-            const delay = Math.pow(2, attempt + 1) * 1000
-            setServerStatus('connecting')
-            retryTimeout = setTimeout(() => checkHealth(attempt + 1), delay)
-          } else {
-            setServerStatus('error')
-          }
-        })
-    }
-
-    checkHealth(0)
-    return () => {
-      cancelled = true
-      clearTimeout(retryTimeout)
-    }
-  }, [])
-
   return (
     <header
       data-testid="top-bar"
@@ -57,20 +20,8 @@ export default function TopBar({ darkMode, onToggleDarkMode }: TopBarProps) {
         </h1>
       </div>
 
-      {/* Right: Status + Dark Mode Toggle */}
+      {/* Right: Dark Mode Toggle */}
       <div className="flex items-center gap-3">
-        {/* Server Status — just a dot */}
-        <span
-          className={`w-1.5 h-1.5 rounded-full inline-block ${
-            serverStatus === 'connected'
-              ? 'bg-green-400'
-              : serverStatus === 'connecting'
-              ? 'bg-yellow-400 animate-pulse'
-              : 'bg-red-400'
-          }`}
-          title={serverStatus === 'connected' ? 'Connected' : serverStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-        />
-
         {/* Dark Mode Toggle */}
         <button
           onClick={onToggleDarkMode}

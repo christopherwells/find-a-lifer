@@ -60,3 +60,6 @@ feature*-*.md
 
 .playwright-cli/
 .playwright/
+
+# Generated static data (too large for git, run scripts/precompute_static.py to generate)
+frontend/public/data/

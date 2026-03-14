@@ -191,8 +191,14 @@ async function loadSpeciesMetaCache(): Promise<SpeciesMeta[]> {
   const { fetchSpecies } = await import('../lib/dataCache')
   const data = await fetchSpecies() as SpeciesMeta[]
   speciesMetaCache = data
+  // Build species-by-id lookup
+  speciesByIdCache = new Map()
+  data.forEach(s => speciesByIdCache!.set(s.species_id, s))
   return data
 }
+
+// Shared species-by-ID lookup, built when speciesMetaCache loads
+let speciesByIdCache: Map<number, SpeciesMeta> | null = null
 
 // Helper function to generate legend tick labels
 function getLegendTicks(min: number, max: number, isPercentage: boolean, numTicks: number = 5): string[] {
@@ -365,15 +371,8 @@ export default memo(function MapView({
     const loadWeekData = async () => {
       setIsLoadingWeek(true)
       try {
-        const summaryResponse = await fetch(`/api/weeks/${currentWeek}/summary`, {
-          signal: abortController.signal,
-        })
-        if (abortController.signal.aborted) return
-        if (!summaryResponse.ok) {
-          console.error(`Failed to load week ${currentWeek} summary:`, summaryResponse.statusText)
-          return
-        }
-        const summary: WeeklySummary = await summaryResponse.json()
+        const { fetchWeekSummary } = await import('../lib/dataCache')
+        const summary: WeeklySummary = await fetchWeekSummary(currentWeek)
         if (abortController.signal.aborted) return
         setWeeklySummary(summary)
         setWeeklyData([]) // Clear full data — loaded on demand
@@ -611,13 +610,13 @@ export default memo(function MapView({
               if (cached) {
                 processGoalBirds(cached)
               } else {
-                fetch(`/api/weeks/${week}/cells/${cellId}`)
-                  .then(r => r.json())
-                  .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                import('../lib/dataCache').then(({ fetchWeekCells, getCellSpecies }) =>
+                  fetchWeekCells(week).then(weekCells => {
+                    const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
                     cellDataCache.set(cacheKey, records)
                     processGoalBirds(records)
                   })
-                  .catch(err => console.error('Goal Birds popup: error loading cell data', err))
+                ).catch(err => console.error('Goal Birds popup: error loading cell data', err))
               }
             } else if (viewModeRef.current === 'density') {
               // Density mode: load cell data from API
@@ -657,13 +656,13 @@ export default memo(function MapView({
               if (densityCached) {
                 processLifers(densityCached)
               } else {
-                fetch(`/api/weeks/${week}/cells/${cellId}`)
-                  .then(r => r.json())
-                  .then((records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
+                import('../lib/dataCache').then(({ fetchWeekCells, getCellSpecies }) =>
+                  fetchWeekCells(week).then(weekCells => {
+                    const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
                     cellDataCache.set(densityCacheKey, records)
                     processLifers(records)
                   })
-                  .catch(err => console.error('Lifers popup: error loading cell data', err))
+                ).catch(err => console.error('Lifers popup: error loading cell data', err))
               }
             } else {
               // Other modes: select location for trip planning
@@ -768,16 +767,12 @@ export default memo(function MapView({
         }
         setSelectedSpeciesMeta(speciesMeta)
 
-        // Load per-species data from API
+        // Load per-species data from static files
         try {
-          const response = await fetch(`/api/weeks/${currentWeek}/species/${selectedSpecies}`)
+          const { fetchWeekCells, getSpeciesCells } = await import('../lib/dataCache')
+          const weekCells = await fetchWeekCells(currentWeek)
           if (cancelled) return
-          if (!response.ok) {
-            console.warn(`Species Range: failed to load ${selectedSpecies} data`)
-            setNeutralOverlay()
-            return
-          }
-          const records: { cell_id: number; probability: number }[] = await response.json()
+          const records = getSpeciesCells(weekCells, speciesMeta.species_id)
           if (cancelled) return
 
           const cellProbabilities = new Map<number, number>()
@@ -829,15 +824,10 @@ export default memo(function MapView({
         }
 
         try {
-          const ids = Array.from(goalSpeciesIdSet).join(',')
-          const response = await fetch(`/api/weeks/${currentWeek}/species-batch?ids=${ids}`)
+          const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
+          const weekCells = await fetchWeekCells(currentWeek)
           if (cancelled) return
-          if (!response.ok) {
-            console.warn('Goal Birds: failed to load batch data')
-            setNeutralOverlay()
-            return
-          }
-          const batchData: Record<string, { cell_id: number; probability: number }[]> = await response.json()
+          const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
           if (cancelled) return
 
           // Count goal species per cell
@@ -900,11 +890,10 @@ export default memo(function MapView({
             return
           }
           try {
-            const ids = Array.from(goalSpeciesIdSet).join(',')
-            const response = await fetch(`/api/weeks/${currentWeek}/species-batch?ids=${ids}`)
+            const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
+            const weekCells = await fetchWeekCells(currentWeek)
             if (cancelled) return
-            if (!response.ok) { setNeutralOverlay(); return }
-            const batchData: Record<string, { cell_id: number; probability: number }[]> = await response.json()
+            const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
             if (cancelled) return
 
             const cellMaxProbability = new Map<number, number>()
@@ -968,11 +957,10 @@ export default memo(function MapView({
         const goalSpeciesIdSet = goalSpeciesIdSetRef.current
         if (goalSpeciesIdSet.size === 0) { setNeutralOverlay(); return }
         try {
-          const ids = Array.from(goalSpeciesIdSet).join(',')
-          const response = await fetch(`/api/weeks/${currentWeek}/species-batch?ids=${ids}`)
+          const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
+          const weekCells = await fetchWeekCells(currentWeek)
           if (cancelled) return
-          if (!response.ok) { setNeutralOverlay(); return }
-          const batchData: Record<string, { cell_id: number; probability: number }[]> = await response.json()
+          const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
           if (cancelled) return
 
           const cellCounts = new Map<number, number>()
@@ -1015,23 +1003,22 @@ export default memo(function MapView({
 
         if (seenSpecies.size > 0) {
           try {
-            const response = await fetch(`/api/weeks/${currentWeek}/lifer-summary`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ seen_species_codes: Array.from(seenSpecies) }),
-            })
+            const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
+            const weekCells = await fetchWeekCells(currentWeek)
             if (cancelled) return
-            if (response.ok) {
-              const liferData: [number, number, number][] = await response.json()
-              liferData.forEach(([cellId, liferCount]) => {
-                if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
-              })
-            } else {
-              // Fallback to summary on error
-              weeklySummary.forEach(([cellId, speciesCount]) => {
-                if (speciesCount > 0) cellLiferCounts.set(cellId, speciesCount)
+
+            // Build seen species ID set
+            const seenIds = new Set<number>()
+            if (speciesMetaCache) {
+              speciesMetaCache.forEach(s => {
+                if (seenSpecies.has(s.speciesCode)) seenIds.add(s.species_id)
               })
             }
+
+            const liferData = computeLiferSummary(weekCells, seenIds)
+            liferData.forEach(([cellId, liferCount]) => {
+              if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
+            })
           } catch (error) {
             if (!cancelled) console.error('Lifer summary: error loading data', error)
             // Fallback to summary
