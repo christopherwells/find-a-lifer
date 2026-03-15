@@ -41,7 +41,7 @@ interface SidePanelProps {
 interface Tab {
   id: TabId
   label: string
-  icon: JSX.Element
+  icon: React.ReactNode
 }
 
 // SVG icons for tabs (cleaner than emoji)
