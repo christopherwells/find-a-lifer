@@ -95,6 +95,12 @@ export default function ProfileTab() {
     setImportError(null)
 
     try {
+      // Basic file validation
+      const name = file.name.toLowerCase()
+      if (!name.endsWith('.csv') && !name.endsWith('.txt') && !name.endsWith('.tsv')) {
+        throw new Error('Please select a CSV or text file. eBird life lists are downloaded as .csv files.')
+      }
+
       // Read the CSV file, normalizing line endings
       const text = await file.text()
       const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
@@ -262,7 +268,7 @@ export default function ProfileTab() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.txt"
+            accept="*/*"
             onChange={handleFileChange}
             disabled={importing}
             className="sr-only"
