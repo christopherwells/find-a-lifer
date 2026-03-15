@@ -40,8 +40,8 @@ interface OccurrenceRecord {
   probability: number
 }
 
-// Summary data: [cell_id, species_count, max_prob_uint8]
-type WeeklySummary = [number, number, number][]
+// Summary data: [cell_id, species_count, max_prob_uint8, n_checklists?]
+type WeeklySummary = [number, number, number, number?][]
 
 interface SpeciesMeta {
   species_id: number
@@ -70,6 +70,7 @@ interface GoalBirdsPopup {
   cellId: number
   coordinates: [number, number]
   birds: GoalBirdInCell[]
+  nChecklists?: number
 }
 
 interface LiferInCell {
@@ -128,6 +129,7 @@ interface LifersPopup {
   cellId: number
   coordinates: [number, number]
   lifers: LiferInCell[]
+  nChecklists?: number
 }
 
 // Module-level cache for species metadata (populated by shared dataCache, used for sync access)
@@ -255,6 +257,8 @@ export default memo(function MapView({
   const [goalBirdsPopup, setGoalBirdsPopup] = useState<GoalBirdsPopup | null>(null)
   // Lifer density click-to-inspect popup
   const [lifersPopup, setLifersPopup] = useState<LifersPopup | null>(null)
+  // Checklist counts per cell (from weekly summary, for low-data warnings)
+  const cellChecklistCountsRef = useRef<Map<number, number>>(new Map())
   // Species metadata for the selected species (used in legend)
   const [selectedSpeciesMeta, setSelectedSpeciesMeta] = useState<SpeciesMeta | null>(null)
   // Legend data range values (for numeric labels)
@@ -375,6 +379,12 @@ export default memo(function MapView({
         const summary: WeeklySummary = await fetchWeekSummary(currentWeek)
         if (abortController.signal.aborted) return
         setWeeklySummary(summary)
+        // Build checklist counts map from summary (4th element if present)
+        const counts = new Map<number, number>()
+        summary.forEach(([cellId, , , nChecklists]) => {
+          if (nChecklists != null) counts.set(cellId, nChecklists)
+        })
+        cellChecklistCountsRef.current = counts
         setWeeklyData([]) // Clear full data — loaded on demand
         console.log(`Loaded week ${currentWeek} summary: ${summary.length} cells`)
       } catch (error) {
@@ -628,7 +638,7 @@ export default memo(function MapView({
                 })
 
                 goalBirds.sort((a, b) => b.probability - a.probability)
-                setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds })
+                setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds, nChecklists: cellChecklistCountsRef.current.get(cellId) })
                 console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
               }
 
@@ -674,7 +684,7 @@ export default memo(function MapView({
                 })
 
                 lifers.sort((a, b) => b.probability - a.probability)
-                setLifersPopup({ cellId, coordinates: coords, lifers })
+                setLifersPopup({ cellId, coordinates: coords, lifers, nChecklists: cellChecklistCountsRef.current.get(cellId) })
                 console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
               }
 
@@ -1231,6 +1241,16 @@ export default memo(function MapView({
             </button>
           </div>
 
+          {/* Low data warning */}
+          {goalBirdsPopup.nChecklists != null && goalBirdsPopup.nChecklists < 10 && (
+            <div className="px-3 py-1.5 bg-amber-50 border-b border-amber-200 flex items-center gap-1.5">
+              <span className="text-amber-500 text-xs">⚠</span>
+              <span className="text-[10px] text-amber-700">
+                Limited data ({goalBirdsPopup.nChecklists} checklist{goalBirdsPopup.nChecklists !== 1 ? 's' : ''}) — frequencies may be unreliable
+              </span>
+            </div>
+          )}
+
           {/* Bird list */}
           <div className="overflow-y-auto flex-1">
             {goalBirdsPopup.birds.length === 0 ? (
@@ -1361,6 +1381,16 @@ export default memo(function MapView({
               </svg>
             </button>
           </div>
+
+          {/* Low data warning */}
+          {lifersPopup.nChecklists != null && lifersPopup.nChecklists < 10 && (
+            <div className="px-3 py-1.5 bg-amber-50 border-b border-teal-200 flex items-center gap-1.5">
+              <span className="text-amber-500 text-xs">⚠</span>
+              <span className="text-[10px] text-amber-700">
+                Limited data ({lifersPopup.nChecklists} checklist{lifersPopup.nChecklists !== 1 ? 's' : ''}) — frequencies may be unreliable
+              </span>
+            </div>
+          )}
 
           {/* Lifer list */}
           <div className="overflow-y-auto flex-1">

@@ -455,8 +455,11 @@ def main():
                 continue
             species_ids = [taxon_to_id[tid] for tid, _ in sp_list]
             max_freq = max(freq for _, freq in sp_list)
+            # Get checklist count for this cell/week
+            h3_cell = int_to_cell[int_id]
+            n_checklists = cell_week_checklists[h3_cell][week]
             cells_out.append([int_id, species_ids])
-            summary_out.append([int_id, len(species_ids), max_freq])
+            summary_out.append([int_id, len(species_ids), max_freq, n_checklists])
 
         with open(OUTPUT_DIR / "weeks" / f"week_{week:02d}_cells.json", "w") as f:
             json.dump(cells_out, f, separators=(",", ":"))

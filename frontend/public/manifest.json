@@ -1,12 +1,12 @@
 {
   "name": "Find-A-Lifer",
-  "short_name": "Lifer",
-  "description": "Find life birds across North America",
+  "short_name": "Find-A-Lifer",
+  "description": "Find life birds across the Northeast US",
   "start_url": "/find-a-lifer/",
   "scope": "/find-a-lifer/",
   "display": "standalone",
-  "theme_color": "#0d9488",
-  "background_color": "#f0fdfa",
+  "theme_color": "#2C3E7B",
+  "background_color": "#ffffff",
   "icons": [
     {
       "src": "/find-a-lifer/icon-192x192.svg",
