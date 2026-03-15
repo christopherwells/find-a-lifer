@@ -4,6 +4,7 @@ import { fetchSpecies } from '../lib/dataCache'
 
 async function clearAppCaches(): Promise<boolean> {
   try {
+    // Clear Cache API (service worker runtime caches)
     const cacheNames = await caches.keys()
     await Promise.all(cacheNames.map(name => caches.delete(name)))
     // Unregister service workers so fresh one installs
@@ -11,6 +12,8 @@ async function clearAppCaches(): Promise<boolean> {
     if (registrations) {
       await Promise.all(registrations.map(r => r.unregister()))
     }
+    // Clear cached data from IndexedDB (but preserve user's life list and goal lists)
+    indexedDB.deleteDatabase('find-a-lifer-grid-cache')
     return true
   } catch {
     return false
