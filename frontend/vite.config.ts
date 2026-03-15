@@ -20,18 +20,18 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: /\/data\/species\.json$/,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'species-cache',
               expiration: {
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                maxAgeSeconds: 60 * 60 * 24 * 7,
               },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
             urlPattern: /\/data\/grid\.geojson$/,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'grid-cache',
               expiration: {
@@ -42,11 +42,11 @@ export default defineConfig({
           },
           {
             urlPattern: /\/data\/weeks\//,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'week-data-cache',
               expiration: {
-                maxEntries: 200,
+                maxEntries: 500,
                 maxAgeSeconds: 60 * 60 * 24 * 7,
               },
               cacheableResponse: { statuses: [0, 200] },
@@ -54,11 +54,11 @@ export default defineConfig({
           },
           {
             urlPattern: /\/data\/species-weeks\//,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'species-weeks-cache',
               expiration: {
-                maxEntries: 500,
+                maxEntries: 1000,
                 maxAgeSeconds: 60 * 60 * 24 * 7,
               },
               cacheableResponse: { statuses: [0, 200] },

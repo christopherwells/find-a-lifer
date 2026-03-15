@@ -1,6 +1,21 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { fetchSpecies } from '../lib/dataCache'
+
+async function clearAppCaches(): Promise<boolean> {
+  try {
+    const cacheNames = await caches.keys()
+    await Promise.all(cacheNames.map(name => caches.delete(name)))
+    // Unregister service workers so fresh one installs
+    const registrations = await navigator.serviceWorker?.getRegistrations()
+    if (registrations) {
+      await Promise.all(registrations.map(r => r.unregister()))
+    }
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * Parse a single CSV line into fields, handling:
@@ -57,11 +72,19 @@ export default function ProfileTab() {
   const [importResult, setImportResult] = useState<{ matched: number; unmatched: number; total: number; newCount: number; existingCount: number } | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [updating, setUpdating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click()
-  }
+  const handleCheckForUpdates = useCallback(async () => {
+    setUpdating(true)
+    const success = await clearAppCaches()
+    if (success) {
+      window.location.reload()
+    } else {
+      setUpdating(false)
+      alert('Could not clear caches. Try manually clearing browser data.')
+    }
+  }, [])
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -228,22 +251,25 @@ export default function ProfileTab() {
         <p className="text-xs text-gray-600 dark:text-gray-400">
           Upload your eBird CSV life list to automatically mark species as seen.
         </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          onChange={handleFileChange}
-          className="hidden"
-          data-testid="csv-file-input"
-        />
-        <button
-          onClick={handleImportClick}
-          disabled={importing}
-          className="w-full px-4 py-2 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1e2a54] disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+        <label
+          className={`block w-full px-4 py-2 text-center rounded-lg transition-colors cursor-pointer ${
+            importing
+              ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500'
+              : 'bg-[#2C3E7B] text-white hover:bg-[#1e2a54] active:bg-[#162044]'
+          }`}
           data-testid="import-csv-button"
         >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.txt"
+            onChange={handleFileChange}
+            disabled={importing}
+            className="sr-only"
+            data-testid="csv-file-input"
+          />
           {importing ? 'Importing...' : 'Import CSV'}
-        </button>
+        </label>
 
         {/* Import Progress/Results */}
         {importing && (
@@ -299,6 +325,21 @@ export default function ProfileTab() {
             {exporting ? 'Exporting...' : 'Export Life List as CSV'}
           </button>
         )}
+      </div>
+
+      {/* App Updates Section */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">App Updates</h4>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+          Clear cached data and reload to get the latest version.
+        </p>
+        <button
+          onClick={handleCheckForUpdates}
+          disabled={updating}
+          className="w-full px-4 py-2 border border-[#2C3E7B] dark:border-blue-500 text-[#2C3E7B] dark:text-blue-400 rounded-lg hover:bg-[#2C3E7B]/10 dark:hover:bg-blue-500/10 disabled:border-gray-300 dark:disabled:border-gray-600 disabled:text-gray-300 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+        >
+          {updating ? 'Updating...' : 'Check for Updates'}
+        </button>
       </div>
 
       {/* Clear All Section */}
