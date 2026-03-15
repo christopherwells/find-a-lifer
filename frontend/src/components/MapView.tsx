@@ -730,14 +730,37 @@ export default memo(function MapView({
     // Helper: clear previous feature states and apply new ones
     const applyFeatureStates = (cellValues: Map<number, number>) => {
       if (!map.current) return
-      featureStateCellIds.current.forEach((cellId) => {
-        map.current!.removeFeatureState({ source: 'grid', id: cellId })
-      })
+      try {
+        featureStateCellIds.current.forEach((cellId) => {
+          map.current!.removeFeatureState({ source: 'grid', id: cellId })
+        })
+      } catch {
+        // Source tiles may not be loaded yet — ok to skip clearing
+      }
       featureStateCellIds.current.clear()
-      cellValues.forEach((value, cellId) => {
-        map.current!.setFeatureState({ source: 'grid', id: cellId }, { value })
-        featureStateCellIds.current.add(cellId)
-      })
+      try {
+        cellValues.forEach((value, cellId) => {
+          map.current!.setFeatureState({ source: 'grid', id: cellId }, { value })
+          featureStateCellIds.current.add(cellId)
+        })
+      } catch {
+        // Source tiles not ready yet — retry when tiles load
+        const retryOnSourceData = () => {
+          if (!map.current) return
+          try {
+            cellValues.forEach((value, cellId) => {
+              if (!featureStateCellIds.current.has(cellId)) {
+                map.current!.setFeatureState({ source: 'grid', id: cellId }, { value })
+                featureStateCellIds.current.add(cellId)
+              }
+            })
+            map.current?.off('sourcedata', retryOnSourceData)
+          } catch {
+            // Still not ready, will retry on next sourcedata event
+          }
+        }
+        map.current.on('sourcedata', retryOnSourceData)
+      }
     }
 
     const clearFeatureStates = () => {

@@ -137,9 +137,14 @@ export default memo(function SidePanel({
             <button
               key={tab.id}
               onClick={() => {
-                setActiveTab(tab.id)
-                // If panel is collapsed, expand it
-                if (collapsed) onToggle()
+                if (activeTab === tab.id && !collapsed) {
+                  // Clicking active tab again collapses the panel
+                  onToggle()
+                } else {
+                  setActiveTab(tab.id)
+                  // If panel is collapsed, expand it
+                  if (collapsed) onToggle()
+                }
               }}
               className={`flex-1 flex flex-col items-center py-2 transition-colors ${
                 activeTab === tab.id && !collapsed
