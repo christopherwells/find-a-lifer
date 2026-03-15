@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Process Maine eBird Basic Dataset into static JSON files for Find-A-Lifer.
+Process eBird Basic Dataset files into static JSON files for Find-A-Lifer.
 
-Reads the EBD and sampling event files, applies effort filters,
+Reads EBD and sampling event files for multiple states, applies effort filters,
 assigns H3 cells, and computes reporting frequency per species/cell/week.
 
 Output goes directly to frontend/public/data/ for the PWA.
@@ -34,6 +34,9 @@ DATA_DIR = PROJECT_DIR / "data"
 OUTPUT_DIR = PROJECT_DIR / "frontend" / "public" / "data"
 TAXONOMY_FILE = DATA_DIR / "ebird_taxonomy.json"
 
+# States to process — look for all available EBD files
+STATES = ["US-ME", "US-NH", "US-VT", "US-MA", "US-CT", "US-RI", "US-NY"]
+
 # Effort filters (eBird best practices)
 MAX_DURATION = 360  # minutes
 MAX_DISTANCE = 10   # km
@@ -64,49 +67,32 @@ def get_cell_id(lat, lon, resolution=4):
         return f"{lat_bin:.2f}_{lon_bin:.2f}"
 
 
-def main():
-    t0 = time.time()
-    print("=" * 60)
-    print("Process Maine EBD for Find-A-Lifer")
-    print("=" * 60)
-    sys.stdout.flush()
+def find_ebd_files():
+    """Find all available EBD file pairs (observations + sampling)."""
+    pairs = []
+    for state in STATES:
+        # Look for the EBD file pattern
+        pattern = f"ebd_{state}_smp_relJan-2026"
+        ebd_file = DATA_DIR / f"{pattern}.txt"
+        sed_file = DATA_DIR / f"{pattern}_sampling.txt"
+        if ebd_file.exists() and sed_file.exists():
+            pairs.append((state, ebd_file, sed_file))
+        elif ebd_file.exists():
+            print(f"  WARNING: Found {ebd_file.name} but missing sampling file")
+        # Also try other release patterns
+        for f in DATA_DIR.glob(f"ebd_{state}_smp_rel*.txt"):
+            if "_sampling" not in f.name and f != ebd_file:
+                sf = f.parent / f.name.replace(".txt", "_sampling.txt")
+                if sf.exists() and (state, f, sf) not in pairs:
+                    pairs.append((state, f, sf))
+    return pairs
 
-    ebd_file = DATA_DIR / "ebd_US-ME_smp_relJan-2026.txt"
-    sed_file = DATA_DIR / "ebd_US-ME_smp_relJan-2026_sampling.txt"
 
-    if not ebd_file.exists():
-        print(f"ERROR: EBD file not found: {ebd_file}")
-        sys.exit(1)
-    if not sed_file.exists():
-        print(f"ERROR: Sampling file not found: {sed_file}")
-        sys.exit(1)
-
-    # Load eBird taxonomy for family names and species codes
-    ebird_taxonomy = {}  # sciName -> {familyComName, speciesCode, taxonOrder}
-    if TAXONOMY_FILE.exists():
-        print("  Loading eBird taxonomy...")
-        with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
-            taxonomy_data = json.load(f)
-        for entry in taxonomy_data:
-            sci = entry.get("sciName", "")
-            if sci and entry.get("category") == "species":
-                ebird_taxonomy[sci] = {
-                    "familyComName": entry.get("familyComName", ""),
-                    "speciesCode": entry.get("speciesCode", ""),
-                    "taxonOrder": entry.get("taxonOrder", 99999),
-                }
-        print(f"  eBird taxonomy loaded: {len(ebird_taxonomy)} species")
-    else:
-        print("  WARNING: eBird taxonomy file not found, family names will be missing")
-        print(f"  Expected: {TAXONOMY_FILE}")
-
-    # --- Step 1: Read sampling events, apply effort filters ---
-    print("\n[1/5] Reading sampling events...")
-    sys.stdout.flush()
-
-    valid_checklists = {}  # sampling_event_id -> (lat, lon, week, cell_id)
+def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklists):
+    """Process a single sampling event file."""
     total_events = 0
     filtered_out = 0
+    state_valid = 0
 
     with open(sed_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
@@ -172,38 +158,22 @@ def main():
             sei = row.get("SAMPLING EVENT IDENTIFIER", "")
             if sei:
                 valid_checklists[sei] = (lat, lon, week, cell_id)
+                cell_week_checklists[cell_id][week] += 1
+                state_valid += 1
 
             if total_events % 500000 == 0:
-                print(f"    {total_events:,} events scanned, {len(valid_checklists):,} valid...")
+                print(f"    {state}: {total_events:,} events scanned, {state_valid:,} valid...")
                 sys.stdout.flush()
 
-    print(f"  Total events: {total_events:,}")
-    print(f"  Filtered out: {filtered_out:,}")
-    print(f"  Valid checklists: {len(valid_checklists):,}")
+    print(f"    {state}: {total_events:,} total, {filtered_out:,} filtered, {state_valid:,} valid")
     sys.stdout.flush()
+    return total_events, filtered_out
 
-    # --- Step 2: Count checklists per cell/week ---
-    print("\n[2/5] Counting checklists per cell/week...")
-    sys.stdout.flush()
 
-    cell_week_checklists = defaultdict(lambda: defaultdict(int))
-    for sei, (lat, lon, week, cell_id) in valid_checklists.items():
-        cell_week_checklists[cell_id][week] += 1
-
-    n_cells = len(cell_week_checklists)
-    print(f"  Unique cells: {n_cells}")
-    sys.stdout.flush()
-
-    # --- Step 3: Read observations, compute detections ---
-    print("\n[3/5] Reading observations...")
-    sys.stdout.flush()
-
-    # Track: species_code -> cell_id -> week -> n_detected
-    detections = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    species_names = {}  # code -> common name
-    species_scinames = {}  # code -> scientific name
-    species_taxon_order = {}  # taxon_id -> float (eBird taxonomic order)
-    species_family = {}  # taxon_id -> family common name
+def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists,
+                     detections, species_names, species_scinames,
+                     species_taxon_order, species_family):
+    """Process a single EBD observations file."""
     total_obs = 0
     matched_obs = 0
 
@@ -225,8 +195,6 @@ def main():
             if not common_name:
                 continue
             sci_name = row.get("SCIENTIFIC NAME", "")
-            # Generate species code from common name (e.g., "Black-capped Chickadee" -> "bkcchi")
-            # Use taxon concept ID as unique key
             taxon_id = row.get("TAXON CONCEPT ID", common_name)
 
             _, _, week, cell_id = valid_checklists[sei]
@@ -253,11 +221,104 @@ def main():
                     species_family[taxon_id] = family
 
             if total_obs % 2000000 == 0:
-                print(f"    {total_obs:,} observations, {matched_obs:,} matched, {len(species_names):,} species...")
+                print(f"    {state}: {total_obs:,} obs, {matched_obs:,} matched, {len(species_names):,} species...")
                 sys.stdout.flush()
 
-    print(f"  Total observations: {total_obs:,}")
-    print(f"  Matched observations: {matched_obs:,}")
+    print(f"    {state}: {total_obs:,} total obs, {matched_obs:,} matched")
+    sys.stdout.flush()
+    return total_obs, matched_obs
+
+
+def main():
+    t0 = time.time()
+    print("=" * 60)
+    print("Process eBird EBD for Find-A-Lifer")
+    print("=" * 60)
+    sys.stdout.flush()
+
+    # Find available state files
+    file_pairs = find_ebd_files()
+    if not file_pairs:
+        print("ERROR: No EBD files found in", DATA_DIR)
+        sys.exit(1)
+
+    states_found = [s for s, _, _ in file_pairs]
+    print(f"\nFound {len(file_pairs)} states: {', '.join(states_found)}")
+    for state, ebd, sed in file_pairs:
+        ebd_size = ebd.stat().st_size / (1024**3)
+        sed_size = sed.stat().st_size / (1024**3)
+        print(f"  {state}: EBD={ebd_size:.1f}GB, sampling={sed_size:.2f}GB")
+    sys.stdout.flush()
+
+    # Load eBird taxonomy for family names and species codes
+    ebird_taxonomy = {}  # sciName -> {familyComName, speciesCode, taxonOrder}
+    if TAXONOMY_FILE.exists():
+        print("\nLoading eBird taxonomy...")
+        with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
+            taxonomy_data = json.load(f)
+        for entry in taxonomy_data:
+            sci = entry.get("sciName", "")
+            if sci and entry.get("category") == "species":
+                ebird_taxonomy[sci] = {
+                    "familyComName": entry.get("familyComName", ""),
+                    "speciesCode": entry.get("speciesCode", ""),
+                    "taxonOrder": entry.get("taxonOrder", 99999),
+                }
+        print(f"  eBird taxonomy loaded: {len(ebird_taxonomy)} species")
+    else:
+        print("  WARNING: eBird taxonomy file not found, family names will be missing")
+        print(f"  Expected: {TAXONOMY_FILE}")
+
+    # --- Step 1: Read sampling events from all states ---
+    print(f"\n[1/5] Reading sampling events from {len(file_pairs)} states...")
+    sys.stdout.flush()
+
+    valid_checklists = {}  # sampling_event_id -> (lat, lon, week, cell_id)
+    cell_week_checklists = defaultdict(lambda: defaultdict(int))
+    grand_total_events = 0
+
+    for state, _, sed_file in file_pairs:
+        print(f"\n  Processing {state} sampling events...")
+        sys.stdout.flush()
+        total, _ = process_sampling_file(sed_file, state, valid_checklists, cell_week_checklists)
+        grand_total_events += total
+
+    print(f"\n  TOTAL: {grand_total_events:,} events scanned")
+    print(f"  Valid checklists across all states: {len(valid_checklists):,}")
+    sys.stdout.flush()
+
+    # --- Step 2: Count cells ---
+    print("\n[2/5] Counting cells...")
+    sys.stdout.flush()
+
+    n_cells = len(cell_week_checklists)
+    print(f"  Unique cells: {n_cells}")
+    sys.stdout.flush()
+
+    # --- Step 3: Read observations from all states ---
+    print(f"\n[3/5] Reading observations from {len(file_pairs)} states...")
+    sys.stdout.flush()
+
+    detections = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    species_names = {}
+    species_scinames = {}
+    species_taxon_order = {}
+    species_family = {}
+    grand_total_obs = 0
+    grand_matched_obs = 0
+
+    for state, ebd_file, _ in file_pairs:
+        print(f"\n  Processing {state} observations...")
+        sys.stdout.flush()
+        total, matched = process_ebd_file(
+            ebd_file, state, valid_checklists, cell_week_checklists,
+            detections, species_names, species_scinames,
+            species_taxon_order, species_family
+        )
+        grand_total_obs += total
+        grand_matched_obs += matched
+
+    print(f"\n  TOTAL: {grand_total_obs:,} observations, {grand_matched_obs:,} matched")
     print(f"  Species found: {len(species_names)}")
     sys.stdout.flush()
 
@@ -265,15 +326,9 @@ def main():
     print("\n[4/5] Computing reporting frequencies...")
     sys.stdout.flush()
 
-    # frequency = n_detected / n_total_checklists for that cell/week
-    # Convert to uint8 (0-255 scale)
-
-    # Build: cell_id -> week -> [(species_code, freq_uint8), ...]
     cell_week_species = defaultdict(lambda: defaultdict(list))
-    # Also build: species_code -> week -> [(cell_id, freq_uint8), ...]
     species_week_cells = defaultdict(lambda: defaultdict(list))
 
-    # Assign integer cell IDs for the app
     all_cells = sorted(set(
         cell_id for sp_data in detections.values()
         for cell_id in sp_data.keys()
@@ -316,7 +371,11 @@ def main():
     (OUTPUT_DIR / "weeks").mkdir(exist_ok=True)
     (OUTPUT_DIR / "species-weeks").mkdir(exist_ok=True)
 
-    # Generate species codes from common name (fallback if taxonomy not available)
+    # Clean old species-weeks files
+    for old_file in (OUTPUT_DIR / "species-weeks").glob("*.json"):
+        old_file.unlink()
+    print("  Cleaned old species-weeks files")
+
     def make_species_code(common_name):
         """Generate a 6-letter species code from common name (eBird convention)."""
         words = common_name.replace("-", " ").replace("'", "").split()
@@ -329,8 +388,7 @@ def main():
         else:
             return (words[0][:2] + words[1][:1] + words[2][:1] + words[3][:2]).lower()
 
-    # Assign integer species IDs and generate codes
-    # Use eBird taxonomy for real species codes when available
+    # Assign species codes
     taxon_to_code = {}
     taxon_to_id = {}
     used_codes = set()
@@ -341,14 +399,12 @@ def main():
         sci_name = species_scinames.get(taxon_id, "")
         name = species_names[taxon_id]
 
-        # Try to get real eBird species code from taxonomy
         if sci_name in ebird_taxonomy:
             code = ebird_taxonomy[sci_name]["speciesCode"]
             taxonomy_matches += 1
         else:
             code = make_species_code(name)
 
-        # Handle duplicates
         orig_code = code
         suffix = 1
         while code in used_codes:
@@ -372,10 +428,8 @@ def main():
             "sciName": sci_name,
             "taxonOrder": species_taxon_order.get(taxon_id, 99999),
         }
-        # Add family name from eBird taxonomy
         if sci_name in ebird_taxonomy:
             entry["familyComName"] = ebird_taxonomy[sci_name]["familyComName"]
-            # Use eBird's taxon order if we don't have it from the EBD
             if taxon_id not in species_taxon_order:
                 entry["taxonOrder"] = ebird_taxonomy[sci_name]["taxonOrder"]
         elif taxon_id in species_family:
@@ -385,6 +439,10 @@ def main():
     with open(OUTPUT_DIR / "species.json", "w") as f:
         json.dump(species_list, f, separators=(",", ":"))
     print(f"  species.json: {len(species_list)} species")
+
+    # Count families
+    families = set(s.get("familyComName", "") for s in species_list if s.get("familyComName"))
+    print(f"  Families: {len(families)}")
 
     # Write weekly files
     for week in range(1, 53):
@@ -419,14 +477,13 @@ def main():
 
     print(f"  species-weeks/: {len(species_week_cells)} files")
 
-    # Write grid GeoJSON for Maine cells
+    # Write grid GeoJSON
     if HAS_H3:
         features = []
         for int_id, h3_cell in int_to_cell.items():
             boundary = h3.cell_to_boundary(h3_cell)
-            # h3 returns (lat, lon), GeoJSON needs [lon, lat]
             coords = [[lon, lat] for lat, lon in boundary]
-            coords.append(coords[0])  # Close ring
+            coords.append(coords[0])
             center = h3.cell_to_latlng(h3_cell)
             features.append({
                 "type": "Feature",
@@ -446,11 +503,10 @@ def main():
             json.dump(grid_geojson, f, separators=(",", ":"))
         print(f"  grid.geojson: {len(features)} H3 cells")
     else:
-        # Simple grid from cell centers
         features = []
         for int_id, grid_key in int_to_cell.items():
             lat, lon = map(float, grid_key.split("_"))
-            d = 0.125  # half of 0.25 degree
+            d = 0.125
             coords = [
                 [lon - d, lat - d], [lon + d, lat - d],
                 [lon + d, lat + d], [lon - d, lat + d],
@@ -478,7 +534,9 @@ def main():
         json.dump({"type": "FeatureCollection", "features": []}, f)
 
     elapsed = time.time() - t0
-    print(f"\n  Completed in {elapsed:.1f}s")
+    print(f"\n{'=' * 60}")
+    print(f"  Completed in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+    print(f"  States: {', '.join(states_found)}")
     print(f"  {len(species_names)} species, {len(all_cells)} cells, 52 weeks")
     print(f"  Output: {OUTPUT_DIR}")
 
