@@ -1,11 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="64" fill="#0d9488"/>
-  <g transform="translate(256,256)">
-    <!-- Binoculars silhouette -->
-    <circle cx="-75" cy="-26" r="80" fill="none" stroke="#f0fdfa" stroke-width="14"/>
-    <circle cx="75" cy="-26" r="80" fill="none" stroke="#f0fdfa" stroke-width="14"/>
-    <rect x="-22" y="-42" width="44" height="32" rx="8" fill="#f0fdfa"/>
-    <!-- Bird silhouette -->
-    <path d="M-54 80 Q-28 26 26 54 Q54 58 80 48 L66 58 Q40 74 14 70 Q-14 64 -28 80 Z" fill="#f0fdfa"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2C3E7B"/>
+      <stop offset="100%" stop-color="#1a2a5e"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Hexagon grid pattern (subtle) -->
+  <g opacity="0.08" fill="white">
+    <polygon points="120,70 148,54 176,70 176,102 148,118 120,102"/>
+    <polygon points="176,70 204,54 232,70 232,102 204,118 176,102"/>
+    <polygon points="232,70 260,54 288,70 288,102 260,118 232,102"/>
+    <polygon points="288,70 316,54 344,70 344,102 316,118 288,102"/>
+    <polygon points="344,70 372,54 400,70 400,102 372,118 344,102"/>
+    <polygon points="92,102 120,86 148,102 148,134 120,150 92,134"/>
+    <polygon points="148,102 176,86 204,102 204,134 176,150 148,134"/>
+    <polygon points="204,102 232,86 260,102 260,134 232,150 204,134"/>
+    <polygon points="260,102 288,86 316,102 316,134 288,150 260,134"/>
+    <polygon points="316,102 344,86 372,102 372,134 344,150 316,134"/>
+    <polygon points="372,102 400,86 428,102 428,134 400,150 372,134"/>
+  </g>
+  <!-- Bird in flight - stylized warbler silhouette -->
+  <g transform="translate(250, 230)">
+    <!-- Body -->
+    <ellipse cx="0" cy="0" rx="75" ry="37" fill="white"/>
+    <!-- Head -->
+    <circle cx="80" cy="-22" r="32" fill="white"/>
+    <!-- Beak -->
+    <polygon points="112,-27 144,-32 112,-16" fill="#F5A623"/>
+    <!-- Eye -->
+    <circle cx="90" cy="-27" r="8" fill="#1a2a5e"/>
+    <circle cx="92" cy="-29" r="2.5" fill="white"/>
+    <!-- Wing (raised) -->
+    <path d="M-12,-22 Q-52,-120 -120,-95 Q-65,-80 -38,-40 Z" fill="rgba(255,255,255,0.85)"/>
+    <path d="M-25,-14 Q-78,-108 -148,-75 Q-92,-66 -52,-32 Z" fill="rgba(255,255,255,0.65)"/>
+    <!-- Tail -->
+    <path d="M-68,5 Q-108,-14 -135,20 Q-95,12 -74,16 Z" fill="rgba(255,255,255,0.8)"/>
+    <path d="M-68,14 Q-112,5 -130,40 Q-95,28 -72,22 Z" fill="rgba(255,255,255,0.6)"/>
+  </g>
+  <!-- Checkmark/lifer mark -->
+  <g transform="translate(385, 360)">
+    <circle cx="0" cy="0" r="48" fill="#F5A623"/>
+    <polyline points="-22,0 -8,16 24,-16" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 </svg>

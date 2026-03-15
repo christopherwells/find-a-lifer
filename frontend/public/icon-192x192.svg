@@ -1,11 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
-  <rect width="192" height="192" rx="24" fill="#0d9488"/>
-  <g transform="translate(96,96)">
-    <!-- Binoculars silhouette -->
-    <circle cx="-28" cy="-10" r="30" fill="none" stroke="#f0fdfa" stroke-width="6"/>
-    <circle cx="28" cy="-10" r="30" fill="none" stroke="#f0fdfa" stroke-width="6"/>
-    <rect x="-8" y="-16" width="16" height="12" rx="3" fill="#f0fdfa"/>
-    <!-- Bird silhouette -->
-    <path d="M-20 30 Q-10 10 10 20 Q20 22 30 18 L25 22 Q15 28 5 26 Q-5 24 -10 30 Z" fill="#f0fdfa"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2C3E7B"/>
+      <stop offset="100%" stop-color="#1a2a5e"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="192" height="192" rx="36" fill="url(#bg)"/>
+  <!-- Hexagon grid pattern (subtle) -->
+  <g opacity="0.08" fill="white">
+    <polygon points="50,28 62,22 74,28 74,40 62,46 50,40"/>
+    <polygon points="74,28 86,22 98,28 98,40 86,46 74,40"/>
+    <polygon points="98,28 110,22 122,28 122,40 110,46 98,40"/>
+    <polygon points="122,28 134,22 146,28 146,40 134,46 122,40"/>
+    <polygon points="38,40 50,34 62,40 62,52 50,58 38,52"/>
+    <polygon points="62,40 74,34 86,40 86,52 74,58 62,52"/>
+    <polygon points="86,40 98,34 110,40 110,52 98,58 86,52"/>
+    <polygon points="110,40 122,34 134,40 134,52 122,58 110,52"/>
+    <polygon points="134,40 146,34 158,40 158,52 146,58 134,52"/>
+  </g>
+  <!-- Bird in flight - stylized warbler silhouette -->
+  <g transform="translate(96, 88)">
+    <!-- Body -->
+    <ellipse cx="0" cy="0" rx="28" ry="14" fill="white"/>
+    <!-- Head -->
+    <circle cx="30" cy="-8" r="12" fill="white"/>
+    <!-- Beak -->
+    <polygon points="42,-10 54,-12 42,-6" fill="#F5A623"/>
+    <!-- Eye -->
+    <circle cx="34" cy="-10" r="3" fill="#1a2a5e"/>
+    <circle cx="35" cy="-11" r="1" fill="white"/>
+    <!-- Wing (raised) -->
+    <path d="M-5,-8 Q-20,-45 -45,-35 Q-25,-30 -15,-15 Z" fill="rgba(255,255,255,0.85)"/>
+    <path d="M-10,-5 Q-30,-40 -55,-28 Q-35,-25 -20,-12 Z" fill="rgba(255,255,255,0.65)"/>
+    <!-- Tail -->
+    <path d="M-25,2 Q-40,-5 -50,8 Q-35,5 -28,6 Z" fill="rgba(255,255,255,0.8)"/>
+    <path d="M-25,5 Q-42,2 -48,15 Q-35,10 -27,8 Z" fill="rgba(255,255,255,0.6)"/>
+  </g>
+  <!-- Checkmark/lifer mark -->
+  <g transform="translate(145, 135)">
+    <circle cx="0" cy="0" r="18" fill="#F5A623"/>
+    <polyline points="-8,0 -3,6 9,-6" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 </svg>
