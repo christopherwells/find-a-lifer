@@ -495,26 +495,28 @@ export default memo(function MapView({
       if (!map.current) return
 
       try {
-        // Load grid GeoJSON from IndexedDB cache, or fetch from API
+        // Load grid GeoJSON: try network first, fall back to IndexedDB cache (offline)
         let gridData = gridGeoJsonCache
         if (!gridData) {
-          gridData = await loadGridFromCache()
-          if (gridData) {
-            console.log(`Grid GeoJSON loaded from IndexedDB cache: ${gridData.features.length} features`)
+          try {
+            const { fetchGrid } = await import('../lib/dataCache')
+            const fetched = await fetchGrid() as GeoJSON.FeatureCollection
+            if (fetched.type === 'FeatureCollection' && Array.isArray(fetched.features)) {
+              gridData = fetched
+              saveGridToCache(gridData)
+              console.log(`Grid GeoJSON fetched from network: ${gridData.features.length} features`)
+            }
+          } catch {
+            // Network failed — try IndexedDB cache (offline mode)
+            gridData = await loadGridFromCache()
+            if (gridData) {
+              console.log(`Grid GeoJSON loaded from offline cache: ${gridData.features.length} features`)
+            }
           }
         }
         if (!gridData) {
-          const { fetchGrid } = await import('../lib/dataCache')
-          const fetched = await fetchGrid() as GeoJSON.FeatureCollection
-          // Validate response is GeoJSON
-          if (fetched.type !== 'FeatureCollection' || !Array.isArray(fetched.features)) {
-            console.error('Grid data is not valid GeoJSON:', Object.keys(fetched))
-            return
-          }
-          gridData = fetched
-          // Cache in IndexedDB for future page loads
-          saveGridToCache(gridData)
-          console.log(`Grid GeoJSON fetched from API: ${gridData.features.length} features`)
+          console.error('Grid data unavailable — no network or cache')
+          return
         }
         gridGeoJsonCache = gridData
 
@@ -606,6 +608,13 @@ export default memo(function MapView({
             if (!cellId) return
 
             const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+
+            // Skip popups for cells with no data this week (uncolored hexes)
+            const featureState = map.current?.getFeatureState({ source: 'grid', id: feature.id })
+            const hasData = featureState && featureState.value !== undefined && featureState.value !== -1
+            if (!hasData && (viewModeRef.current === 'goal-birds' || viewModeRef.current === 'density')) {
+              return
+            }
 
             if (viewModeRef.current === 'goal-birds') {
               // Goal Birds mode: load cell data from API
