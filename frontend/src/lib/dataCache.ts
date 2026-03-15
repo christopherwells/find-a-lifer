@@ -10,17 +10,31 @@ import type { Species } from '../components/types'
 const DATA_BASE = `${import.meta.env.BASE_URL}data`
 
 let speciesPromise: Promise<Species[]> | null = null
-let gridPromise: Promise<any> | null = null
 let regionsPromise: Promise<any> | null = null
 
-// Cache week cells data: week -> Map<cellId, speciesIds[]>
-const weekCellsCache = new Map<number, Promise<Map<number, number[]>>>()
+// Resolution-aware caches: "res-week" or "res" as key prefix
+const gridPromiseByRes = new Map<number, Promise<any>>()
 
-// Cache week summaries
-const weekSummaryCache = new Map<number, Promise<[number, number, number][]>>()
+// Cache week cells data: "res-week" -> Map<cellId, speciesIds[]>
+const weekCellsCache = new Map<string, Promise<Map<number, number[]>>>()
 
-// Cache species-weeks files: speciesCode -> { weekStr: [[cellId, freq], ...] }
+// Cache week summaries: "res-week" -> summary
+const weekSummaryCache = new Map<string, Promise<[number, number, number, number?][]>>()
+
+// Cache species-weeks files: "res-speciesCode" -> data
 const speciesWeeksCache = new Map<string, Promise<Record<string, [number, number][]>>>()
+
+// Resolution metadata cache
+let resolutionsPromise: Promise<{ resolutions: number[]; default: number; zoomThresholds: Record<string, [number, number]> }> | null = null
+
+/** Default resolution (backward compat) */
+const DEFAULT_RES = 4
+
+/** Get the data path prefix for a resolution */
+function resPath(resolution?: number): string {
+  if (resolution != null) return `${DATA_BASE}/r${resolution}`
+  return DATA_BASE
+}
 
 /** Fetch species metadata (cached) */
 export function fetchSpecies(): Promise<Species[]> {
@@ -38,20 +52,39 @@ export function fetchSpecies(): Promise<Species[]> {
   return speciesPromise
 }
 
-/** Fetch grid GeoJSON (cached) */
-export function fetchGrid(): Promise<any> {
-  if (!gridPromise) {
-    gridPromise = fetch(`${DATA_BASE}/grid.geojson`)
+/** Fetch grid GeoJSON for a specific resolution (cached) */
+export function fetchGrid(resolution?: number): Promise<any> {
+  const res = resolution ?? DEFAULT_RES
+  let p = gridPromiseByRes.get(res)
+  if (!p) {
+    p = fetch(`${resPath(res)}/grid.geojson`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
       .catch(err => {
-        gridPromise = null
+        gridPromiseByRes.delete(res)
+        throw err
+      })
+    gridPromiseByRes.set(res, p)
+  }
+  return p
+}
+
+/** Fetch resolution metadata */
+export function fetchResolutions(): Promise<{ resolutions: number[]; default: number; zoomThresholds: Record<string, [number, number]> }> {
+  if (!resolutionsPromise) {
+    resolutionsPromise = fetch(`${DATA_BASE}/resolutions.json`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .catch(err => {
+        resolutionsPromise = null
         throw err
       })
   }
-  return gridPromise
+  return resolutionsPromise
 }
 
 /** Fetch regions GeoJSON (cached) */
@@ -70,34 +103,38 @@ export function fetchRegions(): Promise<any> {
   return regionsPromise
 }
 
-/** Fetch weekly summary: [[cell_id, species_count, max_prob_uint8], ...] */
-export function fetchWeekSummary(week: number): Promise<[number, number, number][]> {
-  let p = weekSummaryCache.get(week)
+/** Fetch weekly summary for a resolution: [[cell_id, species_count, max_prob_uint8, n_checklists?], ...] */
+export function fetchWeekSummary(week: number, resolution?: number): Promise<[number, number, number, number?][]> {
+  const res = resolution ?? DEFAULT_RES
+  const key = `${res}-${week}`
+  let p = weekSummaryCache.get(key)
   if (!p) {
     const ww = String(week).padStart(2, '0')
-    p = fetch(`${DATA_BASE}/weeks/week_${ww}_summary.json`)
+    p = fetch(`${resPath(res)}/weeks/week_${ww}_summary.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
       .catch(err => {
-        weekSummaryCache.delete(week)
+        weekSummaryCache.delete(key)
         throw err
       })
-    weekSummaryCache.set(week, p)
+    weekSummaryCache.set(key, p)
   }
   return p
 }
 
 /**
- * Fetch week cells data and parse into a Map<cellId, speciesIds[]>.
+ * Fetch week cells data for a resolution and parse into a Map<cellId, speciesIds[]>.
  * Raw format: [[cell_id, [species_id, ...]], ...]
  */
-export function fetchWeekCells(week: number): Promise<Map<number, number[]>> {
-  let p = weekCellsCache.get(week)
+export function fetchWeekCells(week: number, resolution?: number): Promise<Map<number, number[]>> {
+  const res = resolution ?? DEFAULT_RES
+  const key = `${res}-${week}`
+  let p = weekCellsCache.get(key)
   if (!p) {
     const ww = String(week).padStart(2, '0')
-    p = fetch(`${DATA_BASE}/weeks/week_${ww}_cells.json`)
+    p = fetch(`${resPath(res)}/weeks/week_${ww}_cells.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
@@ -110,31 +147,33 @@ export function fetchWeekCells(week: number): Promise<Map<number, number[]>> {
         return m
       })
       .catch(err => {
-        weekCellsCache.delete(week)
+        weekCellsCache.delete(key)
         throw err
       })
-    weekCellsCache.set(week, p)
+    weekCellsCache.set(key, p)
   }
   return p
 }
 
 /**
- * Fetch per-species occurrence data across all 52 weeks.
+ * Fetch per-species occurrence data for a resolution across all 52 weeks.
  * Returns { "1": [[cell_id, freq], ...], "2": [...], ... }
  */
-export function fetchSpeciesWeeks(speciesCode: string): Promise<Record<string, [number, number][]>> {
-  let p = speciesWeeksCache.get(speciesCode)
+export function fetchSpeciesWeeks(speciesCode: string, resolution?: number): Promise<Record<string, [number, number][]>> {
+  const res = resolution ?? DEFAULT_RES
+  const key = `${res}-${speciesCode}`
+  let p = speciesWeeksCache.get(key)
   if (!p) {
-    p = fetch(`${DATA_BASE}/species-weeks/${speciesCode}.json`)
+    p = fetch(`${resPath(res)}/species-weeks/${speciesCode}.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
       .catch(err => {
-        speciesWeeksCache.delete(speciesCode)
+        speciesWeeksCache.delete(key)
         throw err
       })
-    speciesWeeksCache.set(speciesCode, p)
+    speciesWeeksCache.set(key, p)
   }
   return p
 }

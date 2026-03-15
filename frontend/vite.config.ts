@@ -31,10 +31,23 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/data\/grid\.geojson$/,
+            urlPattern: /\/data\/(r\d+\/)?grid\.geojson$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'grid-cache',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\/data\/resolutions\.json$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'resolutions-cache',
               networkTimeoutSeconds: 5,
               expiration: {
                 maxAgeSeconds: 60 * 60 * 24 * 7,
@@ -43,7 +56,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/data\/weeks\//,
+            urlPattern: /\/data\/(r\d+\/)?weeks\//,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'week-data-cache',
@@ -56,12 +69,12 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/data\/species-weeks\//,
+            urlPattern: /\/data\/(r\d+\/)?species-weeks\//,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'species-weeks-cache',
               expiration: {
-                maxEntries: 1000,
+                maxEntries: 3000,
                 maxAgeSeconds: 60 * 60 * 24 * 7,
               },
               cacheableResponse: { statuses: [0, 200] },

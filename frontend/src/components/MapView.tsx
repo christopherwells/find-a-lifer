@@ -259,6 +259,9 @@ export default memo(function MapView({
   const [lifersPopup, setLifersPopup] = useState<LifersPopup | null>(null)
   // Checklist counts per cell (from weekly summary, for low-data warnings)
   const cellChecklistCountsRef = useRef<Map<number, number>>(new Map())
+  // Active H3 resolution (changes with zoom level)
+  const [activeResolution, setActiveResolution] = useState(4)
+  const activeResolutionRef = useRef(4)
   // Species metadata for the selected species (used in legend)
   const [selectedSpeciesMeta, setSelectedSpeciesMeta] = useState<SpeciesMeta | null>(null)
   // Legend data range values (for numeric labels)
@@ -376,7 +379,7 @@ export default memo(function MapView({
       setIsLoadingWeek(true)
       try {
         const { fetchWeekSummary } = await import('../lib/dataCache')
-        const summary: WeeklySummary = await fetchWeekSummary(currentWeek)
+        const summary: WeeklySummary = await fetchWeekSummary(currentWeek, activeResolution)
         if (abortController.signal.aborted) return
         setWeeklySummary(summary)
         // Build checklist counts map from summary (4th element if present)
@@ -400,7 +403,7 @@ export default memo(function MapView({
 
     loadWeekData()
     return () => { abortController.abort() }
-  }, [currentWeek])
+  }, [currentWeek, activeResolution])
 
   // Zoom to selected location when it changes (from Trip Plan hotspots)
   useEffect(() => {
@@ -490,6 +493,24 @@ export default memo(function MapView({
       'bottom-right'
     )
 
+    // Track zoom level changes to switch H3 resolution
+    map.current.on('zoomend', () => {
+      if (!map.current) return
+      const zoom = map.current.getZoom()
+      let newRes = 4  // default
+      if (zoom < 6.5) newRes = 3
+      else if (zoom >= 8.5) newRes = 5
+      if (newRes !== activeResolutionRef.current) {
+        activeResolutionRef.current = newRes
+        // Clear cell click cache and close popups when resolution changes (cell IDs differ between resolutions)
+        cellDataCache.clear()
+        setGoalBirdsPopup(null)
+        setLifersPopup(null)
+        setActiveResolution(newRes)
+        console.log(`Zoom ${zoom.toFixed(1)} → switching to H3 resolution ${newRes}`)
+      }
+    })
+
     // Load grid data and add to map
     map.current.on('load', async () => {
       if (!map.current) return
@@ -500,7 +521,7 @@ export default memo(function MapView({
         if (!gridData) {
           try {
             const { fetchGrid } = await import('../lib/dataCache')
-            const fetched = await fetchGrid() as GeoJSON.FeatureCollection
+            const fetched = await fetchGrid(activeResolutionRef.current) as GeoJSON.FeatureCollection
             if (fetched.type === 'FeatureCollection' && Array.isArray(fetched.features)) {
               gridData = fetched
               saveGridToCache(gridData)
@@ -625,7 +646,7 @@ export default memo(function MapView({
               const weekEl = document.querySelector<HTMLInputElement>('[data-testid="week-slider"]')
               const week = weekEl ? parseInt(weekEl.value) : 26
 
-              const cacheKey = `${week}-${cellId}`
+              const cacheKey = `${activeResolutionRef.current}-${week}-${cellId}`
               const processGoalBirds = (records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
                 const goalBirds: GoalBirdInCell[] = []
                 const idToMeta = new Map<number, SpeciesMeta>()
@@ -656,7 +677,7 @@ export default memo(function MapView({
                 processGoalBirds(cached)
               } else {
                 import('../lib/dataCache').then(({ fetchWeekCells, getCellSpecies }) =>
-                  fetchWeekCells(week).then(weekCells => {
+                  fetchWeekCells(week, activeResolutionRef.current).then(weekCells => {
                     const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
                     cellDataCache.set(cacheKey, records)
                     processGoalBirds(records)
@@ -670,7 +691,7 @@ export default memo(function MapView({
               const weekEl = document.querySelector<HTMLInputElement>('[data-testid="week-slider"]')
               const week = weekEl ? parseInt(weekEl.value) : 26
 
-              const densityCacheKey = `${week}-${cellId}`
+              const densityCacheKey = `${activeResolutionRef.current}-${week}-${cellId}`
               const processLifers = (records: { speciesCode: string; comName: string; probability: number; species_id: number }[]) => {
                 const idToMeta = new Map<number, SpeciesMeta>()
                 if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
@@ -702,7 +723,7 @@ export default memo(function MapView({
                 processLifers(densityCached)
               } else {
                 import('../lib/dataCache').then(({ fetchWeekCells, getCellSpecies }) =>
-                  fetchWeekCells(week).then(weekCells => {
+                  fetchWeekCells(week, activeResolutionRef.current).then(weekCells => {
                     const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
                     cellDataCache.set(densityCacheKey, records)
                     processLifers(records)
@@ -738,6 +759,31 @@ export default memo(function MapView({
       setGridReady(false)
     }
   }, [darkMode])
+
+  // Swap grid source data when activeResolution changes
+  useEffect(() => {
+    if (!map.current || !gridReady) return
+    const loadNewGrid = async () => {
+      try {
+        const { fetchGrid } = await import('../lib/dataCache')
+        const newGrid = await fetchGrid(activeResolution) as GeoJSON.FeatureCollection
+        if (!map.current) return
+        const src = map.current.getSource('grid') as maplibregl.GeoJSONSource | undefined
+        if (src) {
+          // Clear existing feature states before swapping (cell IDs differ between resolutions)
+          featureStateCellIds.current.forEach((cellId) => {
+            map.current!.removeFeatureState({ source: 'grid', id: cellId })
+          })
+          featureStateCellIds.current.clear()
+          src.setData(newGrid)
+          console.log(`Grid swapped to resolution ${activeResolution}: ${newGrid.features.length} features`)
+        }
+      } catch (err) {
+        console.error(`Failed to load grid for resolution ${activeResolution}:`, err)
+      }
+    }
+    loadNewGrid()
+  }, [activeResolution, gridReady])
 
   // Update map overlay when weekly data, view mode, or goal species changes
   useEffect(() => {
@@ -838,7 +884,7 @@ export default memo(function MapView({
         // Load per-species data from static files
         try {
           const { fetchWeekCells, getSpeciesCells } = await import('../lib/dataCache')
-          const weekCells = await fetchWeekCells(currentWeek)
+          const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
           const records = getSpeciesCells(weekCells, speciesMeta.species_id)
           if (cancelled) return
@@ -893,7 +939,7 @@ export default memo(function MapView({
 
         try {
           const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
-          const weekCells = await fetchWeekCells(currentWeek)
+          const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
           const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
           if (cancelled) return
@@ -959,7 +1005,7 @@ export default memo(function MapView({
           }
           try {
             const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
-            const weekCells = await fetchWeekCells(currentWeek)
+            const weekCells = await fetchWeekCells(currentWeek, activeResolution)
             if (cancelled) return
             const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
             if (cancelled) return
@@ -1026,7 +1072,7 @@ export default memo(function MapView({
         if (goalSpeciesIdSet.size === 0) { setNeutralOverlay(); return }
         try {
           const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
-          const weekCells = await fetchWeekCells(currentWeek)
+          const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
           const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
           if (cancelled) return
@@ -1072,7 +1118,7 @@ export default memo(function MapView({
         if (seenSpecies.size > 0) {
           try {
             const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
-            const weekCells = await fetchWeekCells(currentWeek)
+            const weekCells = await fetchWeekCells(currentWeek, activeResolution)
             if (cancelled) return
 
             // Build seen species ID set
@@ -1150,7 +1196,7 @@ export default memo(function MapView({
     }
 
     return () => { cancelled = true }
-  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange])
+  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution])
 
   return (
     <div className="relative w-full h-full">
