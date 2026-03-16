@@ -38,6 +38,7 @@ function App() {
   const [heatmapOpacity, setHeatmapOpacity] = useState(0.8) // Default to 80% opacity
   const [liferCountRange, setLiferCountRange] = useState<[number, number]>([0, 9999])
   const [dataRange, setDataRange] = useState<[number, number]>([0, 0])
+  const [showTotalRichness, setShowTotalRichness] = useState(false)
   const { seenSpecies } = useLifeList()
 
   // Persist dark mode and toggle class on document root
@@ -107,6 +108,7 @@ function App() {
             selectedLocation={selectedLocation}
             liferCountRange={liferCountRange}
             onDataRangeChange={setDataRange}
+            showTotalRichness={showTotalRichness}
           />
         </div>
 
@@ -145,6 +147,8 @@ function App() {
           liferCountRange={liferCountRange}
           onLiferCountRangeChange={setLiferCountRange}
           dataRange={dataRange}
+          showTotalRichness={showTotalRichness}
+          onShowTotalRichnessChange={setShowTotalRichness}
         />
       </div>
     </div>

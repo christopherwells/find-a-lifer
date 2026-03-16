@@ -21,7 +21,9 @@ export default function ExploreTab({
   onHeatmapOpacityChange,
   liferCountRange = [0, 9999],
   onLiferCountRangeChange,
-  dataRange = [0, 0]
+  dataRange = [0, 0],
+  showTotalRichness = false,
+  onShowTotalRichnessChange,
 }: ExploreTabProps) {
   // Species picker state for Species Range view
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
@@ -192,6 +194,32 @@ export default function ExploreTab({
             <span
               className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
                 goalBirdsOnlyFilter ? 'translate-x-4.5' : 'translate-x-1'
+              }`}
+            />
+          </span>
+        </button>
+      )}
+
+      {/* Show All Species toggle — in density mode, shows total richness instead of lifer density */}
+      {viewMode === 'density' && (
+        <button
+          onClick={() => onShowTotalRichnessChange?.(!showTotalRichness)}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-sm font-medium ${
+            showTotalRichness
+              ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white shadow-sm'
+              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+          }`}
+          aria-pressed={showTotalRichness}
+        >
+          <span>Show All Species</span>
+          <span
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                showTotalRichness ? 'translate-x-4.5' : 'translate-x-1'
               }`}
             />
           </span>

@@ -32,6 +32,7 @@ interface MapViewProps {
   selectedLocation?: { cellId: number; coordinates: [number, number] } | null
   liferCountRange?: [number, number]
   onDataRangeChange?: (range: [number, number]) => void
+  showTotalRichness?: boolean
 }
 
 interface OccurrenceRecord {
@@ -245,7 +246,8 @@ export default memo(function MapView({
   heatmapOpacity = 0.8,
   selectedLocation = null,
   liferCountRange = [0, 9999],
-  onDataRangeChange
+  onDataRangeChange,
+  showTotalRichness = false
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -264,8 +266,8 @@ export default memo(function MapView({
   // Checklist counts per cell (from weekly summary, for low-data warnings)
   const cellChecklistCountsRef = useRef<Map<number, number>>(new Map())
   // Active H3 resolution (changes with zoom level)
-  const [activeResolution, setActiveResolution] = useState(4)
-  const activeResolutionRef = useRef(4)
+  const [activeResolution, setActiveResolution] = useState(3)
+  const activeResolutionRef = useRef(3)
   // Species metadata for the selected species (used in legend)
   const [selectedSpeciesMeta, setSelectedSpeciesMeta] = useState<SpeciesMeta | null>(null)
   // Legend data range values (for numeric labels)
@@ -507,7 +509,6 @@ export default memo(function MapView({
       const zoom = map.current.getZoom()
       let newRes = 4  // default
       if (zoom < 5.5) newRes = 3
-      else if (zoom >= 7.5) newRes = 5
       if (newRes !== activeResolutionRef.current) {
         activeResolutionRef.current = newRes
         // Clear cell click cache and close popups when resolution changes (cell IDs differ between resolutions)
@@ -820,6 +821,15 @@ export default memo(function MapView({
             map.current!.removeFeatureState({ source: 'grid', id: cellId })
           })
           featureStateCellIds.current.clear()
+          // Update smoothed cell map for new resolution
+          const newSmoothedMap = new Map<number, number>()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          newGrid.features.forEach((f: any) => {
+            if (f.properties?.smoothed) {
+              newSmoothedMap.set(f.properties.cell_id, f.properties.smoothed)
+            }
+          })
+          smoothedMapRef.current = newSmoothedMap
           src.setData(newGrid)
           // Bump gridVersion so the overlay effect re-runs after grid is ready
           setGridVersion(v => v + 1)
@@ -1190,7 +1200,7 @@ export default memo(function MapView({
       const loadDensity = async () => {
         const cellLiferCounts = new Map<number, number>()
 
-        if (seenSpecies.size > 0) {
+        if (seenSpecies.size > 0 && !showTotalRichness) {
           try {
             const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
             const weekCells = await fetchWeekCells(currentWeek, activeResolution)
@@ -1216,7 +1226,7 @@ export default memo(function MapView({
             })
           }
         } else {
-          // No life list — use pre-computed summary (total species per cell)
+          // No life list or showTotalRichness — use pre-computed summary (total species per cell)
           weeklySummary.forEach(([cellId, speciesCount]) => {
             if (speciesCount > 0) cellLiferCounts.set(cellId, speciesCount)
           })
@@ -1271,7 +1281,7 @@ export default memo(function MapView({
     }
 
     return () => { cancelled = true }
-  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion])
+  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness])
 
   return (
     <div className="relative w-full h-full">
@@ -1491,7 +1501,7 @@ export default memo(function MapView({
       )}
 
       {/* Lifer density click-to-inspect popup */}
-      {viewMode === 'density' && lifersPopup && (
+      {(viewMode === 'density' || viewMode === 'probability') && lifersPopup && (
         <div
           data-testid="lifers-popup"
           className="absolute top-4 right-4 bg-white rounded-lg shadow-xl border border-teal-200 w-72 max-h-96 flex flex-col z-10"
@@ -1500,13 +1510,13 @@ export default memo(function MapView({
           {/* Popup header */}
           <div className="flex items-center justify-between px-3 py-2 bg-teal-50 border-b border-teal-200 rounded-t-lg">
             <div>
-              <div className="text-sm font-semibold text-teal-900">🔭 Lifers in Area</div>
+              <div className="text-sm font-semibold text-teal-900">{seenSpecies.size === 0 ? '🔭 Species in Area' : '🔭 Lifers in Area'}</div>
               <div className="text-xs text-teal-700">
-                {lifersPopup.lifers.length === 0
-                  ? (seenSpecies.size === 0
-                    ? `${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
-                    : `0 lifers / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`)
-                  : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
+                {seenSpecies.size === 0
+                  ? `${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                  : lifersPopup.lifers.length === 0
+                    ? `0 lifers / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                    : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
               </div>
             </div>
             <button
@@ -1540,6 +1550,12 @@ export default memo(function MapView({
             </div>
           )}
 
+          {/* Import prompt when no life list */}
+          {seenSpecies.size === 0 && lifersPopup.lifers.length > 0 && (
+            <div className="px-3 py-2 bg-gray-50 border-b border-teal-200 text-center">
+              <p className="text-[11px] text-gray-500">Import your life list in <strong>Profile</strong> to see which are lifers</p>
+            </div>
+          )}
           {/* Lifer list */}
           <div className="overflow-y-auto flex-1">
             {lifersPopup.lifers.length === 0 ? (

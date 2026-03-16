@@ -36,6 +36,8 @@ interface SidePanelProps {
   liferCountRange?: [number, number]
   onLiferCountRangeChange?: (range: [number, number]) => void
   dataRange?: [number, number]
+  showTotalRichness?: boolean
+  onShowTotalRichnessChange?: (value: boolean) => void
 }
 
 interface Tab {
@@ -113,7 +115,9 @@ export default memo(function SidePanel({
   onHeatmapOpacityChange,
   liferCountRange,
   onLiferCountRangeChange,
-  dataRange
+  dataRange,
+  showTotalRichness = false,
+  onShowTotalRichnessChange,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -249,6 +253,8 @@ export default memo(function SidePanel({
                 liferCountRange={liferCountRange}
                 onLiferCountRangeChange={onLiferCountRangeChange}
                 dataRange={dataRange}
+                showTotalRichness={showTotalRichness}
+                onShowTotalRichnessChange={onShowTotalRichnessChange}
               />
             )}
             {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} />}

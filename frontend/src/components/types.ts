@@ -58,6 +58,8 @@ export interface ExploreTabProps {
   liferCountRange?: [number, number]
   onLiferCountRangeChange?: (range: [number, number]) => void
   dataRange?: [number, number]
+  showTotalRichness?: boolean
+  onShowTotalRichnessChange?: (value: boolean) => void
 }
 
 export interface SpeciesTabProps {
