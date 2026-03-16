@@ -287,7 +287,7 @@ def main():
     # Compute bounding box from all grid files to limit city loading
     all_lats = []
     all_lons = []
-    for res in [3, 4, 5]:
+    for res in [2, 3, 4, 5]:
         grid_path = OUTPUT_DIR / f"r{res}" / "grid.geojson"
         if grid_path.exists():
             with open(grid_path) as f:
@@ -304,7 +304,7 @@ def main():
 
     cities = load_cities(min_pop=500, bbox=bbox)
 
-    for res in [3, 4, 5]:
+    for res in [2, 3, 4, 5]:
         grid_path = OUTPUT_DIR / f"r{res}" / "grid.geojson"
         if not grid_path.exists():
             print(f"\n  Skipping r{res} (no grid.geojson)")

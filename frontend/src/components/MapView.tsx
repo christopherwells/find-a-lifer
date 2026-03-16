@@ -1563,7 +1563,7 @@ export default memo(function MapView({
               <div className="px-3 py-4 text-center text-sm text-gray-500">
                 {seenSpecies.size === 0 ? (
                   <>
-                    <p>Import your life list in the <strong>Profile</strong> tab to see which species are new for you.</p>
+                    <p>Import your life list in the <strong>Profile</strong> tab to see which are lifers.</p>
                     {lifersPopup.totalSpecies > 0 && (
                       <p className="text-xs text-gray-400 mt-1">{lifersPopup.totalSpecies} species recorded here this week.</p>
                     )}

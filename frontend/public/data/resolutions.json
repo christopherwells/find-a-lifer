@@ -1,1 +1,1 @@
-{"resolutions":[3,4],"default":4,"zoomThresholds":{"3":[0,5.5],"4":[5.5,22]}}
+{"resolutions":[2,3,4],"default":3,"zoomThresholds":{"2":[0,3.5],"3":[3.5,5.5],"4":[5.5,22]}}
