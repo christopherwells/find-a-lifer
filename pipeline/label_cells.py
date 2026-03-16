@@ -162,13 +162,14 @@ def label_grid(grid_path, cities, resolution, preview=False):
 
     # Max search radius depends on resolution (bigger hexes → search further)
     # Reduced res 3 from 200→120km (roughly one hex diameter)
-    max_radius = {3: 120, 4: 60, 5: 30}.get(resolution, 60)
+    max_radius = {2: 300, 3: 120, 4: 60, 5: 30}.get(resolution, 60)
     # Minimum population for label depends on resolution
+    # Res 2 hexes are ~460km — only major metro areas
     # Res 3 hexes are ~120km — use larger cities for recognizable labels
-    min_pop = {3: 10000, 4: 2000, 5: 500}.get(resolution, 2000)
+    min_pop = {2: 100000, 3: 10000, 4: 2000, 5: 500}.get(resolution, 2000)
     # Max cells any single city NAME can label (prevents NYC labeling 10+ cells)
     # Uses base city name for dedup (e.g. "South Boston" counts toward "Boston")
-    max_cells_per_city = {3: 2, 4: 3, 5: 5}.get(resolution, 3)
+    max_cells_per_city = {2: 1, 3: 2, 4: 3, 5: 5}.get(resolution, 3)
 
     # Filter cities by minimum population for this resolution
     res_cities = [c for c in cities if c["pop"] >= min_pop]

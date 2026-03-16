@@ -57,7 +57,7 @@ ARCHIVE_DIR = DATA_DIR / "archive"
 TAXONOMY_FILE = SCRIPT_DIR / "reference" / "ebird_taxonomy.json"
 LAND_SHAPEFILE = SCRIPT_DIR / "reference" / "ne_50m_land" / "ne_50m_land.shp"
 
-RESOLUTIONS = [3, 4]
+RESOLUTIONS = [2, 3, 4]
 MIN_DURATION = 30    # Minimum checklist duration (minutes)
 MAX_DURATION = 240   # Maximum checklist duration (minutes)
 MIN_DISTANCE = 0.5   # Minimum traveling distance (km)
@@ -65,12 +65,12 @@ MAX_DISTANCE = 5     # Maximum traveling distance (km)
 PROTOCOLS = {"Stationary", "Traveling"}
 MIN_CHECKLISTS = 5          # Minimum checklists for direct frequency estimate
 MIN_CHECKLISTS_POOLED = 3   # Minimum after temporal pooling (±1 week)
-# Per-resolution neighbor smoothing: res 3 = none, res 4 = 1 ring
-NEIGHBOR_SMOOTH_K = {3: 0, 4: 1}
+# Per-resolution neighbor smoothing: res 2 = none, res 3 = none, res 4 = 1 ring
+NEIGHBOR_SMOOTH_K = {2: 0, 3: 0, 4: 1}
 NEIGHBOR_WEIGHTS = {0: 1.0, 1: 0.5}
 FALLBACK_DISCOUNT = 0.7     # Frequency discount for multi-resolution fallback
 ENSEMBLE_RUNS = 25          # Number of stixel ensemble passes
-ENSEMBLE_BLOCK_K = {3: 1, 4: 1}  # Block radius (k-ring) per resolution
+ENSEMBLE_BLOCK_K = {2: 1, 3: 1, 4: 1}  # Block radius (k-ring) per resolution
 MIN_SMOOTHED_FREQ = 0.005   # Drop interpolated species below 0.5% frequency
 YEAR_MIN = 2006
 YEAR_MAX = 2025
@@ -115,11 +115,11 @@ def load_land_polygon():
     sf = shp.Reader(str(LAND_SHAPEFILE))
     polygons = [shape(s.__geo_interface__) for s in sf.shapes()]
     land = unary_union(polygons)
-    # Buffer by ~0.2 degrees (~22km) to account for low-res coastline
+    # Buffer by ~0.1 degrees (~11km) to account for low-res coastline
     # and hex centers that fall slightly offshore
-    buffered = land.buffer(0.2)
+    buffered = land.buffer(0.1)
     prepared = prep(buffered)
-    print(f"  Land polygon loaded: {len(polygons)} features, buffered 0.2°")
+    print(f"  Land polygon loaded: {len(polygons)} features, buffered 0.1°")
     return prepared
 
 
@@ -666,17 +666,27 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
         except PermissionError:
             pass  # OneDrive may lock files; skip
 
-    # Collect all cells that have ANY detection data
-    all_cells = sorted(set(
+    # Collect all cells that have ANY detection data, filtering out ocean cells
+    all_cells_raw = set(
         cell_id for sp_data in detections.values()
         for cell_id in sp_data.keys()
-    ))
+    )
+    if prepared_land is not None:
+        before = len(all_cells_raw)
+        all_cells_raw = {c for c in all_cells_raw if is_land(c, prepared_land)}
+        ocean_removed = before - len(all_cells_raw)
+        if ocean_removed > 0:
+            print(f"  Land filter: removed {ocean_removed} ocean cells from {before} raw cells")
+    all_cells = sorted(all_cells_raw)
 
     # --- Phase 1: Compute frequencies with temporal pooling ---
     cell_week_species_raw = defaultdict(lambda: defaultdict(list))
 
+    all_cells_set = set(all_cells)  # for O(1) lookup in Phase 1
     for taxon_id, cell_data in detections.items():
         for cell_id, week_detections in cell_data.items():
+            if cell_id not in all_cells_set:
+                continue  # Skip ocean cells
             cell_checklists = cell_week_checklists.get(cell_id, {})
             active_weeks = set(week_detections.keys())
             check_weeks = set()
@@ -1069,9 +1079,10 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     # Write resolutions metadata
     res_meta = {
         "resolutions": RESOLUTIONS,
-        "default": 4,
+        "default": 3,
         "zoomThresholds": {
-            "3": [0, 5.5],
+            "2": [0, 3.5],
+            "3": [3.5, 5.5],
             "4": [5.5, 22]
         }
     }
@@ -1093,6 +1104,36 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         else:
             print(f"  No covariates for r{res} (run extract_covariates.py to enable)")
         covariates_by_res[res] = cov
+
+    # Aggregate finer-resolution data upward to coarser resolutions that have no direct data
+    # (e.g., res 2 from res 3 when archive was built without res 2)
+    for i, res in enumerate(RESOLUTIONS):
+        if len(detections_by_res[res]) > 0:
+            continue  # Has direct data
+        # Find the next finer resolution with data
+        finer_res = None
+        for j in range(i + 1, len(RESOLUTIONS)):
+            if len(detections_by_res[RESOLUTIONS[j]]) > 0:
+                finer_res = RESOLUTIONS[j]
+                break
+        if finer_res is None:
+            continue
+        print(f"\n  Aggregating r{finer_res} data upward to r{res}...")
+        agg_detections = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        agg_checklists = defaultdict(lambda: defaultdict(int))
+        for taxon_id, cell_data in detections_by_res[finer_res].items():
+            for cell_id, week_data in cell_data.items():
+                parent_cell = h3.cell_to_parent(cell_id, res)
+                for week, count in week_data.items():
+                    agg_detections[taxon_id][parent_cell][week] += count
+        for cell_id, week_data in cell_week_checklists_by_res[finer_res].items():
+            parent_cell = h3.cell_to_parent(cell_id, res)
+            for week, count in week_data.items():
+                agg_checklists[parent_cell][week] += count
+        detections_by_res[res] = agg_detections
+        cell_week_checklists_by_res[res] = agg_checklists
+        n_cells = len(set(c for sp in agg_detections.values() for c in sp.keys()))
+        print(f"    Aggregated {n_cells} r{res} cells from r{finer_res} data")
 
     # Write per-resolution data (coarsest first for multi-res fallback)
     print("\nWriting per-resolution data...")

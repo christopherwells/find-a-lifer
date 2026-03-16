@@ -508,7 +508,8 @@ export default memo(function MapView({
       if (!map.current) return
       const zoom = map.current.getZoom()
       let newRes = 4  // default
-      if (zoom < 5.5) newRes = 3
+      if (zoom < 3.5) newRes = 2
+      else if (zoom < 5.5) newRes = 3
       if (newRes !== activeResolutionRef.current) {
         activeResolutionRef.current = newRes
         // Clear cell click cache and close popups when resolution changes (cell IDs differ between resolutions)
