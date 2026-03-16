@@ -10,10 +10,16 @@ import type { Species } from '../components/types'
 const DATA_BASE = `${import.meta.env.BASE_URL}data`
 
 let speciesPromise: Promise<Species[]> | null = null
-let regionsPromise: Promise<any> | null = null
+// GeoJSON type for grid/regions
+interface GeoJSONFeatureCollection {
+  type: string
+  features: Array<Record<string, unknown>>
+}
+
+let regionsPromise: Promise<GeoJSONFeatureCollection> | null = null
 
 // Resolution-aware caches: "res-week" or "res" as key prefix
-const gridPromiseByRes = new Map<number, Promise<any>>()
+const gridPromiseByRes = new Map<number, Promise<GeoJSONFeatureCollection>>()
 
 /** Per-cell species data with optional reporting frequencies */
 export interface CellSpeciesData {
@@ -60,7 +66,7 @@ export function fetchSpecies(): Promise<Species[]> {
 }
 
 /** Fetch grid GeoJSON for a specific resolution (cached) */
-export function fetchGrid(resolution?: number): Promise<any> {
+export function fetchGrid(resolution?: number): Promise<GeoJSONFeatureCollection> {
   const res = resolution ?? DEFAULT_RES
   let p = gridPromiseByRes.get(res)
   if (!p) {
@@ -95,7 +101,7 @@ export function fetchResolutions(): Promise<{ resolutions: number[]; default: nu
 }
 
 /** Fetch regions GeoJSON (cached) */
-export function fetchRegions(): Promise<any> {
+export function fetchRegions(): Promise<GeoJSONFeatureCollection> {
   if (!regionsPromise) {
     regionsPromise = fetch(`${DATA_BASE}/regions.geojson`)
       .then(r => {

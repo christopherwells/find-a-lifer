@@ -254,7 +254,7 @@ export default function GoalBirdsTab() {
     loadGoalLists()
   }, [])
 
-  // Save active list ID to localStorage whenever it changes, and reset list filter
+  // Save active list ID to localStorage and reset filter when switching lists
   useEffect(() => {
     if (activeListId) {
       localStorage.setItem('activeGoalListId', activeListId)
@@ -263,7 +263,7 @@ export default function GoalBirdsTab() {
       localStorage.removeItem('activeGoalListId')
     }
     // Reset the within-list filter when switching lists
-    setListFilterTerm('')
+    setListFilterTerm('') // eslint-disable-line react-hooks/set-state-in-effect -- intentional reset on list switch
   }, [activeListId])
 
   // Load species metadata for search/add functionality

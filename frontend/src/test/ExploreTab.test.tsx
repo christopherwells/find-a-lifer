@@ -9,14 +9,10 @@ describe('ExploreTab', () => {
     )
   })
 
-  it('renders region selector', () => {
-    render(<ExploreTab />)
-    expect(screen.getByLabelText('Select geographic region')).toBeInTheDocument()
-  })
-
   it('renders view mode buttons', () => {
     render(<ExploreTab />)
     expect(screen.getByText('Richness')).toBeInTheDocument()
+    expect(screen.getByText('Frequency')).toBeInTheDocument()
     expect(screen.getByText('Range')).toBeInTheDocument()
     expect(screen.getByText('Goals')).toBeInTheDocument()
   })
@@ -52,13 +48,13 @@ describe('ExploreTab', () => {
 
   it('shows animation play button', () => {
     render(<ExploreTab />)
-    expect(screen.getByText('Animate Migration')).toBeInTheDocument()
+    expect(screen.getByTestId('animation-play-button')).toBeInTheDocument()
   })
 
-  it('displays week label', () => {
+  it('displays week label with date', () => {
     render(<ExploreTab currentWeek={1} />)
-    // Week 1 should show approximately early January
-    expect(screen.getByText(/Week 1/)).toBeInTheDocument()
+    // Week 1 shows as "Wk 1 · Jan 3"
+    expect(screen.getByText(/Wk 1/)).toBeInTheDocument()
   })
 
   it('shows lifer range filter in density mode when data is available', () => {

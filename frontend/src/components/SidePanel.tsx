@@ -120,7 +120,7 @@ export default memo(function SidePanel({
   // Auto-switch to Trip Plan tab when a location is selected on the map
   useEffect(() => {
     if (selectedLocation) {
-      setActiveTab('trip')
+      setActiveTab('trip') // eslint-disable-line react-hooks/set-state-in-effect -- intentional UX: auto-navigate on map click
     }
   }, [selectedLocation])
 

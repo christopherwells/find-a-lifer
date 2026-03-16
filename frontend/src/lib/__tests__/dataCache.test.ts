@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { CellSpeciesData } from '../dataCache'
 
 // We need to reset module state between tests since dataCache uses module-level caching
-let fetchSpecies: () => Promise<any>
-let fetchGrid: () => Promise<any>
-let fetchWeekSummary: (week: number) => Promise<any>
-let fetchWeekCells: (week: number) => Promise<any>
-let computeLiferSummary: (weekCells: Map<number, number[]>, seenIds: Set<number>) => any
-let getCellSpecies: (weekCells: Map<number, number[]>, cellId: number, speciesById: Map<number, any>) => any
-let getSpeciesBatch: (weekCells: Map<number, number[]>, speciesIds: Set<number>) => any
+let fetchSpecies: () => Promise<unknown>
+let fetchGrid: () => Promise<unknown>
+let fetchWeekSummary: (week: number) => Promise<unknown>
+let fetchWeekCells: (week: number) => Promise<Map<number, CellSpeciesData>>
+let computeLiferSummary: (weekCells: Map<number, CellSpeciesData>, seenIds: Set<number>) => [number, number, number][]
+let getCellSpecies: (weekCells: Map<number, CellSpeciesData>, cellId: number, speciesById: Map<number, Record<string, unknown>>) => Record<string, unknown>[]
+let getSpeciesBatch: (weekCells: Map<number, CellSpeciesData>, speciesIds: Set<number>) => Record<number, number[]>
 
 beforeEach(async () => {
   vi.restoreAllMocks()
@@ -96,7 +97,7 @@ describe('fetchGrid', () => {
 
     const result = await fetchGrid()
     expect(result).toEqual(mockData)
-    expect(fetch).toHaveBeenCalledWith('/data/grid.geojson')
+    expect(fetch).toHaveBeenCalledWith('/data/r4/grid.geojson')
   })
 
   it('caches the result and only fetches once', async () => {
@@ -142,13 +143,13 @@ describe('fetchWeekSummary', () => {
 
     const result = await fetchWeekSummary(3)
     expect(result).toEqual(mockData)
-    expect(fetch).toHaveBeenCalledWith('/data/weeks/week_03_summary.json')
+    expect(fetch).toHaveBeenCalledWith('/data/r4/weeks/week_03_summary.json')
   })
 })
 
 describe('fetchWeekCells', () => {
-  it('parses raw cell-grouped format into Map', async () => {
-    const raw = [[100, [1, 2, 3]], [200, [4, 5]]]
+  it('parses raw cell-grouped format into Map with CellSpeciesData', async () => {
+    const raw = [[100, [1, 2, 3], [128, 64, 32]], [200, [4, 5]]]
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(raw),
@@ -156,17 +157,17 @@ describe('fetchWeekCells', () => {
 
     const result = await fetchWeekCells(1)
     expect(result).toBeInstanceOf(Map)
-    expect(result.get(100)).toEqual([1, 2, 3])
-    expect(result.get(200)).toEqual([4, 5])
+    expect(result.get(100)).toEqual({ speciesIds: [1, 2, 3], freqs: [128, 64, 32] })
+    expect(result.get(200)).toEqual({ speciesIds: [4, 5], freqs: null })
   })
 })
 
 describe('computeLiferSummary', () => {
   it('excludes seen species and returns lifer counts', () => {
-    const weekCells = new Map<number, number[]>([
-      [100, [1, 2, 3, 4]],
-      [200, [2, 3]],
-      [300, [1]],
+    const weekCells = new Map<number, CellSpeciesData>([
+      [100, { speciesIds: [1, 2, 3, 4], freqs: null }],
+      [200, { speciesIds: [2, 3], freqs: null }],
+      [300, { speciesIds: [1], freqs: null }],
     ])
     const seenIds = new Set([1, 2])
 
@@ -174,13 +175,13 @@ describe('computeLiferSummary', () => {
     // Cell 100: 2 lifers (3, 4), Cell 200: 1 lifer (3), Cell 300: 0 lifers
     expect(result).toContainEqual([100, 2, 200])
     expect(result).toContainEqual([200, 1, 200])
-    expect(result.find((r: any) => r[0] === 300)).toBeUndefined()
+    expect(result.find((r: [number, number, number]) => r[0] === 300)).toBeUndefined()
   })
 })
 
 describe('getCellSpecies', () => {
   it('returns species records for a cell sorted by taxon order', () => {
-    const weekCells = new Map<number, number[]>([[100, [2, 1]]])
+    const weekCells = new Map<number, CellSpeciesData>([[100, { speciesIds: [2, 1], freqs: null }]])
     const speciesById = new Map([
       [1, { species_id: 1, speciesCode: 'amerob', comName: 'American Robin', taxonOrder: 200 }],
       [2, { species_id: 2, speciesCode: 'houspa', comName: 'House Sparrow', taxonOrder: 100 }],
@@ -195,10 +196,10 @@ describe('getCellSpecies', () => {
 
 describe('getSpeciesBatch', () => {
   it('returns cells for each requested species', () => {
-    const weekCells = new Map<number, number[]>([
-      [100, [1, 2, 3]],
-      [200, [2, 4]],
-      [300, [1, 3]],
+    const weekCells = new Map<number, CellSpeciesData>([
+      [100, { speciesIds: [1, 2, 3], freqs: null }],
+      [200, { speciesIds: [2, 4], freqs: null }],
+      [300, { speciesIds: [1, 3], freqs: null }],
     ])
     const speciesIds = new Set([1, 3])
 

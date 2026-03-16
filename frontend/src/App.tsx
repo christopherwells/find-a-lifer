@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import TopBar from './components/TopBar'
 import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
@@ -31,7 +31,6 @@ function App() {
   const [viewMode, setViewMode] = useState<MapViewMode>('density')
   const [goalBirdsOnlyFilter, setGoalBirdsOnlyFilter] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
-  const [goalSpeciesCodes, setGoalSpeciesCodes] = useState<Set<string>>(new Set())
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [activeGoalListId, setActiveGoalListId] = useState<string | null>(null)
@@ -74,20 +73,12 @@ function App() {
     loadGoalLists()
   }, [])
 
-  // Compute goal species codes from the ACTIVE list using already-loaded goalLists state
-  useEffect(() => {
-    if (!activeGoalListId) {
-      setGoalSpeciesCodes(new Set())
-      return
-    }
+  // Compute goal species codes from the ACTIVE list — derived from state, no effect needed
+  const goalSpeciesCodes = useMemo(() => {
+    if (!activeGoalListId) return new Set<string>()
     const activeList = goalLists.find((l) => l.id === activeGoalListId)
-    if (!activeList) {
-      setGoalSpeciesCodes(new Set())
-      return
-    }
-    const codes = new Set<string>(activeList.speciesCodes)
-    setGoalSpeciesCodes(codes)
-    console.log(`App: active goal list "${activeList.name}" has ${codes.size} species`)
+    if (!activeList) return new Set<string>()
+    return new Set<string>(activeList.speciesCodes)
   }, [activeGoalListId, goalLists])
 
   return (

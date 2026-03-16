@@ -114,7 +114,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
 
         // Find the selected region
         const region = data.features?.find(
-          (f: any) => f.properties.region_id === selectedRegion
+          (f: { properties: Record<string, unknown> }) => f.properties.region_id === selectedRegion
         )
 
         if (region && region.properties) {

@@ -62,7 +62,7 @@ export default function TripPlanTab({
   // Shared
   const [speciesData, setSpeciesData] = useState<Species[]>([])
   const [speciesLoaded, setSpeciesLoaded] = useState(false)
-  const [gridData, setGridData] = useState<any>(null)
+  const [gridData, setGridData] = useState<{ features?: Array<{ properties?: Record<string, number | string> }> } | null>(null)
   const [dataError, setDataError] = useState<string | null>(null)
   const { seenSpecies } = useLifeList()
 
@@ -144,7 +144,7 @@ export default function TripPlanTab({
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
-          gridData.features.forEach((f: any) => {
+          gridData.features.forEach((f: { properties?: Record<string, number | string> }) => {
             const id = f.properties?.cell_id
             if (id != null && f.properties.center_lng != null && f.properties.center_lat != null) {
               cellCoords.set(id, [f.properties.center_lng, f.properties.center_lat])
@@ -215,7 +215,7 @@ export default function TripPlanTab({
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
-          gridData.features.forEach((f: any) => {
+          gridData.features.forEach((f: { properties?: Record<string, number | string> }) => {
             const id = f.properties?.cell_id
             if (id != null && f.properties.center_lng != null && f.properties.center_lat != null) {
               cellCoords.set(id, [f.properties.center_lng, f.properties.center_lat])
@@ -299,13 +299,15 @@ export default function TripPlanTab({
         const cellFetches = weeksToLoad.flatMap(week => [
           fetchWeekCells(week)
             .then(weekCells => {
-              const speciesIds = weekCells.get(locationA!.cellId) || []
+              const cellData = weekCells.get(locationA!.cellId)
+              const speciesIds = cellData?.speciesIds || []
               return { week, location: 'A' as const, data: speciesIds.map(sid => ({ species_id: sid, probability: 1.0 })) }
             })
             .catch(() => ({ week, location: 'A' as const, data: [] as { species_id: number; probability: number }[] })),
           fetchWeekCells(week)
             .then(weekCells => {
-              const speciesIds = weekCells.get(locationB!.cellId) || []
+              const cellData = weekCells.get(locationB!.cellId)
+              const speciesIds = cellData?.speciesIds || []
               return { week, location: 'B' as const, data: speciesIds.map(sid => ({ species_id: sid, probability: 1.0 })) }
             })
             .catch(() => ({ week, location: 'B' as const, data: [] as { species_id: number; probability: number }[] })),
@@ -423,7 +425,8 @@ export default function TripPlanTab({
           weeksToLoad.map(async (week) => {
             try {
               const weekCells = await fetchWeekCells(week)
-              const speciesIds = weekCells.get(selectedLocation.cellId) || []
+              const cellData = weekCells.get(selectedLocation.cellId)
+              const speciesIds = cellData?.speciesIds || []
               return speciesIds.map(sid => ({ species_id: sid, probability: 1.0 }))
             } catch {
               return [] as { species_id: number; probability: number }[]

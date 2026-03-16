@@ -15,8 +15,8 @@ export default function ExploreTab({
   goalLists = [],
   activeGoalListId = null,
   onActiveGoalListIdChange,
-  selectedRegion: _selectedRegion = null,
-  onSelectedRegionChange: _onSelectedRegionChange,
+  selectedRegion: _selectedRegion = null, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onSelectedRegionChange: _onSelectedRegionChange, // eslint-disable-line @typescript-eslint/no-unused-vars
   heatmapOpacity = 0.8,
   onHeatmapOpacityChange,
   liferCountRange = [0, 9999],

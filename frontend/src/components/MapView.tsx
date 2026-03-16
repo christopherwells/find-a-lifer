@@ -1117,7 +1117,7 @@ export default memo(function MapView({
       // If user has a life list, use the lifer-summary endpoint to subtract seen species
       // Otherwise, use the pre-computed summary (total species per cell)
       const loadDensity = async () => {
-        let cellLiferCounts = new Map<number, number>()
+        const cellLiferCounts = new Map<number, number>()
 
         if (seenSpecies.size > 0) {
           try {

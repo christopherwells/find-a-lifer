@@ -227,6 +227,7 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook must co-locate with its Provider
 export function useLifeList() {
   const context = useContext(LifeListContext)
   if (context === undefined) {
