@@ -5,3 +5,10 @@
   width: 100%;
   height: 100%;
 }
+
+/* Fix side panel bottom offset (mobile-only, not on desktop) */
+@media (min-width: 768px) {
+  [data-testid="side-panel"] {
+    bottom: auto !important;
+  }
+}

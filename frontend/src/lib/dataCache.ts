@@ -15,8 +15,15 @@ let regionsPromise: Promise<any> | null = null
 // Resolution-aware caches: "res-week" or "res" as key prefix
 const gridPromiseByRes = new Map<number, Promise<any>>()
 
-// Cache week cells data: "res-week" -> Map<cellId, speciesIds[]>
-const weekCellsCache = new Map<string, Promise<Map<number, number[]>>>()
+/** Per-cell species data with optional reporting frequencies */
+export interface CellSpeciesData {
+  speciesIds: number[]
+  /** Reporting frequency per species (0-255 uint8, divide by 255 for 0-1). Same order as speciesIds. */
+  freqs: number[] | null
+}
+
+// Cache week cells data: "res-week" -> Map<cellId, CellSpeciesData>
+const weekCellsCache = new Map<string, Promise<Map<number, CellSpeciesData>>>()
 
 // Cache week summaries: "res-week" -> summary
 const weekSummaryCache = new Map<string, Promise<[number, number, number, number?][]>>()
@@ -125,10 +132,11 @@ export function fetchWeekSummary(week: number, resolution?: number): Promise<[nu
 }
 
 /**
- * Fetch week cells data for a resolution and parse into a Map<cellId, speciesIds[]>.
- * Raw format: [[cell_id, [species_id, ...]], ...]
+ * Fetch week cells data for a resolution.
+ * Raw format: [[cell_id, [species_id, ...], [freq_uint8, ...]], ...]
+ * The freqs array is optional (backward compat with old data).
  */
-export function fetchWeekCells(week: number, resolution?: number): Promise<Map<number, number[]>> {
+export function fetchWeekCells(week: number, resolution?: number): Promise<Map<number, CellSpeciesData>> {
   const res = resolution ?? DEFAULT_RES
   const key = `${res}-${week}`
   let p = weekCellsCache.get(key)
@@ -139,10 +147,13 @@ export function fetchWeekCells(week: number, resolution?: number): Promise<Map<n
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then((raw: [number, number[]][]) => {
-        const m = new Map<number, number[]>()
-        for (const [cellId, speciesIds] of raw) {
-          m.set(cellId, speciesIds)
+      .then((raw: (number | number[])[][]) => {
+        const m = new Map<number, CellSpeciesData>()
+        for (const entry of raw) {
+          const cellId = entry[0] as number
+          const speciesIds = entry[1] as number[]
+          const freqs = entry.length > 2 ? (entry[2] as number[]) : null
+          m.set(cellId, { speciesIds, freqs })
         }
         return m
       })
@@ -185,14 +196,43 @@ export function fetchSpeciesWeeks(speciesCode: string, resolution?: number): Pro
  * Returns [[cell_id, lifer_count, 200], ...] for cells with lifers.
  */
 export function computeLiferSummary(
-  weekCells: Map<number, number[]>,
+  weekCells: Map<number, CellSpeciesData>,
   seenSpeciesIds: Set<number>
 ): [number, number, number][] {
   const result: [number, number, number][] = []
-  weekCells.forEach((speciesIds, cellId) => {
+  weekCells.forEach(({ speciesIds }, cellId) => {
     const liferCount = speciesIds.filter(sid => !seenSpeciesIds.has(sid)).length
     if (liferCount > 0) {
       result.push([cellId, liferCount, 200])
+    }
+  })
+  return result
+}
+
+/**
+ * Compute combined probability of seeing at least one target bird per cell.
+ * P = 1 - ∏(1 - freq_i) for all target species in each cell.
+ * targetSpeciesIds: species to include (lifers not on life list, or goal list species).
+ * If null, includes ALL species in the cell.
+ */
+export function computeCombinedProbability(
+  weekCells: Map<number, CellSpeciesData>,
+  targetSpeciesIds: Set<number> | null
+): Map<number, number> {
+  const result = new Map<number, number>()
+  weekCells.forEach(({ speciesIds, freqs }, cellId) => {
+    if (!freqs) return // no frequency data available
+    let probNone = 1.0
+    let count = 0
+    for (let i = 0; i < speciesIds.length; i++) {
+      if (targetSpeciesIds !== null && !targetSpeciesIds.has(speciesIds[i])) continue
+      const freq = freqs[i] / 255
+      probNone *= (1 - freq)
+      count++
+    }
+    if (count > 0) {
+      const probAny = 1 - probNone
+      if (probAny > 0.001) result.set(cellId, probAny)
     }
   })
   return result
@@ -203,18 +243,20 @@ export function computeLiferSummary(
  * Returns array of {species_id, speciesCode, comName, probability} sorted by taxon order.
  */
 export function getCellSpecies(
-  weekCells: Map<number, number[]>,
+  weekCells: Map<number, CellSpeciesData>,
   cellId: number,
   speciesById: Map<number, Species>
 ): { species_id: number; speciesCode: string; comName: string; probability: number }[] {
-  const speciesIds = weekCells.get(cellId) || []
-  const records = speciesIds.map(sid => {
+  const cellData = weekCells.get(cellId)
+  if (!cellData) return []
+  const { speciesIds, freqs } = cellData
+  const records = speciesIds.map((sid, i) => {
     const sp = speciesById.get(sid)
     return {
       species_id: sid,
       speciesCode: sp?.speciesCode || '',
       comName: sp?.comName || 'Unknown',
-      probability: 1.0,
+      probability: freqs ? freqs[i] / 255 : 1.0,
     }
   })
   records.sort((a, b) => {
@@ -230,13 +272,14 @@ export function getCellSpecies(
  * Returns [{cell_id, probability}, ...]
  */
 export function getSpeciesCells(
-  weekCells: Map<number, number[]>,
+  weekCells: Map<number, CellSpeciesData>,
   speciesId: number
 ): { cell_id: number; probability: number }[] {
   const records: { cell_id: number; probability: number }[] = []
-  weekCells.forEach((speciesIds, cellId) => {
-    if (speciesIds.includes(speciesId)) {
-      records.push({ cell_id: cellId, probability: 1.0 })
+  weekCells.forEach(({ speciesIds, freqs }, cellId) => {
+    const idx = speciesIds.indexOf(speciesId)
+    if (idx !== -1) {
+      records.push({ cell_id: cellId, probability: freqs ? freqs[idx] / 255 : 1.0 })
     }
   })
   return records
@@ -247,16 +290,17 @@ export function getSpeciesCells(
  * Returns {speciesId: [{cell_id, probability}, ...], ...}
  */
 export function getSpeciesBatch(
-  weekCells: Map<number, number[]>,
+  weekCells: Map<number, CellSpeciesData>,
   speciesIds: Set<number>
 ): Record<number, { cell_id: number; probability: number }[]> {
   const result: Record<number, { cell_id: number; probability: number }[]> = {}
   speciesIds.forEach(sid => { result[sid] = [] })
 
-  weekCells.forEach((cellSpeciesIds, cellId) => {
-    for (const sid of cellSpeciesIds) {
+  weekCells.forEach(({ speciesIds: cellSpeciesIds, freqs }, cellId) => {
+    for (let i = 0; i < cellSpeciesIds.length; i++) {
+      const sid = cellSpeciesIds[i]
       if (speciesIds.has(sid)) {
-        result[sid].push({ cell_id: cellId, probability: 1.0 })
+        result[sid].push({ cell_id: cellId, probability: freqs ? freqs[i] / 255 : 1.0 })
       }
     }
   })

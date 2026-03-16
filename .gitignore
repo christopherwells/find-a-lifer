@@ -8,28 +8,8 @@ frontend/dist/
 frontend/.vite/
 
 # IDE
-.Rproj.user/
 .vscode/
 .idea/
-
-# R project files
-.RData
-.RDataTmp
-.Rhistory
-*.Rproj
-
-# Legacy data files
-*.shp
-*.shx
-*.dbf
-*.prj
-*.sbn
-*.sbx
-*.cpg
-*.shp.xml
-avibase.*
-regional_presence_ebird.csv
-ebird_world_life_list.csv
 
 # Environment
 .env
@@ -39,28 +19,23 @@ ebird_world_life_list.csv
 .DS_Store
 Thumbs.db
 
-# Screenshots (testing artifacts)
-*.png
-
-# AutoForge
-.autoforge/
-
-# Large data files
-app_data/
-regions_starter.gpkg
-
 # Logs and artifacts
 *.log
-*.docx
-session*-summary.txt
-feature*-*.txt
-feature*-*.md
 
-# Generated sample data is committed (small enough for dev)
+# Raw eBird data (large, not for git)
+data/downloads/
+data/archive/
+data/*.txt
+data/*.txt.gz
+data/*.zip
+data/*.tar
 
+# Pipeline reference data (large, downloaded separately)
+pipeline/reference/cities500.txt
+
+# Playwright/testing artifacts
 .playwright-cli/
 .playwright/
-
-# Raw EBD data (large, not for git)
-data/*.txt
-data/*.zip
+.playwright-mcp/
+.autoforge/
+.pytest_cache/

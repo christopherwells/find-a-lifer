@@ -500,8 +500,8 @@ export default memo(function MapView({
       if (!map.current) return
       const zoom = map.current.getZoom()
       let newRes = 4  // default
-      if (zoom < 6.5) newRes = 3
-      else if (zoom >= 8.5) newRes = 5
+      if (zoom < 5.5) newRes = 3
+      else if (zoom >= 7.5) newRes = 5
       if (newRes !== activeResolutionRef.current) {
         activeResolutionRef.current = newRes
         // Clear cell click cache and close popups when resolution changes (cell IDs differ between resolutions)
@@ -993,67 +993,68 @@ export default memo(function MapView({
 
       loadGoalBirds()
       return
-    } else if (viewMode === ('probability' as string)) {
-      // DISABLED — hidden from UI, kept for future redesign.
-      // S&T data provides relative abundance, not true detection probability.
-      const goalSpeciesIdSet = goalSpeciesIdSetRef.current
-      const useGoalFilter = goalBirdsOnlyFilter && goalSpeciesCodes.size > 0
+    } else if (viewMode === 'probability') {
+      // Combined probability: P(see at least one lifer/goal bird) = 1 - ∏(1 - freq_i)
+      // Computed client-side using per-species reporting frequencies and the user's life list
+      const loadCombinedProbability = async () => {
+        try {
+          const { fetchWeekCells, computeCombinedProbability } = await import('../lib/dataCache')
+          const weekCells = await fetchWeekCells(currentWeek, activeResolution)
+          if (cancelled) return
 
-      if (useGoalFilter) {
-        // Need per-species data for goal filter
-        const loadGoalProbability = async () => {
-          if (goalSpeciesIdSet.size === 0) {
-            setNeutralOverlay()
-            return
-          }
-          try {
-            const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
-            const weekCells = await fetchWeekCells(currentWeek, activeResolution)
-            if (cancelled) return
-            const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
-            if (cancelled) return
+          // Build target species set: goal list species not yet seen, or all lifers
+          const currentSeenSpecies = seenSpeciesRef.current
+          const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+          const useGoalFilter = goalBirdsOnlyFilter && goalSpeciesCodes.size > 0
 
-            const cellMaxProbability = new Map<number, number>()
-            Object.values(batchData).forEach((records) => {
-              records.forEach((r) => {
-                if (r.probability > 0) {
-                  const existing = cellMaxProbability.get(r.cell_id) || 0
-                  if (r.probability > existing) cellMaxProbability.set(r.cell_id, r.probability)
+          let targetIds: Set<number> | null = null
+
+          if (useGoalFilter || currentSeenSpecies.size > 0) {
+            // Build seen ID set
+            const seenIds = new Set<number>()
+            if (speciesMetaCache && currentSeenSpecies.size > 0) {
+              speciesMetaCache.forEach(s => {
+                if (currentSeenSpecies.has(s.speciesCode)) seenIds.add(s.species_id)
+              })
+            }
+
+            if (useGoalFilter) {
+              // Goal list species that haven't been seen yet
+              targetIds = new Set<number>()
+              goalSpeciesIdSet.forEach(sid => {
+                if (!seenIds.has(sid)) targetIds!.add(sid)
+              })
+            } else {
+              // All species not yet seen (lifers)
+              // We pass null to include all species, then filter out seen ones
+              // Actually: build set of all possible species minus seen
+              targetIds = new Set<number>()
+              weekCells.forEach(({ speciesIds }) => {
+                for (const sid of speciesIds) {
+                  if (!seenIds.has(sid)) targetIds!.add(sid)
                 }
               })
-            })
-
-            console.log(`Probability overlay (goal filter): ${cellMaxProbability.size} cells`)
-            const probabilities = Array.from(cellMaxProbability.values())
-            setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
-            setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 1)
-
-            if (cellMaxProbability.size === 0) { setNeutralOverlay(); return }
-            applyFeatureStates(cellMaxProbability)
-            setHeatOverlay()
-          } catch (error) {
-            if (!cancelled) console.error('Probability: error loading goal data', error)
+            }
           }
+          // If no life list and no goal filter, targetIds stays null → all species
+
+          const cellProbabilities = computeCombinedProbability(weekCells, targetIds)
+          if (cancelled) return
+
+          console.log(`Combined probability overlay: ${cellProbabilities.size} cells, ${targetIds ? targetIds.size : 'all'} target species`)
+          const probabilities = Array.from(cellProbabilities.values())
+          setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
+          setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 1)
+
+          if (cellProbabilities.size === 0) { setNeutralOverlay(); return }
+          applyFeatureStates(cellProbabilities)
+          setHeatOverlay()
+        } catch (error) {
+          if (!cancelled) console.error('Combined probability: error', error)
         }
-        loadGoalProbability()
-        return
       }
-
-      // Use summary for max probability (no goal filter)
-      const cellMaxProbability = new Map<number, number>()
-      weeklySummary.forEach(([cellId, , maxProbU8]) => {
-        const prob = maxProbU8 / 200
-        if (prob > 0) cellMaxProbability.set(cellId, prob)
-      })
-
-      console.log(`Probability overlay: ${cellMaxProbability.size} cells (from summary)`)
-      const probabilities = Array.from(cellMaxProbability.values())
-      setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
-      setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 1)
-
-      if (cellMaxProbability.size === 0) { setNeutralOverlay(); return }
-      applyFeatureStates(cellMaxProbability)
-      setHeatOverlay()
+      loadCombinedProbability()
+      return
     } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
       // Density mode with Goal Birds Only filter: need batch species data
       if (goalSpeciesCodes.size === 0) {
@@ -1238,6 +1239,13 @@ export default memo(function MapView({
           legendTitle = selectedSpeciesMeta ? selectedSpeciesMeta.comName : 'Species Range'
           isPercentage = true
           showLegend = true
+        } else if (viewMode === 'probability') {
+          legendTitle = seenSpecies.size > 0
+            ? (goalBirdsOnlyFilter ? 'P(Goal Lifer)' : 'P(Any Lifer)')
+            : 'P(New Species)'
+          isPercentage = true
+          showLegend = true
+          emptyMessage = goalBirdsOnlyFilter && goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
         } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
           legendTitle = 'Goal Birds Only'
           showLegend = true

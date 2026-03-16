@@ -121,6 +121,7 @@ export default function ExploreTab({
         <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex gap-1">
           {[
             { mode: 'density' as const, label: 'Richness' },
+            { mode: 'probability' as const, label: 'Frequency' },
             { mode: 'species' as const, label: 'Range' },
             { mode: 'goal-birds' as const, label: 'Goals' },
           ].map(({ mode, label }) => (
@@ -141,7 +142,7 @@ export default function ExploreTab({
       </div>
 
       {/* Active Goal List Selector */}
-      {(viewMode === 'goal-birds' || ((viewMode === 'density' || viewMode === 'species') && goalBirdsOnlyFilter)) && (
+      {(viewMode === 'goal-birds' || ((viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && goalBirdsOnlyFilter)) && (
         <div>
           <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             Active Goal List
@@ -171,7 +172,7 @@ export default function ExploreTab({
       )}
 
       {/* Goal Birds Only Filter */}
-      {(viewMode === 'density' || viewMode === 'species') && (
+      {(viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && (
         <button
           data-testid="goal-birds-only-toggle"
           onClick={() => onGoalBirdsOnlyFilterChange?.(!goalBirdsOnlyFilter)}

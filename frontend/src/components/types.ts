@@ -1,6 +1,6 @@
 import type { GoalList } from '../lib/goalListsDB'
 
-export type MapViewMode = 'density' | 'species' | 'goal-birds'
+export type MapViewMode = 'density' | 'probability' | 'species' | 'goal-birds'
 
 export interface SelectedLocation {
   cellId: number
