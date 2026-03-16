@@ -71,6 +71,7 @@ interface GoalBirdsPopup {
   coordinates: [number, number]
   birds: GoalBirdInCell[]
   nChecklists?: number
+  label?: string
 }
 
 interface LiferInCell {
@@ -130,6 +131,7 @@ interface LifersPopup {
   coordinates: [number, number]
   lifers: LiferInCell[]
   nChecklists?: number
+  label?: string
 }
 
 // Module-level cache for species metadata (populated by shared dataCache, used for sync access)
@@ -629,6 +631,7 @@ export default memo(function MapView({
             if (!cellId) return
 
             const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+            const cellLabel = feature.properties?.label as string | undefined
 
             // Skip popups for cells with no data this week (uncolored hexes)
             const featureState = map.current?.getFeatureState({ source: 'grid', id: feature.id })
@@ -668,7 +671,7 @@ export default memo(function MapView({
                 })
 
                 goalBirds.sort((a, b) => b.probability - a.probability)
-                setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds, nChecklists: cellChecklistCountsRef.current.get(cellId) })
+                setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel })
                 console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
               }
 
@@ -714,7 +717,7 @@ export default memo(function MapView({
                 })
 
                 lifers.sort((a, b) => b.probability - a.probability)
-                setLifersPopup({ cellId, coordinates: coords, lifers, nChecklists: cellChecklistCountsRef.current.get(cellId) })
+                setLifersPopup({ cellId, coordinates: coords, lifers, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel })
                 console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
               }
 
@@ -1281,7 +1284,7 @@ export default memo(function MapView({
               <div className="text-xs text-amber-700">
                 {goalBirdsPopup.birds.length === 0
                   ? 'No goal birds here this week'
-                  : `${goalBirdsPopup.birds.length} goal bird${goalBirdsPopup.birds.length !== 1 ? 's' : ''} · Cell ${goalBirdsPopup.cellId}`}
+                  : `${goalBirdsPopup.birds.length} goal bird${goalBirdsPopup.birds.length !== 1 ? 's' : ''} · ${goalBirdsPopup.label || `Cell ${goalBirdsPopup.cellId}`}`}
               </div>
             </div>
             <button
@@ -1422,7 +1425,7 @@ export default memo(function MapView({
               <div className="text-xs text-teal-700">
                 {lifersPopup.lifers.length === 0
                   ? 'No lifers here this week'
-                  : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} · Cell ${lifersPopup.cellId}`}
+                  : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
               </div>
             </div>
             <button
