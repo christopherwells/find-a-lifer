@@ -69,6 +69,9 @@ MIN_CHECKLISTS_POOLED = 3   # Minimum after temporal pooling (±1 week)
 NEIGHBOR_SMOOTH_K = {3: 0, 4: 1}
 NEIGHBOR_WEIGHTS = {0: 1.0, 1: 0.5}
 FALLBACK_DISCOUNT = 0.7     # Frequency discount for multi-resolution fallback
+ENSEMBLE_RUNS = 25          # Number of stixel ensemble passes
+ENSEMBLE_BLOCK_K = {3: 1, 4: 1}  # Block radius (k-ring) per resolution
+MIN_SMOOTHED_FREQ = 0.005   # Drop interpolated species below 0.5% frequency
 YEAR_MIN = 2006
 YEAR_MAX = 2025
 
@@ -126,6 +129,159 @@ def is_land(h3_cell, prepared_land):
         return True  # No land data = allow all
     lat, lng = h3.cell_to_latlng(h3_cell)
     return prepared_land.contains(Point(lng, lat))
+
+
+def load_covariates(res):
+    """Load pre-computed environmental covariates for a resolution.
+    Returns dict: {h3_index: {trees, shrub, herb, cultivated, urban, water, flooded, elev_mean, elev_std}}"""
+    path = ARCHIVE_DIR / f"cell_covariates_r{res}.json"
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        return json.load(f)
+
+
+def covariate_similarity(cov_a, cov_b):
+    """Compute similarity (0 to 1) between two covariate vectors.
+    Higher = more similar habitat. Used to weight spatial pooling."""
+    if not cov_a or not cov_b:
+        return 0.5  # neutral if covariates missing
+    lc_keys = ["trees", "shrub", "herb", "cultivated", "urban", "water", "flooded"]
+    diff_sq = sum((cov_a.get(k, 0) - cov_b.get(k, 0)) ** 2 for k in lc_keys)
+    elev_diff = (cov_a.get("elev_mean", 0) - cov_b.get("elev_mean", 0)) / 1000.0
+    diff_sq += elev_diff ** 2
+    return 1.0 / (1.0 + (diff_sq ** 0.5) * 3.0)
+
+
+import random
+
+def run_stixel_ensemble(detections, cell_week_checklists, cell_covariates,
+                        res, n_runs=ENSEMBLE_RUNS):
+    """Run a simplified stixel ensemble to produce stabilized frequency estimates.
+
+    For each run:
+    1. Create random block groupings (random seed cell + k-ring neighbors)
+    2. Pool checklists and detections within each block
+    3. Compute block-level frequencies, weighted by covariate similarity
+    4. Assign block frequencies to all cells in the block
+
+    Final frequency = average across all runs.
+
+    Returns: cell_week_species dict: {cell_id: {week: [(taxon_id, freq), ...]}}
+             direct_cells set: cells that had direct detection data (for threshold exemption)
+    """
+    import random as _random
+
+    block_k = ENSEMBLE_BLOCK_K.get(res, 1)
+    all_data_cells = set()
+    for sp_data in detections.values():
+        all_data_cells.update(sp_data.keys())
+    all_data_cells = list(all_data_cells)
+
+    if not all_data_cells or not HAS_H3:
+        return defaultdict(lambda: defaultdict(list)), set()
+
+    # Track which cells have ANY direct detection (for threshold exemption)
+    direct_detection_cells = set(all_data_cells)
+
+    # Pre-compute neighbor maps for block formation
+    # For each cell, find all cells within k-ring
+    cell_neighbors = {}
+    for cell in all_data_cells:
+        try:
+            disk = h3.grid_disk(cell, block_k)
+            # Only include cells that have checklist data
+            cell_neighbors[cell] = [c for c in disk if c in set(all_data_cells)]
+        except Exception:
+            cell_neighbors[cell] = [cell]
+
+    # Accumulator: {cell_id: {week: {taxon_id: [freq_sum, count]}}}
+    accum = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0.0, 0])))
+
+    t0 = time.time()
+    rng = _random.Random(42)  # deterministic for reproducibility
+
+    for run in range(n_runs):
+        # Shuffle cells to create random block assignments
+        shuffled = list(all_data_cells)
+        rng.shuffle(shuffled)
+        assigned = set()
+
+        # Greedily form blocks from unassigned cells
+        blocks = []
+        for seed in shuffled:
+            if seed in assigned:
+                continue
+            block_cells = [c for c in cell_neighbors.get(seed, [seed]) if c not in assigned]
+            if not block_cells:
+                continue
+            for c in block_cells:
+                assigned.add(c)
+            blocks.append(block_cells)
+
+        # For each block, pool checklists and detections
+        for block_cells in blocks:
+            block_set = set(block_cells)
+
+            # Pool checklists across block for each week
+            block_checklists = defaultdict(int)
+            for cell in block_cells:
+                for week, count in cell_week_checklists.get(cell, {}).items():
+                    block_checklists[week] += count
+
+            # Pool detections across block for each species/week
+            block_detections = defaultdict(lambda: defaultdict(int))
+            for taxon_id, cell_data in detections.items():
+                for cell in block_cells:
+                    if cell in cell_data:
+                        for week, count in cell_data[cell].items():
+                            block_detections[taxon_id][week] += count
+
+            # Compute block-level frequencies and assign to all cells in block
+            for taxon_id, week_dets in block_detections.items():
+                for week, det_count in week_dets.items():
+                    total_cl = block_checklists.get(week, 0)
+                    if total_cl < MIN_CHECKLISTS_POOLED:
+                        continue
+                    freq = det_count / total_cl
+
+                    # Assign to each cell in block, weighted by covariate similarity
+                    # to the cells where the species was actually detected
+                    for cell in block_cells:
+                        # Weight by covariate similarity if available
+                        if cell_covariates:
+                            cell_cov = cell_covariates.get(cell)
+                            # Find similarity to detection cells in this block
+                            det_cells = [c for c in block_cells
+                                         if c in detections.get(taxon_id, {})
+                                         and week in detections[taxon_id].get(c, {})]
+                            if det_cells and cell_cov:
+                                sim = max(covariate_similarity(
+                                    cell_cov, cell_covariates.get(dc, {}))
+                                    for dc in det_cells)
+                            else:
+                                sim = 1.0
+                        else:
+                            sim = 1.0
+
+                        weighted_freq = freq * sim
+                        acc = accum[cell][week][taxon_id]
+                        acc[0] += weighted_freq
+                        acc[1] += 1
+
+    # Average across runs
+    result = defaultdict(lambda: defaultdict(list))
+    for cell_id, week_data in accum.items():
+        for week, sp_data in week_data.items():
+            for taxon_id, (freq_sum, count) in sp_data.items():
+                avg_freq = freq_sum / count
+                if avg_freq > 0:
+                    result[cell_id][week].append((taxon_id, avg_freq))
+
+    t1 = time.time()
+    print(f"    Stixel ensemble: {n_runs} runs, {len(blocks)} blocks/run, "
+          f"{len(result)} cells with data, {t1-t0:.1f}s")
+    return result, direct_detection_cells
 
 
 # ---- Archive save/load ----
@@ -484,11 +640,16 @@ def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_
 
 def write_resolution_data(res, detections, cell_week_checklists, species_names,
                           taxon_to_code, taxon_to_id, output_dir,
-                          prepared_land=None, parent_res_data=None):
+                          prepared_land=None, parent_res_data=None,
+                          cell_covariates=None):
     """Write grid, weekly, and species-weeks data for one resolution.
 
-    Includes temporal pooling (±1 week), scale-dependent neighbor smoothing,
-    land polygon filtering, and multi-resolution fallback from parent data.
+    Pipeline phases:
+    1. Temporal pooling (±1 week) for per-cell frequencies
+    1.5. Stixel ensemble (25 runs) for stabilized block-averaged frequencies
+    2. Neighbor smoothing (scale-dependent, land-filtered, covariate-weighted)
+    2.5. Multi-resolution fallback from parent data
+    3. Convert to output format, apply min frequency threshold on interpolated data
 
     Returns cell_week_species_raw dict for use as parent data by finer resolutions.
     """
@@ -549,9 +710,48 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
                     cell_week_species_raw[cell_id][week].append((taxon_id, freq))
 
     direct_cells = len(cell_week_species_raw)
+    # Track which cells have direct detections (exempt from min freq threshold)
+    direct_detection_cells = set(cell_week_species_raw.keys())
     t1 = time.time()
     print(f"\n  Resolution {res}: Phase 1 (temporal pooling): {direct_cells} cells, {t1-t0:.1f}s")
     sys.stdout.flush()
+
+    # --- Phase 1.5: Stixel ensemble for stabilized frequencies ---
+    if HAS_H3 and ENSEMBLE_RUNS > 0:
+        ensemble_result, _ = run_stixel_ensemble(
+            detections, cell_week_checklists, cell_covariates, res, ENSEMBLE_RUNS)
+
+        # Merge ensemble results with direct estimates
+        # For cells with direct data: average the two (ensemble stabilizes)
+        # For cells with only ensemble data: use ensemble (fills sparse areas)
+        merged = defaultdict(lambda: defaultdict(list))
+        all_cells_in_both = set(cell_week_species_raw.keys()) | set(ensemble_result.keys())
+
+        for cell_id in all_cells_in_both:
+            direct = cell_week_species_raw.get(cell_id, {})
+            ensemble = ensemble_result.get(cell_id, {})
+            all_weeks = set(direct.keys()) | set(ensemble.keys())
+
+            for week in all_weeks:
+                direct_sp = {tid: freq for tid, freq in direct.get(week, [])}
+                ensemble_sp = {tid: freq for tid, freq in ensemble.get(week, [])}
+                all_sp = set(direct_sp.keys()) | set(ensemble_sp.keys())
+
+                for tid in all_sp:
+                    d_freq = direct_sp.get(tid)
+                    e_freq = ensemble_sp.get(tid)
+                    if d_freq is not None and e_freq is not None:
+                        # Both: weighted average (direct gets 60% weight for cells with good data)
+                        merged[cell_id][week].append((tid, d_freq * 0.6 + e_freq * 0.4))
+                    elif d_freq is not None:
+                        merged[cell_id][week].append((tid, d_freq))
+                    else:
+                        merged[cell_id][week].append((tid, e_freq))
+
+        cell_week_species_raw = merged
+        t15 = time.time()
+        print(f"    Phase 1.5 (ensemble merge): {len(cell_week_species_raw)} cells, {t15-t1:.1f}s")
+        sys.stdout.flush()
 
     # --- Phase 2: Neighbor smoothing (scale-dependent, land-filtered) ---
     smoothed_h3_cells = set()
@@ -577,15 +777,23 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
         sys.stdout.flush()
 
         for empty_cell in seen_candidates:
+            empty_cov = cell_covariates.get(empty_cell, {}) if cell_covariates else {}
             weighted_neighbors = []
             for k_ring in range(1, k + 1):
                 try:
                     ring = h3.grid_ring(empty_cell, k_ring)
                 except Exception:
                     continue
-                weight = NEIGHBOR_WEIGHTS[k_ring]
+                spatial_weight = NEIGHBOR_WEIGHTS[k_ring]
                 for n in ring:
                     if n in data_h3_cells:
+                        # Combine spatial distance weight with covariate similarity
+                        if cell_covariates and empty_cov:
+                            cov_sim = covariate_similarity(
+                                empty_cov, cell_covariates.get(n, {}))
+                            weight = spatial_weight * cov_sim
+                        else:
+                            weight = spatial_weight
                         weighted_neighbors.append((n, weight))
 
             if not weighted_neighbors:
@@ -655,16 +863,27 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
     int_to_cell = {i: c for c, i in cell_to_int.items()}
 
     # --- Phase 3: Convert to output format ---
+    # Apply minimum frequency threshold to interpolated data only
+    # Direct detection cells are exempt — if a bird was seen there, it stays
     cell_week_species = defaultdict(lambda: defaultdict(list))
     species_week_cells = defaultdict(lambda: defaultdict(list))
+    dropped_by_threshold = 0
 
     for cell_id, week_data in cell_week_species_raw.items():
         int_id = cell_to_int[cell_id]
+        is_direct = cell_id in direct_detection_cells
         for week, sp_list in week_data.items():
             for taxon_id, freq in sp_list:
+                # Apply threshold only to non-direct cells
+                if not is_direct and freq < MIN_SMOOTHED_FREQ:
+                    dropped_by_threshold += 1
+                    continue
                 freq_uint8 = max(1, min(255, round(freq * 255)))
                 cell_week_species[int_id][week].append((taxon_id, freq_uint8))
                 species_week_cells[taxon_id][week].append((int_id, freq_uint8))
+
+    if dropped_by_threshold > 0:
+        print(f"    Phase 3: dropped {dropped_by_threshold:,} sub-threshold entries from interpolated cells")
 
     n_smoothed = len(smoothed_h3_cells)
     n_fallback = len(fallback_h3_cells)
@@ -865,6 +1084,16 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     # Load land polygon for ocean filtering
     prepared_land = load_land_polygon()
 
+    # Load environmental covariates (pre-computed by extract_covariates.py)
+    covariates_by_res = {}
+    for res in RESOLUTIONS:
+        cov = load_covariates(res)
+        if cov:
+            print(f"  Covariates loaded for r{res}: {len(cov)} cells")
+        else:
+            print(f"  No covariates for r{res} (run extract_covariates.py to enable)")
+        covariates_by_res[res] = cov
+
     # Write per-resolution data (coarsest first for multi-res fallback)
     print("\nWriting per-resolution data...")
     sys.stdout.flush()
@@ -875,7 +1104,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         result = write_resolution_data(
             res, detections_by_res[res], cell_week_checklists_by_res[res],
             species_names, taxon_to_code, taxon_to_id, OUTPUT_DIR,
-            prepared_land, parent_data
+            prepared_land, parent_data, covariates_by_res.get(res, {})
         )
         prev_res_data[res] = result
         # Free memory from previous resolution's raw data
