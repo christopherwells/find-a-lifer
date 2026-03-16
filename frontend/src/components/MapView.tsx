@@ -271,6 +271,8 @@ export default memo(function MapView({
   const [legendMax, setLegendMax] = useState(0)
   // Track which cells have feature-state set (for efficient clearing)
   const featureStateCellIds = useRef<Set<number>>(new Set())
+  // Bumped after grid swap completes so overlay effect waits for new grid
+  const [gridVersion, setGridVersion] = useState(0)
   // Track last reported data range to avoid redundant callbacks
   const lastReportedRangeRef = useRef<[number, number]>([0, 0])
 
@@ -779,6 +781,8 @@ export default memo(function MapView({
           })
           featureStateCellIds.current.clear()
           src.setData(newGrid)
+          // Bump gridVersion so the overlay effect re-runs after grid is ready
+          setGridVersion(v => v + 1)
           console.log(`Grid swapped to resolution ${activeResolution}: ${newGrid.features.length} features`)
         }
       } catch (err) {
@@ -1200,7 +1204,7 @@ export default memo(function MapView({
     }
 
     return () => { cancelled = true }
-  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution])
+  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion])
 
   return (
     <div className="relative w-full h-full">

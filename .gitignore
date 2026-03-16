@@ -39,3 +39,9 @@ pipeline/reference/cities500.txt
 .playwright-mcp/
 .autoforge/
 .pytest_cache/
+
+# Claude Code config (local tooling)
+.claude/
+CLAUDE.md
+docs/claude-progress.txt
+init.sh
