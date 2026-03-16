@@ -32,6 +32,7 @@ data/*.tar
 
 # Pipeline reference data (large, downloaded separately)
 pipeline/reference/cities500.txt
+pipeline/reference/ne_50m_land/
 
 # Playwright/testing artifacts
 .playwright-cli/

@@ -132,6 +132,7 @@ interface LifersPopup {
   lifers: LiferInCell[]
   nChecklists?: number
   label?: string
+  estimated?: boolean
 }
 
 // Module-level cache for species metadata (populated by shared dataCache, used for sync access)
@@ -271,6 +272,8 @@ export default memo(function MapView({
   const [legendMax, setLegendMax] = useState(0)
   // Track which cells have feature-state set (for efficient clearing)
   const featureStateCellIds = useRef<Set<number>>(new Set())
+  // Map cell_id -> smoothed value (1=neighbor, 2=fallback) from grid GeoJSON
+  const smoothedMapRef = useRef<Map<number, number>>(new Map())
   // Bumped after grid swap completes so overlay effect waits for new grid
   const [gridVersion, setGridVersion] = useState(0)
   // Track last reported data range to avoid redundant callbacks
@@ -545,6 +548,16 @@ export default memo(function MapView({
         }
         gridGeoJsonCache = gridData
 
+        // Build smoothed cell map for opacity modulation
+        const newSmoothedMap = new Map<number, number>()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature typing
+        gridData.features.forEach((f: any) => {
+          if (f.properties?.smoothed) {
+            newSmoothedMap.set(f.properties.cell_id, f.properties.smoothed)
+          }
+        })
+        smoothedMapRef.current = newSmoothedMap
+
         // Auto-zoom to data extent on first load
         if (gridData.features.length > 0 && gridData.features.length < 500) {
           const bounds = new maplibregl.LngLatBounds()
@@ -612,12 +625,12 @@ export default memo(function MapView({
           },
         })
 
-        // Add dashed border for estimated/smoothed cells
+        // Add dashed border for estimated/smoothed cells (smoothed=1 or 2)
         map.current.addLayer({
           id: 'grid-smoothed-border',
           type: 'line',
           source: 'grid',
-          filter: ['==', ['get', 'smoothed'], 1],
+          filter: ['>', ['get', 'smoothed'], 0],
           paint: {
             'line-color': 'rgba(255, 255, 255, 0.4)',
             'line-width': [
@@ -744,7 +757,8 @@ export default memo(function MapView({
                 })
 
                 lifers.sort((a, b) => b.probability - a.probability)
-                setLifersPopup({ cellId, coordinates: coords, lifers, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel })
+                const isEstimated = (smoothedMapRef.current.get(cellId) ?? 0) > 0
+                setLifersPopup({ cellId, coordinates: coords, lifers, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel, estimated: isEstimated })
                 console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
               }
 
@@ -837,7 +851,8 @@ export default memo(function MapView({
       featureStateCellIds.current.clear()
       try {
         cellValues.forEach((value, cellId) => {
-          map.current!.setFeatureState({ source: 'grid', id: cellId }, { value })
+          const smoothed = smoothedMapRef.current.get(cellId) ?? 0
+          map.current!.setFeatureState({ source: 'grid', id: cellId }, { value, smoothed })
           featureStateCellIds.current.add(cellId)
         })
       } catch {
@@ -847,7 +862,8 @@ export default memo(function MapView({
           try {
             cellValues.forEach((value, cellId) => {
               if (!featureStateCellIds.current.has(cellId)) {
-                map.current!.setFeatureState({ source: 'grid', id: cellId }, { value })
+                const smoothed = smoothedMapRef.current.get(cellId) ?? 0
+                map.current!.setFeatureState({ source: 'grid', id: cellId }, { value, smoothed })
                 featureStateCellIds.current.add(cellId)
               }
             })
@@ -872,7 +888,12 @@ export default memo(function MapView({
       clearFeatureStates()
       if (map.current?.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', [
+              'case',
+              ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
+              ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
+              heatmapOpacity
+            ])
       }
       if (map.current?.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#999')
@@ -883,7 +904,12 @@ export default memo(function MapView({
     const setHeatOverlay = () => {
       if (map.current?.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', buildHeatExpression())
-        map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+        map.current.setPaintProperty('grid-fill', 'fill-opacity', [
+              'case',
+              ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
+              ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
+              heatmapOpacity
+            ])
       }
       if (map.current?.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#666')
@@ -952,7 +978,12 @@ export default memo(function MapView({
         clearFeatureStates()
         if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', [
+              'case',
+              ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
+              ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
+              heatmapOpacity
+            ])
         }
         if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
@@ -1009,7 +1040,12 @@ export default memo(function MapView({
 
           if (map.current?.getLayer('grid-fill')) {
             map.current.setPaintProperty('grid-fill', 'fill-color', buildAmberExpression())
-            map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+            map.current.setPaintProperty('grid-fill', 'fill-opacity', [
+              'case',
+              ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
+              ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
+              heatmapOpacity
+            ])
           }
           if (map.current?.getLayer('grid-border')) {
             map.current.setPaintProperty('grid-border', 'line-color', '#666')
@@ -1090,7 +1126,12 @@ export default memo(function MapView({
         clearFeatureStates()
         if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
-          map.current.setPaintProperty('grid-fill', 'fill-opacity', heatmapOpacity)
+          map.current.setPaintProperty('grid-fill', 'fill-opacity', [
+              'case',
+              ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
+              ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
+              heatmapOpacity
+            ])
         }
         if (map.current?.getLayer('grid-border')) {
           map.current.setPaintProperty('grid-border', 'line-color', '#999')
@@ -1477,8 +1518,17 @@ export default memo(function MapView({
             </button>
           </div>
 
+          {/* Estimated cell warning */}
+          {lifersPopup.estimated && (
+            <div className="px-3 py-1.5 bg-blue-50 border-b border-teal-200 flex items-center gap-1.5">
+              <span className="text-blue-500 text-xs">ℹ</span>
+              <span className="text-[10px] text-blue-700">
+                Estimated from nearby cells — no direct checklist data here
+              </span>
+            </div>
+          )}
           {/* Low data warning */}
-          {lifersPopup.nChecklists != null && lifersPopup.nChecklists < 10 && (
+          {!lifersPopup.estimated && lifersPopup.nChecklists != null && lifersPopup.nChecklists < 10 && (
             <div className="px-3 py-1.5 bg-amber-50 border-b border-teal-200 flex items-center gap-1.5">
               <span className="text-amber-500 text-xs">⚠</span>
               <span className="text-[10px] text-amber-700">

@@ -40,14 +40,24 @@ except ImportError:
     HAS_H3 = False
     print("  Note: h3 not installed, using lat/lon grid (pip install h3)")
 
+try:
+    from shapely.geometry import Point, shape
+    from shapely.ops import unary_union
+    from shapely.prepared import prep
+    import shapefile as shp
+    HAS_SHAPELY = True
+except ImportError:
+    HAS_SHAPELY = False
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
 OUTPUT_DIR = PROJECT_DIR / "frontend" / "public" / "data"
 ARCHIVE_DIR = DATA_DIR / "archive"
 TAXONOMY_FILE = SCRIPT_DIR / "reference" / "ebird_taxonomy.json"
+LAND_SHAPEFILE = SCRIPT_DIR / "reference" / "ne_50m_land" / "ne_50m_land.shp"
 
-RESOLUTIONS = [3, 4, 5]
+RESOLUTIONS = [3, 4]
 MIN_DURATION = 30    # Minimum checklist duration (minutes)
 MAX_DURATION = 240   # Maximum checklist duration (minutes)
 MIN_DISTANCE = 0.5   # Minimum traveling distance (km)
@@ -55,8 +65,10 @@ MAX_DISTANCE = 5     # Maximum traveling distance (km)
 PROTOCOLS = {"Stationary", "Traveling"}
 MIN_CHECKLISTS = 5          # Minimum checklists for direct frequency estimate
 MIN_CHECKLISTS_POOLED = 3   # Minimum after temporal pooling (±1 week)
-NEIGHBOR_SMOOTH_K = 3       # Rings of neighbors for spatial interpolation
-NEIGHBOR_WEIGHTS = {0: 1.0, 1: 0.5, 2: 0.25, 3: 0.125}  # Distance decay
+# Per-resolution neighbor smoothing: res 3 = none, res 4 = 1 ring
+NEIGHBOR_SMOOTH_K = {3: 0, 4: 1}
+NEIGHBOR_WEIGHTS = {0: 1.0, 1: 0.5}
+FALLBACK_DISCOUNT = 0.7     # Frequency discount for multi-resolution fallback
 YEAR_MIN = 2006
 YEAR_MAX = 2025
 
@@ -83,6 +95,37 @@ def get_cell_ids(lat, lon, resolutions):
             lon_bin = round(lon * s) / s
             result[res] = f"{lat_bin:.3f}_{lon_bin:.3f}_r{res}"
         return result
+
+
+def load_land_polygon():
+    """Load Natural Earth land polygon for ocean filtering.
+    Returns a shapely PreparedGeometry for fast point-in-polygon tests.
+    Applies a ~22km buffer to handle coastline imprecision (hex centers
+    near coasts may fall slightly offshore in the low-res shapefile)."""
+    if not HAS_SHAPELY:
+        print("  WARNING: shapely/pyshp not installed — no land filtering")
+        return None
+    if not LAND_SHAPEFILE.exists():
+        print(f"  WARNING: Land shapefile not found at {LAND_SHAPEFILE}")
+        return None
+    print("Loading land polygon...")
+    sf = shp.Reader(str(LAND_SHAPEFILE))
+    polygons = [shape(s.__geo_interface__) for s in sf.shapes()]
+    land = unary_union(polygons)
+    # Buffer by ~0.2 degrees (~22km) to account for low-res coastline
+    # and hex centers that fall slightly offshore
+    buffered = land.buffer(0.2)
+    prepared = prep(buffered)
+    print(f"  Land polygon loaded: {len(polygons)} features, buffered 0.2°")
+    return prepared
+
+
+def is_land(h3_cell, prepared_land):
+    """Check if an H3 cell center falls on land."""
+    if prepared_land is None:
+        return True  # No land data = allow all
+    lat, lng = h3.cell_to_latlng(h3_cell)
+    return prepared_land.contains(Point(lng, lat))
 
 
 # ---- Archive save/load ----
@@ -440,13 +483,17 @@ def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_
 # ---- Output generation ----
 
 def write_resolution_data(res, detections, cell_week_checklists, species_names,
-                          taxon_to_code, taxon_to_id, output_dir):
+                          taxon_to_code, taxon_to_id, output_dir,
+                          prepared_land=None, parent_res_data=None):
     """Write grid, weekly, and species-weeks data for one resolution.
 
-    Includes temporal pooling (±1 week) and spatial neighbor smoothing (k=3)
-    to fill gaps in areas with sparse checklist coverage.
+    Includes temporal pooling (±1 week), scale-dependent neighbor smoothing,
+    land polygon filtering, and multi-resolution fallback from parent data.
+
+    Returns cell_week_species_raw dict for use as parent data by finer resolutions.
     """
     t0 = time.time()
+    k = NEIGHBOR_SMOOTH_K.get(res, 0)
     res_dir = output_dir / f"r{res}"
     res_dir.mkdir(parents=True, exist_ok=True)
     (res_dir / "weeks").mkdir(exist_ok=True)
@@ -465,17 +512,12 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
     ))
 
     # --- Phase 1: Compute frequencies with temporal pooling ---
-    # For each species/cell/week, try direct freq (needs MIN_CHECKLISTS=5),
-    # then fall back to ±1 week pooled (needs MIN_CHECKLISTS_POOLED=3)
-    # Output: cell_week_species[cell_id][week] = [(taxon_id, freq_float), ...]
     cell_week_species_raw = defaultdict(lambda: defaultdict(list))
 
     for taxon_id, cell_data in detections.items():
         for cell_id, week_detections in cell_data.items():
             cell_checklists = cell_week_checklists.get(cell_id, {})
-            # Only iterate weeks where this species was actually detected (or adjacent)
             active_weeks = set(week_detections.keys())
-            # Also check ±1 from active weeks for temporal pooling
             check_weeks = set()
             for w in active_weeks:
                 check_weeks.add(w)
@@ -488,13 +530,11 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
                 n_det = week_detections.get(week, 0)
                 n_total = cell_checklists.get(week, 0)
 
-                # Try direct estimate
                 if n_total >= MIN_CHECKLISTS:
                     freq = n_det / n_total
                     cell_week_species_raw[cell_id][week].append((taxon_id, freq))
                     continue
 
-                # Try temporal pooling ±1 week
                 pooled_det = n_det
                 pooled_total = n_total
                 for offset in [-1, 1]:
@@ -513,35 +553,37 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
     print(f"\n  Resolution {res}: Phase 1 (temporal pooling): {direct_cells} cells, {t1-t0:.1f}s")
     sys.stdout.flush()
 
-    # --- Phase 2: Neighbor smoothing for empty cells ---
-    smoothed_cells = 0
-    if HAS_H3:
+    # --- Phase 2: Neighbor smoothing (scale-dependent, land-filtered) ---
+    smoothed_h3_cells = set()
+    if HAS_H3 and k > 0:
         data_h3_cells = set(cell_week_species_raw.keys())
-
-        # Pre-compute neighbor ring assignments for all empty candidates
-        # {empty_cell: [(data_cell, weight), ...]}
-        neighbor_map = {}
         seen_candidates = set()
         for h3_cell in data_h3_cells:
             try:
-                disk = h3.grid_disk(h3_cell, NEIGHBOR_SMOOTH_K)
+                disk = h3.grid_disk(h3_cell, k)
             except Exception:
                 continue
             for n in disk:
                 if n not in data_h3_cells and n not in seen_candidates:
                     seen_candidates.add(n)
 
-        print(f"    Phase 2: {len(seen_candidates)} neighbor candidates to smooth...")
+        # Filter to land-only cells
+        if prepared_land is not None:
+            before = len(seen_candidates)
+            seen_candidates = {c for c in seen_candidates if is_land(c, prepared_land)}
+            print(f"    Phase 2: {before} candidates, {len(seen_candidates)} on land (k={k})")
+        else:
+            print(f"    Phase 2: {len(seen_candidates)} candidates (k={k}, no land filter)")
         sys.stdout.flush()
 
         for empty_cell in seen_candidates:
             weighted_neighbors = []
-            for k in range(1, NEIGHBOR_SMOOTH_K + 1):
+            for k_ring in range(1, k + 1):
                 try:
-                    ring = h3.grid_ring(empty_cell, k)
+                    ring = h3.grid_ring(empty_cell, k_ring)
                 except Exception:
                     continue
-                weight = NEIGHBOR_WEIGHTS[k]
+                weight = NEIGHBOR_WEIGHTS[k_ring]
                 for n in ring:
                     if n in data_h3_cells:
                         weighted_neighbors.append((n, weight))
@@ -549,14 +591,13 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
             if not weighted_neighbors:
                 continue
 
-            # Collect all weeks that ANY neighbor has data for
             neighbor_weeks = set()
             for ncell, _ in weighted_neighbors:
                 neighbor_weeks.update(cell_week_species_raw[ncell].keys())
 
             has_any_week = False
             for week in neighbor_weeks:
-                species_accum = defaultdict(lambda: [0.0, 0.0])  # [freq_sum, weight_sum]
+                species_accum = defaultdict(lambda: [0.0, 0.0])
                 for ncell, weight in weighted_neighbors:
                     for taxon_id, freq in cell_week_species_raw[ncell].get(week, []):
                         acc = species_accum[taxon_id]
@@ -570,16 +611,45 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
                             (taxon_id, freq_sum / weight_sum))
 
             if has_any_week:
-                smoothed_cells += 1
+                smoothed_h3_cells.add(empty_cell)
 
         t2 = time.time()
-        print(f"    Phase 2 done: {smoothed_cells} smoothed cells, {t2-t1:.1f}s")
+        print(f"    Phase 2 done: {len(smoothed_h3_cells)} smoothed cells, {t2-t1:.1f}s")
+        sys.stdout.flush()
+    elif k == 0:
+        print(f"    Phase 2: skipped (k=0 for res {res})")
+        t2 = time.time()
+
+    # --- Phase 2.5: Multi-resolution fallback from parent ---
+    fallback_h3_cells = set()
+    if parent_res_data and HAS_H3:
+        parent_res = res - 1
+        cells_with_data = set(cell_week_species_raw.keys())
+        fallback_count = 0
+
+        for parent_cell, parent_weeks in parent_res_data.items():
+            try:
+                children = h3.cell_to_children(parent_cell, res)
+            except Exception:
+                continue
+            for child in children:
+                if child in cells_with_data:
+                    continue
+                if prepared_land is not None and not is_land(child, prepared_land):
+                    continue
+                # Copy parent frequencies with discount
+                for week, sp_list in parent_weeks.items():
+                    for taxon_id, freq in sp_list:
+                        cell_week_species_raw[child][week].append(
+                            (taxon_id, freq * FALLBACK_DISCOUNT))
+                fallback_h3_cells.add(child)
+                fallback_count += 1
+
+        t3 = time.time()
+        print(f"    Phase 2.5 (fallback from r{parent_res}): {fallback_count} cells, {t3-t2:.1f}s")
         sys.stdout.flush()
 
-    # Track which cells are smoothed (neighbor-interpolated) vs direct data
-    smoothed_h3_cells = seen_candidates if HAS_H3 else set()
-
-    # Rebuild all_cells to include smoothed neighbors
+    # Rebuild all_cells to include smoothed + fallback cells
     all_cells = sorted(set(cell_week_species_raw.keys()) | set(all_cells))
     cell_to_int = {c: i for i, c in enumerate(all_cells)}
     int_to_cell = {i: c for c, i in cell_to_int.items()}
@@ -596,8 +666,9 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
                 cell_week_species[int_id][week].append((taxon_id, freq_uint8))
                 species_week_cells[taxon_id][week].append((int_id, freq_uint8))
 
-    total_cells = direct_cells + smoothed_cells
-    print(f"\n  Resolution {res}: {len(all_cells)} cells ({direct_cells} direct, {smoothed_cells} smoothed), {len(species_week_cells)} species")
+    n_smoothed = len(smoothed_h3_cells)
+    n_fallback = len(fallback_h3_cells)
+    print(f"\n  Resolution {res}: {len(all_cells)} cells ({direct_cells} direct, {n_smoothed} smoothed, {n_fallback} fallback), {len(species_week_cells)} species")
 
     for week in range(1, 53):
         cells_out = []
@@ -651,7 +722,9 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
                 "center_lat": center[0],
                 "center_lng": center[1],
             }
-            if h3_cell in smoothed_h3_cells:
+            if h3_cell in fallback_h3_cells:
+                props["smoothed"] = 2
+            elif h3_cell in smoothed_h3_cells:
                 props["smoothed"] = 1
             features.append({
                 "type": "Feature",
@@ -694,7 +767,8 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
             json.dump(grid_geojson, f, separators=(",", ":"))
         print(f"    Grid: {len(features)} cells")
 
-    return len(all_cells), len(species_week_cells)
+    # Return raw data for use as parent by finer resolutions
+    return cell_week_species_raw
 
 
 def generate_output(cell_week_checklists_by_res, detections_by_res,
@@ -778,9 +852,8 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         "resolutions": RESOLUTIONS,
         "default": 4,
         "zoomThresholds": {
-            "3": [0, 6.5],
-            "4": [6.5, 8.5],
-            "5": [8.5, 22]
+            "3": [0, 5.5],
+            "4": [5.5, 22]
         }
     }
     with open(OUTPUT_DIR / "resolutions.json", "w") as f:
@@ -789,15 +862,25 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     with open(OUTPUT_DIR / "regions.geojson", "w") as f:
         json.dump({"type": "FeatureCollection", "features": []}, f)
 
-    # Write per-resolution data
+    # Load land polygon for ocean filtering
+    prepared_land = load_land_polygon()
+
+    # Write per-resolution data (coarsest first for multi-res fallback)
     print("\nWriting per-resolution data...")
     sys.stdout.flush()
 
+    prev_res_data = {}
     for res in RESOLUTIONS:
-        write_resolution_data(
+        parent_data = prev_res_data.get(res - 1)
+        result = write_resolution_data(
             res, detections_by_res[res], cell_week_checklists_by_res[res],
-            species_names, taxon_to_code, taxon_to_id, OUTPUT_DIR
+            species_names, taxon_to_code, taxon_to_id, OUTPUT_DIR,
+            prepared_land, parent_data
         )
+        prev_res_data[res] = result
+        # Free memory from previous resolution's raw data
+        if res - 1 in prev_res_data and res > RESOLUTIONS[0]:
+            del prev_res_data[res - 1]
 
     # Backward-compatible copies at root level (res 4 = default)
     import shutil
@@ -847,14 +930,26 @@ def main():
                         help="Rebuild output from archive only (no new EBD files)")
     parser.add_argument("--status", action="store_true",
                         help="Show archived regions and available new files")
+    parser.add_argument("--clear-archive", action="store_true",
+                        help="Delete existing archive before processing (for reprocessing with new filters)")
     args = parser.parse_args()
 
     t0 = time.time()
     print("=" * 60)
     print("Find-A-Lifer EBD Pipeline (Incremental)")
     print(f"  Resolutions: {RESOLUTIONS}")
+    print(f"  Effort filters: {MIN_DURATION}-{MAX_DURATION} min, {MIN_DISTANCE}-{MAX_DISTANCE} km")
     print("=" * 60)
     sys.stdout.flush()
+
+    # Clear archive if requested
+    if args.clear_archive:
+        if ARCHIVE_DIR.exists():
+            import shutil
+            shutil.rmtree(ARCHIVE_DIR)
+            print("\n  Archive cleared!")
+        else:
+            print("\n  No archive to clear.")
 
     # Load existing archive if present
     archive = load_archive()
@@ -982,6 +1077,26 @@ def main():
     save_archive(cell_week_checklists_by_res, detections_by_res,
                  species_names, species_scinames, species_taxon_order,
                  species_family, processed_regions)
+
+    # Save cumulative filter stats
+    existing_stats = {}
+    stats_file = ARCHIVE_DIR / "filter_stats.json"
+    if stats_file.exists():
+        existing_stats = json.load(open(stats_file))
+    cum_stats = existing_stats.get("cumulative", {})
+    for k, v in grand_filter_stats.items():
+        cum_stats[k] = cum_stats.get(k, 0) + v
+    cum_total = existing_stats.get("total_events", 0) + grand_total_events
+    cum_valid = existing_stats.get("total_valid", 0) + len(valid_checklists)
+    with open(stats_file, "w") as f:
+        json.dump({
+            "config": {"min_duration": MIN_DURATION, "max_duration": MAX_DURATION,
+                       "min_distance": MIN_DISTANCE, "max_distance": MAX_DISTANCE},
+            "cumulative": cum_stats,
+            "total_events": cum_total,
+            "total_valid": cum_valid,
+        }, f, indent=2)
+    print(f"  Filter stats saved ({cum_valid:,}/{cum_total:,} valid across all runs)")
 
     # Free memory from valid_checklists (large!)
     del valid_checklists
