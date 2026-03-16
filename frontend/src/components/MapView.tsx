@@ -130,6 +130,7 @@ interface LifersPopup {
   cellId: number
   coordinates: [number, number]
   lifers: LiferInCell[]
+  totalSpecies: number
   nChecklists?: number
   label?: string
   estimated?: boolean
@@ -758,8 +759,8 @@ export default memo(function MapView({
 
                 lifers.sort((a, b) => b.probability - a.probability)
                 const isEstimated = (smoothedMapRef.current.get(cellId) ?? 0) > 0
-                setLifersPopup({ cellId, coordinates: coords, lifers, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel, estimated: isEstimated })
-                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers`)
+                setLifersPopup({ cellId, coordinates: coords, lifers, totalSpecies: records.length, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel, estimated: isEstimated })
+                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers out of ${records.length} species`)
               }
 
               const densityCached = cellDataCache.get(densityCacheKey)
@@ -1502,8 +1503,10 @@ export default memo(function MapView({
               <div className="text-sm font-semibold text-teal-900">🔭 Lifers in Area</div>
               <div className="text-xs text-teal-700">
                 {lifersPopup.lifers.length === 0
-                  ? 'No lifers here this week'
-                  : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
+                  ? (seenSpecies.size === 0
+                    ? `${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                    : `0 lifers / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`)
+                  : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
               </div>
             </div>
             <button
@@ -1541,9 +1544,20 @@ export default memo(function MapView({
           <div className="overflow-y-auto flex-1">
             {lifersPopup.lifers.length === 0 ? (
               <div className="px-3 py-4 text-center text-sm text-gray-500">
-                <div className="text-2xl mb-2">🎉</div>
-                <p>You've seen all species in this cell!</p>
-                <p className="text-xs text-gray-400 mt-1">Try a different cell or week to find more lifers.</p>
+                {seenSpecies.size === 0 ? (
+                  <>
+                    <p>Import your life list in the <strong>Profile</strong> tab to see which species are new for you.</p>
+                    {lifersPopup.totalSpecies > 0 && (
+                      <p className="text-xs text-gray-400 mt-1">{lifersPopup.totalSpecies} species recorded here this week.</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl mb-2">🎉</div>
+                    <p>You've seen all {lifersPopup.totalSpecies} species in this cell!</p>
+                    <p className="text-xs text-gray-400 mt-1">Try a different cell or week to find more lifers.</p>
+                  </>
+                )}
               </div>
             ) : (
               <div>

@@ -124,29 +124,35 @@ def load_cities(min_pop=500, bbox=None):
     return cities
 
 
-def find_best_city(center_lat, center_lon, cities, max_radius_km, resolution):
+def score_city(city, center_lat, center_lon, max_radius_km, cell_region=None):
     """
-    Find the best city label for a cell center.
-    Uses population-weighted scoring: score = population / (distance + 1)^2
-    This naturally picks larger cities even if slightly further away.
+    Score a city for labeling a cell. Returns (score, dist) or (0, inf).
+    Uses population / (distance + 1)^1.5 with a same-region bonus.
+    Deduplication is handled externally via max_cells_per_city.
     """
-    best_score = 0
-    best_city = None
+    dist = haversine_km(center_lat, center_lon, city["lat"], city["lon"])
+    if dist > max_radius_km:
+        return 0, dist
 
+    score = city["pop"] / (dist + 1) ** 1.5
+
+    # Boost cities in same state/province so NH cells prefer NH cities
+    if cell_region and city["region"] == cell_region:
+        score *= 1.5
+
+    return score, dist
+
+
+def guess_cell_region(center_lat, center_lng, cities):
+    """Guess which state/province a cell is in by finding the nearest city."""
+    best_dist = float("inf")
+    best_region = None
     for city in cities:
-        dist = haversine_km(center_lat, center_lon, city["lat"], city["lon"])
-        if dist > max_radius_km:
-            continue
-
-        # Population-weighted score: bigger cities win at distance
-        # The exponent controls how strongly distance matters
-        score = city["pop"] / (dist + 1) ** 1.5
-
-        if score > best_score:
-            best_score = score
-            best_city = city
-
-    return best_city
+        dist = haversine_km(center_lat, center_lng, city["lat"], city["lon"])
+        if dist < best_dist:
+            best_dist = dist
+            best_region = city["region"]
+    return best_region
 
 
 def label_grid(grid_path, cities, resolution, preview=False):
@@ -155,23 +161,80 @@ def label_grid(grid_path, cities, resolution, preview=False):
         grid = json.load(f)
 
     # Max search radius depends on resolution (bigger hexes → search further)
-    max_radius = {3: 200, 4: 80, 5: 30}.get(resolution, 80)
+    # Reduced res 3 from 200→120km (roughly one hex diameter)
+    max_radius = {3: 120, 4: 60, 5: 30}.get(resolution, 60)
     # Minimum population for label depends on resolution
+    # Res 3 hexes are ~120km — use larger cities for recognizable labels
     min_pop = {3: 10000, 4: 2000, 5: 500}.get(resolution, 2000)
+    # Max cells any single city NAME can label (prevents NYC labeling 10+ cells)
+    # Uses base city name for dedup (e.g. "South Boston" counts toward "Boston")
+    max_cells_per_city = {3: 2, 4: 3, 5: 5}.get(resolution, 3)
 
     # Filter cities by minimum population for this resolution
     res_cities = [c for c in cities if c["pop"] >= min_pop]
 
-    labeled = 0
-    unlabeled = 0
-    labels = []
+    # Build base-name dedup keys: "South Boston|MA" → "Boston|MA"
+    # Strips common directional/variant prefixes so neighborhoods count
+    # toward the parent city's label limit
+    PREFIXES = ("South ", "North ", "East ", "West ", "New ", "Old ",
+                "Upper ", "Lower ", "Greater ", "Inner ", "Outer ",
+                "Mont-Saint-", "Saint-", "Sainte-")
 
-    for feature in grid["features"]:
+    def dedup_key(city):
+        """Group city variants under the same dedup bucket."""
+        name = city["name"]
+        for prefix in PREFIXES:
+            if name.startswith(prefix) and len(name) > len(prefix) + 2:
+                name = name[len(prefix):]
+                break
+        return f"{name}|{city['region']}"
+
+    # Two-pass approach: score all (cell, city) pairs, then assign with dedup
+    cell_candidates = {}  # idx -> [(city, score, dk), ...]
+
+    for idx, feature in enumerate(grid["features"]):
         props = feature["properties"]
         center_lat = props.get("center_lat", 0)
         center_lng = props.get("center_lng", 0)
 
-        city = find_best_city(center_lat, center_lng, res_cities, max_radius, resolution)
+        cell_region = guess_cell_region(center_lat, center_lng, res_cities)
+        candidates = []
+        for city in res_cities:
+            score, dist = score_city(city, center_lat, center_lng, max_radius,
+                                     cell_region)
+            if score > 0:
+                dk = dedup_key(city)
+                candidates.append((city, score, dk))
+
+        candidates.sort(key=lambda x: -x[1])
+        cell_candidates[idx] = candidates
+
+    # Greedy assignment: process cells by their best score (descending)
+    # so that cells closest to a city claim it first
+    cell_best = []
+    for idx, cands in cell_candidates.items():
+        if cands:
+            cell_best.append((idx, cands[0][1]))
+    cell_best.sort(key=lambda x: -x[1])
+
+    city_usage = {}  # dedup_key -> count
+    assigned = {}    # idx -> city
+
+    for idx, _ in cell_best:
+        for city, score, dk in cell_candidates[idx]:
+            if city_usage.get(dk, 0) < max_cells_per_city:
+                assigned[idx] = city
+                city_usage[dk] = city_usage.get(dk, 0) + 1
+                break
+
+    # Apply labels
+    labeled = 0
+    unlabeled = 0
+    labels = []
+
+    for idx, feature in enumerate(grid["features"]):
+        props = feature["properties"]
+        city = assigned.get(idx)
 
         if city:
             if city["country"] in ("US", "CA"):
@@ -182,7 +245,8 @@ def label_grid(grid_path, cities, resolution, preview=False):
             labeled += 1
             labels.append((props.get("cell_id"), label, city["pop"]))
         else:
-            # Fallback: use coordinates as label
+            center_lat = props.get("center_lat", 0)
+            center_lng = props.get("center_lng", 0)
             lat_dir = "N" if center_lat >= 0 else "S"
             lon_dir = "W" if center_lng < 0 else "E"
             props["label"] = f"{abs(center_lat):.1f}°{lat_dir}, {abs(center_lng):.1f}°{lon_dir}"
