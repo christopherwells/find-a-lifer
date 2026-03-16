@@ -48,10 +48,15 @@ ARCHIVE_DIR = DATA_DIR / "archive"
 TAXONOMY_FILE = SCRIPT_DIR / "reference" / "ebird_taxonomy.json"
 
 RESOLUTIONS = [3, 4, 5]
-MAX_DURATION = 360
-MAX_DISTANCE = 10
+MIN_DURATION = 30    # Minimum checklist duration (minutes)
+MAX_DURATION = 240   # Maximum checklist duration (minutes)
+MIN_DISTANCE = 0.5   # Minimum traveling distance (km)
+MAX_DISTANCE = 5     # Maximum traveling distance (km)
 PROTOCOLS = {"Stationary", "Traveling"}
-MIN_CHECKLISTS = 3
+MIN_CHECKLISTS = 5          # Minimum checklists for direct frequency estimate
+MIN_CHECKLISTS_POOLED = 3   # Minimum after temporal pooling (±1 week)
+NEIGHBOR_SMOOTH_K = 3       # Rings of neighbors for spatial interpolation
+NEIGHBOR_WEIGHTS = {0: 1.0, 1: 0.5, 2: 0.25, 3: 0.125}  # Distance decay
 YEAR_MIN = 2006
 YEAR_MAX = 2025
 
@@ -277,10 +282,16 @@ def find_ebd_files(skip_regions=None):
 # ---- Processing functions (unchanged from original) ----
 
 def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklists_by_res):
-    """Process a single sampling event file, computing cells at all resolutions."""
+    """Process a single sampling event file, computing cells at all resolutions.
+    Returns (total_events, filter_stats) with detailed breakdown."""
     total_events = 0
-    filtered_out = 0
     state_valid = 0
+    filter_stats = {
+        "no_date": 0, "year_range": 0, "protocol": 0, "incomplete": 0,
+        "duration_short": 0, "duration_long": 0, "duration_missing": 0,
+        "distance_short": 0, "distance_long": 0,
+        "no_coords": 0, "no_week": 0,
+    }
 
     with open_maybe_gz(sed_file) as f:
         reader = csv.DictReader(f, delimiter="\t")
@@ -289,37 +300,48 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
 
             obs_date = row.get("OBSERVATION DATE", "")
             if not obs_date:
-                filtered_out += 1
+                filter_stats["no_date"] += 1
                 continue
             year = int(obs_date[:4])
             if year < YEAR_MIN or year > YEAR_MAX:
-                filtered_out += 1
+                filter_stats["year_range"] += 1
                 continue
 
             protocol = row.get("PROTOCOL NAME", "")
             if protocol not in PROTOCOLS:
-                filtered_out += 1
+                filter_stats["protocol"] += 1
                 continue
 
             all_species = row.get("ALL SPECIES REPORTED", "0")
             if all_species != "1":
-                filtered_out += 1
+                filter_stats["incomplete"] += 1
                 continue
 
             duration = row.get("DURATION MINUTES", "")
             if duration:
                 try:
-                    if float(duration) > MAX_DURATION:
-                        filtered_out += 1
+                    dur_val = float(duration)
+                    if dur_val < MIN_DURATION:
+                        filter_stats["duration_short"] += 1
+                        continue
+                    if dur_val > MAX_DURATION:
+                        filter_stats["duration_long"] += 1
                         continue
                 except ValueError:
                     pass
+            else:
+                filter_stats["duration_missing"] += 1
+                continue
 
             distance = row.get("EFFORT DISTANCE KM", "")
             if distance:
                 try:
-                    if float(distance) > MAX_DISTANCE:
-                        filtered_out += 1
+                    dist_val = float(distance)
+                    if dist_val > MAX_DISTANCE:
+                        filter_stats["distance_long"] += 1
+                        continue
+                    if protocol == "Traveling" and dist_val < MIN_DISTANCE:
+                        filter_stats["distance_short"] += 1
                         continue
                 except ValueError:
                     pass
@@ -328,12 +350,12 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
                 lat = float(row["LATITUDE"])
                 lon = float(row["LONGITUDE"])
             except (KeyError, ValueError):
-                filtered_out += 1
+                filter_stats["no_coords"] += 1
                 continue
 
             week = get_week(obs_date)
             if not week:
-                filtered_out += 1
+                filter_stats["no_week"] += 1
                 continue
 
             cell_ids = get_cell_ids(lat, lon, RESOLUTIONS)
@@ -349,9 +371,11 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
                 print(f"    {state}: {total_events:,} events scanned, {state_valid:,} valid...")
                 sys.stdout.flush()
 
+    filtered_out = total_events - state_valid
     print(f"    {state}: {total_events:,} total, {filtered_out:,} filtered, {state_valid:,} valid")
+    print(f"      Filter breakdown: {dict((k, v) for k, v in filter_stats.items() if v > 0)}")
     sys.stdout.flush()
-    return total_events, filtered_out
+    return total_events, filter_stats
 
 
 def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_res,
@@ -417,38 +441,163 @@ def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_
 
 def write_resolution_data(res, detections, cell_week_checklists, species_names,
                           taxon_to_code, taxon_to_id, output_dir):
-    """Write grid, weekly, and species-weeks data for one resolution."""
+    """Write grid, weekly, and species-weeks data for one resolution.
+
+    Includes temporal pooling (±1 week) and spatial neighbor smoothing (k=3)
+    to fill gaps in areas with sparse checklist coverage.
+    """
+    t0 = time.time()
     res_dir = output_dir / f"r{res}"
     res_dir.mkdir(parents=True, exist_ok=True)
     (res_dir / "weeks").mkdir(exist_ok=True)
     (res_dir / "species-weeks").mkdir(exist_ok=True)
 
     for old_file in (res_dir / "species-weeks").glob("*.json"):
-        old_file.unlink()
+        try:
+            old_file.unlink()
+        except PermissionError:
+            pass  # OneDrive may lock files; skip
 
-    cell_week_species = defaultdict(lambda: defaultdict(list))
-    species_week_cells = defaultdict(lambda: defaultdict(list))
-
+    # Collect all cells that have ANY detection data
     all_cells = sorted(set(
         cell_id for sp_data in detections.values()
         for cell_id in sp_data.keys()
     ))
+
+    # --- Phase 1: Compute frequencies with temporal pooling ---
+    # For each species/cell/week, try direct freq (needs MIN_CHECKLISTS=5),
+    # then fall back to ±1 week pooled (needs MIN_CHECKLISTS_POOLED=3)
+    # Output: cell_week_species[cell_id][week] = [(taxon_id, freq_float), ...]
+    cell_week_species_raw = defaultdict(lambda: defaultdict(list))
+
+    for taxon_id, cell_data in detections.items():
+        for cell_id, week_detections in cell_data.items():
+            cell_checklists = cell_week_checklists.get(cell_id, {})
+            # Only iterate weeks where this species was actually detected (or adjacent)
+            active_weeks = set(week_detections.keys())
+            # Also check ±1 from active weeks for temporal pooling
+            check_weeks = set()
+            for w in active_weeks:
+                check_weeks.add(w)
+                check_weeks.add(w - 1 if w > 1 else 52)
+                check_weeks.add(w + 1 if w < 52 else 1)
+
+            for week in check_weeks:
+                if week < 1 or week > 52:
+                    continue
+                n_det = week_detections.get(week, 0)
+                n_total = cell_checklists.get(week, 0)
+
+                # Try direct estimate
+                if n_total >= MIN_CHECKLISTS:
+                    freq = n_det / n_total
+                    cell_week_species_raw[cell_id][week].append((taxon_id, freq))
+                    continue
+
+                # Try temporal pooling ±1 week
+                pooled_det = n_det
+                pooled_total = n_total
+                for offset in [-1, 1]:
+                    w2 = week + offset
+                    if w2 < 1: w2 = 52
+                    elif w2 > 52: w2 = 1
+                    pooled_det += week_detections.get(w2, 0)
+                    pooled_total += cell_checklists.get(w2, 0)
+
+                if pooled_total >= MIN_CHECKLISTS_POOLED and pooled_det > 0:
+                    freq = pooled_det / pooled_total
+                    cell_week_species_raw[cell_id][week].append((taxon_id, freq))
+
+    direct_cells = len(cell_week_species_raw)
+    t1 = time.time()
+    print(f"\n  Resolution {res}: Phase 1 (temporal pooling): {direct_cells} cells, {t1-t0:.1f}s")
+    sys.stdout.flush()
+
+    # --- Phase 2: Neighbor smoothing for empty cells ---
+    smoothed_cells = 0
+    if HAS_H3:
+        data_h3_cells = set(cell_week_species_raw.keys())
+
+        # Pre-compute neighbor ring assignments for all empty candidates
+        # {empty_cell: [(data_cell, weight), ...]}
+        neighbor_map = {}
+        seen_candidates = set()
+        for h3_cell in data_h3_cells:
+            try:
+                disk = h3.grid_disk(h3_cell, NEIGHBOR_SMOOTH_K)
+            except Exception:
+                continue
+            for n in disk:
+                if n not in data_h3_cells and n not in seen_candidates:
+                    seen_candidates.add(n)
+
+        print(f"    Phase 2: {len(seen_candidates)} neighbor candidates to smooth...")
+        sys.stdout.flush()
+
+        for empty_cell in seen_candidates:
+            weighted_neighbors = []
+            for k in range(1, NEIGHBOR_SMOOTH_K + 1):
+                try:
+                    ring = h3.grid_ring(empty_cell, k)
+                except Exception:
+                    continue
+                weight = NEIGHBOR_WEIGHTS[k]
+                for n in ring:
+                    if n in data_h3_cells:
+                        weighted_neighbors.append((n, weight))
+
+            if not weighted_neighbors:
+                continue
+
+            # Collect all weeks that ANY neighbor has data for
+            neighbor_weeks = set()
+            for ncell, _ in weighted_neighbors:
+                neighbor_weeks.update(cell_week_species_raw[ncell].keys())
+
+            has_any_week = False
+            for week in neighbor_weeks:
+                species_accum = defaultdict(lambda: [0.0, 0.0])  # [freq_sum, weight_sum]
+                for ncell, weight in weighted_neighbors:
+                    for taxon_id, freq in cell_week_species_raw[ncell].get(week, []):
+                        acc = species_accum[taxon_id]
+                        acc[0] += freq * weight
+                        acc[1] += weight
+
+                if species_accum:
+                    has_any_week = True
+                    for taxon_id, (freq_sum, weight_sum) in species_accum.items():
+                        cell_week_species_raw[empty_cell][week].append(
+                            (taxon_id, freq_sum / weight_sum))
+
+            if has_any_week:
+                smoothed_cells += 1
+
+        t2 = time.time()
+        print(f"    Phase 2 done: {smoothed_cells} smoothed cells, {t2-t1:.1f}s")
+        sys.stdout.flush()
+
+    # Track which cells are smoothed (neighbor-interpolated) vs direct data
+    smoothed_h3_cells = seen_candidates if HAS_H3 else set()
+
+    # Rebuild all_cells to include smoothed neighbors
+    all_cells = sorted(set(cell_week_species_raw.keys()) | set(all_cells))
     cell_to_int = {c: i for i, c in enumerate(all_cells)}
     int_to_cell = {i: c for c, i in cell_to_int.items()}
 
-    for taxon_id, cell_data in detections.items():
-        for cell_id, week_data in cell_data.items():
-            int_id = cell_to_int[cell_id]
-            for week, n_detected in week_data.items():
-                n_total = cell_week_checklists[cell_id][week]
-                if n_total < MIN_CHECKLISTS:
-                    continue
-                freq = n_detected / n_total
+    # --- Phase 3: Convert to output format ---
+    cell_week_species = defaultdict(lambda: defaultdict(list))
+    species_week_cells = defaultdict(lambda: defaultdict(list))
+
+    for cell_id, week_data in cell_week_species_raw.items():
+        int_id = cell_to_int[cell_id]
+        for week, sp_list in week_data.items():
+            for taxon_id, freq in sp_list:
                 freq_uint8 = max(1, min(255, round(freq * 255)))
                 cell_week_species[int_id][week].append((taxon_id, freq_uint8))
                 species_week_cells[taxon_id][week].append((int_id, freq_uint8))
 
-    print(f"\n  Resolution {res}: {len(all_cells)} cells, {len(species_week_cells)} species")
+    total_cells = direct_cells + smoothed_cells
+    print(f"\n  Resolution {res}: {len(all_cells)} cells ({direct_cells} direct, {smoothed_cells} smoothed), {len(species_week_cells)} species")
 
     for week in range(1, 53):
         cells_out = []
@@ -462,7 +611,7 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
             freqs = [freq for _, freq in sp_list]
             max_freq = max(freqs)
             h3_cell = int_to_cell[int_id]
-            n_checklists = cell_week_checklists[h3_cell][week]
+            n_checklists = cell_week_checklists.get(h3_cell, {}).get(week, 0)
             cells_out.append([int_id, species_ids, freqs])
             summary_out.append([int_id, len(species_ids), max_freq, n_checklists])
 
@@ -496,14 +645,17 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
             coords = [[lon, lat] for lat, lon in boundary]
             coords.append(coords[0])
             center = h3.cell_to_latlng(h3_cell)
+            props = {
+                "cell_id": int_id,
+                "h3_index": h3_cell,
+                "center_lat": center[0],
+                "center_lng": center[1],
+            }
+            if h3_cell in smoothed_h3_cells:
+                props["smoothed"] = 1
             features.append({
                 "type": "Feature",
-                "properties": {
-                    "cell_id": int_id,
-                    "h3_index": h3_cell,
-                    "center_lat": center[0],
-                    "center_lng": center[1],
-                },
+                "properties": props,
                 "geometry": {
                     "type": "Polygon",
                     "coordinates": [coords],
@@ -659,7 +811,10 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         root_sw = OUTPUT_DIR / "species-weeks"
         root_sw.mkdir(exist_ok=True)
         for old in root_sw.glob("*.json"):
-            old.unlink()
+            try:
+                old.unlink()
+            except PermissionError:
+                pass
         for f in (r4_dir / "species-weeks").glob("*.json"):
             shutil.copy2(f, root_sw / f.name)
         print("\n  Copied r4 data to root level for backward compatibility")
@@ -774,15 +929,24 @@ def main():
 
     valid_checklists = {}
     grand_total_events = 0
+    grand_filter_stats = defaultdict(int)
 
     for region, _, sed_file in new_pairs:
         print(f"\n  Processing {region} sampling events...")
         sys.stdout.flush()
-        total, _ = process_sampling_file(sed_file, region, valid_checklists, cell_week_checklists_by_res)
+        total, fstats = process_sampling_file(sed_file, region, valid_checklists, cell_week_checklists_by_res)
         grand_total_events += total
+        for k, v in fstats.items():
+            grand_filter_stats[k] += v
 
+    total_filtered = sum(grand_filter_stats.values())
     print(f"\n  New events: {grand_total_events:,}")
     print(f"  New valid checklists: {len(valid_checklists):,}")
+    print(f"  Total filtered: {total_filtered:,} ({100*total_filtered/max(1,grand_total_events):.1f}%)")
+    print(f"  Filter breakdown:")
+    for reason, count in sorted(grand_filter_stats.items(), key=lambda x: -x[1]):
+        if count > 0:
+            print(f"    {reason}: {count:,} ({100*count/max(1,grand_total_events):.1f}%)")
     for res in RESOLUTIONS:
         print(f"  Resolution {res}: {len(cell_week_checklists_by_res[res]):,} total cells")
     sys.stdout.flush()

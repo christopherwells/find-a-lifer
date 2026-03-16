@@ -299,9 +299,9 @@ export default memo(function MapView({
     }
   }, [viewMode])
 
-  // Close lifer popup when switching away from density mode
+  // Close lifer popup when switching away from density/probability mode
   useEffect(() => {
-    if (viewMode !== 'density') {
+    if (viewMode !== 'density' && viewMode !== 'probability') {
       setLifersPopup(null)
     }
   }, [viewMode])
@@ -612,6 +612,31 @@ export default memo(function MapView({
           },
         })
 
+        // Add dashed border for estimated/smoothed cells
+        map.current.addLayer({
+          id: 'grid-smoothed-border',
+          type: 'line',
+          source: 'grid',
+          filter: ['==', ['get', 'smoothed'], 1],
+          paint: {
+            'line-color': 'rgba(255, 255, 255, 0.4)',
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              4, 0,
+              6, 0.5,
+              8, 1,
+              10, 1.5,
+            ],
+            'line-dasharray': [2, 2],
+            'line-opacity': [
+              'interpolate', ['linear'], ['zoom'],
+              4, 0,
+              6, 0.2,
+              8, 0.5,
+            ],
+          },
+        })
+
         // Add hover effect
         map.current.on('mouseenter', 'grid-fill', () => {
           if (map.current) {
@@ -638,7 +663,7 @@ export default memo(function MapView({
             // Skip popups for cells with no data this week (uncolored hexes)
             const featureState = map.current?.getFeatureState({ source: 'grid', id: feature.id })
             const hasData = featureState && featureState.value !== undefined && featureState.value !== -1
-            if (!hasData && (viewModeRef.current === 'goal-birds' || viewModeRef.current === 'density')) {
+            if (!hasData && (viewModeRef.current === 'goal-birds' || viewModeRef.current === 'density' || viewModeRef.current === 'probability')) {
               return
             }
 
@@ -689,7 +714,7 @@ export default memo(function MapView({
                   })
                 ).catch(err => console.error('Goal Birds popup: error loading cell data', err))
               }
-            } else if (viewModeRef.current === 'density') {
+            } else if (viewModeRef.current === 'density' || viewModeRef.current === 'probability') {
               // Density mode: load cell data from API
               const currentSeenSpecies = seenSpeciesRef.current
 
