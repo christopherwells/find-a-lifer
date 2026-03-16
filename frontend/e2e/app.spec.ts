@@ -49,7 +49,6 @@ test.describe('Find-A-Lifer App', () => {
 
   test('dark mode toggle works', async ({ page }) => {
     await page.goto('/')
-    const topBar = page.getByTestId('top-bar')
     // Click dark mode toggle
     await page.getByRole('button', { name: /switch to dark mode/i }).click()
     // The html element should have the dark class

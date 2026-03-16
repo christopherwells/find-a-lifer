@@ -62,7 +62,8 @@ export default function TripPlanTab({
   // Shared
   const [speciesData, setSpeciesData] = useState<Species[]>([])
   const [speciesLoaded, setSpeciesLoaded] = useState(false)
-  const [gridData, setGridData] = useState<{ features?: Array<{ properties?: Record<string, number | string> }> } | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature collection
+  const [gridData, setGridData] = useState<any>(null)
   const [dataError, setDataError] = useState<string | null>(null)
   const { seenSpecies } = useLifeList()
 
@@ -144,7 +145,8 @@ export default function TripPlanTab({
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
-          gridData.features.forEach((f: { properties?: Record<string, number | string> }) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature
+          gridData.features.forEach((f: any) => {
             const id = f.properties?.cell_id
             if (id != null && f.properties.center_lng != null && f.properties.center_lat != null) {
               cellCoords.set(id, [f.properties.center_lng, f.properties.center_lat])
@@ -215,7 +217,8 @@ export default function TripPlanTab({
 
         const cellCoords = new Map<number, [number, number]>()
         if (gridData.features) {
-          gridData.features.forEach((f: { properties?: Record<string, number | string> }) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature
+          gridData.features.forEach((f: any) => {
             const id = f.properties?.cell_id
             if (id != null && f.properties.center_lng != null && f.properties.center_lat != null) {
               cellCoords.set(id, [f.properties.center_lng, f.properties.center_lat])

@@ -2,13 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { CellSpeciesData } from '../dataCache'
 
 // We need to reset module state between tests since dataCache uses module-level caching
-let fetchSpecies: () => Promise<unknown>
-let fetchGrid: () => Promise<unknown>
-let fetchWeekSummary: (week: number) => Promise<unknown>
-let fetchWeekCells: (week: number) => Promise<Map<number, CellSpeciesData>>
-let computeLiferSummary: (weekCells: Map<number, CellSpeciesData>, seenIds: Set<number>) => [number, number, number][]
-let getCellSpecies: (weekCells: Map<number, CellSpeciesData>, cellId: number, speciesById: Map<number, Record<string, unknown>>) => Record<string, unknown>[]
-let getSpeciesBatch: (weekCells: Map<number, CellSpeciesData>, speciesIds: Set<number>) => Record<number, number[]>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic import types
+let fetchSpecies: any, fetchGrid: any, fetchWeekSummary: any, fetchWeekCells: any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let computeLiferSummary: any, getCellSpecies: any, getSpeciesBatch: any
 
 beforeEach(async () => {
   vi.restoreAllMocks()

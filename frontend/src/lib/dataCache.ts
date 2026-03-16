@@ -10,16 +10,13 @@ import type { Species } from '../components/types'
 const DATA_BASE = `${import.meta.env.BASE_URL}data`
 
 let speciesPromise: Promise<Species[]> | null = null
-// GeoJSON type for grid/regions
-interface GeoJSONFeatureCollection {
-  type: string
-  features: Array<Record<string, unknown>>
-}
 
-let regionsPromise: Promise<GeoJSONFeatureCollection> | null = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON structure varies by consumer (MapLibre, custom)
+let regionsPromise: Promise<any> | null = null
 
 // Resolution-aware caches: "res-week" or "res" as key prefix
-const gridPromiseByRes = new Map<number, Promise<GeoJSONFeatureCollection>>()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON structure varies by consumer
+const gridPromiseByRes = new Map<number, Promise<any>>()
 
 /** Per-cell species data with optional reporting frequencies */
 export interface CellSpeciesData {
@@ -66,7 +63,8 @@ export function fetchSpecies(): Promise<Species[]> {
 }
 
 /** Fetch grid GeoJSON for a specific resolution (cached) */
-export function fetchGrid(resolution?: number): Promise<GeoJSONFeatureCollection> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON cast by consumers
+export function fetchGrid(resolution?: number): Promise<any> {
   const res = resolution ?? DEFAULT_RES
   let p = gridPromiseByRes.get(res)
   if (!p) {
@@ -101,7 +99,8 @@ export function fetchResolutions(): Promise<{ resolutions: number[]; default: nu
 }
 
 /** Fetch regions GeoJSON (cached) */
-export function fetchRegions(): Promise<GeoJSONFeatureCollection> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON cast by consumers
+export function fetchRegions(): Promise<any> {
   if (!regionsPromise) {
     regionsPromise = fetch(`${DATA_BASE}/regions.geojson`)
       .then(r => {

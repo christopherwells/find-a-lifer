@@ -114,7 +114,8 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
 
         // Find the selected region
         const region = data.features?.find(
-          (f: { properties: Record<string, unknown> }) => f.properties.region_id === selectedRegion
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature
+          (f: any) => f.properties.region_id === selectedRegion
         )
 
         if (region && region.properties) {
