@@ -846,13 +846,15 @@ export default memo(function MapView({
   // Update map overlay when weekly data, view mode, or goal species changes
   useEffect(() => {
     let cancelled = false
+    // Track sourcedata retry listeners so cleanup can remove them
+    let pendingRetryHandler: (() => void) | null = null
 
     if (!map.current || !gridReady) return
     if (weeklySummary.length === 0 && weeklyData.length === 0) return
 
     // Helper: clear previous feature states and apply new ones
     const applyFeatureStates = (cellValues: Map<number, number>) => {
-      if (!map.current) return
+      if (!map.current || cancelled) return
       try {
         featureStateCellIds.current.forEach((cellId) => {
           map.current!.removeFeatureState({ source: 'grid', id: cellId })
@@ -870,7 +872,10 @@ export default memo(function MapView({
       } catch {
         // Source tiles not ready yet — retry when tiles load
         const retryOnSourceData = () => {
-          if (!map.current) return
+          if (!map.current || cancelled) {
+            map.current?.off('sourcedata', retryOnSourceData)
+            return
+          }
           try {
             cellValues.forEach((value, cellId) => {
               if (!featureStateCellIds.current.has(cellId)) {
@@ -880,10 +885,12 @@ export default memo(function MapView({
               }
             })
             map.current?.off('sourcedata', retryOnSourceData)
+            pendingRetryHandler = null
           } catch {
             // Still not ready, will retry on next sourcedata event
           }
         }
+        pendingRetryHandler = retryOnSourceData
         map.current.on('sourcedata', retryOnSourceData)
       }
     }
@@ -1281,7 +1288,13 @@ export default memo(function MapView({
       loadDensity()
     }
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      // Clean up any pending sourcedata retry listener to prevent memory leak
+      if (pendingRetryHandler && map.current) {
+        map.current.off('sourcedata', pendingRetryHandler)
+      }
+    }
   }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness])
 
   return (
@@ -1324,7 +1337,7 @@ export default memo(function MapView({
         } else if (viewMode === 'probability') {
           legendTitle = seenSpecies.size > 0
             ? (goalBirdsOnlyFilter ? 'P(Goal Lifer)' : 'P(Any Lifer)')
-            : 'P(New Species)'
+            : 'P(Lifer)'
           isPercentage = true
           showLegend = true
           emptyMessage = goalBirdsOnlyFilter && goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
@@ -1516,8 +1529,8 @@ export default memo(function MapView({
                 {seenSpecies.size === 0
                   ? `${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
                   : lifersPopup.lifers.length === 0
-                    ? `0 lifers / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
-                    : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
+                    ? `No lifers to find / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                    : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} to find / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
               </div>
             </div>
             <button
@@ -1534,10 +1547,10 @@ export default memo(function MapView({
 
           {/* Estimated cell warning */}
           {lifersPopup.estimated && (
-            <div className="px-3 py-1.5 bg-blue-50 border-b border-teal-200 flex items-center gap-1.5">
-              <span className="text-blue-500 text-xs">ℹ</span>
-              <span className="text-[10px] text-blue-700">
-                Estimated from nearby cells — no direct checklist data here
+            <div className="px-3 py-1.5 bg-red-50 border-b border-red-200 flex items-center gap-1.5">
+              <span className="text-red-500 text-xs">⚠</span>
+              <span className="text-[10px] text-red-700">
+                No checklist data — species estimated from neighboring cells
               </span>
             </div>
           )}

@@ -59,20 +59,32 @@ LAND_SHAPEFILE = SCRIPT_DIR / "reference" / "ne_50m_land" / "ne_50m_land.shp"
 
 RESOLUTIONS = [2, 3, 4]
 MIN_DURATION = 30    # Minimum checklist duration (minutes)
-MAX_DURATION = 240   # Maximum checklist duration (minutes)
-MIN_DISTANCE = 0.5   # Minimum traveling distance (km)
-MAX_DISTANCE = 5     # Maximum traveling distance (km)
+MAX_DURATION = 300   # Maximum checklist duration (minutes) — allows hawk watches, Big Sits
+MAX_DISTANCE = 8     # Maximum traveling distance (km) — fits within res 4 hex
 PROTOCOLS = {"Stationary", "Traveling"}
 MIN_CHECKLISTS = 5          # Minimum checklists for direct frequency estimate
 MIN_CHECKLISTS_POOLED = 3   # Minimum after temporal pooling (±1 week)
 # Per-resolution neighbor smoothing: res 2 = none, res 3 = none, res 4 = 1 ring
 NEIGHBOR_SMOOTH_K = {2: 0, 3: 0, 4: 1}
 NEIGHBOR_WEIGHTS = {0: 1.0, 1: 0.5}
-FALLBACK_DISCOUNT = 0.7     # Frequency discount for multi-resolution fallback
 ENSEMBLE_RUNS = 25          # Number of stixel ensemble passes
-ENSEMBLE_BLOCK_K = {2: 1, 3: 1, 4: 1}  # Block radius (k-ring) per resolution
+# Only res 4 gets ensemble — res 2/3 have enough data from natural H3 aggregation
+ENSEMBLE_ENABLED = {2: False, 3: False, 4: True}
+ENSEMBLE_BLOCK_K = {4: 1}  # Block radius (k-ring) — only res 4
+# No downward fallback — each resolution stands on its own data
+FALLBACK_ENABLED = {2: False, 3: False, 4: False}
+FALLBACK_DISCOUNT = 0.7     # Kept for reference if fallback re-enabled
 MIN_SMOOTHED_FREQ = 0.005   # Drop interpolated species below 0.5% frequency
-YEAR_MIN = 2006
+# Bird families exempt from land-obligate ocean filter (always allowed in ocean cells)
+OCEAN_FAMILIES = {
+    "Albatrosses", "Auks, Murres, and Puffins", "Boobies and Gannets",
+    "Cormorants and Shags", "Ducks, Geese, and Waterfowl", "Frigatebirds",
+    "Grebes", "Gulls, Terns, and Skimmers", "Loons", "Northern Storm-Petrels",
+    "Oystercatchers", "Pelicans", "Plovers and Lapwings", "Sandpipers and Allies",
+    "Shearwaters and Petrels", "Skuas and Jaegers", "Southern Storm-Petrels",
+    "Tropicbirds",
+}
+YEAR_MIN = 1900  # No lower bound — Historical protocol already excluded
 YEAR_MAX = 2025
 
 
@@ -142,15 +154,19 @@ def load_covariates(res):
 
 
 def covariate_similarity(cov_a, cov_b):
-    """Compute similarity (0 to 1) between two covariate vectors.
-    Higher = more similar habitat. Used to weight spatial pooling."""
+    """Compute Gaussian similarity (0 to 1) between two covariate vectors.
+    Higher = more similar habitat. Used to weight spatial pooling.
+
+    Gaussian with k=4 gives steep dropoff for dissimilar habitats:
+      same habitat: ~0.99, ocean↔coastal: ~0.35, ocean↔forest: ~0.006
+    """
     if not cov_a or not cov_b:
         return 0.5  # neutral if covariates missing
     lc_keys = ["trees", "shrub", "herb", "cultivated", "urban", "water", "flooded"]
     diff_sq = sum((cov_a.get(k, 0) - cov_b.get(k, 0)) ** 2 for k in lc_keys)
     elev_diff = (cov_a.get("elev_mean", 0) - cov_b.get("elev_mean", 0)) / 1000.0
     diff_sq += elev_diff ** 2
-    return 1.0 / (1.0 + (diff_sq ** 0.5) * 3.0)
+    return math.exp(-diff_sq * 4.0)
 
 
 import random
@@ -488,7 +504,7 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
     filter_stats = {
         "no_date": 0, "year_range": 0, "protocol": 0, "incomplete": 0,
         "duration_short": 0, "duration_long": 0, "duration_missing": 0,
-        "distance_short": 0, "distance_long": 0,
+        "distance_long": 0,
         "no_coords": 0, "no_week": 0,
     }
 
@@ -538,9 +554,6 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
                     dist_val = float(distance)
                     if dist_val > MAX_DISTANCE:
                         filter_stats["distance_long"] += 1
-                        continue
-                    if protocol == "Traveling" and dist_val < MIN_DISTANCE:
-                        filter_stats["distance_short"] += 1
                         continue
                 except ValueError:
                     pass
@@ -641,7 +654,7 @@ def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_
 def write_resolution_data(res, detections, cell_week_checklists, species_names,
                           taxon_to_code, taxon_to_id, output_dir,
                           prepared_land=None, parent_res_data=None,
-                          cell_covariates=None):
+                          cell_covariates=None, taxon_to_family=None):
     """Write grid, weekly, and species-weeks data for one resolution.
 
     Pipeline phases:
@@ -666,18 +679,14 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
         except PermissionError:
             pass  # OneDrive may lock files; skip
 
-    # Collect all cells that have ANY detection data, filtering out ocean cells
+    # Collect all cells that have ANY detection data (no hard ocean filter —
+    # covariate similarity prevents land/ocean bleeding in the ensemble)
     all_cells_raw = set(
         cell_id for sp_data in detections.values()
         for cell_id in sp_data.keys()
     )
-    if prepared_land is not None:
-        before = len(all_cells_raw)
-        all_cells_raw = {c for c in all_cells_raw if is_land(c, prepared_land)}
-        ocean_removed = before - len(all_cells_raw)
-        if ocean_removed > 0:
-            print(f"  Land filter: removed {ocean_removed} ocean cells from {before} raw cells")
     all_cells = sorted(all_cells_raw)
+    print(f"  {len(all_cells)} cells with detection data")
 
     # --- Phase 1: Compute frequencies with temporal pooling ---
     cell_week_species_raw = defaultdict(lambda: defaultdict(list))
@@ -686,7 +695,7 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
     for taxon_id, cell_data in detections.items():
         for cell_id, week_detections in cell_data.items():
             if cell_id not in all_cells_set:
-                continue  # Skip ocean cells
+                continue
             cell_checklists = cell_week_checklists.get(cell_id, {})
             active_weeks = set(week_detections.keys())
             check_weeks = set()
@@ -726,23 +735,49 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
     print(f"\n  Resolution {res}: Phase 1 (temporal pooling): {direct_cells} cells, {t1-t0:.1f}s")
     sys.stdout.flush()
 
-    # --- Phase 1.5: Stixel ensemble for stabilized frequencies ---
-    if HAS_H3 and ENSEMBLE_RUNS > 0:
+    # --- Phase 1.5: Stixel ensemble for stabilized frequencies (res 4 only) ---
+    if HAS_H3 and ENSEMBLE_ENABLED.get(res, False) and ENSEMBLE_RUNS > 0:
+        # Feed all cells with data into ensemble — covariate similarity
+        # (Gaussian k=4) naturally prevents land/ocean bleeding
+        ens_detections = {}
+        for taxon_id, cell_data in detections.items():
+            filtered = {c: w for c, w in cell_data.items() if c in all_cells_set}
+            if filtered:
+                ens_detections[taxon_id] = filtered
+        ens_checklists = {c: w for c, w in cell_week_checklists.items() if c in all_cells_set}
+
         ensemble_result, _ = run_stixel_ensemble(
-            detections, cell_week_checklists, cell_covariates, res, ENSEMBLE_RUNS)
+            ens_detections, ens_checklists, cell_covariates, res, ENSEMBLE_RUNS)
 
         # Merge ensemble results with direct estimates
-        # For cells with direct data: average the two (ensemble stabilizes)
-        # For cells with only ensemble data: use ensemble (fills sparse areas)
+        # 60% direct + 40% ensemble. Key fix: if a species wasn't detected in a cell
+        # but the ensemble says it should be there, treat direct as 0.0 (not missing).
+        # This prevents ensemble-only species from appearing at full weight.
+        #
+        # Well-sampled cells (enough checklists in temporal window) skip ensemble
+        # entirely — their direct frequencies are already reliable. This prevents
+        # land birds bleeding into ocean cells that have real pelagic survey data.
+        ENSEMBLE_MIN_CHECKLISTS = 10  # Skip ensemble merge if cell has this many checklists
         merged = defaultdict(lambda: defaultdict(list))
-        all_cells_in_both = set(cell_week_species_raw.keys()) | set(ensemble_result.keys())
+        direct_cells_set = set(cell_week_species_raw.keys())
+        skipped_well_sampled = 0
 
-        for cell_id in all_cells_in_both:
+        for cell_id in direct_cells_set:
             direct = cell_week_species_raw.get(cell_id, {})
             ensemble = ensemble_result.get(cell_id, {})
-            all_weeks = set(direct.keys()) | set(ensemble.keys())
 
-            for week in all_weeks:
+            # Check if cell is well-sampled (total checklists across all weeks)
+            cell_total_cl = sum(int(v) for v in cell_week_checklists.get(cell_id, {}).values())
+            if cell_total_cl >= ENSEMBLE_MIN_CHECKLISTS:
+                # Well-sampled: use direct frequencies only, skip ensemble
+                for week, sp_list in direct.items():
+                    merged[cell_id][week] = list(sp_list)
+                skipped_well_sampled += 1
+                continue
+
+            # Only merge ensemble for weeks where the cell has direct data.
+            # Don't let ensemble fabricate data for weeks with zero observations.
+            for week in direct.keys():
                 direct_sp = {tid: freq for tid, freq in direct.get(week, [])}
                 ensemble_sp = {tid: freq for tid, freq in ensemble.get(week, [])}
                 all_sp = set(direct_sp.keys()) | set(ensemble_sp.keys())
@@ -751,12 +786,18 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
                     d_freq = direct_sp.get(tid)
                     e_freq = ensemble_sp.get(tid)
                     if d_freq is not None and e_freq is not None:
-                        # Both: weighted average (direct gets 60% weight for cells with good data)
+                        # Both: weighted average
                         merged[cell_id][week].append((tid, d_freq * 0.6 + e_freq * 0.4))
                     elif d_freq is not None:
+                        # Direct only (ensemble didn't produce it)
                         merged[cell_id][week].append((tid, d_freq))
                     else:
-                        merged[cell_id][week].append((tid, e_freq))
+                        # Ensemble only: species not detected in cell but present in neighbors.
+                        # Direct frequency is 0.0, not missing: merge = 0.0*0.6 + e*0.4
+                        merged[cell_id][week].append((tid, e_freq * 0.4))
+
+        print(f"    Ensemble merge: {skipped_well_sampled} well-sampled cells used direct only, "
+              f"{len(direct_cells_set) - skipped_well_sampled} merged with ensemble")
 
         cell_week_species_raw = merged
         t15 = time.time()
@@ -777,13 +818,17 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
                 if n not in data_h3_cells and n not in seen_candidates:
                     seen_candidates.add(n)
 
-        # Filter to land-only cells
+        # Filter: only smooth into land cells that have no checklists
+        # Ocean cells with no data should stay empty — don't fabricate data there
+        before = len(seen_candidates)
         if prepared_land is not None:
-            before = len(seen_candidates)
             seen_candidates = {c for c in seen_candidates if is_land(c, prepared_land)}
-            print(f"    Phase 2: {before} candidates, {len(seen_candidates)} on land (k={k})")
-        else:
-            print(f"    Phase 2: {len(seen_candidates)} candidates (k={k}, no land filter)")
+        # Also exclude cells with high water covariate (catches ocean cells
+        # that slip through the buffered land polygon)
+        if cell_covariates:
+            seen_candidates = {c for c in seen_candidates
+                               if cell_covariates.get(c, {}).get('water', 1.0) < 0.9}
+        print(f"    Phase 2: {before} candidates, {len(seen_candidates)} eligible for smoothing (k={k})")
         sys.stdout.flush()
 
         for empty_cell in seen_candidates:
@@ -838,9 +883,9 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
         print(f"    Phase 2: skipped (k=0 for res {res})")
         t2 = time.time()
 
-    # --- Phase 2.5: Multi-resolution fallback from parent ---
+    # --- Phase 2.5: Multi-resolution fallback from parent (disabled) ---
     fallback_h3_cells = set()
-    if parent_res_data and HAS_H3:
+    if parent_res_data and HAS_H3 and FALLBACK_ENABLED.get(res, False):
         parent_res = res - 1
         cells_with_data = set(cell_week_species_raw.keys())
         fallback_count = 0
@@ -879,14 +924,50 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
     species_week_cells = defaultdict(lambda: defaultdict(list))
     dropped_by_threshold = 0
 
+    # Identify land-obligate species by their distribution across cells.
+    # If a species occurs almost exclusively in low-water cells, it's a land bird
+    # and should be filtered from ocean cells (incidental sightings from boats).
+    # Exception: waterbird families (gulls, ducks, loons, etc.) are always ocean-allowed.
+    land_species = set()
+    if cell_covariates:
+        species_water_scores = defaultdict(lambda: [0.0, 0])  # [sum_water, count]
+        for cell_id, week_data in cell_week_species_raw.items():
+            cell_water = cell_covariates.get(cell_id, {}).get('water', 0)
+            species_in_cell = set()
+            for week, sp_list in week_data.items():
+                for taxon_id, freq in sp_list:
+                    species_in_cell.add(taxon_id)
+            for tid in species_in_cell:
+                species_water_scores[tid][0] += cell_water
+                species_water_scores[tid][1] += 1
+        family_exempt = 0
+        for tid, (water_sum, count) in species_water_scores.items():
+            # Check family exemption first
+            if taxon_to_family and taxon_to_family.get(tid, "") in OCEAN_FAMILIES:
+                family_exempt += 1
+                continue  # Waterbird family — always ocean-allowed
+            avg_water = water_sum / count
+            if avg_water < 0.3:  # Species found mostly in land cells
+                land_species.add(tid)
+        print(f"    Ocean filter: {len(land_species)} land-obligate species identified "
+              f"({family_exempt} family-exempt, {len(species_water_scores)} total)")
+
+    dropped_ocean = 0
+
     for cell_id, week_data in cell_week_species_raw.items():
         int_id = cell_to_int[cell_id]
         is_direct = cell_id in direct_detection_cells
+        cell_water = cell_covariates.get(cell_id, {}).get('water', 0) if cell_covariates else 0
+        is_ocean = cell_water >= 0.9
         for week, sp_list in week_data.items():
             for taxon_id, freq in sp_list:
                 # Apply threshold only to non-direct cells
                 if not is_direct and freq < MIN_SMOOTHED_FREQ:
                     dropped_by_threshold += 1
+                    continue
+                # Ocean cells: drop land-obligate species
+                if is_ocean and taxon_id in land_species:
+                    dropped_ocean += 1
                     continue
                 freq_uint8 = max(1, min(255, round(freq * 255)))
                 cell_week_species[int_id][week].append((taxon_id, freq_uint8))
@@ -894,6 +975,8 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
 
     if dropped_by_threshold > 0:
         print(f"    Phase 3: dropped {dropped_by_threshold:,} sub-threshold entries from interpolated cells")
+    if dropped_ocean > 0:
+        print(f"    Phase 3: dropped {dropped_ocean:,} low-frequency entries from ocean cells (water >= 0.9)")
 
     n_smoothed = len(smoothed_h3_cells)
     n_fallback = len(fallback_h3_cells)
@@ -1076,6 +1159,15 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     families = set(s.get("familyComName", "") for s in species_list if s.get("familyComName"))
     print(f"  Families: {len(families)}")
 
+    # Build taxon_id → family lookup for ocean filtering
+    taxon_to_family = {}
+    for taxon_id in species_names.keys():
+        sci_name = species_scinames.get(taxon_id, "")
+        if sci_name in ebird_taxonomy:
+            taxon_to_family[taxon_id] = ebird_taxonomy[sci_name]["familyComName"]
+        elif taxon_id in species_family:
+            taxon_to_family[taxon_id] = species_family[taxon_id]
+
     # Write resolutions metadata
     res_meta = {
         "resolutions": RESOLUTIONS,
@@ -1145,7 +1237,8 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         result = write_resolution_data(
             res, detections_by_res[res], cell_week_checklists_by_res[res],
             species_names, taxon_to_code, taxon_to_id, OUTPUT_DIR,
-            prepared_land, parent_data, covariates_by_res.get(res, {})
+            prepared_land, parent_data, covariates_by_res.get(res, {}),
+            taxon_to_family
         )
         prev_res_data[res] = result
         # Free memory from previous resolution's raw data
@@ -1202,13 +1295,15 @@ def main():
                         help="Show archived regions and available new files")
     parser.add_argument("--clear-archive", action="store_true",
                         help="Delete existing archive before processing (for reprocessing with new filters)")
+    parser.add_argument("--bbox", type=str, default=None,
+                        help="Bounding box filter: 'lat_min,lon_min,lat_max,lon_max' (e.g. '42.5,-71,46,-66.5' for ME/NH/MA)")
     args = parser.parse_args()
 
     t0 = time.time()
     print("=" * 60)
     print("Find-A-Lifer EBD Pipeline (Incremental)")
     print(f"  Resolutions: {RESOLUTIONS}")
-    print(f"  Effort filters: {MIN_DURATION}-{MAX_DURATION} min, {MIN_DISTANCE}-{MAX_DISTANCE} km")
+    print(f"  Effort filters: {MIN_DURATION}-{MAX_DURATION} min, 0-{MAX_DISTANCE} km")
     print("=" * 60)
     sys.stdout.flush()
 
@@ -1257,6 +1352,37 @@ def main():
         if not archive:
             print("ERROR: No archive to rebuild from")
             sys.exit(1)
+
+        # Optional bounding box filter
+        if args.bbox and HAS_H3:
+            parts = [float(x) for x in args.bbox.split(",")]
+            lat_min, lon_min, lat_max, lon_max = parts
+            print(f"\nFiltering to bbox: lat [{lat_min}, {lat_max}], lon [{lon_min}, {lon_max}]")
+            for res in RESOLUTIONS:
+                # Filter checklists
+                before_cl = len(cell_week_checklists_by_res[res])
+                kept_cells = set()
+                for cell_id in list(cell_week_checklists_by_res[res].keys()):
+                    try:
+                        lat, lng = h3.cell_to_latlng(cell_id)
+                        if lat_min <= lat <= lat_max and lon_min <= lng <= lon_max:
+                            kept_cells.add(cell_id)
+                    except Exception:
+                        pass
+                # Remove cells outside bbox
+                for cell_id in list(cell_week_checklists_by_res[res].keys()):
+                    if cell_id not in kept_cells:
+                        del cell_week_checklists_by_res[res][cell_id]
+                # Filter detections
+                for taxon_id in list(detections_by_res[res].keys()):
+                    for cell_id in list(detections_by_res[res][taxon_id].keys()):
+                        if cell_id not in kept_cells:
+                            del detections_by_res[res][taxon_id][cell_id]
+                    if not detections_by_res[res][taxon_id]:
+                        del detections_by_res[res][taxon_id]
+                after_cl = len(cell_week_checklists_by_res[res])
+                print(f"  Res {res}: {before_cl} -> {after_cl} cells")
+
         print("\nRebuilding output from archive...")
         ebird_taxonomy = load_taxonomy()
         generate_output(cell_week_checklists_by_res, detections_by_res,
@@ -1361,7 +1487,7 @@ def main():
     with open(stats_file, "w") as f:
         json.dump({
             "config": {"min_duration": MIN_DURATION, "max_duration": MAX_DURATION,
-                       "min_distance": MIN_DISTANCE, "max_distance": MAX_DISTANCE},
+                       "max_distance": MAX_DISTANCE},
             "cumulative": cum_stats,
             "total_events": cum_total,
             "total_valid": cum_valid,

@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find-A-Lifer — Data Methodology</title>
+  <style>
+    :root {
+      --primary: #2d3748;
+      --accent: #e6812f;
+      --bg: #fafafa;
+      --card-bg: #fff;
+      --border: #e2e8f0;
+      --text: #2d3748;
+      --muted: #718096;
+      --code-bg: #f7fafc;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.7;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.25rem;
+      color: var(--primary);
+    }
+    .subtitle {
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 2rem;
+      font-size: 1.05rem;
+    }
+    h2 {
+      font-size: 1.4rem;
+      margin-top: 2.5rem;
+      margin-bottom: 0.75rem;
+      color: var(--primary);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.3rem;
+    }
+    h3 {
+      font-size: 1.1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+    }
+    p { margin-bottom: 1rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.95rem;
+    }
+    th {
+      background: var(--primary);
+      color: #fff;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:nth-child(even) td { background: #f8f9fa; }
+    code {
+      font-family: 'Consolas', 'Monaco', monospace;
+      background: var(--code-bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.9em;
+      border: 1px solid var(--border);
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .rationale {
+      background: #fffbeb;
+      border-left: 4px solid var(--accent);
+      padding: 0.75rem 1rem;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.95rem;
+    }
+    .rationale strong { color: var(--accent); }
+    .formula {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      text-align: center;
+      font-size: 1.05rem;
+      font-style: italic;
+    }
+    .toc {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .toc ol { padding-left: 1.5rem; }
+    .toc li { margin: 0.3rem 0; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    a { color: var(--accent); }
+    .updated {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 3rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+    }
+    .pipeline-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 1.5rem 0;
+    }
+    .pipeline-step {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .pipeline-step.active {
+      border-color: var(--accent);
+      background: #fff7ed;
+    }
+    .pipeline-arrow {
+      font-size: 1.2rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<h1>Find-A-Lifer: Data Methodology</h1>
+<p class="subtitle">How species occurrence data is computed from eBird observations</p>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#overview">Overview &amp; Design Philosophy</a></li>
+    <li><a href="#input">Input Data &amp; Filtering</a></li>
+    <li><a href="#grid">Spatial Grid System</a></li>
+    <li><a href="#frequency">Frequency Estimation</a></li>
+    <li><a href="#ensemble">Stixel Ensemble Smoothing</a></li>
+    <li><a href="#interpolation">Spatial Interpolation &amp; Fallback</a></li>
+    <li><a href="#thresholds">Thresholds &amp; Quality Control</a></li>
+    <li><a href="#output">Output Format</a></li>
+    <li><a href="#client">Client-Side Computation</a></li>
+    <li><a href="#labeling">Grid Cell Labeling</a></li>
+    <li><a href="#parameters">Parameter Reference</a></li>
+    <li><a href="#references">References</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. Overview &amp; Design Philosophy</h2>
+
+<p>Find-A-Lifer is a progressive web app that helps birders locate species they haven't yet observed ("life birds"). It combines eBird community science data with an interactive map to show where and when species occur, at weekly temporal resolution across a multi-scale hexagonal grid.</p>
+
+<p>All species occurrence data is <strong>pre-computed offline</strong> and served as static JSON files — there is no backend at runtime. This architectural choice enables offline support via service workers, instant loading from CDN/GitHub Pages, and zero server costs. The trade-off is that the data pipeline must produce complete, self-contained output files.</p>
+
+<div class="rationale">
+  <strong>Why static pre-computation?</strong> The app is designed for field use by birders who may have limited connectivity. Pre-computing all data means the app works offline after initial load. It also means anyone can host a copy on GitHub Pages with no infrastructure. The pipeline processes ~50GB of raw eBird data into ~500MB of static JSON.
+</div>
+
+<div class="pipeline-flow">
+  <div class="pipeline-step">eBird EBD Files</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step active">Effort Filtering</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step active">Frequency Estimation</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step active">Stixel Ensemble</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step active">Spatial Smoothing</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">Static JSON Output</div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="input">2. Input Data &amp; Filtering</h2>
+
+<h3>2.1 Data Source</h3>
+<p>All occurrence data comes from the <a href="https://ebird.org/science/download-ebird-data-products">eBird Basic Dataset (EBD)</a>, a global community science database with over 1.5 billion bird observations. Regional subsets are downloaded as paired files:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Sampling events file</strong> — metadata for each checklist (location, date, effort, protocol)</li>
+  <li><strong>Observations file</strong> — species detections linked to sampling events</li>
+</ul>
+
+<p>Processing is <strong>two-pass</strong>: first extract valid checklists from the sampling file, then match observations against those checklists. This avoids loading the much larger observations file into memory.</p>
+
+<h3>2.2 Checklist Effort Filters</h3>
+<p>Not all eBird checklists are suitable for computing reporting frequencies. We apply strict effort filters to retain only standardized, effortful surveys:</p>
+
+<table>
+  <tr><th>Filter</th><th>Criterion</th><th>Value</th></tr>
+  <tr><td>Date range</td><td>Observation year</td><td>1900–2025 (effectively unlimited)</td></tr>
+  <tr><td>Protocol</td><td>Survey type</td><td>Stationary or Traveling only</td></tr>
+  <tr><td>Completeness</td><td>All species reported</td><td>Yes (complete checklists only)</td></tr>
+  <tr><td>Duration (min)</td><td>Survey length</td><td>≥ 30 minutes</td></tr>
+  <tr><td>Duration (max)</td><td>Survey length</td><td>≤ 300 minutes</td></tr>
+  <tr><td>Distance (max)</td><td>Traveling distance</td><td>≤ 8 km</td></tr>
+</table>
+
+<div class="rationale">
+  <strong>Why these filters?</strong>
+  <ul style="margin-top: 0.5rem; padding-left: 1.25rem;">
+    <li><strong>Complete checklists only:</strong> Reporting frequency (detections ÷ checklists) is only meaningful when observers report <em>all</em> species seen, not just highlights. Incomplete lists inflate frequency for rare/exciting species and deflate it for common ones.</li>
+    <li><strong>Stationary + Traveling only:</strong> These are eBird's standardized protocols with consistent effort. "Incidental" observations (seeing a bird in a parking lot) are inherently biased — the observer wasn't systematically surveying. Even with the 30-minute duration filter, we explicitly exclude incidentals to be safe.</li>
+    <li><strong>30-minute minimum:</strong> Very short checklists undercount species. A 5-minute stop detects only the most conspicuous species, artificially deflating frequencies for quieter or less visible species.</li>
+    <li><strong>300-minute maximum:</strong> Extended surveys (hawk watches, Big Sits) are valuable data, but beyond 5 hours the effort becomes qualitatively different — observer fatigue, changing conditions, etc.</li>
+    <li><strong>8 km max distance:</strong> Checklists covering long distances span too much area to be localized to a single grid cell. At our finest resolution (res 4, ~45 km hex diameter), 8 km is less than 20% of the cell width — still well-localized.</li>
+    <li><strong>Stationary checklists included (distance = 0):</strong> A birder standing at a marsh or hawk watch for an hour produces excellent, perfectly-localized data. Earlier versions excluded these via a minimum distance filter, which discarded a large fraction of high-quality observations.</li>
+    <li><strong>No year floor:</strong> All years are included. The Historical protocol (which would introduce life-list checklists) is already excluded by the Stationary/Traveling protocol filter. Pre-2006 data is sparse but valid.</li>
+  </ul>
+</div>
+
+<p>Typically 10–30% of raw checklists pass all filters. The primary rejection reasons are incomplete lists, unsupported protocols, and duration outside bounds.</p>
+
+<!-- ============================================================ -->
+<h2 id="grid">3. Spatial Grid System</h2>
+
+<h3>3.1 H3 Hexagonal Grid</h3>
+<p>Species occurrences are aggregated onto <a href="https://h3geo.org/">Uber's H3 hexagonal grid</a> at three resolution levels:</p>
+
+<table>
+  <tr><th>Resolution</th><th>Hex Diameter</th><th>Map Zoom Range</th><th>Purpose</th></tr>
+  <tr><td>Res 2</td><td>~450 km</td><td>0 – 3.5</td><td>Continental overview</td></tr>
+  <tr><td>Res 3</td><td>~120 km</td><td>3.5 – 5.5</td><td>Regional patterns</td></tr>
+  <tr><td>Res 4</td><td>~45 km</td><td>5.5 – 22</td><td>Local trip planning</td></tr>
+</table>
+
+<div class="rationale">
+  <strong>Why hexagons?</strong> Hexagonal grids have uniform adjacency — every neighbor is equidistant from the center, unlike square grids where diagonal neighbors are √2× farther. This matters for spatial smoothing: when we interpolate frequencies from neighboring cells, each neighbor contributes equally in distance. H3 also provides a built-in hierarchy where each coarse cell contains exactly 7 finer cells, enabling multi-resolution fallback.
+</div>
+
+<div class="rationale">
+  <strong>Why these resolutions?</strong> Resolution 5 (~15 km hexes) was tested but produced too many cells with sparse data, even after smoothing. Resolution 4 strikes a balance — large enough to accumulate meaningful checklist counts, small enough to distinguish local habitats. Resolution 2 provides the "zoomed out" continental view where individual cells don't need to be precise.
+</div>
+
+<h3>3.2 Ocean Handling</h3>
+<p>Unlike earlier versions that aggressively removed ocean cells, the current pipeline <strong>preserves ocean cells with direct observations</strong> — pelagic surveys and boat-based checklists produce valid bird data. Instead, ocean integrity is maintained through a multi-layer defense:</p>
+
+<ol style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Gaussian covariate similarity</strong> (§5.3): ocean↔forest similarity is ~0.006, naturally preventing land birds from bleeding into ocean cells through the ensemble.</li>
+  <li><strong>Well-sampled cell bypass</strong> (§5.2a): ocean cells with ≥10 checklists skip the ensemble entirely, using only their direct pelagic survey data.</li>
+  <li><strong>Week-limited ensemble</strong> (§5.2b): ensemble cannot fabricate data for weeks with no direct observations in a cell.</li>
+  <li><strong>Phase 2 ocean smoothing filter</strong>: neighbor smoothing does not create new data in cells with water covariate ≥ 0.9.</li>
+  <li><strong>Land-obligate species filter</strong> (§7.2): species classified as land birds are removed from ocean cells in the final output.</li>
+</ol>
+
+<p>Environmental covariates are computed from <a href="https://www.earthenv.org/landcover">EarthEnv</a> 1km land cover rasters. Each H3 cell's water fraction determines whether it is treated as ocean (water ≥ 0.9). Note: cells whose centers fall in open water may have water=1.0 even if their edges clip land — a known limitation of center-point covariate extraction.</p>
+
+<!-- ============================================================ -->
+<h2 id="frequency">4. Frequency Estimation</h2>
+
+<h3>4.1 Reporting Frequency</h3>
+<p>The core metric is <strong>reporting frequency</strong>: the proportion of valid checklists in a cell-week that detected a given species.</p>
+
+<div class="formula">
+  frequency(species, cell, week) = detections(species, cell, week) ÷ checklists(cell, week)
+</div>
+
+<p>This is the same metric used by eBird Status &amp; Trends. It represents the probability that a standardized birding trip in that location and time period would detect the species. A frequency of 0.45 means 45% of qualifying checklists reported the species.</p>
+
+<div class="rationale">
+  <strong>Why reporting frequency instead of abundance?</strong> The EBD contains count data (number of individuals), but abundance estimates require sophisticated detection modeling to account for imperfect detection. Reporting frequency is simpler, more robust, and directly interpretable as "chance of seeing this species on a birding trip." It naturally normalizes for observer effort — a cell with 1,000 checklists and one with 50 produce comparable frequencies.
+</div>
+
+<h3>4.2 Temporal Pooling</h3>
+<p>Many cell-week combinations have too few checklists for a reliable direct estimate. We stabilize frequencies by pooling with adjacent weeks (±1 week, wrapping at year boundaries):</p>
+
+<pre><code>For a species detected in cell C during week W:
+  If checklists(C, W) ≥ 5:
+    freq = detections(C, W) / checklists(C, W)        # Direct estimate
+  Else:
+    pooled_det = detections(C, W-1) + detections(C, W) + detections(C, W+1)
+    pooled_cl  = checklists(C, W-1) + checklists(C, W) + checklists(C, W+1)
+    If pooled_cl ≥ 3:
+      freq = pooled_det / pooled_cl                    # Pooled estimate
+    Else:
+      No estimate produced (insufficient data)</code></pre>
+
+<div class="rationale">
+  <strong>Why pool adjacent weeks?</strong> Species occurrence changes gradually — a bird present in week 20 is almost certainly present in weeks 19 and 21. By borrowing checklist effort from neighboring weeks, we can produce estimates for cells that would otherwise have no data for that specific week. The 3-week window is narrow enough to preserve seasonal patterns while broad enough to fill gaps. The minimum threshold drops from 5 (direct) to 3 (pooled) because pooling itself provides some noise reduction.
+</div>
+
+<h3>4.3 Minimum Checklist Thresholds</h3>
+<p>A cell-week must have at least <strong>5 checklists</strong> for a direct frequency estimate, or <strong>3 checklists</strong> after temporal pooling. These thresholds prevent unreliable estimates from cells with one or two observations.</p>
+
+<div class="rationale">
+  <strong>Why 5 and 3?</strong> With fewer than 5 checklists, a single observation can swing frequency from 0% to 20%+ — too noisy to be useful. The pooled threshold of 3 is lower because temporal pooling already reduces variance by combining multiple weeks. eBird S&amp;T uses similar minimum sample sizes.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="ensemble">5. Stixel Ensemble Smoothing</h2>
+
+<h3>5.1 Motivation</h3>
+<p>Even after temporal pooling, frequency estimates from individual cells can be noisy — especially in areas with moderate but not abundant eBird coverage. The stixel ensemble approach, inspired by <a href="https://doi.org/10.1002/eap.2056">eBird Status &amp; Trends methodology</a> (Fink et al. 2020), stabilizes these estimates through spatial block-averaging across multiple random partitions.</p>
+
+<p><strong>The ensemble is only applied at resolution 4.</strong> Resolutions 2 and 3 have large enough cells (~450 km and ~120 km diameter) that they naturally accumulate sufficient checklist data — averaging ~21,000 checklists per cell at res 3. Applying the ensemble at these scales would over-smooth regional patterns without meaningful noise reduction.</p>
+
+<div class="rationale">
+  <strong>Why an ensemble instead of simple spatial averaging?</strong> A simple average of neighboring cells treats all neighbors equally and always smooths toward the mean. The ensemble approach creates <em>different</em> random spatial groupings on each run — sometimes a cell is grouped with its northern neighbors, sometimes its southern ones. Averaging across these random partitions reduces noise without systematically blurring boundaries between habitat types. Covariate weighting further ensures that ecologically similar cells contribute more to each other's estimates.
+</div>
+
+<h3>5.2 Algorithm</h3>
+<p>The ensemble runs 25 independent passes:</p>
+
+<ol style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Random partition:</strong> Shuffle all cells with data. Greedily form spatial blocks by selecting an unassigned seed cell and adding its H3 k-ring neighbors (k varies by resolution).</li>
+  <li><strong>Block-level frequency:</strong> Pool all checklists and detections within each block. Compute frequency per species per week at the block level.</li>
+  <li><strong>Weighted assignment:</strong> Assign the block frequency back to each cell in the block, weighted by environmental covariate similarity between the cell and the detection cells.</li>
+  <li><strong>Accumulate:</strong> Track the sum and count of frequency assignments per cell across all 25 runs.</li>
+</ol>
+
+<p>After all runs, the ensemble frequency is the average across runs. This is then merged with the direct temporal-pooling estimate:</p>
+
+<div class="formula">
+  merged = 0.6 × direct + 0.4 × ensemble
+</div>
+
+<p>Critically, if a species is present in the ensemble but <em>not</em> detected directly in the cell, the direct frequency is treated as <strong>0.0</strong> (not missing). This means ensemble-only species enter the merged estimate at only 40% of their ensemble frequency, preventing phantom species from appearing at full confidence.</p>
+
+<h3>5.2a Well-Sampled Cell Bypass</h3>
+<p>Cells with <strong>≥10 total checklists</strong> (across all weeks) skip the ensemble entirely and use direct frequencies only. These cells have enough local data that ensemble smoothing would only dilute their signal. This is particularly important for preventing ocean cells with pelagic survey data from being contaminated by neighboring land cells' ensemble estimates.</p>
+
+<h3>5.2b Week-Limited Ensemble</h3>
+<p>The ensemble is only merged for <strong>weeks where the cell has direct observations</strong>. If a cell has checklists in summer but none in spring, the ensemble cannot fabricate spring data for that cell. This prevents the common artifact of cells showing 52-week species presence when they only have seasonal coverage.</p>
+
+<div class="rationale">
+  <strong>Why 60/40 weighting?</strong> Direct observations in a cell are the most reliable signal — a bird was actually seen <em>there</em>. But the ensemble estimate is more stable (25 samples vs. one). The 60/40 split trusts local observations while still benefiting from the noise reduction of the ensemble.
+</div>
+
+<h3>5.3 Covariate Weighting</h3>
+<p>When assigning block-level frequencies to individual cells, each cell's contribution is weighted by how environmentally similar it is to the cells where the species was actually detected. Similarity uses a <strong>Gaussian kernel</strong> with steepness parameter k=4:</p>
+
+<div class="formula">
+  similarity = exp(−d² × 4)
+  <br>where d² = Σ(cov<sub>a</sub>[k] − cov<sub>b</sub>[k])² over land cover types + (Δelev / 1000)²
+</div>
+
+<p>Covariates include land cover fractions from <a href="https://www.earthenv.org/landcover">EarthEnv</a> (trees, shrub, herb, cultivated, urban, water, flooded vegetation) and elevation. The Gaussian kernel provides sharp discrimination between dissimilar habitats:</p>
+
+<table>
+  <tr><th>Comparison</th><th>Similarity</th><th>Effect</th></tr>
+  <tr><td>Same habitat</td><td>~0.99</td><td>Free sharing</td></tr>
+  <tr><td>Ocean ↔ coastal</td><td>~0.35</td><td>Shorebirds can cross</td></tr>
+  <tr><td>Coastal ↔ forest</td><td>~0.14</td><td>Moderate</td></tr>
+  <tr><td>Ocean ↔ forest</td><td>~0.006</td><td>Essentially zero</td></tr>
+  <tr><td>Forest ↔ plains</td><td>~0.21</td><td>Some generalist sharing</td></tr>
+</table>
+
+<div class="rationale">
+  <strong>Why Gaussian instead of inverse distance?</strong> An earlier formula (<code>1/(1+d×3)</code>) compressed all similarity scores into the 0.2–0.4 range, barely distinguishing habitats. Ocean↔forest scored 0.228 — far too high, allowing land birds to bleed into ocean cells through the ensemble. The Gaussian kernel drops that to 0.006, effectively blocking cross-habitat contamination while still allowing similar habitats to share freely. If covariates are unavailable, similarity defaults to 0.5 (neutral).
+</div>
+
+<h3>5.4 Block Size</h3>
+<table>
+  <tr><th>Resolution</th><th>Ensemble</th><th>Block k-ring</th><th>Approximate Block Size</th></tr>
+  <tr><td>Res 2</td><td>Disabled</td><td>—</td><td>—</td></tr>
+  <tr><td>Res 3</td><td>Disabled</td><td>—</td><td>—</td></tr>
+  <tr><td>Res 4</td><td>25 runs</td><td>k = 1</td><td>~7 cells (~14,000 km²)</td></tr>
+</table>
+
+<div class="rationale">
+  <strong>Why k=1?</strong> Larger blocks (k=2, k=3) were tested but produced over-smoothed results — rare or localized species disappeared because their signal was diluted across too many cells. A 1-ring block (~7 cells) provides enough pooling to stabilize estimates while preserving meaningful spatial variation.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="interpolation">6. Spatial Interpolation &amp; Fallback</h2>
+
+<h3>6.1 Neighbor Smoothing (Res 4 Only)</h3>
+<p>After the ensemble, resolution 4 applies one additional round of neighbor smoothing to fill cells that still have no data. For each empty cell surrounded by data cells:</p>
+
+<pre><code>For each neighbor N in 1-ring around empty cell C:
+  If N has data:
+    weight = spatial_weight(distance=1) × covariate_similarity(C, N)
+
+weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
+
+<p>Smoothed cells are marked as <code>"smoothed": 1</code> in the output grid and displayed at reduced opacity in the app.</p>
+
+<div class="rationale">
+  <strong>Why only at res 4?</strong> Resolutions 2 and 3 have large enough cells that nearly all land area is covered by direct data. Resolution 4's smaller cells (~45 km) leave gaps, especially in less-birded areas. Neighbor smoothing fills these gaps with a conservative, distance-weighted estimate. We don't smooth at coarser resolutions because it would create data in places too far from any observations.
+</div>
+
+<h3>6.2 Multi-Resolution Independence</h3>
+<p>Each resolution stands on its own data — there is <strong>no downward fallback</strong> between resolutions. Resolution 2 is aggregated upward from resolution 3 archive data, but resolution 3 does not fall back to resolution 2, and resolution 4 does not fall back to resolution 3.</p>
+
+<div class="rationale">
+  <strong>Why no fallback?</strong> Earlier versions used parent-resolution data (with a 30% discount) to fill empty child cells. This caused land bird species to propagate into ocean cells — a res 3 coastal cell containing both land and ocean would push its full species list down into all seven res 4 children, including ocean-only cells. With the ensemble already filling gaps at res 4, fallback was both unnecessary and harmful.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="thresholds">7. Thresholds &amp; Quality Control</h2>
+
+<h3>7.1 Minimum Smoothed Frequency</h3>
+<p>Species-cell entries from interpolated (non-direct) cells with frequency below 0.5% are dropped:</p>
+
+<div class="formula">
+  If cell is interpolated AND freq &lt; 0.005: discard
+</div>
+
+<p>This threshold is <strong>not applied to direct-detection cells</strong> — if a species was actually observed in a cell, it stays regardless of computed frequency.</p>
+
+<div class="rationale">
+  <strong>Why exempt direct detections?</strong> A rare vagrant observed once in 200 checklists has a 0.5% frequency — low, but real. Dropping it would erase genuine records. For interpolated cells, though, a 0.3% frequency likely represents noise propagated through the ensemble and smoothing. The threshold strikes a balance between coverage and credibility.
+</div>
+
+<h3>7.2 Land-Obligate Species Filter</h3>
+<p>To prevent land birds (e.g., Ravens, woodpeckers) from appearing in ocean cells through ensemble bleeding or sparse pelagic checklist noise, a <strong>land-obligate species filter</strong> is applied in the output phase:</p>
+
+<ol style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>For each species, compute the average water covariate across all cells where it occurs.</li>
+  <li>Species belonging to <strong>waterbird families</strong> (gulls, ducks, loons, alcids, shorebirds, cormorants, pelicans, storm-petrels, shearwaters, boobies, frigatebirds, tropicbirds, skuas, oystercatchers, grebes) are <strong>exempt</strong> — always allowed in ocean cells.</li>
+  <li>Non-exempt species with average water &lt; 0.3 are classified as <strong>land-obligate</strong>.</li>
+  <li>Land-obligate species are removed from cells with water ≥ 0.9.</li>
+</ol>
+
+<div class="rationale">
+  <strong>Why family exemption?</strong> Many waterbirds (Herring Gull, Common Loon, scoters) are commonly reported from harbors and lakeshores — cells with low water covariates. Their average water score drops below 0.3 despite being perfectly legitimate ocean species. The family-level exemption ensures all waterbird families pass through regardless of their covariate statistics. For non-waterbird species, the avg_water &lt; 0.3 threshold catches true land birds like passerines, raptors, and owls.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="output">8. Output Format</h2>
+
+<h3>8.1 Frequency Encoding</h3>
+<p>Frequencies (0.0–1.0) are encoded as unsigned 8-bit integers (0–255) for compact storage:</p>
+
+<div class="formula">
+  freq_uint8 = max(1, min(255, round(freq × 255)))
+</div>
+
+<p>Client-side decoding: <code>probability = freq_uint8 / 255</code>. A value of 127 represents ~50% frequency.</p>
+
+<div class="rationale">
+  <strong>Why uint8?</strong> The raw frequency data for all species, cells, and weeks would be hundreds of megabytes as floating-point JSON. Quantizing to 0–255 roughly halves file sizes while preserving more than enough precision for visualization and trip planning. The ~0.4% granularity (1/255) is well below the noise floor of the underlying estimates.
+</div>
+
+<h3>8.2 File Structure</h3>
+<p>All output is organized per resolution in <code>data/r{2,3,4}/</code>:</p>
+
+<table>
+  <tr><th>File</th><th>Contents</th><th>Purpose</th></tr>
+  <tr><td><code>grid.geojson</code></td><td>H3 hex polygons with cell_id, center coords, label, smoothed flag</td><td>Map overlay geometry</td></tr>
+  <tr><td><code>weeks/week_XX_summary.json</code></td><td><code>[cell_id, species_count, max_freq, n_checklists]</code> per cell</td><td>Fast heatmap rendering</td></tr>
+  <tr><td><code>weeks/week_XX_cells.json</code></td><td><code>[cell_id, [species_ids...], [freq_uint8...]]</code> per cell</td><td>Cell click → species list</td></tr>
+  <tr><td><code>species-weeks/{code}.json</code></td><td><code>{week: [[cell_id, freq], ...]}</code></td><td>Single-species range maps</td></tr>
+</table>
+
+<p>A shared <code>species.json</code> contains metadata for all species (common name, scientific name, family, taxonomic order, eBird species code).</p>
+
+<div class="rationale">
+  <strong>Why separate summary and cell files?</strong> The summary file (~2 MB/week) contains just enough to render the heatmap — species count and max frequency per cell. The full cell file (~30-50 MB/week) contains the complete species list with individual frequencies, but is only loaded on demand when the user clicks a cell. This lazy-loading pattern keeps the initial page load fast while still providing full detail when needed.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="client">9. Client-Side Computation</h2>
+
+<h3>9.1 Lifer Density</h3>
+<p>The default view mode subtracts the user's life list from each cell's species count:</p>
+
+<div class="formula">
+  lifer_count(cell, week) = total_species(cell, week) − seen_species(cell, week)
+</div>
+
+<h3>9.2 Combined Lifer Probability</h3>
+<p>For the "Frequency" view, the app computes the probability of observing at least one unseen species during a visit:</p>
+
+<div class="formula">
+  P(≥1 lifer) = 1 − ∏<sub>i</sub>(1 − freq<sub>i</sub>) &nbsp; for all unseen species i in the cell
+</div>
+
+<div class="rationale">
+  <strong>Why this formula?</strong> Under the assumption that detecting each species is approximately independent (reasonable for well-separated taxa), the probability of detecting <em>none</em> of them is the product of the individual non-detection probabilities. One minus that product gives the probability of at least one detection. This is the most useful metric for a lifer-seeking birder: "if I go here, what's my chance of adding something new to my list?"
+</div>
+
+<h3>9.3 Resolution Switching</h3>
+<p>The app automatically switches between resolutions as the user zooms:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>Zoom 0–3.5: Resolution 2 (~450 km hexes)</li>
+  <li>Zoom 3.5–5.5: Resolution 3 (~120 km hexes)</li>
+  <li>Zoom 5.5+: Resolution 4 (~45 km hexes)</li>
+</ul>
+<p>Each resolution has independently computed data, so switching is seamless — the appropriate grid and weekly data are loaded fresh for the new resolution.</p>
+
+<!-- ============================================================ -->
+<h2 id="labeling">10. Grid Cell Labeling</h2>
+
+<p>Each grid cell is labeled with the nearest recognizable city for user orientation. The labeling algorithm balances proximity, city size, and label diversity:</p>
+
+<h3>10.1 Scoring</h3>
+<div class="formula">
+  score = population / (distance_km + 1)<sup>1.5</sup> × region_boost
+</div>
+
+<p>Where <code>region_boost = 1.5</code> if the city and cell are in the same state/province, else 1.0. The search radius is resolution-dependent (120 km for res 3, 60 km for res 4).</p>
+
+<h3>10.2 Deduplication</h3>
+<p>To prevent a single major city (e.g., New York City, Boston) from labeling dozens of surrounding cells, each city is limited to a maximum number of cells per resolution (2 at res 3, 3 at res 4). City name variants ("South Boston," "East Boston," "North Boston") are grouped under the base name for deduplication.</p>
+
+<div class="rationale">
+  <strong>Why population-weighted scoring?</strong> Users need recognizable landmarks for orientation. "Near Boston" is more useful than "near Framingham" even if Framingham is slightly closer. The 1.5 exponent on distance ensures proximity still matters — a distant megacity won't dominate a cell right next to a midsized town. The same-state boost prevents border cells from being labeled with out-of-state cities (e.g., a New Hampshire cell getting a "Boston, MA" label).
+</div>
+
+<!-- ============================================================ -->
+<h2 id="parameters">11. Parameter Reference</h2>
+
+<table>
+  <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+  <tr><td><code>RESOLUTIONS</code></td><td>[2, 3, 4]</td><td>H3 resolutions processed</td></tr>
+  <tr><td><code>YEAR_MIN / YEAR_MAX</code></td><td>1900 / 2025</td><td>Observation year range (effectively unlimited)</td></tr>
+  <tr><td><code>PROTOCOLS</code></td><td>Stationary, Traveling</td><td>Accepted survey protocols</td></tr>
+  <tr><td><code>MIN_DURATION</code></td><td>30 min</td><td>Minimum checklist duration</td></tr>
+  <tr><td><code>MAX_DURATION</code></td><td>300 min</td><td>Maximum checklist duration</td></tr>
+  <tr><td><code>MAX_DISTANCE</code></td><td>8 km</td><td>Maximum traveling distance</td></tr>
+  <tr><td><code>MIN_CHECKLISTS</code></td><td>5</td><td>Minimum checklists for direct estimate</td></tr>
+  <tr><td><code>MIN_CHECKLISTS_POOLED</code></td><td>3</td><td>Minimum after temporal pooling</td></tr>
+  <tr><td><code>ENSEMBLE_RUNS</code></td><td>25</td><td>Stixel ensemble passes (res 4 only)</td></tr>
+  <tr><td><code>ENSEMBLE_ENABLED</code></td><td>{2:F, 3:F, 4:T}</td><td>Ensemble per resolution</td></tr>
+  <tr><td><code>ENSEMBLE_BLOCK_K</code></td><td>{4: 1}</td><td>H3 k-ring for block formation</td></tr>
+  <tr><td><code>ENSEMBLE_MIN_CHECKLISTS</code></td><td>10</td><td>Well-sampled bypass threshold</td></tr>
+  <tr><td><code>NEIGHBOR_SMOOTH_K</code></td><td>{2:0, 3:0, 4:1}</td><td>Smoothing rings per resolution</td></tr>
+  <tr><td><code>FALLBACK_ENABLED</code></td><td>{2:F, 3:F, 4:F}</td><td>No downward fallback</td></tr>
+  <tr><td><code>MIN_SMOOTHED_FREQ</code></td><td>0.005</td><td>Drop threshold for interpolated cells</td></tr>
+  <tr><td><code>OCEAN_FAMILIES</code></td><td>18 families</td><td>Waterbird families exempt from land-obligate filter</td></tr>
+  <tr><td>Covariate similarity</td><td>exp(−d²×4)</td><td>Gaussian kernel for habitat similarity</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="references">12. References</h2>
+
+<ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
+  <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
+  <li>Fink, D., T. Auer, A. Johnston, et al. 2020. Modeling avian full annual cycle distribution and population trends with citizen science data. <em>Ecological Applications</em>, 30(3), e02056. <a href="https://doi.org/10.1002/eap.2056">doi:10.1002/eap.2056</a></li>
+  <li>Sullivan, B.L., C.L. Wood, M.J. Iliff, R.E. Bonney, D. Fink, and S. Kelling. 2009. eBird: A citizen-based bird observation network in the biological sciences. <em>Biological Conservation</em>, 142(10), 2282-2292.</li>
+  <li>Uber Technologies. H3: A hexagonal hierarchical geospatial indexing system. <a href="https://h3geo.org/">h3geo.org</a></li>
+  <li>Natural Earth. Free vector and raster map data. <a href="https://www.naturalearthdata.com/">naturalearthdata.com</a></li>
+  <li>Tuanmu, M.-N. and W. Jetz. 2014. A global 1-km consensus land-cover product for biodiversity and ecosystem modelling. <em>Global Ecology and Biogeography</em>, 23(9), 1031-1045. <a href="https://www.earthenv.org/landcover">EarthEnv</a></li>
+  <li>GeoNames. Geographical database. <a href="https://www.geonames.org/">geonames.org</a> (CC BY 4.0)</li>
+</ul>
+
+<p class="updated">Last updated: March 2026. Pipeline source code: <code>pipeline/process_ebd.py</code></p>
+
+</body>
+</html>
