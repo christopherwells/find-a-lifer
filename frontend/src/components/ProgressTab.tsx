@@ -2,28 +2,31 @@ import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import type { Species } from './types'
 import { ProgressSkeleton } from './Skeleton'
-import { fetchSpecies } from '../lib/dataCache'
+import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
 import { getDisplayGroup } from '../lib/familyGroups'
+import { REGION_GROUPS, GROUPED_CODES } from '../lib/regionGroups'
 
 export default function ProgressTab() {
   const { isSpeciesSeen, getTotalSeen } = useLifeList()
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
+  const [regionNames, setRegionNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
-  // Load species metadata on mount
+  // Load species metadata and region names on mount
   useEffect(() => {
-    const loadSpecies = async () => {
+    const loadData = async () => {
       try {
         setLoading(true)
-        const data = await fetchSpecies()
+        const [data, names] = await Promise.all([fetchSpecies(), fetchRegionNames()])
         setAllSpecies(data)
+        setRegionNames(names)
       } catch (error) {
-        console.error('ProgressTab: failed to load species', error)
+        console.error('ProgressTab: failed to load data', error)
       } finally {
         setLoading(false)
       }
     }
-    loadSpecies()
+    loadData()
   }, [])
 
   if (loading) {
@@ -60,6 +63,52 @@ export default function ProgressTab() {
     .filter(f => f.unseen > 0)
     .sort((a, b) => b.unseen - a.unseen)
     .slice(0, 5)
+
+  // Build reverse lookup: region code → group name
+  const codeToGroup: Record<string, string> = {}
+  for (const [groupName, codes] of Object.entries(REGION_GROUPS)) {
+    for (const code of codes) {
+      codeToGroup[code] = groupName
+    }
+  }
+
+  // Calculate region breakdown
+  const regionStats: { [key: string]: { total: number; seen: number } } = {}
+  allSpecies.forEach((species) => {
+    if (!species.regions) return
+    const seen = isSpeciesSeen(species.speciesCode)
+    // Track which groups have already been counted for this species
+    const countedGroups = new Set<string>()
+    for (const regionCode of species.regions) {
+      let key: string
+      if (GROUPED_CODES.has(regionCode)) {
+        // Roll up into group
+        key = codeToGroup[regionCode]
+        if (countedGroups.has(key)) continue
+        countedGroups.add(key)
+      } else {
+        key = regionCode
+      }
+      if (!regionStats[key]) {
+        regionStats[key] = { total: 0, seen: 0 }
+      }
+      regionStats[key].total++
+      if (seen) {
+        regionStats[key].seen++
+      }
+    }
+  })
+
+  // Sort regions by total species count descending
+  const sortedRegions = Object.entries(regionStats).sort((a, b) => b[1].total - a[1].total)
+
+  // Get display name for a region key (group name or region code)
+  const getRegionDisplayName = (key: string): string => {
+    // If it's a group name (exists in REGION_GROUPS), use it directly
+    if (REGION_GROUPS[key]) return key
+    // Otherwise look up from regionNames
+    return regionNames[key] || key
+  }
 
   // Milestones
   // Dynamic milestones: round numbers up to total species count
@@ -178,6 +227,36 @@ export default function ProgressTab() {
                   <div
                     className="bg-[#2C3E7B] h-full rounded-full transition-all duration-200"
                     style={{ width: `${groupPercent}%` }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Region Breakdown */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Region</h4>
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          All {sortedRegions.length} regions by total species count
+        </p>
+
+        <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="region-breakdown-list">
+          {sortedRegions.map(([regionKey, stats]) => {
+            const regionPercent = stats.total > 0 ? (stats.seen / stats.total) * 100 : 0
+            return (
+              <div key={regionKey} className="space-y-1" data-testid={`region-${regionKey.replace(/\s+/g, '-').toLowerCase()}`}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{getRegionDisplayName(regionKey)}</span>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    {stats.seen}/{stats.total}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-[#2C3E7B] h-full rounded-full transition-all duration-200"
+                    style={{ width: `${regionPercent}%` }}
                   />
                 </div>
               </div>

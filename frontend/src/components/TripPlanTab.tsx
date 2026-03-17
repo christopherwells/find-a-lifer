@@ -1,8 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import type { Species, TripPlanTabProps, TripLifer, HotspotLocation, WeekOpportunity, SelectedLocation } from './types'
 import { ListSkeleton } from './Skeleton'
 import { fetchSpecies, fetchGrid } from '../lib/dataCache'
+
+/** Format coordinates as a human-readable string, handling all hemispheres */
+function formatCoords(coordinates: [number, number]): string {
+  const [lng, lat] = coordinates
+  const latDir = lat >= 0 ? 'N' : 'S'
+  const lngDir = lng >= 0 ? 'E' : 'W'
+  return `${Math.abs(lat).toFixed(2)}\u00B0${latDir}, ${Math.abs(lng).toFixed(2)}\u00B0${lngDir}`
+}
 
 // Bounding boxes for region filtering [west, south, east, north]
 const REGION_BBOX: Record<string, [number, number, number, number]> = {
@@ -19,6 +27,7 @@ export default function TripPlanTab({
   currentWeek = 26,
   onLocationSelect,
   selectedRegion = null,
+  onCompareLocationsChange,
 }: TripPlanTabProps) {
   // Mode: 'location', 'hotspots', 'window', or 'compare'
   const [mode, setMode] = useState<'location' | 'hotspots' | 'window' | 'compare'>('hotspots')
@@ -59,6 +68,15 @@ export default function TripPlanTab({
   const [uniqueToA, setUniqueToA] = useState<TripLifer[]>([])
   const [uniqueToB, setUniqueToB] = useState<TripLifer[]>([])
 
+  // Notify parent about compare location changes (for map markers)
+  useEffect(() => {
+    if (mode === 'compare') {
+      onCompareLocationsChange?.({ locationA, locationB })
+    } else {
+      onCompareLocationsChange?.(null)
+    }
+  }, [mode, locationA, locationB, onCompareLocationsChange])
+
   // Shared
   const [speciesData, setSpeciesData] = useState<Species[]>([])
   const [speciesLoaded, setSpeciesLoaded] = useState(false)
@@ -66,6 +84,33 @@ export default function TripPlanTab({
   const [gridData, setGridData] = useState<any>(null)
   const [dataError, setDataError] = useState<string | null>(null)
   const { seenSpecies } = useLifeList()
+
+  // Build cell_id → label lookup from grid features
+  const cellLabels = useMemo(() => {
+    const labels = new Map<number, string>()
+    if (!gridData?.features) return labels
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature
+    gridData.features.forEach((f: any) => {
+      const id = f.properties?.cell_id
+      const label = f.properties?.label
+      if (id != null && label) labels.set(id, label)
+    })
+    return labels
+  }, [gridData])
+
+  /** Return a human-readable location string: label if available, otherwise coordinates */
+  const formatLocation = useCallback((
+    coordinates: [number, number],
+    cellId?: number,
+    name?: string
+  ): string => {
+    if (name) return name
+    if (cellId != null) {
+      const label = cellLabels.get(cellId)
+      if (label) return label
+    }
+    return formatCoords(coordinates)
+  }, [cellLabels])
 
   const getWeekLabel = (week: number): string => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -680,8 +725,13 @@ export default function TripPlanTab({
           {selectedLocation ? (
             <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-2">
               <div className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                {selectedLocation.coordinates[1].toFixed(2)}°N, {Math.abs(selectedLocation.coordinates[0]).toFixed(2)}°W
+                {formatLocation(selectedLocation.coordinates, selectedLocation.cellId, selectedLocation.name)}
               </div>
+              {(selectedLocation.name || cellLabels.has(selectedLocation.cellId)) && (
+                <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                  {formatCoords(selectedLocation.coordinates)}
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
@@ -751,7 +801,7 @@ export default function TripPlanTab({
               <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-2">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                    {locationA.coordinates[1].toFixed(2)}°N, {Math.abs(locationA.coordinates[0]).toFixed(2)}°W
+                    {formatLocation(locationA.coordinates, locationA.cellId, locationA.name)}
                   </div>
                   <button
                     onClick={() => setLocationA(null)}
@@ -761,6 +811,11 @@ export default function TripPlanTab({
                     Clear
                   </button>
                 </div>
+                {(locationA.name || cellLabels.has(locationA.cellId)) && (
+                  <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                    {formatCoords(locationA.coordinates)}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
@@ -780,7 +835,7 @@ export default function TripPlanTab({
               <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-2">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium text-green-800 dark:text-green-300">
-                    {locationB.coordinates[1].toFixed(2)}°N, {Math.abs(locationB.coordinates[0]).toFixed(2)}°W
+                    {formatLocation(locationB.coordinates, locationB.cellId, locationB.name)}
                   </div>
                   <button
                     onClick={() => setLocationB(null)}
@@ -790,6 +845,11 @@ export default function TripPlanTab({
                     Clear
                   </button>
                 </div>
+                {(locationB.name || cellLabels.has(locationB.cellId)) && (
+                  <div className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+                    {formatCoords(locationB.coordinates)}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
@@ -889,7 +949,8 @@ export default function TripPlanTab({
                       if (onLocationSelect) {
                         onLocationSelect({
                           cellId: hotspot.cellId,
-                          coordinates: hotspot.coordinates
+                          coordinates: hotspot.coordinates,
+                          name: cellLabels.get(hotspot.cellId)
                         })
                       }
                     }}
@@ -900,8 +961,8 @@ export default function TripPlanTab({
                       #{hotspot.rank}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[#2C3E50] dark:text-gray-200">
-                        {hotspot.coordinates[1].toFixed(2)}°N, {Math.abs(hotspot.coordinates[0]).toFixed(2)}°W
+                      <div className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">
+                        {formatLocation(hotspot.coordinates, hotspot.cellId)}
                       </div>
                     </div>
                     <div className="px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300">
@@ -1032,7 +1093,8 @@ export default function TripPlanTab({
                             if (onLocationSelect) {
                               onLocationSelect({
                                 cellId: loc.cellId,
-                                coordinates: loc.coordinates
+                                coordinates: loc.coordinates,
+                                name: cellLabels.get(loc.cellId)
                               })
                             }
                           }}
@@ -1040,8 +1102,8 @@ export default function TripPlanTab({
                           data-testid={`window-location-${opp.week}-${locIndex}`}
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {loc.coordinates[1].toFixed(2)}°N, {Math.abs(loc.coordinates[0]).toFixed(2)}°W
+                            <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                              {formatLocation(loc.coordinates, loc.cellId)}
                             </div>
                           </div>
                           <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${getProbabilityColor(loc.probability)}`}>
@@ -1069,7 +1131,9 @@ export default function TripPlanTab({
               {/* Summary Stats */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-2 text-center">
-                  <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Location A</div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1 truncate" title={locationA ? formatLocation(locationA.coordinates, locationA.cellId, locationA.name) : 'Location A'}>
+                    {locationA ? formatLocation(locationA.coordinates, locationA.cellId, locationA.name) : 'Location A'}
+                  </div>
                   <div className="text-lg font-bold text-blue-800 dark:text-blue-300">{uniqueToA.length + overlapLifers.length}</div>
                   <div className="text-xs text-blue-600 dark:text-blue-400">total lifers</div>
                 </div>
@@ -1079,7 +1143,9 @@ export default function TripPlanTab({
                   <div className="text-xs text-purple-600 dark:text-purple-400">at both</div>
                 </div>
                 <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-2 text-center">
-                  <div className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">Location B</div>
+                  <div className="text-xs text-green-600 dark:text-green-400 font-medium mb-1 truncate" title={locationB ? formatLocation(locationB.coordinates, locationB.cellId, locationB.name) : 'Location B'}>
+                    {locationB ? formatLocation(locationB.coordinates, locationB.cellId, locationB.name) : 'Location B'}
+                  </div>
                   <div className="text-lg font-bold text-green-800 dark:text-green-300">{uniqueToB.length + overlapLifers.length}</div>
                   <div className="text-xs text-green-600 dark:text-green-400">total lifers</div>
                 </div>
@@ -1114,9 +1180,9 @@ export default function TripPlanTab({
               {uniqueToA.length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2" data-testid="unique-a-heading">
-                    📍 Unique to Location A ({uniqueToA.length})
+                    📍 Unique to {locationA ? formatLocation(locationA.coordinates, locationA.cellId, locationA.name) : 'Location A'} ({uniqueToA.length})
                   </h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Only at Location A</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Only at {locationA ? formatLocation(locationA.coordinates, locationA.cellId, locationA.name) : 'Location A'}</p>
                   <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="unique-a-list">
                     {uniqueToA.slice(0, 20).map((lifer, index) => (
                       <div
@@ -1139,9 +1205,9 @@ export default function TripPlanTab({
               {uniqueToB.length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2" data-testid="unique-b-heading">
-                    📍 Unique to Location B ({uniqueToB.length})
+                    📍 Unique to {locationB ? formatLocation(locationB.coordinates, locationB.cellId, locationB.name) : 'Location B'} ({uniqueToB.length})
                   </h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Only at Location B</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Only at {locationB ? formatLocation(locationB.coordinates, locationB.cellId, locationB.name) : 'Location B'}</p>
                   <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="unique-b-list">
                     {uniqueToB.slice(0, 20).map((lifer, index) => (
                       <div

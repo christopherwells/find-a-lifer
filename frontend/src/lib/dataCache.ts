@@ -215,6 +215,19 @@ export function fetchSpeciesWeeks(speciesCode: string, resolution?: number): Pro
   return p
 }
 
+/** Build a map of cell_id → label from grid GeoJSON (cached per resolution) */
+export async function getCellLabels(resolution?: number): Promise<Map<number, string>> {
+  const grid = await fetchGrid(resolution)
+  const labels = new Map<number, string>()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature
+  for (const feature of (grid as any).features) {
+    const cellId = feature.properties?.cell_id
+    const label = feature.properties?.label
+    if (cellId != null && label) labels.set(cellId, label)
+  }
+  return labels
+}
+
 // ---- Client-side computation (replaces backend POST endpoints) ----
 
 /**

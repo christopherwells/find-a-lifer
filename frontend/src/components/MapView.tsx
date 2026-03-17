@@ -39,7 +39,7 @@ interface MapViewProps {
   currentWeek?: number
   viewMode?: string
   goalBirdsOnlyFilter?: boolean
-  onLocationSelect?: (location: { cellId: number; coordinates: [number, number] }) => void
+  onLocationSelect?: (location: { cellId: number; coordinates: [number, number]; name?: string }) => void
   goalSpeciesCodes?: Set<string>
   seenSpecies?: Set<string>
   selectedSpecies?: string | null
@@ -50,6 +50,7 @@ interface MapViewProps {
   onDataRangeChange?: (range: [number, number]) => void
   showTotalRichness?: boolean
   speciesFilters?: { family: string; region: string; conservStatus: string; invasionStatus: string; difficulty: string }
+  compareLocations?: { locationA: { cellId: number; coordinates: [number, number] } | null; locationB: { cellId: number; coordinates: [number, number] } | null } | null
 }
 
 interface OccurrenceRecord {
@@ -268,6 +269,7 @@ export default memo(function MapView({
   onDataRangeChange,
   showTotalRichness = false,
   speciesFilters,
+  compareLocations = null,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -319,6 +321,60 @@ export default memo(function MapView({
   useEffect(() => { seenSpeciesRef.current = seenSpecies }, [seenSpecies])
   useEffect(() => { selectedSpeciesRef.current = selectedSpecies }, [selectedSpecies])
   useEffect(() => { onDataRangeChangeRef.current = onDataRangeChange }, [onDataRangeChange])
+
+  // Compare mode location markers (A = blue, B = orange)
+  const compareMarkerARef = useRef<maplibregl.Marker | null>(null)
+  const compareMarkerBRef = useRef<maplibregl.Marker | null>(null)
+
+  useEffect(() => {
+    if (!map.current) return
+
+    // Remove existing markers
+    if (compareMarkerARef.current) {
+      compareMarkerARef.current.remove()
+      compareMarkerARef.current = null
+    }
+    if (compareMarkerBRef.current) {
+      compareMarkerBRef.current.remove()
+      compareMarkerBRef.current = null
+    }
+
+    if (!compareLocations) return
+
+    // Create Marker A (blue)
+    if (compareLocations.locationA) {
+      const elA = document.createElement('div')
+      elA.style.cssText = 'width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:default;'
+      elA.style.backgroundColor = '#2C3E7B'
+      elA.textContent = 'A'
+      compareMarkerARef.current = new maplibregl.Marker({ element: elA })
+        .setLngLat(compareLocations.locationA.coordinates)
+        .addTo(map.current)
+    }
+
+    // Create Marker B (orange)
+    if (compareLocations.locationB) {
+      const elB = document.createElement('div')
+      elB.style.cssText = 'width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:default;'
+      elB.style.backgroundColor = '#E67E22'
+      elB.textContent = 'B'
+      compareMarkerBRef.current = new maplibregl.Marker({ element: elB })
+        .setLngLat(compareLocations.locationB.coordinates)
+        .addTo(map.current)
+    }
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (compareMarkerARef.current) {
+        compareMarkerARef.current.remove()
+        compareMarkerARef.current = null
+      }
+      if (compareMarkerBRef.current) {
+        compareMarkerBRef.current.remove()
+        compareMarkerBRef.current = null
+      }
+    }
+  }, [compareLocations])
 
   // Build species filter ID set from Species tab filters (family, region, conservation, invasion, difficulty)
   // null = no filter active (show all), Set = only these species match
@@ -850,8 +906,8 @@ export default memo(function MapView({
               setGoalBirdsPopup(null)
               setLifersPopup(null)
               if (onLocationSelect) {
-                onLocationSelect({ cellId, coordinates: coords })
-                console.log('Selected location for trip planning:', { cellId, coordinates: coords })
+                onLocationSelect({ cellId, coordinates: coords, name: cellLabel })
+                console.log('Selected location for trip planning:', { cellId, coordinates: coords, name: cellLabel })
               }
             }
           }

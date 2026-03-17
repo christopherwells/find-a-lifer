@@ -4,7 +4,7 @@ import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
 import { useLifeList } from './contexts/LifeListContext'
 import { goalListsDB, type GoalList } from './lib/goalListsDB'
-import type { SpeciesFilters } from './components/types'
+import type { SpeciesFilters, CompareLocations } from './components/types'
 import './App.css'
 
 export interface SelectedLocation {
@@ -41,6 +41,7 @@ function App() {
   const [dataRange, setDataRange] = useState<[number, number]>([0, 0])
   const [showTotalRichness, setShowTotalRichness] = useState(false)
   const [speciesFilters, setSpeciesFilters] = useState<SpeciesFilters>({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
+  const [compareLocations, setCompareLocations] = useState<CompareLocations | null>(null)
   const { seenSpecies } = useLifeList()
 
   // Persist dark mode and toggle class on document root
@@ -112,6 +113,7 @@ function App() {
             onDataRangeChange={setDataRange}
             showTotalRichness={showTotalRichness}
             speciesFilters={speciesFilters}
+            compareLocations={compareLocations}
           />
         </div>
 
@@ -154,6 +156,7 @@ function App() {
           onShowTotalRichnessChange={setShowTotalRichness}
           speciesFilters={speciesFilters}
           onSpeciesFiltersChange={setSpeciesFilters}
+          onCompareLocationsChange={setCompareLocations}
         />
       </div>
     </div>

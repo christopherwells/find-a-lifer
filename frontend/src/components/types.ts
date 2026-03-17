@@ -77,12 +77,18 @@ export interface SpeciesTabProps {
   onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
 }
 
+export interface CompareLocations {
+  locationA: SelectedLocation | null
+  locationB: SelectedLocation | null
+}
+
 export interface TripPlanTabProps {
   selectedLocation?: SelectedLocation | null
   currentWeek?: number
   onWeekChange?: (week: number) => void
   onLocationSelect?: (location: SelectedLocation | null) => void
   selectedRegion?: string | null
+  onCompareLocationsChange?: (locations: CompareLocations | null) => void
 }
 
 export interface TripLifer {
