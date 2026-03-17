@@ -1,13 +1,22 @@
 /**
- * Caribbean and other region groupings for the species filter dropdown.
- * Individual Caribbean country codes are merged into display groups.
+ * Region groupings for the species filter dropdown.
+ * Individual country codes that belong to a group are hidden from the dropdown
+ * and replaced by the group name under a labelled optgroup.
  */
 
 /** Maps a display group name to the constituent eBird region codes */
 export const REGION_GROUPS: Record<string, string[]> = {
+  'Central America': ['BZ', 'GT', 'SV', 'HN', 'NI', 'CR', 'PA'],
   'Greater Antilles': ['CU', 'JM', 'HT', 'DO', 'PR'],
   'Western Atlantic Islands': ['BS', 'BM'],
   // 'Lesser Antilles': ['BB', 'TT', 'LC', ...] // add when EBD data is processed
+}
+
+/** Which dropdown optgroup each group belongs to */
+export const REGION_GROUP_CATEGORIES: Record<string, string> = {
+  'Central America': 'Central America',
+  'Greater Antilles': 'Caribbean',
+  'Western Atlantic Islands': 'Caribbean',
 }
 
 /** Set of region codes that are hidden from the dropdown (subsumed into a group) */
@@ -20,7 +29,7 @@ export function expandRegionFilter(value: string): string[] {
 
 /**
  * Bounding boxes for all known region codes and groups.
- * Used to zoom the map when a region filter is selected.
+ * Used to zoom the map and mask out-of-region cells when a region filter is active.
  * Format: [[west, south], [east, north]]
  */
 export const REGION_BBOX: Record<string, [[number, number], [number, number]]> = {
@@ -30,7 +39,8 @@ export const REGION_BBOX: Record<string, [[number, number], [number, number]]> =
   GL: [[-74, 59], [-11, 84]],
   PM: [[-56.5, 46.7], [-56.1, 47.1]],
   MX: [[-117.1, 14.5], [-86.7, 32.7]],
-  // Central America
+  // Central America — individual codes kept for completeness; grouped in dropdown
+  BZ: [[-89.2, 15.9], [-88.1, 18.5]],
   GT: [[-92.2, 13.7], [-88.2, 17.8]],
   SV: [[-90.1, 13.1], [-87.7, 14.4]],
   HN: [[-89.4, 12.9], [-83.1, 16.5]],
@@ -45,7 +55,8 @@ export const REGION_BBOX: Record<string, [[number, number], [number, number]]> =
   PR: [[-67.3, 17.9], [-65.2, 18.5]],
   BS: [[-79.5, 20.9], [-72.7, 27.3]],
   BM: [[-65.2, 32.2], [-64.5, 32.5]],
-  // Caribbean groups
+  // Groups
+  'Central America':         [[-92.2,  7.2], [-77.2, 18.5]],
   'Greater Antilles':        [[-85.0, 17.5], [-65.2, 23.3]],
   'Western Atlantic Islands':[[-79.5, 20.9], [-64.5, 32.5]],
   'Lesser Antilles':         [[-63.0, 10.0], [-60.0, 18.0]],

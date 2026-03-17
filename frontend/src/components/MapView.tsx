@@ -925,27 +925,27 @@ export default memo(function MapView({
     if (!map.current || !gridReady) return
     if (weeklySummary.length === 0 && weeklyData.length === 0) return
 
-    // Helper: clear previous feature states and apply new ones.
-    // When a region filter with a known bounding box is active, cells whose centroid
-    // falls outside that bbox are silently dropped so the color scale only reflects
-    // the region of interest.
-    const applyFeatureStates = (inputValues: Map<number, number>) => {
-      if (!map.current || cancelled) return
-
-      // Mask out cells outside the selected region's bounding box
-      let cellValues = inputValues
+    // Helper: filter a cell-value map to the selected region's bounding box.
+    // Call this BEFORE computing legend min/max and normalization so the scale
+    // reflects only the region of interest.
+    const regionMask = (values: Map<number, number>): Map<number, number> => {
       const regionFilter = speciesFilters?.region
-      if (regionFilter && REGION_BBOX[regionFilter]) {
-        const [[west, south], [east, north]] = REGION_BBOX[regionFilter]
-        const masked = new Map<number, number>()
-        inputValues.forEach((value, cellId) => {
-          const center = cellCentersRef.current.get(cellId)
-          if (center && center[0] >= west && center[0] <= east && center[1] >= south && center[1] <= north) {
-            masked.set(cellId, value)
-          }
-        })
-        cellValues = masked
-      }
+      if (!regionFilter || !REGION_BBOX[regionFilter]) return values
+      const [[west, south], [east, north]] = REGION_BBOX[regionFilter]
+      const masked = new Map<number, number>()
+      values.forEach((value, cellId) => {
+        const center = cellCentersRef.current.get(cellId)
+        if (center && center[0] >= west && center[0] <= east && center[1] >= south && center[1] <= north) {
+          masked.set(cellId, value)
+        }
+      })
+      return masked
+    }
+
+    // Helper: clear previous feature states and apply new ones.
+    // Callers should pass already-masked values so the color scale is correct.
+    const applyFeatureStates = (cellValues: Map<number, number>) => {
+      if (!map.current || cancelled) return
       try {
         featureStateCellIds.current.forEach((cellId) => {
           map.current!.removeFeatureState({ source: 'grid', id: cellId })
@@ -1062,18 +1062,19 @@ export default memo(function MapView({
             if (r.probability > 0) cellProbabilities.set(r.cell_id, r.probability)
           })
 
-          console.log(`Species Range: ${selectedSpecies} found in ${cellProbabilities.size} cells`)
+          const maskedProbs = regionMask(cellProbabilities)
+          console.log(`Species Range: ${selectedSpecies} found in ${cellProbabilities.size} cells (${maskedProbs.size} in region)`)
 
-          const probabilities = Array.from(cellProbabilities.values())
+          const probabilities = Array.from(maskedProbs.values())
           setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
           setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 0)
 
-          if (cellProbabilities.size === 0) {
+          if (maskedProbs.size === 0) {
             setNeutralOverlay()
             return
           }
 
-          applyFeatureStates(cellProbabilities)
+          applyFeatureStates(maskedProbs)
           setHeatOverlay()
         } catch (error) {
           if (!cancelled) console.error('Species Range: error loading data', error)
@@ -1136,20 +1137,22 @@ export default memo(function MapView({
             })
           })
 
-          console.log(`Goal Birds overlay: ${cellCounts.size} cells, max=${maxCount}, goal species=${goalSpeciesIdSet.size}`)
+          const maskedCounts = regionMask(cellCounts)
+          const maskedVals = Array.from(maskedCounts.values()).filter(c => c > 0)
+          const maskedMax = maskedVals.length > 0 ? safeMax(maskedVals) : 0
+          console.log(`Goal Birds overlay: ${cellCounts.size} cells → ${maskedCounts.size} in region, max=${maskedMax}`)
 
-          const counts = Array.from(cellCounts.values()).filter(c => c > 0)
-          setLegendMin(counts.length > 0 ? safeMin(counts) : 0)
-          setLegendMax(maxCount)
+          setLegendMin(maskedVals.length > 0 ? safeMin(maskedVals) : 0)
+          setLegendMax(maskedMax)
 
-          if (maxCount === 0) {
+          if (maskedMax === 0) {
             setNeutralOverlay()
             return
           }
 
           const normalizedCounts = new Map<number, number>()
-          cellCounts.forEach((count, cellId) => {
-            if (count > 0) normalizedCounts.set(cellId, count / maxCount)
+          maskedCounts.forEach((count, cellId) => {
+            if (count > 0) normalizedCounts.set(cellId, count / maskedMax)
           })
           applyFeatureStates(normalizedCounts)
 
@@ -1233,13 +1236,14 @@ export default memo(function MapView({
           const cellProbabilities = computeCombinedProbability(weekCells, targetIds)
           if (cancelled) return
 
-          console.log(`Combined probability overlay: ${cellProbabilities.size} cells, ${targetIds ? targetIds.size : 'all'} target species`)
-          const probabilities = Array.from(cellProbabilities.values())
+          const maskedProbs = regionMask(cellProbabilities)
+          console.log(`Combined probability overlay: ${cellProbabilities.size} cells → ${maskedProbs.size} in region`)
+          const probabilities = Array.from(maskedProbs.values())
           setLegendMin(probabilities.length > 0 ? safeMin(probabilities) : 0)
           setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 1)
 
-          if (cellProbabilities.size === 0) { setNeutralOverlay(); return }
-          applyFeatureStates(cellProbabilities)
+          if (maskedProbs.size === 0) { setNeutralOverlay(); return }
+          applyFeatureStates(maskedProbs)
           setHeatOverlay()
         } catch (error) {
           if (!cancelled) console.error('Combined probability: error', error)
@@ -1296,15 +1300,17 @@ export default memo(function MapView({
             })
           })
 
-          console.log(`Goal Birds Only density: ${cellCounts.size} cells, max=${maxCount}`)
-          const counts = Array.from(cellCounts.values()).filter(c => c > 0)
-          setLegendMin(counts.length > 0 ? safeMin(counts) : 0)
-          setLegendMax(maxCount)
+          const maskedCounts = regionMask(cellCounts)
+          const maskedVals = Array.from(maskedCounts.values()).filter(c => c > 0)
+          const maskedMax = maskedVals.length > 0 ? safeMax(maskedVals) : 0
+          console.log(`Goal Birds Only density: ${cellCounts.size} cells → ${maskedCounts.size} in region, max=${maskedMax}`)
+          setLegendMin(maskedVals.length > 0 ? safeMin(maskedVals) : 0)
+          setLegendMax(maskedMax)
 
-          if (maxCount === 0) { setNeutralOverlay(); return }
+          if (maskedMax === 0) { setNeutralOverlay(); return }
           const normalizedCounts = new Map<number, number>()
-          cellCounts.forEach((count, cellId) => {
-            if (count > 0) normalizedCounts.set(cellId, count / maxCount)
+          maskedCounts.forEach((count, cellId) => {
+            if (count > 0) normalizedCounts.set(cellId, count / maskedMax)
           })
           applyFeatureStates(normalizedCounts)
           setHeatOverlay()
@@ -1379,20 +1385,23 @@ export default memo(function MapView({
           }
         })
 
+        // Apply region mask before computing legend and normalization
+        const maskedCounts = regionMask(filteredCounts)
+
         let filteredMax = 0
         let filteredMin = Infinity
-        filteredCounts.forEach((v) => {
+        maskedCounts.forEach((v) => {
           if (v > filteredMax) filteredMax = v
           if (v < filteredMin) filteredMin = v
         })
-        if (filteredCounts.size === 0) filteredMin = 0
+        if (maskedCounts.size === 0) filteredMin = 0
 
         setLegendMin(filteredMin)
         setLegendMax(filteredMax)
 
         const normalizedCounts = new Map<number, number>()
         if (filteredMax > 0) {
-          filteredCounts.forEach((liferCount, cellId) => {
+          maskedCounts.forEach((liferCount, cellId) => {
             normalizedCounts.set(cellId, liferCount / filteredMax)
           })
         }

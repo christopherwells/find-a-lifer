@@ -6,7 +6,7 @@ import SpeciesInfoCard from './SpeciesInfoCard'
 import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
 import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
-import { REGION_GROUPS, GROUPED_CODES, expandRegionFilter } from '../lib/regionGroups'
+import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES, expandRegionFilter } from '../lib/regionGroups'
 
 /** Species grouped by display group name, in taxonomic order */
 type SpeciesByGroup = Record<string, Species[]>
@@ -496,11 +496,16 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                 const individualCodes = allCodes
                   .filter(c => !GROUPED_CODES.has(c))
                   .sort((a, b) => (regionNameMap[a] ?? a).localeCompare(regionNameMap[b] ?? b))
-                // Groups that have at least one code present in data
+                // Groups that have at least one code present in data, organized by category
                 const activeGroups = Object.entries(REGION_GROUPS)
                   .filter(([, codes]) => codes.some(c => allCodes.includes(c)))
                   .map(([name]) => name)
-                  .sort()
+                // Group names keyed by their optgroup category label
+                const groupsByCategory = activeGroups.reduce<Record<string, string[]>>((acc, name) => {
+                  const cat = REGION_GROUP_CATEGORIES[name] ?? 'Other'
+                  ;(acc[cat] ??= []).push(name)
+                  return acc
+                }, {})
                 const hasOptions = individualCodes.length > 0 || activeGroups.length > 0
                 return hasOptions ? (
                   <select
@@ -514,13 +519,13 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                     {individualCodes.map((code) => (
                       <option key={code} value={code}>{regionNameMap[code] ?? code}</option>
                     ))}
-                    {activeGroups.length > 0 && (
-                      <optgroup label="Caribbean">
-                        {activeGroups.map((name) => (
+                    {Object.entries(groupsByCategory).map(([category, names]) => (
+                      <optgroup key={category} label={category}>
+                        {names.map((name) => (
                           <option key={name} value={name}>{name}</option>
                         ))}
                       </optgroup>
-                    )}
+                    ))}
                   </select>
                 ) : null
               })()}
