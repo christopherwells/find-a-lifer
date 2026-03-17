@@ -976,7 +976,7 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
     if dropped_by_threshold > 0:
         print(f"    Phase 3: dropped {dropped_by_threshold:,} sub-threshold entries from interpolated cells")
     if dropped_ocean > 0:
-        print(f"    Phase 3: dropped {dropped_ocean:,} low-frequency entries from ocean cells (water >= 0.9)")
+        print(f"    Phase 3: dropped {dropped_ocean:,} land-obligate species entries from ocean cells (water >= 0.9)")
 
     n_smoothed = len(smoothed_h3_cells)
     n_fallback = len(fallback_h3_cells)
