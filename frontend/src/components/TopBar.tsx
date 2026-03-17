@@ -27,7 +27,7 @@ export default function TopBar({ darkMode, onToggleDarkMode }: TopBarProps) {
           <h1 className="text-[15px] font-bold tracking-tight">
             Find-A-Lifer
           </h1>
-          <span className="text-[10px] text-blue-200/60 font-semibold tracking-wide">NORTHEAST</span>
+          <span className="text-[10px] text-blue-200/60 font-semibold tracking-wide">BETA</span>
         </div>
       </div>
 

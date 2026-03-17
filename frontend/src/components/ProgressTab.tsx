@@ -61,7 +61,8 @@ export default function ProgressTab() {
     .slice(0, 5)
 
   // Milestones
-  const milestoneValues = [100, 250, 500, 750, 1000, 1500, 2000, 2490]
+  // Dynamic milestones: round numbers up to total species count
+  const milestoneValues = [100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000].filter(m => m <= totalSpecies)
   const milestones = milestoneValues.map(target => ({
     target,
     reached: totalSeen >= target,

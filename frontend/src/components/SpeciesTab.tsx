@@ -11,12 +11,13 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const [speciesByFamily, setSpeciesByFamily] = useState<SpeciesByFamily>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(new Set())
+  const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string> | 'all'>('all') // 'all' = all collapsed
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFamily, setSelectedFamily] = useState<string>('') // '' means "All Families"
   const [selectedConservStatus, setSelectedConservStatus] = useState<string>('') // '' means "All"
   const [selectedInvasionStatus, setSelectedInvasionStatus] = useState<string>('') // '' means "All"
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('') // '' means "All Difficulties"
+  const [seenFilter, setSeenFilter] = useState<'' | 'seen' | 'unseen' | 'lifers'>('') // '' means "All"
   const { isSpeciesSeen, toggleSpecies, markSpeciesSeen, markSpeciesUnseen, getTotalSeen } = useLifeList()
 
   // Region filtering state
@@ -138,8 +139,20 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     loadRegionData()
   }, [selectedRegion])
 
+  // Helper: check if a family is collapsed
+  const isFamilyCollapsed = (familyName: string): boolean => {
+    if (collapsedFamilies === 'all') return true
+    return collapsedFamilies.has(familyName)
+  }
+
   const toggleFamily = (familyName: string) => {
     setCollapsedFamilies((prev) => {
+      if (prev === 'all') {
+        // First expansion from all-collapsed state: create set with all families EXCEPT this one
+        const allFamilyNames = new Set(Object.keys(speciesByFamily))
+        allFamilyNames.delete(familyName)
+        return allFamilyNames
+      }
       const next = new Set(prev)
       if (next.has(familyName)) {
         next.delete(familyName)
@@ -149,6 +162,9 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
       return next
     })
   }
+
+  const expandAllFamilies = () => setCollapsedFamilies(new Set())
+  const collapseAllFamilies = () => setCollapsedFamilies('all')
 
   const handleStartAddToGoalList = (speciesCode: string, comName: string) => {
     setAddingSpecies({ code: speciesCode, name: comName })
@@ -201,8 +217,13 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     setHighlightedSpecies(species.speciesCode)
 
     // Expand the family if it's collapsed
-    if (collapsedFamilies.has(species.familyComName)) {
+    if (isFamilyCollapsed(species.familyComName)) {
       setCollapsedFamilies((prev) => {
+        if (prev === 'all') {
+          const allFamilyNames = new Set(Object.keys(speciesByFamily))
+          allFamilyNames.delete(species.familyComName)
+          return allFamilyNames
+        }
         const next = new Set(prev)
         next.delete(species.familyComName)
         return next
@@ -272,7 +293,13 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
       const matchesRegion =
         !regionSpeciesCodes || regionSpeciesCodes.has(species.speciesCode)
 
-      return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion
+      const matchesSeen =
+        !seenFilter ||
+        (seenFilter === 'seen' && isSpeciesSeen(species.speciesCode)) ||
+        (seenFilter === 'unseen' && !isSpeciesSeen(species.speciesCode)) ||
+        (seenFilter === 'lifers' && !isSpeciesSeen(species.speciesCode))
+
+      return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion && matchesSeen
     })
     if (filtered.length > 0) {
       acc[familyName] = filtered
@@ -312,13 +339,14 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   )
 
   // Count active filters for the clear filters button
-  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty].filter(v => v !== '').length
+  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter].filter(v => v !== '').length
 
   const clearAllFilters = () => {
     setSelectedFamily('')
     setSelectedConservStatus('')
     setSelectedInvasionStatus('')
     setSelectedDifficulty('')
+    setSeenFilter('')
   }
 
   return (
@@ -391,16 +419,16 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
           )}
         </div>
 
-        {/* 2x2 Filter Grid — no labels, placeholder text serves as label */}
-        <div className="grid grid-cols-2 gap-1.5">
+        {/* Filter Grid */}
+        <div className="grid grid-cols-3 gap-1.5">
           <select
             id="family-filter"
             value={selectedFamily}
             onChange={(e) => setSelectedFamily(e.target.value)}
-            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 col-span-2"
             data-testid="family-filter"
           >
-            <option value="">All Families</option>
+            <option value="">All Families ({Object.keys(speciesByFamily).length})</option>
             {Object.keys(speciesByFamily).sort().map((familyName) => (
               <option key={familyName} value={familyName}>
                 {familyName} ({speciesByFamily[familyName].length})
@@ -408,10 +436,21 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
             ))}
           </select>
           <select
+            id="seen-filter"
+            value={seenFilter}
+            onChange={(e) => setSeenFilter(e.target.value as '' | 'seen' | 'unseen' | 'lifers')}
+            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+            data-testid="seen-filter"
+          >
+            <option value="">Seen & Unseen</option>
+            <option value="seen">Seen Only</option>
+            <option value="unseen">Unseen Only</option>
+          </select>
+          <select
             id="conservation-filter"
             value={selectedConservStatus}
             onChange={(e) => setSelectedConservStatus(e.target.value)}
-            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
             data-testid="conservation-filter"
           >
             <option value="">All Statuses</option>
@@ -428,7 +467,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
             id="invasion-filter"
             value={selectedInvasionStatus}
             onChange={(e) => setSelectedInvasionStatus(e.target.value)}
-            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
             data-testid="invasion-filter"
           >
             <option value="">All Origins</option>
@@ -440,7 +479,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
             id="difficulty-filter"
             value={selectedDifficulty}
             onChange={(e) => setSelectedDifficulty(e.target.value)}
-            className="px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
             data-testid="difficulty-filter"
           >
             <option value="">All Levels</option>
@@ -477,7 +516,23 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
               None
             </button>
           </div>
-          <span className="text-[11px] text-gray-400 dark:text-gray-500">({filteredSpeciesCount} filtered)</span>
+          <div className="flex items-center gap-1 text-[11px]">
+            <button
+              onClick={expandAllFamilies}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              title="Expand all families"
+            >
+              ▼
+            </button>
+            <button
+              onClick={collapseAllFamilies}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              title="Collapse all families"
+            >
+              ▶
+            </button>
+            <span className="text-gray-400 dark:text-gray-500 ml-1">({filteredSpeciesCount})</span>
+          </div>
         </div>
       </div>
 
@@ -492,7 +547,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
         ) : (
           Object.keys(filteredFamilies).map((familyName) => {
             const familySpecies = filteredFamilies[familyName]
-            const isCollapsed = collapsedFamilies.has(familyName)
+            const isCollapsed = isFamilyCollapsed(familyName)
 
             return (
               <div key={familyName}>

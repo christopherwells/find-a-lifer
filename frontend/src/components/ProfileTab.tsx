@@ -271,7 +271,7 @@ export default function ProfileTab() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="*/*"
+            accept=".csv,.txt,.tsv,text/csv,text/plain,text/tab-separated-values"
             onChange={handleFileChange}
             disabled={importing}
             className="sr-only"
