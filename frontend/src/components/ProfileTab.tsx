@@ -92,6 +92,7 @@ export default function ProfileTab() {
     try {
       // Modern File System Access API (Chrome 86+)
       if ('showOpenFilePicker' in window) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const [handle] = await (window as any).showOpenFilePicker({
           types: [{
             description: 'CSV files',
@@ -103,9 +104,9 @@ export default function ProfileTab() {
         handleFileImport(file)
         return
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // User cancelled the picker
-      if (err?.name === 'AbortError') return
+      if (err instanceof DOMException && err.name === 'AbortError') return
       console.error('showOpenFilePicker failed:', err)
     }
 

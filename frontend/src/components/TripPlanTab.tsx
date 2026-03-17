@@ -477,7 +477,7 @@ export default function TripPlanTab({
     }
 
     loadTripData()
-  }, [selectedLocation, startWeek, endWeek, speciesLoaded, speciesData, seenSpecies])
+  }, [mode, selectedLocation, startWeek, endWeek, speciesLoaded, speciesData, seenSpecies])
 
   const sortedLifers = useMemo(() => {
     const sorted = [...lifers]

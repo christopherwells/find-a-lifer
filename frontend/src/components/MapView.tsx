@@ -729,6 +729,7 @@ export default memo(function MapView({
 
                 records.forEach((record) => {
                   if (!currentGoalCodes.has(record.speciesCode)) return
+                  if (speciesFilterIdsRef.current && !speciesFilterIdsRef.current.has(record.species_id)) return
                   const meta = idToMeta.get(record.species_id)
                   goalBirds.push({
                     speciesCode: record.speciesCode,
@@ -774,6 +775,7 @@ export default memo(function MapView({
                 const lifers: LiferInCell[] = []
                 records.forEach((record) => {
                   if (currentSeenSpecies.has(record.speciesCode)) return
+                  if (speciesFilterIdsRef.current && !speciesFilterIdsRef.current.has(record.species_id)) return
                   const meta = idToMeta.get(record.species_id)
                   lifers.push({
                     speciesCode: record.speciesCode,
@@ -834,6 +836,7 @@ export default memo(function MapView({
       map.current = null
       setGridReady(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [darkMode])
 
   // Swap grid source data when activeResolution changes
