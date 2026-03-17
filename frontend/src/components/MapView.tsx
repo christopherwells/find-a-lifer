@@ -18,6 +18,20 @@ function safeMax(arr: number[]): number {
   return max
 }
 
+/** Compute the centroid of a GeoJSON Polygon or MultiPolygon feature */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function computeCentroid(feature: any): [number, number] | null {
+  const geom = feature.geometry
+  const ring: number[][] | null =
+    geom.type === 'Polygon' ? geom.coordinates[0] :
+    geom.type === 'MultiPolygon' ? geom.coordinates[0][0] : null
+  if (!ring || ring.length < 2) return null
+  const n = ring.length - 1 // exclude closing vertex (== first vertex)
+  let lngSum = 0, latSum = 0
+  for (let i = 0; i < n; i++) { lngSum += ring[i][0]; latSum += ring[i][1] }
+  return [lngSum / n, latSum / n]
+}
+
 
 
 interface MapViewProps {
@@ -283,6 +297,8 @@ export default memo(function MapView({
   const featureStateCellIds = useRef<Set<number>>(new Set())
   // Map cell_id -> smoothed value (1=neighbor, 2=fallback) from grid GeoJSON
   const smoothedMapRef = useRef<Map<number, number>>(new Map())
+  // Map cell_id -> [lng, lat] centroid (used for region bbox masking)
+  const cellCentersRef = useRef<Map<number, [number, number]>>(new Map())
   // Bumped after grid swap completes so overlay effect waits for new grid
   const [gridVersion, setGridVersion] = useState(0)
   // Track last reported data range to avoid redundant callbacks
@@ -597,15 +613,19 @@ export default memo(function MapView({
         }
         gridGeoJsonCache = gridData
 
-        // Build smoothed cell map for opacity modulation
+        // Build smoothed cell map and centroid map for opacity modulation and region masking
         const newSmoothedMap = new Map<number, number>()
+        const newCentersMap = new Map<number, [number, number]>()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature typing
         gridData.features.forEach((f: any) => {
           if (f.properties?.smoothed) {
             newSmoothedMap.set(f.properties.cell_id, f.properties.smoothed)
           }
+          const center = computeCentroid(f)
+          if (center) newCentersMap.set(f.properties.cell_id, center)
         })
         smoothedMapRef.current = newSmoothedMap
+        cellCentersRef.current = newCentersMap
 
         // Auto-zoom to data extent on first load
         if (gridData.features.length > 0 && gridData.features.length < 500) {
@@ -871,15 +891,19 @@ export default memo(function MapView({
             map.current!.removeFeatureState({ source: 'grid', id: cellId })
           })
           featureStateCellIds.current.clear()
-          // Update smoothed cell map for new resolution
+          // Update smoothed cell map and centroid map for new resolution
           const newSmoothedMap = new Map<number, number>()
+          const newCentersMap = new Map<number, [number, number]>()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           newGrid.features.forEach((f: any) => {
             if (f.properties?.smoothed) {
               newSmoothedMap.set(f.properties.cell_id, f.properties.smoothed)
             }
+            const center = computeCentroid(f)
+            if (center) newCentersMap.set(f.properties.cell_id, center)
           })
           smoothedMapRef.current = newSmoothedMap
+          cellCentersRef.current = newCentersMap
           src.setData(newGrid)
           // Bump gridVersion so the overlay effect re-runs after grid is ready
           setGridVersion(v => v + 1)
@@ -901,9 +925,27 @@ export default memo(function MapView({
     if (!map.current || !gridReady) return
     if (weeklySummary.length === 0 && weeklyData.length === 0) return
 
-    // Helper: clear previous feature states and apply new ones
-    const applyFeatureStates = (cellValues: Map<number, number>) => {
+    // Helper: clear previous feature states and apply new ones.
+    // When a region filter with a known bounding box is active, cells whose centroid
+    // falls outside that bbox are silently dropped so the color scale only reflects
+    // the region of interest.
+    const applyFeatureStates = (inputValues: Map<number, number>) => {
       if (!map.current || cancelled) return
+
+      // Mask out cells outside the selected region's bounding box
+      let cellValues = inputValues
+      const regionFilter = speciesFilters?.region
+      if (regionFilter && REGION_BBOX[regionFilter]) {
+        const [[west, south], [east, north]] = REGION_BBOX[regionFilter]
+        const masked = new Map<number, number>()
+        inputValues.forEach((value, cellId) => {
+          const center = cellCentersRef.current.get(cellId)
+          if (center && center[0] >= west && center[0] <= east && center[1] >= south && center[1] <= north) {
+            masked.set(cellId, value)
+          }
+        })
+        cellValues = masked
+      }
       try {
         featureStateCellIds.current.forEach((cellId) => {
           map.current!.removeFeatureState({ source: 'grid', id: cellId })
