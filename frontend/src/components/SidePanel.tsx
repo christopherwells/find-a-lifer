@@ -7,7 +7,7 @@ import TripPlanTab from './TripPlanTab'
 import ProgressTab from './ProgressTab'
 import ProfileTab from './ProfileTab'
 
-import type { MapViewMode } from './types'
+import type { MapViewMode, SpeciesFilters } from './types'
 export type { MapViewMode, SelectedLocation } from './types'
 
 type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress' | 'profile'
@@ -38,6 +38,8 @@ interface SidePanelProps {
   dataRange?: [number, number]
   showTotalRichness?: boolean
   onShowTotalRichnessChange?: (value: boolean) => void
+  speciesFilters?: SpeciesFilters
+  onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
 }
 
 interface Tab {
@@ -118,6 +120,8 @@ export default memo(function SidePanel({
   dataRange,
   showTotalRichness = false,
   onShowTotalRichnessChange,
+  speciesFilters,
+  onSpeciesFiltersChange,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -257,7 +261,7 @@ export default memo(function SidePanel({
                 onShowTotalRichnessChange={onShowTotalRichnessChange}
               />
             )}
-            {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} />}
+            {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} speciesFilters={speciesFilters} onSpeciesFiltersChange={onSpeciesFiltersChange} />}
             {activeTab === 'goals' && <GoalBirdsTab />}
             {activeTab === 'trip' && (
               <TripPlanTab

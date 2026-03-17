@@ -10,7 +10,7 @@ import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
 /** Species grouped by display group name, in taxonomic order */
 type SpeciesByGroup = Record<string, Species[]>
 
-export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
+export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSpeciesFiltersChange }: SpeciesTabProps) {
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
   const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
   const [groupOrder, setGroupOrder] = useState<string[]>([]) // groups in taxonomic order
@@ -19,9 +19,13 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string> | 'all'>('all') // 'all' = all collapsed
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFamily, setSelectedFamily] = useState<string>('') // '' means "All Families"
-  const [selectedConservStatus, setSelectedConservStatus] = useState<string>('') // '' means "All"
-  const [selectedInvasionStatus, setSelectedInvasionStatus] = useState<string>('') // '' means "All"
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('') // '' means "All Difficulties"
+  // Use lifted state from App if provided, otherwise local state
+  const selectedConservStatus = speciesFilters?.conservStatus ?? ''
+  const selectedInvasionStatus = speciesFilters?.invasionStatus ?? ''
+  const selectedDifficulty = speciesFilters?.difficulty ?? ''
+  const setSelectedConservStatus = (v: string) => onSpeciesFiltersChange?.({ conservStatus: v, invasionStatus: selectedInvasionStatus, difficulty: selectedDifficulty })
+  const setSelectedInvasionStatus = (v: string) => onSpeciesFiltersChange?.({ conservStatus: selectedConservStatus, invasionStatus: v, difficulty: selectedDifficulty })
+  const setSelectedDifficulty = (v: string) => onSpeciesFiltersChange?.({ conservStatus: selectedConservStatus, invasionStatus: selectedInvasionStatus, difficulty: v })
   const [seenFilter, setSeenFilter] = useState<'' | 'seen' | 'unseen' | 'lifers'>('') // '' means "All"
   const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>('') // '' means all regions
   const [regionNameMap, setRegionNameMap] = useState<Record<string, string>>({})
@@ -394,9 +398,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
 
   const clearAllFilters = () => {
     setSelectedFamily('')
-    setSelectedConservStatus('')
-    setSelectedInvasionStatus('')
-    setSelectedDifficulty('')
+    onSpeciesFiltersChange?.({ conservStatus: '', invasionStatus: '', difficulty: '' })
     setSeenFilter('')
     setSelectedRegionFilter('')
   }
@@ -548,7 +550,6 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
                 <option value="Critically Endangered">Critically Endangered</option>
                 <option value="Extinct in the Wild">Extinct in Wild</option>
                 <option value="Data Deficient">Data Deficient</option>
-                <option value="Unknown">Unknown</option>
               </select>
               <select
                 id="invasion-filter"
@@ -691,7 +692,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
                         </button>
                         {/* Inline status dots */}
                         <div className="flex items-center gap-0.5 flex-shrink-0">
-                          {species.conservStatus && species.conservStatus !== 'Least Concern' && species.conservStatus !== 'Unknown' && (
+                          {species.conservStatus && species.conservStatus !== 'Least Concern' && species.conservStatus !== 'Data Deficient' && (
                             <span className={`w-1.5 h-1.5 rounded-full ${species.conservStatus === 'Near Threatened' ? 'bg-yellow-400' : species.conservStatus === 'Vulnerable' ? 'bg-orange-400' : 'bg-red-500'}`} title={species.conservStatus} data-testid={`checklist-conservation-badge-${species.speciesCode}`} />
                           )}
                           {species.isRestrictedRange && (

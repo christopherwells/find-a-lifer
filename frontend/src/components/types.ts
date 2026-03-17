@@ -63,8 +63,16 @@ export interface ExploreTabProps {
   onShowTotalRichnessChange?: (value: boolean) => void
 }
 
+export interface SpeciesFilters {
+  conservStatus: string    // '' = all
+  invasionStatus: string   // '' = all
+  difficulty: string       // '' = all
+}
+
 export interface SpeciesTabProps {
   selectedRegion?: string | null
+  speciesFilters?: SpeciesFilters
+  onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
 }
 
 export interface TripPlanTabProps {

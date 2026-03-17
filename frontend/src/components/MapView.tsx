@@ -33,6 +33,7 @@ interface MapViewProps {
   liferCountRange?: [number, number]
   onDataRangeChange?: (range: [number, number]) => void
   showTotalRichness?: boolean
+  speciesFilters?: { conservStatus: string; invasionStatus: string; difficulty: string }
 }
 
 interface OccurrenceRecord {
@@ -54,6 +55,7 @@ interface SpeciesMeta {
   conservStatus?: string
   difficultyLabel?: string
   isRestrictedRange?: boolean
+  invasionStatus?: Record<string, string>
 }
 
 interface GoalBirdInCell {
@@ -247,7 +249,8 @@ export default memo(function MapView({
   selectedLocation = null,
   liferCountRange = [0, 9999],
   onDataRangeChange,
-  showTotalRichness = false
+  showTotalRichness = false,
+  speciesFilters,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
@@ -297,6 +300,32 @@ export default memo(function MapView({
   useEffect(() => { seenSpeciesRef.current = seenSpecies }, [seenSpecies])
   useEffect(() => { selectedSpeciesRef.current = selectedSpecies }, [selectedSpecies])
   useEffect(() => { onDataRangeChangeRef.current = onDataRangeChange }, [onDataRangeChange])
+
+  // Build species filter ID set from Species tab filters (conservation, invasion, difficulty)
+  // null = no filter active (show all), Set = only these species match
+  const speciesFilterIdsRef = useRef<Set<number> | null>(null)
+  useEffect(() => {
+    const hasFilter = speciesFilters && (speciesFilters.conservStatus || speciesFilters.invasionStatus || speciesFilters.difficulty)
+    if (!hasFilter || !speciesMetaCache) {
+      speciesFilterIdsRef.current = null
+      return
+    }
+    const matching = new Set<number>()
+    for (const s of speciesMetaCache) {
+      if (speciesFilters.conservStatus && s.conservStatus !== speciesFilters.conservStatus) continue
+      if (speciesFilters.difficulty && s.difficultyLabel !== speciesFilters.difficulty) continue
+      if (speciesFilters.invasionStatus) {
+        // Per-region invasion: "native wins" logic (same as SpeciesTab)
+        const statuses = Object.values(s.invasionStatus || {})
+        const effective = statuses.includes('Native') ? 'Native'
+          : statuses.includes('Introduced') ? 'Introduced'
+          : statuses[0] ?? ''
+        if (effective !== speciesFilters.invasionStatus) continue
+      }
+      matching.add(s.species_id)
+    }
+    speciesFilterIdsRef.current = matching
+  }, [speciesFilters])
 
   // Close popup when switching away from goal-birds mode
   useEffect(() => {
@@ -1013,7 +1042,12 @@ export default memo(function MapView({
       }
 
       const loadGoalBirds = async () => {
-        const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+        let goalSpeciesIdSet = goalSpeciesIdSetRef.current
+        // Apply species tab filters to goal species
+        const filterIds = speciesFilterIdsRef.current
+        if (filterIds) {
+          goalSpeciesIdSet = new Set([...goalSpeciesIdSet].filter(sid => filterIds.has(sid)))
+        }
         if (goalSpeciesIdSet.size === 0) {
           setNeutralOverlay()
           return
@@ -1122,6 +1156,18 @@ export default memo(function MapView({
           }
           // If no life list and no goal filter, targetIds stays null → all species
 
+          // Apply species tab filters (conservation, invasion, difficulty)
+          const filterIds = speciesFilterIdsRef.current
+          if (filterIds) {
+            if (targetIds) {
+              // Intersect: keep only species in both target and filter sets
+              targetIds.forEach(sid => { if (!filterIds.has(sid)) targetIds!.delete(sid) })
+            } else {
+              // No existing target — use filter as the target
+              targetIds = new Set(filterIds)
+            }
+          }
+
           const cellProbabilities = computeCombinedProbability(weekCells, targetIds)
           if (cancelled) return
 
@@ -1161,7 +1207,12 @@ export default memo(function MapView({
       }
 
       const loadGoalDensity = async () => {
-        const goalSpeciesIdSet = goalSpeciesIdSetRef.current
+        let goalSpeciesIdSet = goalSpeciesIdSetRef.current
+        // Apply species tab filters
+        const filterIds = speciesFilterIdsRef.current
+        if (filterIds) {
+          goalSpeciesIdSet = new Set([...goalSpeciesIdSet].filter(sid => filterIds.has(sid)))
+        }
         if (goalSpeciesIdSet.size === 0) { setNeutralOverlay(); return }
         try {
           const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
@@ -1208,7 +1259,8 @@ export default memo(function MapView({
       const loadDensity = async () => {
         const cellLiferCounts = new Map<number, number>()
 
-        if (seenSpecies.size > 0 && !showTotalRichness) {
+        const hasSpeciesFilter = speciesFilterIdsRef.current !== null
+        if ((seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter) {
           try {
             const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
             const weekCells = await fetchWeekCells(currentWeek, activeResolution)
@@ -1216,13 +1268,13 @@ export default memo(function MapView({
 
             // Build seen species ID set
             const seenIds = new Set<number>()
-            if (speciesMetaCache) {
+            if (speciesMetaCache && seenSpecies.size > 0 && !showTotalRichness) {
               speciesMetaCache.forEach(s => {
                 if (seenSpecies.has(s.speciesCode)) seenIds.add(s.species_id)
               })
             }
 
-            const liferData = computeLiferSummary(weekCells, seenIds)
+            const liferData = computeLiferSummary(weekCells, seenIds, speciesFilterIdsRef.current)
             liferData.forEach(([cellId, liferCount]) => {
               if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
             })
@@ -1295,7 +1347,7 @@ export default memo(function MapView({
         map.current.off('sourcedata', pendingRetryHandler)
       }
     }
-  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness])
+  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness, speciesFilters])
 
   return (
     <div className="relative w-full h-full">

@@ -223,11 +223,14 @@ export function fetchSpeciesWeeks(speciesCode: string, resolution?: number): Pro
  */
 export function computeLiferSummary(
   weekCells: Map<number, CellSpeciesData>,
-  seenSpeciesIds: Set<number>
+  seenSpeciesIds: Set<number>,
+  includeOnly?: Set<number> | null
 ): [number, number, number][] {
   const result: [number, number, number][] = []
   weekCells.forEach(({ speciesIds }, cellId) => {
-    const liferCount = speciesIds.filter(sid => !seenSpeciesIds.has(sid)).length
+    const liferCount = speciesIds.filter(sid =>
+      !seenSpeciesIds.has(sid) && (!includeOnly || includeOnly.has(sid))
+    ).length
     if (liferCount > 0) {
       result.push([cellId, liferCount, 200])
     }

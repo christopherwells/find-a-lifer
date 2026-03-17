@@ -1217,7 +1217,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             entry["conservStatus"] = IUCN_CODE_TO_LABEL[iucn_code]
             conserv_matched += 1
         else:
-            entry["conservStatus"] = "Unknown"
+            entry["conservStatus"] = "Data Deficient"
 
         # Per-region invasion status
         if taxon_id in species_exotic_codes:

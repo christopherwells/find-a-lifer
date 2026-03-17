@@ -15,7 +15,7 @@ export default function SpeciesInfoCard({
     'Vulnerable': { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Vulnerable' },
     'Endangered': { bg: 'bg-red-100', text: 'text-red-800', label: 'Endangered' },
     'Critically Endangered': { bg: 'bg-red-200', text: 'text-red-900', label: 'Critically Endangered' },
-    'Unknown': { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Unknown' },
+    'Data Deficient': { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Data Deficient' },
   }
   const difficultyColors: Record<string, { bg: string; text: string }> = {
     'Easy': { bg: 'bg-green-100', text: 'text-green-800' },
@@ -24,7 +24,7 @@ export default function SpeciesInfoCard({
     'Very Hard': { bg: 'bg-red-100', text: 'text-red-800' },
     'Extremely Hard': { bg: 'bg-purple-100', text: 'text-purple-800' },
   }
-  const conservStyle = conservationColors[species.conservStatus] ?? conservationColors['Unknown']
+  const conservStyle = conservationColors[species.conservStatus] ?? conservationColors['Data Deficient']
   const diffStyle = difficultyColors[species.difficultyLabel] ?? { bg: 'bg-gray-100', text: 'text-gray-600' }
 
   return createPortal(
