@@ -6,6 +6,7 @@ import SpeciesInfoCard from './SpeciesInfoCard'
 import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
 import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
+import { REGION_GROUPS, GROUPED_CODES, expandRegionFilter } from '../lib/regionGroups'
 
 /** Species grouped by display group name, in taxonomic order */
 type SpeciesByGroup = Record<string, Species[]>
@@ -333,9 +334,11 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
         const matchesConserv =
           !selectedConservStatus || species.conservStatus === selectedConservStatus
 
-        // Per-region invasion status: use region filter if active, else "native wins"
-        const effectiveInvasion = selectedRegionFilter
-          ? species.invasionStatus?.[selectedRegionFilter]
+        // Per-region invasion status: use region filter if active (for single codes), else "native wins"
+        const regionCodes = selectedRegionFilter ? expandRegionFilter(selectedRegionFilter) : null
+        const isSingleCode = regionCodes?.length === 1 && regionCodes[0] === selectedRegionFilter
+        const effectiveInvasion = (isSingleCode && regionCodes)
+          ? species.invasionStatus?.[regionCodes[0]]
           : Object.values(species.invasionStatus || {}).includes('Native') ? 'Native'
           : Object.values(species.invasionStatus || {}).includes('Introduced') ? 'Introduced'
           : Object.values(species.invasionStatus || {})[0] ?? ''
@@ -349,7 +352,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
           !regionSpeciesCodes || regionSpeciesCodes.has(species.speciesCode)
 
         const matchesRegionFilter =
-          !selectedRegionFilter || (species.regions?.includes(selectedRegionFilter) ?? false)
+          !selectedRegionFilter || (regionCodes?.some(code => species.regions?.includes(code)) ?? false)
 
         const matchesSeen =
           !seenFilter ||
@@ -488,10 +491,18 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
             {/* Primary filters: Region + Seen */}
             <div className="flex gap-1.5">
               {(() => {
-                const uniqueRegions = Array.from(
-                  new Set(allSpecies.flatMap(s => s.regions ?? []))
-                ).sort((a, b) => (regionNameMap[a] ?? a).localeCompare(regionNameMap[b] ?? b))
-                return uniqueRegions.length > 0 ? (
+                const allCodes = Array.from(new Set(allSpecies.flatMap(s => s.regions ?? [])))
+                // Codes that are NOT subsumed into a group appear individually
+                const individualCodes = allCodes
+                  .filter(c => !GROUPED_CODES.has(c))
+                  .sort((a, b) => (regionNameMap[a] ?? a).localeCompare(regionNameMap[b] ?? b))
+                // Groups that have at least one code present in data
+                const activeGroups = Object.entries(REGION_GROUPS)
+                  .filter(([, codes]) => codes.some(c => allCodes.includes(c)))
+                  .map(([name]) => name)
+                  .sort()
+                const hasOptions = individualCodes.length > 0 || activeGroups.length > 0
+                return hasOptions ? (
                   <select
                     id="region-filter"
                     value={selectedRegionFilter}
@@ -500,11 +511,16 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                     data-testid="region-filter"
                   >
                     <option value="">All Regions</option>
-                    {uniqueRegions.map((code) => (
-                      <option key={code} value={code}>
-                        {regionNameMap[code] ?? code}
-                      </option>
+                    {individualCodes.map((code) => (
+                      <option key={code} value={code}>{regionNameMap[code] ?? code}</option>
                     ))}
+                    {activeGroups.length > 0 && (
+                      <optgroup label="Caribbean">
+                        {activeGroups.map((name) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 ) : null
               })()}

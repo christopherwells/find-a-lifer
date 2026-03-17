@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { getDisplayGroup } from '../lib/familyGroups'
+import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
 
 // Safe min/max for large arrays (avoids call stack overflow with spread on 100K+ elements)
 function safeMin(arr: number[]): number {
@@ -315,7 +316,10 @@ export default memo(function MapView({
     const matching = new Set<number>()
     for (const s of speciesMetaCache) {
       if (speciesFilters.family && getDisplayGroup(s.familyComName ?? '') !== speciesFilters.family) continue
-      if (speciesFilters.region && !(s.regions?.includes(speciesFilters.region))) continue
+      if (speciesFilters.region) {
+        const codes = expandRegionFilter(speciesFilters.region)
+        if (!codes.some(c => s.regions?.includes(c))) continue
+      }
       if (speciesFilters.conservStatus && s.conservStatus !== speciesFilters.conservStatus) continue
       if (speciesFilters.difficulty && s.difficultyLabel !== speciesFilters.difficulty) continue
       if (speciesFilters.invasionStatus) {
@@ -374,6 +378,15 @@ export default memo(function MapView({
       console.log('MapView: returning to continental US view')
     }
   }, [selectedRegion])
+
+  // Zoom to region when species filter region changes
+  useEffect(() => {
+    if (!map.current) return
+    const region = speciesFilters?.region
+    if (region && REGION_BBOX[region]) {
+      map.current.fitBounds(REGION_BBOX[region], { padding: 40, duration: 1200 })
+    }
+  }, [speciesFilters?.region])
 
   // Load species metadata and build the goal species ID set
   // whenever goalSpeciesCodes or seenSpecies change
