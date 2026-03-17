@@ -1007,9 +1007,12 @@ export default memo(function MapView({
       }
       if (map.current?.getLayer('grid-border')) {
         map.current.setPaintProperty('grid-border', 'line-color', '#999')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.2)
+        // When a region filter is active, hide borders for cells not in the neutral set
+        map.current.setPaintProperty('grid-border', 'line-opacity', hasRegionFilter ? 0 : 0.2)
       }
     }
+
+    const hasRegionFilter = !!speciesFilters?.region
 
     const setHeatOverlay = () => {
       if (map.current?.getLayer('grid-fill')) {
@@ -1022,8 +1025,19 @@ export default memo(function MapView({
             ])
       }
       if (map.current?.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#666')
-        map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+        // When a region filter is active, hide borders on out-of-region cells
+        // (cells with no feature-state 'value' coalesce to -1)
+        if (hasRegionFilter) {
+          map.current.setPaintProperty('grid-border', 'line-color', '#666')
+          map.current.setPaintProperty('grid-border', 'line-opacity', [
+            'case',
+            ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,
+            0.4
+          ] as maplibregl.ExpressionSpecification)
+        } else {
+          map.current.setPaintProperty('grid-border', 'line-color', '#666')
+          map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+        }
       }
     }
 
@@ -1362,15 +1376,18 @@ export default memo(function MapView({
 
         if (cancelled) return
 
+        // Apply region mask early so the data range slider reflects only in-region cells
+        const regionCellCounts = regionMask(cellLiferCounts)
+
         let maxLifers = 0
         let minLifers = Infinity
-        cellLiferCounts.forEach((v) => {
+        regionCellCounts.forEach((v) => {
           if (v > maxLifers) maxLifers = v
           if (v < minLifers) minLifers = v
         })
-        if (cellLiferCounts.size === 0) minLifers = 0
+        if (regionCellCounts.size === 0) minLifers = 0
 
-        // Report the unfiltered data range so the slider knows the bounds (only when changed)
+        // Report the data range (region-aware) so the slider knows the bounds
         if (lastReportedRangeRef.current[0] !== minLifers || lastReportedRangeRef.current[1] !== maxLifers) {
           lastReportedRangeRef.current = [minLifers, maxLifers]
           onDataRangeChangeRef.current?.([minLifers, maxLifers])
@@ -1379,14 +1396,14 @@ export default memo(function MapView({
         // Apply lifer count range filter
         const [filterMin, filterMax] = liferCountRange
         const filteredCounts = new Map<number, number>()
-        cellLiferCounts.forEach((liferCount, cellId) => {
+        regionCellCounts.forEach((liferCount, cellId) => {
           if (liferCount >= filterMin && liferCount <= filterMax) {
             filteredCounts.set(cellId, liferCount)
           }
         })
 
-        // Apply region mask before computing legend and normalization
-        const maskedCounts = regionMask(filteredCounts)
+        // maskedCounts is already region-masked since we started from regionCellCounts
+        const maskedCounts = filteredCounts
 
         let filteredMax = 0
         let filteredMin = Infinity
