@@ -49,7 +49,7 @@ interface MapViewProps {
   liferCountRange?: [number, number]
   onDataRangeChange?: (range: [number, number]) => void
   showTotalRichness?: boolean
-  speciesFilters?: { conservStatus: string; invasionStatus: string; difficulty: string }
+  speciesFilters?: { family: string; region: string; conservStatus: string; invasionStatus: string; difficulty: string }
 }
 
 interface OccurrenceRecord {
