@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { getDisplayGroup } from '../lib/familyGroups'
 
 // Safe min/max for large arrays (avoids call stack overflow with spread on 100K+ elements)
 function safeMin(arr: number[]): number {
@@ -56,6 +57,7 @@ interface SpeciesMeta {
   difficultyLabel?: string
   isRestrictedRange?: boolean
   invasionStatus?: Record<string, string>
+  regions?: string[]
 }
 
 interface GoalBirdInCell {
@@ -301,17 +303,19 @@ export default memo(function MapView({
   useEffect(() => { selectedSpeciesRef.current = selectedSpecies }, [selectedSpecies])
   useEffect(() => { onDataRangeChangeRef.current = onDataRangeChange }, [onDataRangeChange])
 
-  // Build species filter ID set from Species tab filters (conservation, invasion, difficulty)
+  // Build species filter ID set from Species tab filters (family, region, conservation, invasion, difficulty)
   // null = no filter active (show all), Set = only these species match
   const speciesFilterIdsRef = useRef<Set<number> | null>(null)
   useEffect(() => {
-    const hasFilter = speciesFilters && (speciesFilters.conservStatus || speciesFilters.invasionStatus || speciesFilters.difficulty)
+    const hasFilter = speciesFilters && (speciesFilters.family || speciesFilters.region || speciesFilters.conservStatus || speciesFilters.invasionStatus || speciesFilters.difficulty)
     if (!hasFilter || !speciesMetaCache) {
       speciesFilterIdsRef.current = null
       return
     }
     const matching = new Set<number>()
     for (const s of speciesMetaCache) {
+      if (speciesFilters.family && getDisplayGroup(s.familyComName ?? '') !== speciesFilters.family) continue
+      if (speciesFilters.region && !(s.regions?.includes(speciesFilters.region))) continue
       if (speciesFilters.conservStatus && s.conservStatus !== speciesFilters.conservStatus) continue
       if (speciesFilters.difficulty && s.difficultyLabel !== speciesFilters.difficulty) continue
       if (speciesFilters.invasionStatus) {

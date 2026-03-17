@@ -18,16 +18,20 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   const [error, setError] = useState<string | null>(null)
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string> | 'all'>('all') // 'all' = all collapsed
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFamily, setSelectedFamily] = useState<string>('') // '' means "All Families"
-  // Use lifted state from App if provided, otherwise local state
+  // All filters are lifted to App.tsx via speciesFilters / onSpeciesFiltersChange
+  const selectedFamily = speciesFilters?.family ?? ''
+  const selectedRegionFilter = speciesFilters?.region ?? ''
   const selectedConservStatus = speciesFilters?.conservStatus ?? ''
   const selectedInvasionStatus = speciesFilters?.invasionStatus ?? ''
   const selectedDifficulty = speciesFilters?.difficulty ?? ''
-  const setSelectedConservStatus = (v: string) => onSpeciesFiltersChange?.({ conservStatus: v, invasionStatus: selectedInvasionStatus, difficulty: selectedDifficulty })
-  const setSelectedInvasionStatus = (v: string) => onSpeciesFiltersChange?.({ conservStatus: selectedConservStatus, invasionStatus: v, difficulty: selectedDifficulty })
-  const setSelectedDifficulty = (v: string) => onSpeciesFiltersChange?.({ conservStatus: selectedConservStatus, invasionStatus: selectedInvasionStatus, difficulty: v })
+  const updateFilters = (patch: Partial<NonNullable<typeof speciesFilters>>) =>
+    onSpeciesFiltersChange?.({ family: selectedFamily, region: selectedRegionFilter, conservStatus: selectedConservStatus, invasionStatus: selectedInvasionStatus, difficulty: selectedDifficulty, ...patch })
+  const setSelectedFamily = (v: string) => updateFilters({ family: v })
+  const setSelectedRegionFilter = (v: string) => updateFilters({ region: v })
+  const setSelectedConservStatus = (v: string) => updateFilters({ conservStatus: v })
+  const setSelectedInvasionStatus = (v: string) => updateFilters({ invasionStatus: v })
+  const setSelectedDifficulty = (v: string) => updateFilters({ difficulty: v })
   const [seenFilter, setSeenFilter] = useState<'' | 'seen' | 'unseen' | 'lifers'>('') // '' means "All"
-  const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>('') // '' means all regions
   const [regionNameMap, setRegionNameMap] = useState<Record<string, string>>({})
   const [showFilters, setShowFilters] = useState(false)
   const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
@@ -397,10 +401,8 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter, selectedRegionFilter].filter(v => v !== '').length
 
   const clearAllFilters = () => {
-    setSelectedFamily('')
-    onSpeciesFiltersChange?.({ conservStatus: '', invasionStatus: '', difficulty: '' })
+    onSpeciesFiltersChange?.({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
     setSeenFilter('')
-    setSelectedRegionFilter('')
   }
 
   return (

@@ -40,7 +40,7 @@ function App() {
   const [liferCountRange, setLiferCountRange] = useState<[number, number]>([0, 9999])
   const [dataRange, setDataRange] = useState<[number, number]>([0, 0])
   const [showTotalRichness, setShowTotalRichness] = useState(false)
-  const [speciesFilters, setSpeciesFilters] = useState<SpeciesFilters>({ conservStatus: '', invasionStatus: '', difficulty: '' })
+  const [speciesFilters, setSpeciesFilters] = useState<SpeciesFilters>({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
   const { seenSpecies } = useLifeList()
 
   // Persist dark mode and toggle class on document root

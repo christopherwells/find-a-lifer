@@ -64,6 +64,8 @@ export interface ExploreTabProps {
 }
 
 export interface SpeciesFilters {
+  family: string           // '' = all (display group name)
+  region: string           // '' = all (region code)
   conservStatus: string    // '' = all
   invasionStatus: string   // '' = all
   difficulty: string       // '' = all
