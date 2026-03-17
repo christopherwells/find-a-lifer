@@ -22,7 +22,7 @@ export interface Species {
   sciName: string
   familyComName: string
   taxonOrder: number
-  invasionStatus: string
+  invasionStatus: Record<string, string>
   conservStatus: string
   difficultyScore: number
   difficultyLabel: string

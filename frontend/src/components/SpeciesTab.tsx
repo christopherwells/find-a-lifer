@@ -325,8 +325,14 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
         const matchesConserv =
           !selectedConservStatus || species.conservStatus === selectedConservStatus
 
+        // Per-region invasion status: use region filter if active, else "native wins"
+        const effectiveInvasion = selectedRegionFilter
+          ? species.invasionStatus?.[selectedRegionFilter]
+          : Object.values(species.invasionStatus || {}).includes('Native') ? 'Native'
+          : Object.values(species.invasionStatus || {}).includes('Introduced') ? 'Introduced'
+          : Object.values(species.invasionStatus || {})[0] ?? ''
         const matchesInvasion =
-          !selectedInvasionStatus || species.invasionStatus === selectedInvasionStatus
+          !selectedInvasionStatus || effectiveInvasion === selectedInvasionStatus
 
         const matchesDifficulty =
           !selectedDifficulty || species.difficultyLabel === selectedDifficulty
@@ -554,7 +560,7 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
                 <option value="">All Origins</option>
                 <option value="Native">Native</option>
                 <option value="Introduced">Introduced</option>
-                <option value="Rare/Accidental">Rare/Accidental</option>
+                <option value="Vagrant/Accidental">Vagrant/Accidental</option>
               </select>
               <select
                 id="difficulty-filter"

@@ -314,7 +314,8 @@ def run_stixel_ensemble(detections, cell_week_checklists, cell_covariates,
 
 def save_archive(cell_week_checklists_by_res, detections_by_res,
                  species_names, species_scinames, species_taxon_order,
-                 species_family, species_regions, processed_regions):
+                 species_family, species_regions, species_exotic_codes,
+                 processed_regions):
     """Save intermediate counts to archive directory."""
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -343,6 +344,8 @@ def save_archive(cell_week_checklists_by_res, detections_by_res,
         "taxon_order": {k: v for k, v in species_taxon_order.items()},
         "family": species_family,
         "regions": {k: sorted(v) for k, v in species_regions.items()},
+        "exotic_codes": {k: {r: sorted(codes) for r, codes in regions.items()}
+                         for k, regions in species_exotic_codes.items()},
     }
     with open(ARCHIVE_DIR / f"species_meta.json", "w") as f:
         json.dump(meta, f, separators=(",", ":"))
@@ -394,6 +397,7 @@ def load_archive():
     species_taxon_order = {}
     species_family = {}
     species_regions = defaultdict(set)
+    species_exotic_codes = defaultdict(lambda: defaultdict(set))
     meta_file = ARCHIVE_DIR / "species_meta.json"
     if meta_file.exists():
         meta = json.load(open(meta_file))
@@ -403,11 +407,17 @@ def load_archive():
         species_family = meta.get("family", {})
         for k, v in meta.get("regions", {}).items():
             species_regions[k] = set(v)
+        for k, regions in meta.get("exotic_codes", {}).items():
+            for r, codes in regions.items():
+                species_exotic_codes[k][r] = set(codes)
         print(f"  Loaded species metadata: {len(species_names)} species")
+        if species_exotic_codes:
+            print(f"  Loaded exotic codes for {len(species_exotic_codes)} species")
 
     return (cell_week_checklists_by_res, detections_by_res,
             species_names, species_scinames, species_taxon_order,
-            species_family, species_regions, processed_regions)
+            species_family, species_regions, species_exotic_codes,
+            processed_regions)
 
 
 # ---- EBD file discovery ----
@@ -606,7 +616,8 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
 
 def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_res,
                      detections_by_res, species_names, species_scinames,
-                     species_taxon_order, species_family, species_regions):
+                     species_taxon_order, species_family, species_regions,
+                     species_exotic_codes):
     """Process a single EBD observations file, recording detections at all resolutions."""
     total_obs = 0
     matched_obs = 0
@@ -656,6 +667,10 @@ def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_
 
             # Track which region this species was detected in
             species_regions[taxon_id].add(state)
+
+            # Track exotic/origin code per region
+            exotic_code = row.get("EXOTIC CODE", "").strip()
+            species_exotic_codes[taxon_id][state].add(exotic_code)
 
             if total_obs % 2000000 == 0:
                 print(f"    {state}: {total_obs:,} obs, {matched_obs:,} matched, {len(species_names):,} species...")
@@ -1103,7 +1118,7 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
 def generate_output(cell_week_checklists_by_res, detections_by_res,
                     species_names, species_scinames, species_taxon_order,
                     species_family, species_regions, processed_regions,
-                    ebird_taxonomy):
+                    ebird_taxonomy, species_exotic_codes=None):
     """Generate all output files from accumulated data."""
 
     # Assign species codes
@@ -1147,11 +1162,37 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
 
     print(f"  Species codes: {taxonomy_matches} from eBird taxonomy, {len(species_names) - taxonomy_matches} generated")
 
+    # Load conservation status reference (from Wikidata/IUCN)
+    CONSERVATION_FILE = Path(__file__).parent / "reference" / "conservation_status.json"
+    conservation_map = {}
+    if CONSERVATION_FILE.exists():
+        with open(CONSERVATION_FILE) as f:
+            conservation_map = json.load(f)
+        print(f"\n  Loaded conservation status for {len(conservation_map)} species")
+    else:
+        print(f"\n  No conservation_status.json found — skipping conservation status")
+
+    IUCN_CODE_TO_LABEL = {
+        "LC": "Least Concern", "NT": "Near Threatened", "VU": "Vulnerable",
+        "EN": "Endangered", "CR": "Critically Endangered", "EW": "Extinct in Wild",
+        "EX": "Extinct", "DD": "Data Deficient",
+    }
+
+    # Exotic code → invasion status mapping
+    # Priority for mixed codes in a region: N > P > X > ""
+    EXOTIC_PRIORITY = {"N": 3, "P": 2, "X": 1, "": 0}
+    EXOTIC_TO_STATUS = {"N": "Introduced", "P": "Vagrant/Accidental", "X": "Vagrant/Accidental", "": "Native"}
+
+    if species_exotic_codes is None:
+        species_exotic_codes = {}
+
     # Write species.json
     print("\nWriting shared species data...")
     sys.stdout.flush()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    conserv_matched = 0
+    exotic_matched = 0
     species_list = []
     for taxon_id in sorted(species_names.keys()):
         sci_name = species_scinames.get(taxon_id, "")
@@ -1169,6 +1210,26 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
                 entry["taxonOrder"] = ebird_taxonomy[sci_name]["taxonOrder"]
         elif taxon_id in species_family:
             entry["familyComName"] = species_family[taxon_id]
+
+        # Conservation status
+        iucn_code = conservation_map.get(sci_name)
+        if iucn_code and iucn_code in IUCN_CODE_TO_LABEL:
+            entry["conservStatus"] = IUCN_CODE_TO_LABEL[iucn_code]
+            conserv_matched += 1
+        else:
+            entry["conservStatus"] = "Unknown"
+
+        # Per-region invasion status
+        if taxon_id in species_exotic_codes:
+            invasion = {}
+            for region, codes in species_exotic_codes[taxon_id].items():
+                # Pick highest-priority exotic code for this region
+                best_code = max(codes, key=lambda c: EXOTIC_PRIORITY.get(c, 0))
+                invasion[region] = EXOTIC_TO_STATUS.get(best_code, "Native")
+            if invasion:
+                entry["invasionStatus"] = invasion
+                exotic_matched += 1
+
         species_list.append(entry)
     species_list.sort(key=lambda s: s["taxonOrder"])
     # Build region names for regions actually present in the data
@@ -1183,6 +1244,8 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     with open(OUTPUT_DIR / "species.json", "w") as f:
         json.dump(species_json, f, separators=(",", ":"))
     print(f"  species.json: {len(species_list)} species, {len(region_names_used)} regions")
+    print(f"  Conservation status: {conserv_matched}/{len(species_list)} matched")
+    print(f"  Invasion status: {exotic_matched}/{len(species_list)} with exotic data")
 
     families = set(s.get("familyComName", "") for s in species_list if s.get("familyComName"))
     print(f"  Families: {len(families)}")
@@ -1349,7 +1412,8 @@ def main():
     if archive:
         (cell_week_checklists_by_res, detections_by_res,
          species_names, species_scinames, species_taxon_order,
-         species_family, species_regions, processed_regions) = archive
+         species_family, species_regions, species_exotic_codes,
+         processed_regions) = archive
     else:
         print("\nNo archive found — starting fresh")
         cell_week_checklists_by_res = {res: defaultdict(lambda: defaultdict(int)) for res in RESOLUTIONS}
@@ -1359,6 +1423,7 @@ def main():
         species_taxon_order = {}
         species_family = {}
         species_regions = defaultdict(set)
+        species_exotic_codes = defaultdict(lambda: defaultdict(set))
         processed_regions = set()
 
     # Find new EBD files (skip already-processed regions)
@@ -1417,7 +1482,7 @@ def main():
         generate_output(cell_week_checklists_by_res, detections_by_res,
                         species_names, species_scinames, species_taxon_order,
                         species_family, species_regions, processed_regions,
-                        ebird_taxonomy)
+                        ebird_taxonomy, species_exotic_codes)
         elapsed = time.time() - t0
         print(f"\n{'=' * 60}")
         print(f"  Rebuilt in {elapsed:.1f}s")
@@ -1485,7 +1550,8 @@ def main():
         total, matched = process_ebd_file(
             ebd_file, region, valid_checklists, cell_week_checklists_by_res,
             detections_by_res, species_names, species_scinames,
-            species_taxon_order, species_family, species_regions
+            species_taxon_order, species_family, species_regions,
+            species_exotic_codes
         )
         grand_total_obs += total
         grand_matched_obs += matched
@@ -1502,7 +1568,8 @@ def main():
     sys.stdout.flush()
     save_archive(cell_week_checklists_by_res, detections_by_res,
                  species_names, species_scinames, species_taxon_order,
-                 species_family, species_regions, processed_regions)
+                 species_family, species_regions, species_exotic_codes,
+                 processed_regions)
 
     # Save cumulative filter stats
     existing_stats = {}
@@ -1533,7 +1600,7 @@ def main():
     generate_output(cell_week_checklists_by_res, detections_by_res,
                     species_names, species_scinames, species_taxon_order,
                     species_family, species_regions, processed_regions,
-                    ebird_taxonomy)
+                    ebird_taxonomy, species_exotic_codes)
 
     elapsed = time.time() - t0
     print(f"\n{'=' * 60}")

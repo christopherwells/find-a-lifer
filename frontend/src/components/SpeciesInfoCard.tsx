@@ -105,15 +105,30 @@ export default function SpeciesInfoCard({
                 📍 Restricted Range
               </span>
             )}
-            {/* Invasion status badge if not empty/native */}
-            {species.invasionStatus && species.invasionStatus !== '' && species.invasionStatus !== 'Native' && (
-              <span
-                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
-                data-testid="species-info-invasion-badge"
-              >
-                ⚠️ {species.invasionStatus}
-              </span>
-            )}
+            {/* Invasion status badge if not native everywhere */}
+            {(() => {
+              const statuses = Object.values(species.invasionStatus || {})
+              const isNativeAnywhere = statuses.includes('Native')
+              const nonNativeRegions = Object.entries(species.invasionStatus || {})
+                .filter(([, s]) => s !== 'Native')
+              if (nonNativeRegions.length === 0 || (isNativeAnywhere && nonNativeRegions.length === 0)) return null
+              // Pick the highest-priority non-native status (Introduced > Vagrant/Accidental)
+              const hasIntroduced = nonNativeRegions.some(([, s]) => s === 'Introduced')
+              const primaryStatus = hasIntroduced ? 'Introduced' : nonNativeRegions[0][1]
+              const regionsForStatus = nonNativeRegions.filter(([, s]) => s === primaryStatus)
+              // If native somewhere but introduced/vagrant elsewhere, show with regions
+              const label = isNativeAnywhere
+                ? `${primaryStatus} (${regionsForStatus.map(([r]) => r).join(', ')})`
+                : primaryStatus
+              return (
+                <span
+                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
+                  data-testid="species-info-invasion-badge"
+                >
+                  ⚠️ {label}
+                </span>
+              )
+            })()}
           </div>
 
           {/* eBird link */}
