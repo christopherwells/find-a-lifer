@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { fetchSpecies } from '../lib/dataCache'
 
@@ -76,8 +76,6 @@ export default function ProfileTab() {
   const [importError, setImportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   const handleCheckForUpdates = useCallback(async () => {
     setUpdating(true)
     const success = await clearAppCaches()
@@ -89,9 +87,47 @@ export default function ProfileTab() {
     }
   }, [])
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const handleImportClick = async () => {
+    if (importing) return
+    try {
+      // Modern File System Access API (Chrome 86+)
+      if ('showOpenFilePicker' in window) {
+        const [handle] = await (window as any).showOpenFilePicker({
+          types: [{
+            description: 'CSV files',
+            accept: { 'text/csv': ['.csv', '.txt', '.tsv'] }
+          }],
+          multiple: false
+        })
+        const file = await handle.getFile()
+        handleFileImport(file)
+        return
+      }
+    } catch (err: any) {
+      // User cancelled the picker
+      if (err?.name === 'AbortError') return
+      console.error('showOpenFilePicker failed:', err)
+    }
+
+    // Fallback for browsers without File System Access API
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.csv,.txt,.tsv'
+    input.style.position = 'fixed'
+    input.style.left = '-9999px'
+    document.body.appendChild(input)
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (file) handleFileImport(file)
+      document.body.removeChild(input)
+    }
+    input.addEventListener('cancel', () => {
+      document.body.removeChild(input)
+    })
+    input.click()
+  }
+
+  const handleFileImport = async (file: File) => {
 
     setImporting(true)
     setImportResult(null)
@@ -195,10 +231,6 @@ export default function ProfileTab() {
       setImportError(error instanceof Error ? error.message : 'Failed to import CSV file')
     } finally {
       setImporting(false)
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
     }
   }
 
@@ -260,25 +292,19 @@ export default function ProfileTab() {
         <p className="text-xs text-gray-600 dark:text-gray-400">
           Upload your eBird CSV life list to automatically mark species as seen.
         </p>
-        <label
-          className={`block w-full px-4 py-2 text-center rounded-lg transition-colors cursor-pointer ${
+        <button
+          type="button"
+          onClick={handleImportClick}
+          disabled={importing}
+          className={`block w-full px-4 py-2 text-center rounded-lg transition-colors ${
             importing
               ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500'
               : 'bg-[#2C3E7B] text-white hover:bg-[#1e2a54] active:bg-[#162044]'
           }`}
           data-testid="import-csv-button"
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.txt,.tsv,text/csv,text/plain,text/tab-separated-values"
-            onChange={handleFileChange}
-            disabled={importing}
-            className="sr-only"
-            data-testid="csv-file-input"
-          />
           {importing ? 'Importing...' : 'Import CSV'}
-        </label>
+        </button>
 
         {/* Import Progress/Results */}
         {importing && (

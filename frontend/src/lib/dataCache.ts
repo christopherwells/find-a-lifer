@@ -10,6 +10,7 @@ import type { Species } from '../components/types'
 const DATA_BASE = `${import.meta.env.BASE_URL}data`
 
 let speciesPromise: Promise<Species[]> | null = null
+let regionNamesPromise: Promise<Record<string, string>> | null = null
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON structure varies by consumer (MapLibre, custom)
 let regionsPromise: Promise<any> | null = null
@@ -46,20 +47,40 @@ function resPath(resolution?: number): string {
   return DATA_BASE
 }
 
-/** Fetch species metadata (cached) */
+/** Fetch species metadata (cached). Handles both old flat array and new {regionNames, species} formats. */
 export function fetchSpecies(): Promise<Species[]> {
   if (!speciesPromise) {
-    speciesPromise = fetch(`${DATA_BASE}/species.json`)
+    const p = fetch(`${DATA_BASE}/species.json`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .catch(err => {
-        speciesPromise = null
-        throw err
+      .then((data: Species[] | { regionNames: Record<string, string>; species: Species[] }) => {
+        if (Array.isArray(data)) {
+          // Old flat array format — no region names available
+          return data
+        }
+        // New format: { regionNames: {...}, species: [...] }
+        if (data.regionNames) {
+          regionNamesPromise = Promise.resolve(data.regionNames)
+        }
+        return data.species
       })
+    speciesPromise = p.catch(err => {
+      speciesPromise = null
+      throw err
+    })
   }
   return speciesPromise
+}
+
+/** Fetch region name mapping (cached). Only available after fetchSpecies() resolves with new-format data. */
+export function fetchRegionNames(): Promise<Record<string, string>> {
+  if (!regionNamesPromise) {
+    // Trigger species fetch which populates regionNamesPromise
+    return fetchSpecies().then(() => regionNamesPromise ?? Promise.resolve({}))
+  }
+  return regionNamesPromise
 }
 
 /** Fetch grid GeoJSON for a specific resolution (cached) */

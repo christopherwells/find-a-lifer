@@ -1,14 +1,19 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
-import type { Species, SpeciesByFamily, SpeciesTabProps } from './types'
+import type { Species, SpeciesTabProps } from './types'
 import SpeciesInfoCard from './SpeciesInfoCard'
-import { fetchSpecies } from '../lib/dataCache'
+import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
+import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
+
+/** Species grouped by display group name, in taxonomic order */
+type SpeciesByGroup = Record<string, Species[]>
 
 export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
-  const [speciesByFamily, setSpeciesByFamily] = useState<SpeciesByFamily>({})
+  const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
+  const [groupOrder, setGroupOrder] = useState<string[]>([]) // groups in taxonomic order
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string> | 'all'>('all') // 'all' = all collapsed
@@ -18,7 +23,10 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const [selectedInvasionStatus, setSelectedInvasionStatus] = useState<string>('') // '' means "All"
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('') // '' means "All Difficulties"
   const [seenFilter, setSeenFilter] = useState<'' | 'seen' | 'unseen' | 'lifers'>('') // '' means "All"
-  const { isSpeciesSeen, toggleSpecies, markSpeciesSeen, markSpeciesUnseen, getTotalSeen } = useLifeList()
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>('') // '' means all regions
+  const [regionNameMap, setRegionNameMap] = useState<Record<string, string>>({})
+  const [showFilters, setShowFilters] = useState(false)
+  const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
 
   // Region filtering state
   const [regionSpeciesCodes, setRegionSpeciesCodes] = useState<Set<string> | null>(null)
@@ -65,16 +73,23 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
         const sorted = data.sort((a, b) => a.taxonOrder - b.taxonOrder)
         setAllSpecies(sorted)
 
-        // Group by family
-        const byFamily: SpeciesByFamily = {}
+        // Group by display group (species stay in taxonOrder within each group)
+        const byGroup: SpeciesByGroup = {}
+        const groupMinOrder: Record<string, number> = {}
         sorted.forEach((species) => {
-          const family = species.familyComName
-          if (!byFamily[family]) {
-            byFamily[family] = []
+          const group = getDisplayGroup(species.familyComName)
+          if (!byGroup[group]) {
+            byGroup[group] = []
+            groupMinOrder[group] = species.taxonOrder
           }
-          byFamily[family].push(species)
+          byGroup[group].push(species)
+          groupMinOrder[group] = Math.min(groupMinOrder[group], species.taxonOrder)
         })
-        setSpeciesByFamily(byFamily)
+        setSpeciesByGroup(byGroup)
+        // Sort groups by ecological display order (mostly taxonomic with beginner-friendly adjustments)
+        setGroupOrder(Object.keys(byGroup).sort((a, b) =>
+          getGroupSortKey(a, groupMinOrder[a]) - getGroupSortKey(b, groupMinOrder[b])
+        ))
         setLoading(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
@@ -84,6 +99,28 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
 
     loadSpecies()
   }, [])
+
+  // Load region names after species are loaded
+  useEffect(() => {
+    if (allSpecies.length === 0) return
+    const loadRegionNames = async () => {
+      // Build a fallback map from regions found in species data
+      const FALLBACK_NAMES: Record<string, string> = {
+        BM: 'Bermuda', BS: 'Bahamas', CA: 'Canada', CR: 'Costa Rica',
+        CU: 'Cuba', DO: 'Dominican Republic', GL: 'Greenland', GT: 'Guatemala',
+        HN: 'Honduras', HT: 'Haiti', JM: 'Jamaica', MX: 'Mexico',
+        NI: 'Nicaragua', PA: 'Panama', PM: 'Saint Pierre and Miquelon',
+        PR: 'Puerto Rico', SV: 'El Salvador', US: 'United States',
+      }
+      try {
+        const names = await fetchRegionNames()
+        setRegionNameMap(Object.keys(names).length > 0 ? names : FALLBACK_NAMES)
+      } catch {
+        setRegionNameMap(FALLBACK_NAMES)
+      }
+    }
+    loadRegionNames()
+  }, [allSpecies])
 
   // Load goal lists on mount
   useEffect(() => {
@@ -145,19 +182,19 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     return collapsedFamilies.has(familyName)
   }
 
-  const toggleFamily = (familyName: string) => {
+  const toggleFamily = (groupName: string) => {
     setCollapsedFamilies((prev) => {
       if (prev === 'all') {
-        // First expansion from all-collapsed state: create set with all families EXCEPT this one
-        const allFamilyNames = new Set(Object.keys(speciesByFamily))
-        allFamilyNames.delete(familyName)
-        return allFamilyNames
+        // First expansion from all-collapsed state: create set with all groups EXCEPT this one
+        const allGroupNames = new Set(groupOrder)
+        allGroupNames.delete(groupName)
+        return allGroupNames
       }
       const next = new Set(prev)
-      if (next.has(familyName)) {
-        next.delete(familyName)
+      if (next.has(groupName)) {
+        next.delete(groupName)
       } else {
-        next.add(familyName)
+        next.add(groupName)
       }
       return next
     })
@@ -216,16 +253,17 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     setShowSuggestions(false)
     setHighlightedSpecies(species.speciesCode)
 
-    // Expand the family if it's collapsed
-    if (isFamilyCollapsed(species.familyComName)) {
+    // Expand the group if it's collapsed
+    const group = getDisplayGroup(species.familyComName)
+    if (isFamilyCollapsed(group)) {
       setCollapsedFamilies((prev) => {
         if (prev === 'all') {
-          const allFamilyNames = new Set(Object.keys(speciesByFamily))
-          allFamilyNames.delete(species.familyComName)
-          return allFamilyNames
+          const allGroupNames = new Set(groupOrder)
+          allGroupNames.delete(group)
+          return allGroupNames
         }
         const next = new Set(prev)
-        next.delete(species.familyComName)
+        next.delete(group)
         return next
       })
     }
@@ -266,46 +304,53 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Filter species by search term, selected family, conservation status, invasion status, and region
-  const filteredFamilies = Object.keys(speciesByFamily).reduce((acc, familyName) => {
-    // If a family is selected, only include that family
-    if (selectedFamily && familyName !== selectedFamily) {
-      return acc
+  // Filter species by search term, selected group, conservation status, invasion status, and region
+  const filteredGroups = useMemo(() => {
+    const result: SpeciesByGroup = {}
+    for (const groupName of groupOrder) {
+      // If a group is selected, only include that group
+      if (selectedFamily && groupName !== selectedFamily) continue
+
+      const groupSpecies = speciesByGroup[groupName]
+      if (!groupSpecies) continue
+
+      const filtered = groupSpecies.filter((species) => {
+        const search = searchTerm.toLowerCase()
+        const matchesSearch =
+          species.comName.toLowerCase().includes(search) ||
+          species.sciName.toLowerCase().includes(search) ||
+          groupName.toLowerCase().includes(search) ||
+          species.familyComName.toLowerCase().includes(search)
+
+        const matchesConserv =
+          !selectedConservStatus || species.conservStatus === selectedConservStatus
+
+        const matchesInvasion =
+          !selectedInvasionStatus || species.invasionStatus === selectedInvasionStatus
+
+        const matchesDifficulty =
+          !selectedDifficulty || species.difficultyLabel === selectedDifficulty
+
+        const matchesRegion =
+          !regionSpeciesCodes || regionSpeciesCodes.has(species.speciesCode)
+
+        const matchesRegionFilter =
+          !selectedRegionFilter || (species.regions?.includes(selectedRegionFilter) ?? false)
+
+        const matchesSeen =
+          !seenFilter ||
+          (seenFilter === 'seen' && isSpeciesSeen(species.speciesCode)) ||
+          (seenFilter === 'unseen' && !isSpeciesSeen(species.speciesCode)) ||
+          (seenFilter === 'lifers' && !isSpeciesSeen(species.speciesCode))
+
+        return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion && matchesRegionFilter && matchesSeen
+      })
+      if (filtered.length > 0) {
+        result[groupName] = filtered
+      }
     }
-
-    const familySpecies = speciesByFamily[familyName]
-    const filtered = familySpecies.filter((species) => {
-      const search = searchTerm.toLowerCase()
-      const matchesSearch =
-        species.comName.toLowerCase().includes(search) ||
-        species.sciName.toLowerCase().includes(search) ||
-        familyName.toLowerCase().includes(search)
-
-      const matchesConserv =
-        !selectedConservStatus || species.conservStatus === selectedConservStatus
-
-      const matchesInvasion =
-        !selectedInvasionStatus || species.invasionStatus === selectedInvasionStatus
-
-      const matchesDifficulty =
-        !selectedDifficulty || species.difficultyLabel === selectedDifficulty
-
-      const matchesRegion =
-        !regionSpeciesCodes || regionSpeciesCodes.has(species.speciesCode)
-
-      const matchesSeen =
-        !seenFilter ||
-        (seenFilter === 'seen' && isSpeciesSeen(species.speciesCode)) ||
-        (seenFilter === 'unseen' && !isSpeciesSeen(species.speciesCode)) ||
-        (seenFilter === 'lifers' && !isSpeciesSeen(species.speciesCode))
-
-      return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion && matchesSeen
-    })
-    if (filtered.length > 0) {
-      acc[familyName] = filtered
-    }
-    return acc
-  }, {} as SpeciesByFamily)
+    return result
+  }, [groupOrder, speciesByGroup, selectedFamily, searchTerm, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, regionSpeciesCodes, selectedRegionFilter, seenFilter, isSpeciesSeen])
 
   if (loading) {
     return (
@@ -333,13 +378,13 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
   const seenSpecies = getTotalSeen()
 
   // Calculate filtered counts
-  const filteredSpeciesCount = Object.values(filteredFamilies).reduce(
-    (sum, familySpecies) => sum + familySpecies.length,
+  const filteredSpeciesCount = Object.values(filteredGroups).reduce(
+    (sum, groupSpecies) => sum + groupSpecies.length,
     0
   )
 
   // Count active filters for the clear filters button
-  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter].filter(v => v !== '').length
+  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter, selectedRegionFilter].filter(v => v !== '').length
 
   const clearAllFilters = () => {
     setSelectedFamily('')
@@ -347,29 +392,19 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
     setSelectedInvasionStatus('')
     setSelectedDifficulty('')
     setSeenFilter('')
+    setSelectedRegionFilter('')
   }
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="space-y-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+      <div className="space-y-1.5 pb-1.5 border-b border-gray-200 dark:border-gray-700">
+        {/* Title row */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="text-[11px] text-red-500 hover:text-red-700 flex items-center gap-0.5"
-                data-testid="clear-filters-btn"
-              >
-                Clear Filters
-                <span className="bg-red-100 text-red-600 rounded-full px-1 text-[10px] font-semibold">{activeFilterCount}</span>
-              </button>
-            )}
-          </div>
+          <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
           <span className="text-[11px] text-gray-500 dark:text-gray-400">
             <span className="font-semibold text-[#2C3E7B] dark:text-blue-400">{seenSpecies}</span>/{totalSpecies}
-            {(selectedFamily || selectedConservStatus || selectedInvasionStatus || selectedDifficulty || regionSpeciesCodes) && (
+            {filteredSpeciesCount !== totalSpecies && (
               <span className="text-gray-400 dark:text-gray-500 ml-1">({filteredSpeciesCount} shown)</span>
             )}
           </span>
@@ -384,138 +419,174 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
           </div>
         )}
 
-        {/* Search box with autocomplete */}
-        <div className="relative">
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search species..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            onFocus={() => searchTerm.trim().length > 0 && setShowSuggestions(true)}
-            className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
-            data-testid="species-search-input"
-          />
+        {/* Search + filter toggle row */}
+        <div className="flex gap-1.5">
+          <div className="relative flex-1">
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search species..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onFocus={() => searchTerm.trim().length > 0 && setShowSuggestions(true)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+              data-testid="species-search-input"
+            />
 
-          {/* Autocomplete suggestions dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div
-              ref={suggestionsRef}
-              className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-              data-testid="autocomplete-suggestions"
-            >
-              {suggestions.map((species) => (
-                <button
-                  key={species.speciesCode}
-                  onClick={() => handleSelectSuggestion(species)}
-                  className="w-full text-left px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-50 dark:border-gray-700 last:border-b-0 transition-colors"
-                  data-testid={`suggestion-${species.speciesCode}`}
-                >
-                  <div className="text-xs font-medium text-[#2C3E50] dark:text-gray-200">{species.comName}</div>
-                  <div className="text-[10px] text-gray-400 italic">{species.sciName} · {species.familyComName}</div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Filter Grid */}
-        <div className="grid grid-cols-3 gap-1.5">
-          <select
-            id="family-filter"
-            value={selectedFamily}
-            onChange={(e) => setSelectedFamily(e.target.value)}
-            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 col-span-2"
-            data-testid="family-filter"
-          >
-            <option value="">All Families ({Object.keys(speciesByFamily).length})</option>
-            {Object.keys(speciesByFamily).sort().map((familyName) => (
-              <option key={familyName} value={familyName}>
-                {familyName} ({speciesByFamily[familyName].length})
-              </option>
-            ))}
-          </select>
-          <select
-            id="seen-filter"
-            value={seenFilter}
-            onChange={(e) => setSeenFilter(e.target.value as '' | 'seen' | 'unseen' | 'lifers')}
-            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-            data-testid="seen-filter"
-          >
-            <option value="">Seen & Unseen</option>
-            <option value="seen">Seen Only</option>
-            <option value="unseen">Unseen Only</option>
-          </select>
-          <select
-            id="conservation-filter"
-            value={selectedConservStatus}
-            onChange={(e) => setSelectedConservStatus(e.target.value)}
-            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-            data-testid="conservation-filter"
-          >
-            <option value="">All Statuses</option>
-            <option value="Least Concern">Least Concern</option>
-            <option value="Near Threatened">Near Threatened</option>
-            <option value="Vulnerable">Vulnerable</option>
-            <option value="Endangered">Endangered</option>
-            <option value="Critically Endangered">Critically Endangered</option>
-            <option value="Extinct in the Wild">Extinct in Wild</option>
-            <option value="Data Deficient">Data Deficient</option>
-            <option value="Unknown">Unknown</option>
-          </select>
-          <select
-            id="invasion-filter"
-            value={selectedInvasionStatus}
-            onChange={(e) => setSelectedInvasionStatus(e.target.value)}
-            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-            data-testid="invasion-filter"
-          >
-            <option value="">All Origins</option>
-            <option value="Native">Native</option>
-            <option value="Introduced">Introduced</option>
-            <option value="Rare/Accidental">Rare/Accidental</option>
-          </select>
-          <select
-            id="difficulty-filter"
-            value={selectedDifficulty}
-            onChange={(e) => setSelectedDifficulty(e.target.value)}
-            className="px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-            data-testid="difficulty-filter"
-          >
-            <option value="">All Levels</option>
-            <option value="Easy">Easy</option>
-            <option value="Moderate">Moderate</option>
-            <option value="Hard">Hard</option>
-            <option value="Very Hard">Very Hard</option>
-          </select>
-        </div>
-
-        {/* Global Select All/None */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-1 text-[11px]">
-            <span className="text-gray-500 dark:text-gray-400">Select:</span>
-            <button
-              onClick={() => {
-                const allFiltered = Object.values(filteredFamilies).flat()
-                allFiltered.forEach(s => markSpeciesSeen(s.speciesCode, s.comName, 'manual'))
-              }}
-              className="text-[#2C3E7B] hover:underline font-medium"
-              data-testid="global-select-all"
-            >
-              All
-            </button>
-            <span className="text-gray-300">|</span>
-            <button
-              onClick={() => {
-                const allFiltered = Object.values(filteredFamilies).flat()
-                allFiltered.forEach(s => markSpeciesUnseen(s.speciesCode))
-              }}
-              className="text-[#2C3E7B] hover:underline font-medium"
-              data-testid="global-select-none"
-            >
-              None
-            </button>
+            {/* Autocomplete suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                ref={suggestionsRef}
+                className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                data-testid="autocomplete-suggestions"
+              >
+                {suggestions.map((species) => (
+                  <button
+                    key={species.speciesCode}
+                    onClick={() => handleSelectSuggestion(species)}
+                    className="w-full text-left px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-50 dark:border-gray-700 last:border-b-0 transition-colors"
+                    data-testid={`suggestion-${species.speciesCode}`}
+                  >
+                    <div className="text-xs font-medium text-[#2C3E50] dark:text-gray-200">{species.comName}</div>
+                    <div className="text-[10px] text-gray-400 italic">{species.sciName} · {species.familyComName}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className={`px-2 py-1.5 text-xs border rounded-lg flex items-center gap-1 flex-shrink-0 transition-colors ${
+              showFilters || activeFilterCount > 0
+                ? 'border-[#2C3E7B] bg-[#2C3E7B]/5 text-[#2C3E7B] dark:border-blue-400 dark:bg-blue-900/20 dark:text-blue-400'
+                : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400'
+            }`}
+            data-testid="filter-toggle-btn"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+            </svg>
+            {activeFilterCount > 0 && (
+              <span className="bg-[#2C3E7B] text-white rounded-full w-4 h-4 text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+            )}
+          </button>
+        </div>
+
+        {/* Collapsible filters */}
+        {showFilters && (
+          <div className="space-y-1.5 pt-1">
+            {/* Primary filters: Region + Seen */}
+            <div className="flex gap-1.5">
+              {(() => {
+                const uniqueRegions = Array.from(
+                  new Set(allSpecies.flatMap(s => s.regions ?? []))
+                ).sort((a, b) => (regionNameMap[a] ?? a).localeCompare(regionNameMap[b] ?? b))
+                return uniqueRegions.length > 0 ? (
+                  <select
+                    id="region-filter"
+                    value={selectedRegionFilter}
+                    onChange={(e) => setSelectedRegionFilter(e.target.value)}
+                    className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                    data-testid="region-filter"
+                  >
+                    <option value="">All Regions</option>
+                    {uniqueRegions.map((code) => (
+                      <option key={code} value={code}>
+                        {regionNameMap[code] ?? code}
+                      </option>
+                    ))}
+                  </select>
+                ) : null
+              })()}
+              <select
+                id="seen-filter"
+                value={seenFilter}
+                onChange={(e) => setSeenFilter(e.target.value as '' | 'seen' | 'unseen' | 'lifers')}
+                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="seen-filter"
+              >
+                <option value="">Seen & Unseen</option>
+                <option value="seen">Seen Only</option>
+                <option value="unseen">Unseen Only</option>
+              </select>
+            </div>
+            {/* Group filter (full width) */}
+            <select
+              id="family-filter"
+              value={selectedFamily}
+              onChange={(e) => setSelectedFamily(e.target.value)}
+              className="w-full px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+              data-testid="family-filter"
+            >
+              <option value="">All Groups ({groupOrder.length})</option>
+              {groupOrder.map((groupName) => (
+                <option key={groupName} value={groupName}>
+                  {groupName} ({speciesByGroup[groupName]?.length ?? 0})
+                </option>
+              ))}
+            </select>
+            {/* Secondary filters row */}
+            <div className="flex gap-1.5">
+              <select
+                id="conservation-filter"
+                value={selectedConservStatus}
+                onChange={(e) => setSelectedConservStatus(e.target.value)}
+                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="conservation-filter"
+              >
+                <option value="">All Statuses</option>
+                <option value="Least Concern">Least Concern</option>
+                <option value="Near Threatened">Near Threatened</option>
+                <option value="Vulnerable">Vulnerable</option>
+                <option value="Endangered">Endangered</option>
+                <option value="Critically Endangered">Critically Endangered</option>
+                <option value="Extinct in the Wild">Extinct in Wild</option>
+                <option value="Data Deficient">Data Deficient</option>
+                <option value="Unknown">Unknown</option>
+              </select>
+              <select
+                id="invasion-filter"
+                value={selectedInvasionStatus}
+                onChange={(e) => setSelectedInvasionStatus(e.target.value)}
+                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="invasion-filter"
+              >
+                <option value="">All Origins</option>
+                <option value="Native">Native</option>
+                <option value="Introduced">Introduced</option>
+                <option value="Rare/Accidental">Rare/Accidental</option>
+              </select>
+              <select
+                id="difficulty-filter"
+                value={selectedDifficulty}
+                onChange={(e) => setSelectedDifficulty(e.target.value)}
+                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="difficulty-filter"
+              >
+                <option value="">All Levels</option>
+                <option value="Easy">Easy</option>
+                <option value="Moderate">Moderate</option>
+                <option value="Hard">Hard</option>
+                <option value="Very Hard">Very Hard</option>
+              </select>
+            </div>
+            {/* Clear filters */}
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="text-[11px] text-red-500 hover:text-red-700 flex items-center gap-0.5"
+                data-testid="clear-filters-btn"
+              >
+                Clear all filters
+                <span className="bg-red-100 text-red-600 rounded-full px-1 text-[10px] font-semibold">{activeFilterCount}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Expand/collapse + count bar */}
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-gray-400 dark:text-gray-500">{filteredSpeciesCount} species</span>
           <div className="flex items-center gap-1 text-[11px]">
             <button
               onClick={expandAllFamilies}
@@ -531,33 +602,32 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
             >
               ▶
             </button>
-            <span className="text-gray-400 dark:text-gray-500 ml-1">({filteredSpeciesCount})</span>
           </div>
         </div>
       </div>
 
-      {/* Species list by family */}
+      {/* Species list by group */}
       <div className="flex-1 overflow-y-auto mt-2">
-        {Object.keys(filteredFamilies).length === 0 ? (
+        {Object.keys(filteredGroups).length === 0 ? (
           <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">
             {searchTerm
               ? `No species matching "${searchTerm}"`
               : 'No species match the active filters'}
           </div>
         ) : (
-          Object.keys(filteredFamilies).map((familyName) => {
-            const familySpecies = filteredFamilies[familyName]
-            const isCollapsed = isFamilyCollapsed(familyName)
+          groupOrder.filter(g => filteredGroups[g]).map((groupName) => {
+            const groupSpecies = filteredGroups[groupName]
+            const isCollapsed = isFamilyCollapsed(groupName)
 
             return (
-              <div key={familyName}>
-                {/* Family header — compact, matching Lifers popup */}
+              <div key={groupName}>
+                {/* Group header */}
                 <div
-                  onClick={() => toggleFamily(familyName)}
+                  onClick={() => toggleFamily(groupName)}
                   className="w-full flex items-center justify-between px-2 py-1 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors sticky top-0 z-10 cursor-pointer select-none"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleFamily(familyName) }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleFamily(groupName) }}
                 >
                   <div className="flex items-center gap-1.5">
                     <svg
@@ -574,37 +644,15 @@ export default function SpeciesTab({ selectedRegion = null }: SpeciesTabProps) {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{familyName}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{groupName}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-gray-400">{familySpecies.length}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        familySpecies.forEach(s => markSpeciesSeen(s.speciesCode, s.comName, 'manual'))
-                      }}
-                      className="text-[10px] text-[#2C3E7B] hover:underline font-medium px-0.5"
-                      data-testid={`family-select-all-${familyName}`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        familySpecies.forEach(s => markSpeciesUnseen(s.speciesCode))
-                      }}
-                      className="text-[10px] text-[#2C3E7B] hover:underline font-medium px-0.5"
-                      data-testid={`family-select-none-${familyName}`}
-                    >
-                      None
-                    </button>
-                  </div>
+                  <span className="text-[10px] text-gray-400">{groupSpecies.length}</span>
                 </div>
 
-                {/* Species in family — compact single-line items */}
+                {/* Species in group — compact single-line items */}
                 {!isCollapsed && (
                   <div>
-                    {familySpecies.map((species) => (
+                    {groupSpecies.map((species) => (
                       <div
                         key={species.species_id}
                         ref={(el) => {

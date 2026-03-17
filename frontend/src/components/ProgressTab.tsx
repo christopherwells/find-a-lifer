@@ -3,6 +3,7 @@ import { useLifeList } from '../contexts/LifeListContext'
 import type { Species } from './types'
 import { ProgressSkeleton } from './Skeleton'
 import { fetchSpecies } from '../lib/dataCache'
+import { getDisplayGroup } from '../lib/familyGroups'
 
 export default function ProgressTab() {
   const { isSpeciesSeen, getTotalSeen } = useLifeList()
@@ -33,28 +34,28 @@ export default function ProgressTab() {
   const totalSeen = getTotalSeen()
   const percentComplete = totalSpecies > 0 ? (totalSeen / totalSpecies) * 100 : 0
 
-  // Calculate family breakdown
-  const familyStats: { [familyName: string]: { total: number; seen: number } } = {}
+  // Calculate group breakdown (using display groups, not raw families)
+  const groupStats: { [groupName: string]: { total: number; seen: number } } = {}
   allSpecies.forEach((species) => {
-    const family = species.familyComName
-    if (!familyStats[family]) {
-      familyStats[family] = { total: 0, seen: 0 }
+    const group = getDisplayGroup(species.familyComName)
+    if (!groupStats[group]) {
+      groupStats[group] = { total: 0, seen: 0 }
     }
-    familyStats[family].total++
+    groupStats[group].total++
     if (isSpeciesSeen(species.speciesCode)) {
-      familyStats[family].seen++
+      groupStats[group].seen++
     }
   })
 
-  // Sort families by total species count (descending)
-  const sortedFamilies = Object.entries(familyStats).sort((a, b) => b[1].total - a[1].total)
+  // Sort groups by total species count (descending)
+  const sortedGroups = Object.entries(groupStats).sort((a, b) => b[1].total - a[1].total)
 
   // Calculate quick stats
-  const familiesStarted = Object.values(familyStats).filter(s => s.seen > 0).length
-  const familiesCompleted = Object.values(familyStats).filter(s => s.seen === s.total && s.total > 0).length
+  const groupsStarted = Object.values(groupStats).filter(s => s.seen > 0).length
+  const groupsCompleted = Object.values(groupStats).filter(s => s.seen === s.total && s.total > 0).length
 
-  // Top 5 families to target (most unseen species)
-  const topFamiliesToTarget = Object.entries(familyStats)
+  // Top 5 groups to target (most unseen species)
+  const topGroupsToTarget = Object.entries(groupStats)
     .map(([name, stats]) => ({ name, unseen: stats.total - stats.seen, total: stats.total, seen: stats.seen }))
     .filter(f => f.unseen > 0)
     .sort((a, b) => b.unseen - a.unseen)
@@ -73,18 +74,18 @@ export default function ProgressTab() {
     <div className="space-y-4" data-testid="progress-tab">
       <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100">My Progress</h3>
       <p className="text-sm text-gray-600 dark:text-gray-400">
-        Track your birding progress with stats and visual breakdowns by family.
+        Track your birding progress with stats and visual breakdowns by group.
       </p>
 
       {/* Quick Stats Cards */}
       <div className="grid grid-cols-2 gap-3" data-testid="quick-stats">
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="families-started-count">{familiesStarted}</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Families Started</p>
+          <p className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="groups-started-count">{groupsStarted}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Groups Started</p>
         </div>
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-[#27AE60] dark:text-green-400" data-testid="families-completed-count">{familiesCompleted}</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Families Completed</p>
+          <p className="text-2xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{groupsCompleted}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Groups Completed</p>
         </div>
       </div>
 
@@ -155,20 +156,20 @@ export default function ProgressTab() {
         </div>
       </div>
 
-      {/* Family Breakdown */}
+      {/* Group Breakdown */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Family</h4>
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Group</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400">
-          Showing top families by total species count
+          All {sortedGroups.length} groups by total species count
         </p>
 
-        <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="family-breakdown-list">
-          {sortedFamilies.map(([familyName, stats]) => {
-            const familyPercent = stats.total > 0 ? (stats.seen / stats.total) * 100 : 0
+        <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="group-breakdown-list">
+          {sortedGroups.map(([groupName, stats]) => {
+            const groupPercent = stats.total > 0 ? (stats.seen / stats.total) * 100 : 0
             return (
-              <div key={familyName} className="space-y-1" data-testid={`family-${familyName.replace(/\s+/g, '-').toLowerCase()}`}>
+              <div key={groupName} className="space-y-1" data-testid={`group-${groupName.replace(/\s+/g, '-').toLowerCase()}`}>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{familyName}</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{groupName}</span>
                   <span className="text-gray-500 dark:text-gray-400">
                     {stats.seen}/{stats.total}
                   </span>
@@ -176,7 +177,7 @@ export default function ProgressTab() {
                 <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-[#2C3E7B] h-full rounded-full transition-all duration-200"
-                    style={{ width: `${familyPercent}%` }}
+                    style={{ width: `${groupPercent}%` }}
                   />
                 </div>
               </div>
@@ -185,28 +186,28 @@ export default function ProgressTab() {
         </div>
       </div>
 
-      {/* Top Families to Target (replaces What's Left) */}
-      {totalSeen > 0 && totalSeen < totalSpecies && topFamiliesToTarget.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3" data-testid="top-families-to-target">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Top Families to Target</h4>
+      {/* Top Groups to Target */}
+      {totalSeen > 0 && totalSeen < totalSpecies && topGroupsToTarget.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3" data-testid="top-groups-to-target">
+          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Top Groups to Target</h4>
           <p className="text-xs text-gray-600 dark:text-gray-400">
-            These families have the most species left to find
+            These groups have the most species left to find
           </p>
           <div className="space-y-2">
-            {topFamiliesToTarget.map((family) => {
-              const familyPercent = family.total > 0 ? (family.seen / family.total) * 100 : 0
+            {topGroupsToTarget.map((group) => {
+              const groupPercent = group.total > 0 ? (group.seen / group.total) * 100 : 0
               return (
-                <div key={family.name} className="space-y-1">
+                <div key={group.name} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{family.name}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{group.name}</span>
                     <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">
-                      {family.unseen} unseen
+                      {group.unseen} unseen
                     </span>
                   </div>
                   <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                     <div
                       className="bg-[#2C3E7B] h-full rounded-full transition-all duration-200"
-                      style={{ width: `${familyPercent}%` }}
+                      style={{ width: `${groupPercent}%` }}
                     />
                   </div>
                 </div>

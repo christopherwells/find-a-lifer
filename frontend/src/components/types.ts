@@ -32,6 +32,7 @@ export interface Species {
   seasonalityScore: number
   peakWeek: number
   rangeShiftScore: number
+  regions?: string[]
 }
 
 export interface SpeciesByFamily {

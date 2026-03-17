@@ -87,6 +87,16 @@ OCEAN_FAMILIES = {
 YEAR_MIN = 1900  # No lower bound — Historical protocol already excluded
 YEAR_MAX = 2025
 
+# Friendly names for region codes used in EBD filenames
+REGION_NAMES = {
+    "BM": "Bermuda", "BS": "Bahamas", "CA": "Canada",
+    "CR": "Costa Rica", "CU": "Cuba", "DO": "Dominican Republic",
+    "GL": "Greenland", "GT": "Guatemala", "HN": "Honduras",
+    "HT": "Haiti", "JM": "Jamaica", "MX": "Mexico",
+    "NI": "Nicaragua", "PA": "Panama", "PM": "Saint Pierre and Miquelon",
+    "PR": "Puerto Rico", "SV": "El Salvador", "US": "United States",
+}
+
 
 def get_week(date_str):
     """Convert YYYY-MM-DD to week number (1-52)."""
@@ -304,7 +314,7 @@ def run_stixel_ensemble(detections, cell_week_checklists, cell_covariates,
 
 def save_archive(cell_week_checklists_by_res, detections_by_res,
                  species_names, species_scinames, species_taxon_order,
-                 species_family, processed_regions):
+                 species_family, species_regions, processed_regions):
     """Save intermediate counts to archive directory."""
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -332,6 +342,7 @@ def save_archive(cell_week_checklists_by_res, detections_by_res,
         "scinames": species_scinames,
         "taxon_order": {k: v for k, v in species_taxon_order.items()},
         "family": species_family,
+        "regions": {k: sorted(v) for k, v in species_regions.items()},
     }
     with open(ARCHIVE_DIR / f"species_meta.json", "w") as f:
         json.dump(meta, f, separators=(",", ":"))
@@ -382,6 +393,7 @@ def load_archive():
     species_scinames = {}
     species_taxon_order = {}
     species_family = {}
+    species_regions = defaultdict(set)
     meta_file = ARCHIVE_DIR / "species_meta.json"
     if meta_file.exists():
         meta = json.load(open(meta_file))
@@ -389,11 +401,13 @@ def load_archive():
         species_scinames = meta.get("scinames", {})
         species_taxon_order = {k: float(v) for k, v in meta.get("taxon_order", {}).items()}
         species_family = meta.get("family", {})
+        for k, v in meta.get("regions", {}).items():
+            species_regions[k] = set(v)
         print(f"  Loaded species metadata: {len(species_names)} species")
 
     return (cell_week_checklists_by_res, detections_by_res,
             species_names, species_scinames, species_taxon_order,
-            species_family, processed_regions)
+            species_family, species_regions, processed_regions)
 
 
 # ---- EBD file discovery ----
@@ -592,7 +606,7 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
 
 def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_res,
                      detections_by_res, species_names, species_scinames,
-                     species_taxon_order, species_family):
+                     species_taxon_order, species_family, species_regions):
     """Process a single EBD observations file, recording detections at all resolutions."""
     total_obs = 0
     matched_obs = 0
@@ -639,6 +653,9 @@ def process_ebd_file(ebd_file, state, valid_checklists, cell_week_checklists_by_
                 family = row.get("FAMILY NAME", "")
                 if family:
                     species_family[taxon_id] = family
+
+            # Track which region this species was detected in
+            species_regions[taxon_id].add(state)
 
             if total_obs % 2000000 == 0:
                 print(f"    {state}: {total_obs:,} obs, {matched_obs:,} matched, {len(species_names):,} species...")
@@ -1085,7 +1102,8 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
 
 def generate_output(cell_week_checklists_by_res, detections_by_res,
                     species_names, species_scinames, species_taxon_order,
-                    species_family, processed_regions, ebird_taxonomy):
+                    species_family, species_regions, processed_regions,
+                    ebird_taxonomy):
     """Generate all output files from accumulated data."""
 
     # Assign species codes
@@ -1143,6 +1161,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             "comName": species_names[taxon_id],
             "sciName": sci_name,
             "taxonOrder": species_taxon_order.get(taxon_id, 99999),
+            "regions": sorted(species_regions.get(taxon_id, set())),
         }
         if sci_name in ebird_taxonomy:
             entry["familyComName"] = ebird_taxonomy[sci_name]["familyComName"]
@@ -1152,9 +1171,18 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             entry["familyComName"] = species_family[taxon_id]
         species_list.append(entry)
     species_list.sort(key=lambda s: s["taxonOrder"])
+    # Build region names for regions actually present in the data
+    all_regions_in_data = set()
+    for entry in species_list:
+        all_regions_in_data.update(entry.get("regions", []))
+    region_names_used = {r: REGION_NAMES.get(r, r) for r in sorted(all_regions_in_data)}
+    species_json = {
+        "regionNames": region_names_used,
+        "species": species_list,
+    }
     with open(OUTPUT_DIR / "species.json", "w") as f:
-        json.dump(species_list, f, separators=(",", ":"))
-    print(f"  species.json: {len(species_list)} species")
+        json.dump(species_json, f, separators=(",", ":"))
+    print(f"  species.json: {len(species_list)} species, {len(region_names_used)} regions")
 
     families = set(s.get("familyComName", "") for s in species_list if s.get("familyComName"))
     print(f"  Families: {len(families)}")
@@ -1321,7 +1349,7 @@ def main():
     if archive:
         (cell_week_checklists_by_res, detections_by_res,
          species_names, species_scinames, species_taxon_order,
-         species_family, processed_regions) = archive
+         species_family, species_regions, processed_regions) = archive
     else:
         print("\nNo archive found — starting fresh")
         cell_week_checklists_by_res = {res: defaultdict(lambda: defaultdict(int)) for res in RESOLUTIONS}
@@ -1330,6 +1358,7 @@ def main():
         species_scinames = {}
         species_taxon_order = {}
         species_family = {}
+        species_regions = defaultdict(set)
         processed_regions = set()
 
     # Find new EBD files (skip already-processed regions)
@@ -1387,7 +1416,8 @@ def main():
         ebird_taxonomy = load_taxonomy()
         generate_output(cell_week_checklists_by_res, detections_by_res,
                         species_names, species_scinames, species_taxon_order,
-                        species_family, processed_regions, ebird_taxonomy)
+                        species_family, species_regions, processed_regions,
+                        ebird_taxonomy)
         elapsed = time.time() - t0
         print(f"\n{'=' * 60}")
         print(f"  Rebuilt in {elapsed:.1f}s")
@@ -1455,7 +1485,7 @@ def main():
         total, matched = process_ebd_file(
             ebd_file, region, valid_checklists, cell_week_checklists_by_res,
             detections_by_res, species_names, species_scinames,
-            species_taxon_order, species_family
+            species_taxon_order, species_family, species_regions
         )
         grand_total_obs += total
         grand_matched_obs += matched
@@ -1472,7 +1502,7 @@ def main():
     sys.stdout.flush()
     save_archive(cell_week_checklists_by_res, detections_by_res,
                  species_names, species_scinames, species_taxon_order,
-                 species_family, processed_regions)
+                 species_family, species_regions, processed_regions)
 
     # Save cumulative filter stats
     existing_stats = {}
@@ -1502,7 +1532,8 @@ def main():
     sys.stdout.flush()
     generate_output(cell_week_checklists_by_res, detections_by_res,
                     species_names, species_scinames, species_taxon_order,
-                    species_family, processed_regions, ebird_taxonomy)
+                    species_family, species_regions, processed_regions,
+                    ebird_taxonomy)
 
     elapsed = time.time() - t0
     print(f"\n{'=' * 60}")
