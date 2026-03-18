@@ -1201,9 +1201,18 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     sys.stdout.flush()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Load difficulty scores
+    difficulty_path = SCRIPT_DIR / "reference" / "difficulty_scores.json"
+    difficulty_map = {}
+    if difficulty_path.exists():
+        with open(difficulty_path) as f:
+            difficulty_map = json.load(f)
+        print(f"  Loaded {len(difficulty_map)} difficulty scores")
+
     conserv_matched = 0
     exotic_matched = 0
     photos_matched = 0
+    difficulty_matched = 0
     species_list = []
     for taxon_id in sorted(species_names.keys()):
         sci_name = species_scinames.get(taxon_id, "")
@@ -1251,6 +1260,13 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
                 entry["photoLicense"] = photo["photoLicense"]
             photos_matched += 1
 
+        # Difficulty scores
+        if taxon_id in difficulty_map:
+            d = difficulty_map[taxon_id]
+            entry["difficultyScore"] = d["difficultyScore"]
+            entry["difficultyLabel"] = d["difficultyLabel"]
+            difficulty_matched += 1
+
         species_list.append(entry)
     species_list.sort(key=lambda s: s["taxonOrder"])
     # Build region names for regions actually present in the data
@@ -1266,6 +1282,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         json.dump(species_json, f, separators=(",", ":"))
     print(f"  species.json: {len(species_list)} species, {len(region_names_used)} regions")
     print(f"  Conservation status: {conserv_matched}/{len(species_list)} matched")
+    print(f"  Difficulty scores: {difficulty_matched}/{len(species_list)} matched")
     print(f"  Invasion status: {exotic_matched}/{len(species_list)} with exotic data")
     print(f"  Photos: {photos_matched}/{len(species_list)} with photo metadata")
 
