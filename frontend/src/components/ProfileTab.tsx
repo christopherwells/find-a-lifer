@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useToast } from '../contexts/ToastContext'
+import { useAuth } from '../contexts/AuthContext'
+import FriendsSection from './FriendsSection'
 import { fetchSpecies } from '../lib/dataCache'
 import { openFilePicker, processCSVFile, type CSVImportResult } from '../lib/csvImport'
 
@@ -155,7 +158,7 @@ export default function ProfileTab() {
     setYearImporting(true)
     setYearImportResult(null)
     try {
-      const importFn = async (speciesCodes: string[], comNames: string[]) => {
+      const importFn = async (speciesCodes: string[], _comNames: string[]) => {
         await importYearList(yearImportYear, speciesCodes)
         return { newCount: speciesCodes.length, existingCount: 0 }
       }
@@ -184,6 +187,12 @@ export default function ProfileTab() {
       <p className="text-sm text-gray-600 dark:text-gray-400">
         Manage your life list data. Import from eBird, export as CSV, or reset your list.
       </p>
+
+      {/* Account Section */}
+      <AccountSection />
+
+      {/* Friends Section (only when signed in) */}
+      <FriendsSection />
 
       {/* Import Section */}
       <div className="space-y-2">
@@ -494,6 +503,15 @@ export default function ProfileTab() {
         </button>
       </div>
 
+      {/* Preferences Section */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">Preferences</h4>
+        <label className="flex items-center justify-between cursor-pointer">
+          <span className="text-sm text-gray-700 dark:text-gray-300">Celebration animations</span>
+          <CelebrationToggle />
+        </label>
+      </div>
+
       {/* Reset Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">Reset</h4>
@@ -513,5 +531,144 @@ export default function ProfileTab() {
         </button>
       </div>
     </div>
+  )
+}
+
+function AccountSection() {
+  const { user, loading, error, signIn, signUp, signOut, clearError } = useAuth()
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="animate-pulse h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+      </div>
+    )
+  }
+
+  if (user) {
+    return (
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.displayName || 'Birder'}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+          </div>
+          <button
+            onClick={signOut}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      if (mode === 'signup') {
+        await signUp(email, password, displayName)
+      } else {
+        await signIn(email, password)
+      }
+      setEmail('')
+      setPassword('')
+      setDisplayName('')
+    } catch {
+      // Error is handled in AuthContext
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+      <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">
+        {mode === 'signin' ? 'Sign In' : 'Create Account'}
+      </h4>
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Sign in to sync stats, see leaderboards, and connect with friends.
+      </p>
+
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded p-2">
+          <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+          <button onClick={clearError} className="text-xs text-red-500 underline mt-1">Dismiss</button>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-2">
+        {mode === 'signup' && (
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="Display name"
+            required
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+        )}
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          required
+          minLength={6}
+          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+        />
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full px-4 py-2 bg-[#2C3E7B] text-white text-sm rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50 transition-colors"
+        >
+          {submitting ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
+        </button>
+      </form>
+
+      <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+        {mode === 'signin' ? (
+          <>No account? <button onClick={() => { setMode('signup'); clearError() }} className="text-[#2C3E7B] dark:text-blue-400 underline">Create one</button></>
+        ) : (
+          <>Already have an account? <button onClick={() => { setMode('signin'); clearError() }} className="text-[#2C3E7B] dark:text-blue-400 underline">Sign in</button></>
+        )}
+      </p>
+    </div>
+  )
+}
+
+function CelebrationToggle() {
+  const { celebrationsEnabled, setCelebrationsEnabled } = useToast()
+  return (
+    <button
+      onClick={() => setCelebrationsEnabled(!celebrationsEnabled)}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+        celebrationsEnabled ? 'bg-[#27AE60]' : 'bg-gray-300 dark:bg-gray-600'
+      }`}
+      role="switch"
+      aria-checked={celebrationsEnabled}
+      data-testid="celebrations-toggle"
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+          celebrationsEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
   )
 }

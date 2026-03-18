@@ -28,6 +28,11 @@ vi.mock('../contexts/LifeListContext', () => ({
   }),
 }))
 
+// Mock AuthContext for TripReportsSection
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: null, loading: false, error: null, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), clearError: vi.fn() }),
+}))
+
 import TripPlanTab from '../components/TripPlanTab'
 
 /** Helper to render TripPlanTab and wait for async effects to settle */

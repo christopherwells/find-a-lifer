@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback, t
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { YearList } from '../components/types'
 
-interface LifeListEntry {
+export interface LifeListEntry {
   speciesCode: string
   comName: string
   dateAdded: number
@@ -54,6 +54,7 @@ interface LifeListContextValue {
   clearAllSpecies: () => Promise<void>
   importSpeciesList: (speciesCodes: string[], comNames: string[]) => Promise<{newCount: number, existingCount: number}>
   getTotalSeen: () => number
+  getLifeListEntries: () => Promise<LifeListEntry[]>
   // Partner list
   partnerSeenSpecies: Set<string>
   importPartnerList: (speciesCodes: string[], comNames: string[]) => Promise<{newCount: number, existingCount: number}>
@@ -270,6 +271,11 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     return seenSpecies.size
   }
 
+  const getLifeListEntries = async (): Promise<LifeListEntry[]> => {
+    const db = await getDB()
+    return db.getAll(STORE_NAME)
+  }
+
   // ── Partner list methods ──────────────────────────────────────────────
 
   const importPartnerList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
@@ -398,6 +404,7 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     clearAllSpecies,
     importSpeciesList,
     getTotalSeen,
+    getLifeListEntries,
     // Partner list
     partnerSeenSpecies,
     importPartnerList,

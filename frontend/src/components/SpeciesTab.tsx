@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useCelebrations } from '../hooks/useCelebrations'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species, SpeciesTabProps } from './types'
 import SpeciesInfoCard from './SpeciesInfoCard'
@@ -38,7 +39,8 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   const [seenFilter, setSeenFilter] = useState<'' | 'seen' | 'unseen' | 'lifers'>('') // '' means "All"
   const [regionNameMap, setRegionNameMap] = useState<Record<string, string>>({})
   const [showFilters, setShowFilters] = useState(false)
-  const { isSpeciesSeen, toggleSpecies, getTotalSeen } = useLifeList()
+  const { isSpeciesSeen, getTotalSeen } = useLifeList()
+  const { celebrateToggle } = useCelebrations(allSpecies)
 
   // Region filtering state
   const [regionSpeciesCodes, setRegionSpeciesCodes] = useState<Set<string> | null>(null)
@@ -711,7 +713,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                         <input
                           type="checkbox"
                           checked={isSpeciesSeen(species.speciesCode)}
-                          onChange={() => toggleSpecies(species.speciesCode, species.comName)}
+                          onChange={() => celebrateToggle(species.speciesCode, species.comName)}
                           className="h-3.5 w-3.5 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer flex-shrink-0"
                         />
                         {/* Species name — single line */}

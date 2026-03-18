@@ -32,6 +32,28 @@ vi.mock('../contexts/LifeListContext', () => ({
   }),
 }))
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: null,
+    loading: false,
+    error: null,
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    clearError: vi.fn(),
+  }),
+}))
+
+vi.mock('../contexts/ToastContext', () => ({
+  useToast: () => ({
+    currentToast: null,
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    celebrationsEnabled: true,
+    setCelebrationsEnabled: vi.fn(),
+  }),
+}))
+
 vi.mock('../lib/dataCache', () => ({
   fetchSpecies: vi.fn(() => Promise.resolve([])),
 }))

@@ -6,6 +6,15 @@
   height: 100%;
 }
 
+/* Toast slide-up animation */
+@keyframes slide-up {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
 /* Fix side panel bottom offset (mobile-only, not on desktop) */
 @media (min-width: 768px) {
   [data-testid="side-panel"] {

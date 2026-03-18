@@ -1,20 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useAuth } from '../contexts/AuthContext'
+import type { LifeListEntry } from '../contexts/LifeListContext'
 import type { Species } from './types'
 import { ProgressSkeleton } from './Skeleton'
 import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
 import { getDisplayGroup } from '../lib/familyGroups'
 import { REGION_GROUPS, GROUPED_CODES } from '../lib/regionGroups'
+import { computeStreak, computeWeeklySummary } from '../lib/streakUtils'
+import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, type LeaderboardEntry } from '../lib/firebaseSync'
+import { getFriends } from '../lib/friendsService'
 
 export default function ProgressTab() {
   const {
-    isSpeciesSeen, getTotalSeen,
+    isSpeciesSeen, getTotalSeen, getLifeListEntries,
     yearLists, activeYearListId, setActiveYearListId, yearSeenSpecies,
-    listScope, setListScope,
+    listScope, setListScope, seenSpecies,
   } = useLifeList()
+  const { user } = useAuth()
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
   const [regionNames, setRegionNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [friendLeaderboard, setFriendLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [streakInfo, setStreakInfo] = useState<{ currentStreak: number; longestStreak: number; lastActiveDate: string | null } | null>(null)
+  const [weeklySummary, setWeeklySummary] = useState<{ newLifers: number; newFamiliesStarted: number } | null>(null)
 
   // Load species metadata and region names on mount
   useEffect(() => {
@@ -32,6 +42,69 @@ export default function ProgressTab() {
     }
     loadData()
   }, [])
+
+  // Load streak & weekly summary data
+  useEffect(() => {
+    const loadActivity = async () => {
+      try {
+        const entries: LifeListEntry[] = await getLifeListEntries()
+        setStreakInfo(computeStreak(entries))
+
+        // Build species→family map for weekly summary
+        if (allSpecies.length > 0) {
+          const familyMap = new Map<string, string>()
+          allSpecies.forEach(s => familyMap.set(s.speciesCode, getDisplayGroup(s.familyComName)))
+          setWeeklySummary(computeWeeklySummary(entries, familyMap))
+        }
+      } catch (error) {
+        console.error('ProgressTab: failed to load activity data', error)
+      }
+    }
+    if (!loading) loadActivity()
+  }, [loading, seenSpecies.size, getLifeListEntries, allSpecies])
+
+  // Leaderboard + stats sync
+  useEffect(() => {
+    if (!user || loading) return
+    const loadLeaderboards = async () => {
+      try {
+        const [global, friends] = await Promise.all([
+          fetchLeaderboard(10),
+          getFriends(user.uid).then(f => f.length > 0
+            ? fetchFriendLeaderboard([...f.map(fr => fr.uid), user.uid])
+            : []
+          ),
+        ])
+        setLeaderboard(global)
+        setFriendLeaderboard(friends)
+      } catch (err) {
+        console.error('Failed to load leaderboards:', err)
+      }
+    }
+    loadLeaderboards()
+  }, [user, loading])
+
+  // Sync stats to Firebase when species count changes
+  useEffect(() => {
+    if (!user || loading || allSpecies.length === 0) return
+    const groupStats: Record<string, { total: number; seen: number }> = {}
+    allSpecies.forEach(s => {
+      const g = getDisplayGroup(s.familyComName)
+      if (!groupStats[g]) groupStats[g] = { total: 0, seen: 0 }
+      groupStats[g].total++
+      if (seenSpecies.has(s.speciesCode)) groupStats[g].seen++
+    })
+    const started = Object.values(groupStats).filter(s => s.seen > 0).length
+    const completed = Object.values(groupStats).filter(s => s.seen === s.total && s.total > 0).length
+
+    syncUserStats(user.uid, {
+      speciesCount: seenSpecies.size,
+      groupsCompleted: completed,
+      groupsStarted: started,
+      currentStreak: streakInfo?.currentStreak ?? 0,
+      longestStreak: streakInfo?.longestStreak ?? 0,
+    }).catch(err => console.error('Failed to sync stats:', err))
+  }, [user, loading, seenSpecies.size, allSpecies, streakInfo])
 
   if (loading) {
     return <ProgressSkeleton />
@@ -91,6 +164,17 @@ export default function ProgressTab() {
     .filter(f => f.unseen > 0)
     .sort((a, b) => b.unseen - a.unseen)
     .slice(0, 5)
+
+  // Completed groups for Trophy Case
+  const completedGroups = Object.entries(groupStats)
+    .filter(([, s]) => s.seen === s.total && s.total > 0)
+    .sort((a, b) => b[1].total - a[1].total)
+
+  // Almost-there groups (1-3 remaining)
+  const almostThereGroups = Object.entries(groupStats)
+    .map(([name, stats]) => ({ name, remaining: stats.total - stats.seen, seen: stats.seen, total: stats.total }))
+    .filter(g => g.remaining > 0 && g.remaining <= 3)
+    .sort((a, b) => a.remaining - b.remaining)
 
   // Build reverse lookup: region code → group name
   const codeToGroup: Record<string, string> = {}
@@ -231,6 +315,106 @@ export default function ProgressTab() {
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Groups Completed</p>
         </div>
       </div>
+
+      {/* Activity & Streaks */}
+      {streakInfo && (streakInfo.currentStreak > 0 || streakInfo.longestStreak > 0 || (weeklySummary && weeklySummary.newLifers > 0)) && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2" data-testid="activity-section">
+          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Activity</h4>
+          <div className="grid grid-cols-2 gap-3">
+            {streakInfo.currentStreak > 0 && (
+              <div className="text-center">
+                <p className="text-xl font-bold text-orange-500">🔥 {streakInfo.currentStreak}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Day streak</p>
+              </div>
+            )}
+            {streakInfo.longestStreak > 0 && (
+              <div className="text-center">
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{streakInfo.longestStreak}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Best streak</p>
+              </div>
+            )}
+          </div>
+          {weeklySummary && weeklySummary.newLifers > 0 && (
+            <p className="text-xs text-gray-600 dark:text-gray-400 text-center pt-1 border-t border-gray-100 dark:border-gray-700">
+              This week: <span className="font-medium text-[#2C3E7B] dark:text-blue-400">+{weeklySummary.newLifers} lifers</span>
+              {weeklySummary.newFamiliesStarted > 0 && (
+                <>, <span className="font-medium text-[#27AE60] dark:text-green-400">{weeklySummary.newFamiliesStarted} new {weeklySummary.newFamiliesStarted === 1 ? 'group' : 'groups'}</span></>
+              )}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Trophy Case */}
+      {completedGroups.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2" data-testid="trophy-case">
+          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">🏆 Trophy Case</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {completedGroups.map(([name, stats]) => (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-700"
+              >
+                🏆 {name} <span className="text-amber-500">({stats.total})</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Almost There */}
+      {almostThereGroups.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2" data-testid="almost-there">
+          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Almost There!</h4>
+          <div className="space-y-1.5">
+            {almostThereGroups.map((g) => (
+              <p key={g.name} className="text-xs text-gray-600 dark:text-gray-400">
+                <span className="font-medium text-gray-800 dark:text-gray-200">{g.name}:</span>{' '}
+                {g.seen} of {g.total} — just <span className="font-bold text-[#2C3E7B] dark:text-blue-400">{g.remaining}</span> to go!
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard */}
+      {user && (leaderboard.length > 0 || friendLeaderboard.length > 0) && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3" data-testid="leaderboard-section">
+          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Leaderboard</h4>
+          {friendLeaderboard.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Friends</p>
+              <div className="space-y-1.5">
+                {friendLeaderboard.map((entry, i) => (
+                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
+                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
+                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
+                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
+                    </span>
+                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {leaderboard.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Global Top 10</p>
+              <div className="space-y-1.5">
+                {leaderboard.map((entry, i) => (
+                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
+                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
+                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
+                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
+                    </span>
+                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Overall Progress Card */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">

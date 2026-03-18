@@ -3,6 +3,7 @@ import { useLifeList } from '../contexts/LifeListContext'
 import type { Species, TripPlanTabProps, TripLifer, HotspotLocation, WeekOpportunity, SelectedLocation, GoalWindowResult } from './types'
 import { ListSkeleton } from './Skeleton'
 import { fetchSpecies, fetchGrid, computeGoalWindowOpportunities, getCellLabels } from '../lib/dataCache'
+import TripReportsSection from './TripReportsSection'
 
 /** Format coordinates as a human-readable string, handling all hemispheres */
 function formatCoords(coordinates: [number, number]): string {
@@ -1593,6 +1594,9 @@ export default function TripPlanTab({
             </div>
           )
         ) : null}
+
+        {/* Trip Reports */}
+        <TripReportsSection />
       </div>
     </div>
   )

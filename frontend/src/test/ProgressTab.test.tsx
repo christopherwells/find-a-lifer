@@ -11,10 +11,25 @@ vi.mock('../lib/dataCache', () => ({
 // Mock LifeListContext
 const mockIsSpeciesSeen = vi.fn()
 const mockGetTotalSeen = vi.fn()
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: null, loading: false, error: null, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), clearError: vi.fn() }),
+}))
+
+vi.mock('../lib/firebaseSync', () => ({
+  syncUserStats: vi.fn().mockResolvedValue(undefined),
+  fetchLeaderboard: vi.fn().mockResolvedValue([]),
+  fetchFriendLeaderboard: vi.fn().mockResolvedValue([]),
+}))
+
+vi.mock('../lib/friendsService', () => ({
+  getFriends: vi.fn().mockResolvedValue([]),
+}))
+
 vi.mock('../contexts/LifeListContext', () => ({
   useLifeList: () => ({
     isSpeciesSeen: mockIsSpeciesSeen,
     getTotalSeen: mockGetTotalSeen,
+    getLifeListEntries: vi.fn().mockResolvedValue([]),
     seenSpecies: new Set<string>(),
     // Year lists
     yearLists: [],

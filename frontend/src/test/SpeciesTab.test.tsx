@@ -80,6 +80,16 @@ vi.mock('../contexts/LifeListContext', () => ({
   }),
 }))
 
+vi.mock('../contexts/ToastContext', () => ({
+  useToast: () => ({
+    currentToast: null,
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    celebrationsEnabled: true,
+    setCelebrationsEnabled: vi.fn(),
+  }),
+}))
+
 vi.mock('../lib/goalListsDB', () => ({
   goalListsDB: {
     getAllLists: vi.fn(() => Promise.resolve([])),

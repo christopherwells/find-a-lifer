@@ -4,6 +4,7 @@ import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
 import AboutPage from './components/AboutPage'
 import OnboardingOverlay from './components/OnboardingOverlay'
+import Toast from './components/Toast'
 import { useLifeList } from './contexts/LifeListContext'
 import { goalListsDB, type GoalList } from './lib/goalListsDB'
 import type { SpeciesFilters, CompareLocations } from './components/types'
@@ -199,6 +200,9 @@ function App() {
       {showOnboarding && (
         <OnboardingOverlay onComplete={handleOnboardingComplete} />
       )}
+
+      {/* Global Toast */}
+      <Toast />
     </div>
   )
 }
