@@ -7,7 +7,7 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
 interface AuthContextValue {
@@ -108,22 +108,3 @@ function generateFriendCode(): string {
   return code
 }
 
-/** Look up a user by friend code */
-export async function findUserByFriendCode(code: string): Promise<{ uid: string; displayName: string } | null> {
-  // Note: This requires a Firestore query. For now, we'll use a simple collection scan.
-  // In production, you'd create a friendCodes collection for O(1) lookup.
-  const { collection, query, where, getDocs } = await import('firebase/firestore')
-  const usersRef = collection(db, 'users')
-  const q = query(usersRef, where('friendCode', '==', code.toUpperCase()))
-  const snapshot = await getDocs(q)
-  if (snapshot.empty) return null
-  const docSnap = snapshot.docs[0]
-  return { uid: docSnap.id, displayName: docSnap.data().displayName }
-}
-
-/** Get current user's friend code from Firestore */
-export async function getFriendCode(uid: string): Promise<string | null> {
-  const userRef = doc(db, 'users', uid)
-  const snap = await getDoc(userRef)
-  return snap.exists() ? snap.data().friendCode : null
-}

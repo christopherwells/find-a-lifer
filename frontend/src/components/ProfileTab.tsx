@@ -158,7 +158,7 @@ export default function ProfileTab() {
     setYearImporting(true)
     setYearImportResult(null)
     try {
-      const importFn = async (speciesCodes: string[], _comNames: string[]) => {
+      const importFn = async (speciesCodes: string[]) => {
         await importYearList(yearImportYear, speciesCodes)
         return { newCount: speciesCodes.length, existingCount: 0 }
       }

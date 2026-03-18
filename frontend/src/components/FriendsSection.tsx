@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useAuth, getFriendCode, findUserByFriendCode } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/AuthContext'
+import { getFriendCode, findUserByFriendCode } from '../lib/firebaseSync'
 import { getFriends, getPendingRequests, sendFriendRequest, acceptRequest, rejectRequest, removeFriend, type Friend, type FriendRequest } from '../lib/friendsService'
 
 export default function FriendsSection() {

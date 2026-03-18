@@ -104,7 +104,7 @@ export default function ProgressTab() {
       currentStreak: streakInfo?.currentStreak ?? 0,
       longestStreak: streakInfo?.longestStreak ?? 0,
     }).catch(err => console.error('Failed to sync stats:', err))
-  }, [user, loading, seenSpecies.size, allSpecies, streakInfo])
+  }, [user, loading, seenSpecies, allSpecies, streakInfo])
 
   if (loading) {
     return <ProgressSkeleton />

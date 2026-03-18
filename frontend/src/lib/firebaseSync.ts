@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, collection, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, collection, query, where, getDocs, orderBy, limit as firestoreLimit, serverTimestamp } from 'firebase/firestore'
 import { db } from './firebase'
 
 export interface UserStats {
@@ -27,7 +27,7 @@ export async function syncUserStats(uid: string, stats: UserStats): Promise<void
 /** Get the global leaderboard (top N users by species count) */
 export async function fetchLeaderboard(topN: number = 10): Promise<LeaderboardEntry[]> {
   const usersRef = collection(db, 'users')
-  const q = query(usersRef, orderBy('stats.speciesCount', 'desc'), limit(topN))
+  const q = query(usersRef, orderBy('stats.speciesCount', 'desc'), firestoreLimit(topN))
   const snapshot = await getDocs(q)
   return snapshot.docs.map(docSnap => ({
     uid: docSnap.id,
@@ -74,4 +74,21 @@ export async function fetchUserProfile(uid: string): Promise<{ displayName: stri
     stats: data.stats || { speciesCount: 0, groupsCompleted: 0, groupsStarted: 0, currentStreak: 0, longestStreak: 0 },
     friendCode: data.friendCode || '',
   }
+}
+
+/** Look up a user by friend code */
+export async function findUserByFriendCode(code: string): Promise<{ uid: string; displayName: string } | null> {
+  const usersRef = collection(db, 'users')
+  const q = query(usersRef, where('friendCode', '==', code.toUpperCase()))
+  const snapshot = await getDocs(q)
+  if (snapshot.empty) return null
+  const docSnap = snapshot.docs[0]
+  return { uid: docSnap.id, displayName: docSnap.data().displayName }
+}
+
+/** Get current user's friend code from Firestore */
+export async function getFriendCode(uid: string): Promise<string | null> {
+  const userRef = doc(db, 'users', uid)
+  const snap = await getDoc(userRef)
+  return snap.exists() ? snap.data().friendCode : null
 }
