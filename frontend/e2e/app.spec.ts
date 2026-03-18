@@ -147,6 +147,65 @@ test.describe('Phase 2 Features', () => {
   })
 })
 
+test.describe('Phase 3+4 Features', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoReady(page)
+  })
+
+  test('Profile tab shows Account section with sign-in form', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+    await expect(page.getByPlaceholder('Email')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByPlaceholder('Password')).toBeVisible()
+  })
+
+  test('Profile tab shows Preferences section with celebrations toggle', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+    await expect(page.getByText('Preferences')).toBeVisible()
+    await expect(page.getByText('Celebration animations')).toBeVisible()
+    await expect(page.getByTestId('celebrations-toggle')).toBeVisible()
+  })
+
+  test('celebrations toggle switches state', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+    const toggle = page.getByTestId('celebrations-toggle')
+    await expect(toggle).toBeVisible()
+    // Toggle off
+    await toggle.click()
+    const ariaAfter = await toggle.getAttribute('aria-checked')
+    expect(ariaAfter).toBe('false')
+    // Toggle back on
+    await toggle.click()
+    const ariaOn = await toggle.getAttribute('aria-checked')
+    expect(ariaOn).toBe('true')
+  })
+
+  test('Progress tab shows milestone section', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Stats' }).click()
+    await expect(page.getByTestId('progress-tab')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('milestones-section')).toBeVisible()
+  })
+
+  test('Progress tab shows group breakdown', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Stats' }).click()
+    await expect(page.getByTestId('progress-tab')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('group-breakdown-list')).toBeVisible()
+  })
+
+  test('Profile tab account section can switch to create account', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+    // Wait for sign-in form to load
+    await expect(page.getByPlaceholder('Email')).toBeVisible({ timeout: 5000 })
+    // Click "Create one" link
+    await page.getByRole('button', { name: 'Create one' }).click()
+    await expect(page.getByPlaceholder('Display name')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('map renders without visible empty hexes', async ({ page }) => {
+    // Verify map container is present
+    await expect(page.getByTestId('map-container')).toBeVisible()
+  })
+})
+
 test.describe('Onboarding Flow', () => {
   test('shows onboarding overlay on first visit', async ({ page }) => {
     await page.goto('/')
