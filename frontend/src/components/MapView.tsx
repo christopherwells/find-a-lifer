@@ -1495,6 +1495,7 @@ export default memo(function MapView({
         const cellLiferCounts = new Map<number, number>()
 
         const hasSpeciesFilter = speciesFilterIdsRef.current !== null
+        console.log(`Density: seenSpecies=${seenSpecies.size}, showTotalRichness=${showTotalRichness}, hasFilter=${hasSpeciesFilter}, branch=${(seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter ? 'lifer' : 'total'}`)
         if ((seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter) {
           try {
             const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
@@ -1519,12 +1520,12 @@ export default memo(function MapView({
             liferData.forEach(([cellId, liferCount]) => {
               if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
             })
+            console.log(`Density lifer: seenIds=${seenIds.size}, liferCells=${cellLiferCounts.size}/${weekCells.size} cells with lifers`)
           } catch (error) {
             if (!cancelled) console.error('Lifer summary: error loading data', error)
-            // Fallback to summary
-            weeklySummary.forEach(([cellId, speciesCount]) => {
-              if (speciesCount > 0) cellLiferCounts.set(cellId, speciesCount)
-            })
+            // Do NOT fall back to weeklySummary — that shows total species
+            // (not lifers), causing cells with 0 lifers to appear colored.
+            // Better to show nothing than misleading data.
           }
         } else {
           // No life list or showTotalRichness — use pre-computed summary (total species per cell)
@@ -1582,7 +1583,11 @@ export default memo(function MapView({
           })
         }
         applyFeatureStates(normalizedCounts)
-        setHeatOverlay()
+        if (normalizedCounts.size > 0) {
+          setHeatOverlay()
+        } else {
+          setNeutralOverlay()
+        }
       }
       loadDensity()
     }
