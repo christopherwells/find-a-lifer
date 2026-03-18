@@ -26,7 +26,7 @@ RESOLUTION = 4
 # Forest types get specific labels when one type dominates (>60% of total forest)
 # Otherwise falls back to generic "Forest"
 NON_FOREST_THRESHOLDS = [
-    ("Freshwater", "water", 0.15),
+    ("Freshwater", "water", 0.20),
     ("Ocean", "ocean", 0.15),
     ("Wetland", "flooded", 0.03),
     ("Grassland", "herb", 0.08),
@@ -162,9 +162,16 @@ def main():
             if not assigned:
                 labels.append("Forest")
 
-        # Non-forest habitats
+        # Compute true freshwater: EarthEnv 'water' includes ocean pixels,
+        # so freshwater = water - ocean (clamped >= 0)
+        raw_water = norm_cov.get("water", 0)
+        ocean_val = norm_cov.get("ocean", 0)
+        norm_cov["_freshwater"] = max(0, raw_water - ocean_val)
+
+        # Non-forest habitats (use _freshwater instead of raw water)
         for label, key, threshold in NON_FOREST_THRESHOLDS:
-            if norm_cov.get(key, 0) >= threshold:
+            actual_key = "_freshwater" if key == "water" else key
+            if norm_cov.get(actual_key, 0) >= threshold:
                 labels.append(label)
 
         # Compute preferred elevation

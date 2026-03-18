@@ -1857,7 +1857,7 @@ export default memo(function MapView({
                   { key: 'herb', val: cov.herb || 0, color: '#A8D08D', label: 'Grassland', icon: '\u{1F33F}' },
                   { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Farmland', icon: '\u{1F33E}' },
                   { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Developed', icon: '\u{1F3D8}' },
-                  { key: 'water', val: cov.water || 0, color: '#4A90D9', label: 'Freshwater', icon: '\u{1F4A7}' },
+                  { key: 'water', val: Math.max(0, (cov.water || 0) - ocean), color: '#4A90D9', label: 'Freshwater', icon: '\u{1F4A7}' },
                   { key: 'flooded', val: cov.flooded || 0, color: '#6B8E9B', label: 'Wetland', icon: '\u{1F3DE}' },
                   { key: 'barren', val: barren, color: '#C4A882', label: 'Barren', icon: '\u{1F3DC}' },
                 ] : [
@@ -1868,7 +1868,7 @@ export default memo(function MapView({
                   { key: 'herb', val: cov.herb || 0, color: '#A8D08D', label: 'Grassland', icon: '\u{1F33F}' },
                   { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Farmland', icon: '\u{1F33E}' },
                   { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Developed', icon: '\u{1F3D8}' },
-                  { key: 'water', val: cov.water || 0, color: '#4A90D9', label: 'Freshwater', icon: '\u{1F4A7}' },
+                  { key: 'water', val: Math.max(0, (cov.water || 0) - ocean), color: '#4A90D9', label: 'Freshwater', icon: '\u{1F4A7}' },
                   { key: 'flooded', val: cov.flooded || 0, color: '#6B8E9B', label: 'Wetland', icon: '\u{1F3DE}' },
                   { key: 'barren', val: barren, color: '#C4A882', label: 'Barren', icon: '\u{1F3DC}' },
                 ]
