@@ -377,23 +377,9 @@ test.describe('Regression: Empty hex visibility', () => {
     await page.waitForTimeout(5000)
 
     return page.evaluate(() => {
-      // Access the MapLibre map instance from the global window
-      // MapView stores it; we search for it on maplibregl canvas elements
-      const canvases = document.querySelectorAll('.maplibregl-canvas')
-      let map: any = null
-      for (const c of canvases) {
-        // MapLibre stores the map on the canvas's parent
-        const container = c.parentElement
-        if (container && (container as any).__maplibregl) {
-          map = (container as any).__maplibregl
-          break
-        }
-      }
-
-      // Fallback: try window.__map or iterate
-      if (!map && (window as any).__maplibreglMap) {
-        map = (window as any).__maplibreglMap
-      }
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      // Access the MapLibre map instance exposed by MapView
+      const map = (window as any).__maplibreglMap
 
       // If we can't find the map instance, query feature states via rendered features
       if (!map) {
@@ -442,6 +428,7 @@ test.describe('Regression: Empty hex visibility', () => {
 
     // Zoom to res 4 range (5.5-7.5) centered on eastern Canada
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const map = (window as any).__maplibreglMap
       if (map) map.jumpTo({ center: [-66.5, 46.5], zoom: 6.5 })
     })
@@ -457,6 +444,7 @@ test.describe('Regression: Empty hex visibility', () => {
 
     // Zoom to res 5 range (7.5+) centered on New Brunswick
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const map = (window as any).__maplibreglMap
       if (map) map.jumpTo({ center: [-66.5, 46.5], zoom: 8 })
     })
