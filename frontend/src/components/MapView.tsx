@@ -649,6 +649,11 @@ export default memo(function MapView({
       maxZoom: 15,
     })
 
+    // Expose map instance for testing
+    if (typeof window !== 'undefined') {
+      (window as unknown as Record<string, unknown>).__maplibreglMap = map.current
+    }
+
     // Add navigation controls
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right')
 

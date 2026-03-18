@@ -32,11 +32,13 @@ export default function Confetti({ active }: { active: boolean }) {
   const particles = useMemo(() => active ? generateParticles() : [], [active])
 
   // Auto-expire after 3 seconds; reset when active changes
-  useEffect(() => { // eslint-disable-line react-hooks/set-state-in-effect -- timer-based visibility toggle
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
     if (!active) { setExpired(false); return }
     const timer = setTimeout(() => setExpired(true), 3000)
     return () => clearTimeout(timer)
   }, [active])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!active || expired) return null
 

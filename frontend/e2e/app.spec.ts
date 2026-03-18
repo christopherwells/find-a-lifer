@@ -337,6 +337,137 @@ test.describe('Phase 3+4 Features', () => {
   })
 })
 
+test.describe('Regression: Empty hex visibility', () => {
+  // Helper: import all species for a region into IndexedDB
+  async function importAllSpecies(page: Page) {
+    // First load the app so species.json is accessible
+    await gotoReady(page)
+
+    // Fetch all species codes from the running app and import them all
+    const count = await page.evaluate(async () => {
+      const resp = await fetch(document.baseURI.replace(/\/$/, '') + '/data/species.json')
+      const data = await resp.json()
+      const allSpecies = data.species as Array<{ speciesCode: string; comName: string }>
+
+      const request = indexedDB.open('find-a-lifer-db', 3)
+      return new Promise<number>((resolve, reject) => {
+        request.onsuccess = () => {
+          const db = request.result
+          const tx = db.transaction('lifeList', 'readwrite')
+          const store = tx.objectStore('lifeList')
+          for (const sp of allSpecies) {
+            store.put({ speciesCode: sp.speciesCode, comName: sp.comName, dateAdded: Date.now(), source: 'import' })
+          }
+          tx.oncomplete = () => resolve(allSpecies.length)
+          tx.onerror = () => reject(tx.error)
+        }
+        request.onerror = () => reject(request.error)
+      })
+    })
+
+    // Reload to pick up imported life list
+    await page.reload()
+    await expect(page.getByTestId('top-bar')).toBeVisible({ timeout: 10000 })
+    return count
+  }
+
+  // Helper: count cells that have a feature-state 'value' set (meaning they are colored)
+  async function countColoredCells(page: Page): Promise<{ coloredCells: number; totalGridFeatures: number }> {
+    // Wait for heatmap to render
+    await page.waitForTimeout(5000)
+
+    return page.evaluate(() => {
+      // Access the MapLibre map instance from the global window
+      // MapView stores it; we search for it on maplibregl canvas elements
+      const canvases = document.querySelectorAll('.maplibregl-canvas')
+      let map: any = null
+      for (const c of canvases) {
+        // MapLibre stores the map on the canvas's parent
+        const container = c.parentElement
+        if (container && (container as any).__maplibregl) {
+          map = (container as any).__maplibregl
+          break
+        }
+      }
+
+      // Fallback: try window.__map or iterate
+      if (!map && (window as any).__maplibreglMap) {
+        map = (window as any).__maplibreglMap
+      }
+
+      // If we can't find the map instance, query feature states via rendered features
+      if (!map) {
+        return { coloredCells: -1, totalGridFeatures: -1 }
+      }
+
+      try {
+        // Query all rendered features on the grid-fill layer
+        const features = map.queryRenderedFeatures(undefined, { layers: ['grid-fill'] })
+        let colored = 0
+        for (const f of features) {
+          const state = map.getFeatureState({ source: 'grid', id: f.id })
+          if (state && typeof state.value === 'number' && state.value >= 0) {
+            colored++
+          }
+        }
+        return { coloredCells: colored, totalGridFeatures: features.length }
+      } catch {
+        return { coloredCells: -2, totalGridFeatures: -2 }
+      }
+    })
+  }
+
+  test('no colored cells when all species are seen (Richness, res 3)', async ({ page }) => {
+    const count = await importAllSpecies(page)
+    console.log(`Imported ${count} species — all seen`)
+
+    // Res 3 is zoom 0-5.5 — default zoom should be in this range
+    const result = await countColoredCells(page)
+    console.log(`Richness res 3: ${result.coloredCells} colored / ${result.totalGridFeatures} total features`)
+    // With ALL species seen, no cells should have feature-state value set
+    expect(result.coloredCells).toBe(0)
+  })
+
+  test('no colored cells when all species are seen (Frequency, res 3)', async ({ page }) => {
+    await importAllSpecies(page)
+    await page.getByTestId('view-mode-probability').click()
+
+    const result = await countColoredCells(page)
+    console.log(`Frequency res 3: ${result.coloredCells} colored / ${result.totalGridFeatures} total features`)
+    expect(result.coloredCells).toBe(0)
+  })
+
+  test('no colored cells when all species are seen (Richness, res 4)', async ({ page }) => {
+    await importAllSpecies(page)
+
+    // Zoom to res 4 range (5.5-7.5) centered on eastern Canada
+    await page.evaluate(() => {
+      const map = (window as any).__maplibreglMap
+      if (map) map.jumpTo({ center: [-66.5, 46.5], zoom: 6.5 })
+    })
+    await page.waitForTimeout(2000) // Wait for resolution switch + data load
+
+    const result = await countColoredCells(page)
+    console.log(`Richness res 4: ${result.coloredCells} colored / ${result.totalGridFeatures} total features`)
+    expect(result.coloredCells).toBe(0)
+  })
+
+  test('no colored cells when all species are seen (Richness, res 5)', async ({ page }) => {
+    await importAllSpecies(page)
+
+    // Zoom to res 5 range (7.5+) centered on New Brunswick
+    await page.evaluate(() => {
+      const map = (window as any).__maplibreglMap
+      if (map) map.jumpTo({ center: [-66.5, 46.5], zoom: 8 })
+    })
+    await page.waitForTimeout(2000)
+
+    const result = await countColoredCells(page)
+    console.log(`Richness res 5: ${result.coloredCells} colored / ${result.totalGridFeatures} total features`)
+    expect(result.coloredCells).toBe(0)
+  })
+})
+
 test.describe('Onboarding Flow', () => {
   test('shows onboarding overlay on first visit', async ({ page }) => {
     await page.goto('/')
