@@ -26,7 +26,8 @@ RESOLUTION = 4
 # Forest types get specific labels when one type dominates (>60% of total forest)
 # Otherwise falls back to generic "Forest"
 NON_FOREST_THRESHOLDS = [
-    ("Aquatic", "water", 0.15),
+    ("Freshwater", "water", 0.15),
+    ("Ocean", "ocean", 0.15),
     ("Wetland", "flooded", 0.03),
     ("Grassland", "herb", 0.08),
     ("Agricultural", "cultivated", 0.10),
@@ -46,7 +47,7 @@ FOREST_TYPE_LABELS = {
 # All covariate keys to aggregate (supports both split and legacy formats)
 FOREST_KEYS = ["needleleaf", "evergreen_broadleaf", "deciduous_broadleaf", "mixed_forest"]
 LEGACY_FOREST_KEY = "trees"
-ALL_LAND_KEYS = FOREST_KEYS + ["shrub", "herb", "cultivated", "urban", "water", "flooded"]
+ALL_LAND_KEYS = FOREST_KEYS + ["shrub", "herb", "cultivated", "urban", "water", "flooded", "ocean"]
 
 
 def main():

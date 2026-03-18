@@ -52,7 +52,9 @@ const HABITAT_STYLE: Record<string, { bg: string; text: string; emoji: string }>
   'Tropical Forest':   { bg: 'bg-green-100 dark:bg-green-900/40',    text: 'text-green-800 dark:text-green-300',     emoji: '\u{1F334}' },
   'Deciduous Forest':  { bg: 'bg-lime-100 dark:bg-lime-900/40',      text: 'text-lime-800 dark:text-lime-300',       emoji: '\u{1F333}' },
   'Mixed Forest':      { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300', emoji: '\u{1F343}' },
-  'Aquatic':           { bg: 'bg-sky-100 dark:bg-sky-900/40',         text: 'text-sky-800 dark:text-sky-300',         emoji: '\u{1F4A7}' },
+  'Aquatic':           { bg: 'bg-sky-100 dark:bg-sky-900/40',         text: 'text-sky-800 dark:text-sky-300',         emoji: '\u{1F4A7}' },  // legacy
+  'Freshwater':        { bg: 'bg-sky-100 dark:bg-sky-900/40',         text: 'text-sky-800 dark:text-sky-300',         emoji: '\u{1F4A7}' },
+  'Ocean':             { bg: 'bg-blue-100 dark:bg-blue-900/40',       text: 'text-blue-800 dark:text-blue-300',       emoji: '\u{1F30A}' },
   'Wetland':           { bg: 'bg-teal-100 dark:bg-teal-900/40',       text: 'text-teal-800 dark:text-teal-300',       emoji: '\u{1F3DE}\u{FE0F}' },
   'Grassland':         { bg: 'bg-lime-100 dark:bg-lime-900/40',       text: 'text-lime-800 dark:text-lime-300',       emoji: '\u{1F33F}' },
   'Agricultural':      { bg: 'bg-yellow-100 dark:bg-yellow-900/40',   text: 'text-yellow-800 dark:text-yellow-300',   emoji: '\u{1F33E}' },
