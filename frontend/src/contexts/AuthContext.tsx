@@ -7,7 +7,7 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth'
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
 interface AuthContextValue {
@@ -28,9 +28,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
       setLoading(false)
+
+      // Ensure user document exists in Firestore (handles cases where signup
+      // occurred before Firestore rules were deployed, or doc creation failed)
+      if (firebaseUser) {
+        try {
+          const userRef = doc(db, 'users', firebaseUser.uid)
+          const snap = await getDoc(userRef)
+          if (!snap.exists()) {
+            await setDoc(userRef, {
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Birder',
+              email: firebaseUser.email,
+              createdAt: serverTimestamp(),
+              friendCode: generateFriendCode(),
+              stats: { speciesCount: 0, groupsCompleted: 0, groupsStarted: 0, currentStreak: 0, longestStreak: 0 },
+              lastSyncedAt: serverTimestamp(),
+            })
+            console.log('Created missing Firestore user document')
+          }
+        } catch (err) {
+          console.warn('Could not ensure user document:', err)
+        }
+      }
     })
     return unsubscribe
   }, [])
