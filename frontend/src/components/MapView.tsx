@@ -1980,7 +1980,7 @@ export default memo(function MapView({
                   families.forEach(([, lifers]) => lifers.sort((a, b) => (a.taxonOrder ?? 99999) - (b.taxonOrder ?? 99999)))
                   // Pagination: flatten to count total, then paginate within families
                   const allLifers = families.flatMap(([, lifers]) => lifers)
-                  const POPUP_PAGE_SIZE = 20
+                  const POPUP_PAGE_SIZE = window.innerWidth < 768 ? 12 : 20
                   const totalCount = allLifers.length
                   const displayLimit = popupShowAll ? totalCount : POPUP_PAGE_SIZE
                   let displayedCount = 0
