@@ -60,6 +60,7 @@ const HABITAT_STYLE: Record<string, { bg: string; text: string; emoji: string }>
   'Agricultural':      { bg: 'bg-yellow-100 dark:bg-yellow-900/40',   text: 'text-yellow-800 dark:text-yellow-300',   emoji: '\u{1F33E}' },
   'Urban-tolerant':    { bg: 'bg-stone-100 dark:bg-stone-700/40',     text: 'text-stone-700 dark:text-stone-300',     emoji: '\u{1F3D9}\u{FE0F}' },
   'Scrubland':         { bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300',     emoji: '\u{1FAB4}' },
+  'Habitat Generalist': { bg: 'bg-gray-100 dark:bg-gray-700/40',     text: 'text-gray-700 dark:text-gray-300',       emoji: '\u{1F30D}' },
 }
 
 function getStyle(variant: BadgeProps['variant'], value: string) {

@@ -30,10 +30,23 @@ NON_FOREST_THRESHOLDS = [
     ("Ocean", "ocean", 0.40),         # high bar — only species truly in ocean-dominated cells
     ("Wetland", "flooded", 0.03),
     ("Grassland", "herb", 0.08),
-    ("Agricultural", "cultivated", 0.10),
+    ("Agricultural", "cultivated", 0.20),  # raised to avoid labeling generalists near farms
     ("Urban-tolerant", "urban", 0.005),
     ("Scrubland", "shrub", 0.10),
 ]
+
+# Families where freshwater/ocean thresholds should be lowered
+# (these birds use water even when frequency-weighted cell averages are diluted)
+WATER_ASSOCIATED_FAMILIES = {
+    "Ducks, Geese, and Waterfowl", "Herons, Egrets, and Bitterns",
+    "Grebes", "Loons", "Cormorants and Shags", "Pelicans",
+    "Rails, Gallinules, and Coots", "Ibises and Spoonbills",
+    "Kingfishers", "Storks", "Cranes", "Sunbittern",
+    "Sandpipers and Allies", "Plovers and Lapwings",
+    "Gulls, Terns, and Skimmers",
+}
+WATER_FAMILY_FRESHWATER_THRESHOLD = 0.05  # much lower for known water birds
+WATER_FAMILY_OCEAN_THRESHOLD = 0.20
 
 FOREST_THRESHOLD = 0.15  # min total forest to qualify for any forest label
 # Per-type dominance thresholds: specific types get lower bar, mixed is harder
@@ -85,8 +98,9 @@ def main():
 
     print(f"Loaded {len(species_list)} species")
 
-    # Build species code -> species index lookup
+    # Build species code -> species index lookup and family lookup
     code_to_idx = {sp["speciesCode"]: i for i, sp in enumerate(species_list)}
+    code_to_family = {sp["speciesCode"]: sp.get("familyComName", "") for sp in species_list}
 
     # Process each species-weeks file
     habitat_results = {}  # speciesCode -> {labels, elevation}
@@ -169,10 +183,26 @@ def main():
         norm_cov["_freshwater"] = max(0, raw_water - ocean_val)
 
         # Non-forest habitats (use _freshwater instead of raw water)
+        # Water-associated families get lower thresholds for freshwater/ocean
+        family = code_to_family.get(code, "")
+        is_water_family = family in WATER_ASSOCIATED_FAMILIES
+
         for label, key, threshold in NON_FOREST_THRESHOLDS:
             actual_key = "_freshwater" if key == "water" else key
+            # Use lower threshold for water families
+            if is_water_family:
+                if key == "water":
+                    threshold = WATER_FAMILY_FRESHWATER_THRESHOLD
+                elif key == "ocean":
+                    threshold = WATER_FAMILY_OCEAN_THRESHOLD
             if norm_cov.get(actual_key, 0) >= threshold:
                 labels.append(label)
+
+        # Tag habitat generalists: species with 4+ labels or no strong habitat preference
+        if len(labels) >= 4:
+            labels.append("Habitat Generalist")
+        elif len(labels) == 0:
+            labels.append("Habitat Generalist")
 
         # Compute preferred elevation
         preferred_elev = None
