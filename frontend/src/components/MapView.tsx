@@ -289,6 +289,7 @@ export default memo(function MapView({
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary>([])
   const [weeklyData, setWeeklyData] = useState<OccurrenceRecord[]>([])
   const [isLoadingWeek, setIsLoadingWeek] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
   const [gridReady, setGridReady] = useState(false)
   // Ref to track the set of species_ids that are unseen goal species
   const goalSpeciesIdSetRef = useRef<Set<number>>(new Set())
@@ -1474,7 +1475,9 @@ export default memo(function MapView({
         const cellLiferCounts = new Map<number, number>()
 
         const hasSpeciesFilter = speciesFilterIdsRef.current !== null
-        console.log(`Density: seenSpecies=${seenSpecies.size}, showTotalRichness=${showTotalRichness}, hasFilter=${hasSpeciesFilter}, branch=${(seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter ? 'lifer' : 'total'}`)
+        const branch = (seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter ? 'lifer' : 'total'
+        console.log(`Density: seenSpecies=${seenSpecies.size}, showTotalRichness=${showTotalRichness}, hasFilter=${hasSpeciesFilter}, branch=${branch}`)
+        setDebugInfo(`seen=${seenSpecies.size} branch=${branch}`)
         if ((seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter) {
           try {
             const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
@@ -1499,7 +1502,9 @@ export default memo(function MapView({
             liferData.forEach(([cellId, liferCount]) => {
               if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
             })
-            console.log(`Density lifer: seenIds=${seenIds.size}, liferCells=${cellLiferCounts.size}/${weekCells.size} cells with lifers, allCellIds=${allCellIdsRef.current.size}`)
+            const msg = `seen=${seenIds.size} liferCells=${cellLiferCounts.size}/${weekCells.size} allCells=${allCellIdsRef.current.size}`
+            console.log(`Density lifer: ${msg}`)
+            setDebugInfo(msg)
           } catch (error) {
             if (!cancelled) console.error('Lifer summary: error loading data', error)
             // Do NOT fall back to weeklySummary — that shows total species
@@ -1581,10 +1586,9 @@ export default memo(function MapView({
               else coloredCount++
             } catch { /* tile not loaded */ }
           }
-          console.log(`Density VERIFY: ${coloredCount} colored, ${hiddenCount} hidden, ${staleCount} stale/unset (of ${allCellIdsRef.current.size} total)`)
-          if (staleCount > 0) {
-            console.warn(`WARNING: ${staleCount} cells have NO feature state — these may show stale colors!`)
-          }
+          const verifyMsg = `colored=${coloredCount} hidden=${hiddenCount} stale=${staleCount} total=${allCellIdsRef.current.size}`
+          console.log(`Density VERIFY: ${verifyMsg}`)
+          setDebugInfo(prev => prev + ' | ' + verifyMsg)
         }
       }
       loadDensity()
@@ -1607,6 +1611,12 @@ export default memo(function MapView({
         className="w-full h-full"
         style={{ minHeight: '100%' }}
       />
+      {/* DEBUG BANNER — remove after fixing purple hex bug */}
+      {debugInfo && (
+        <div className="absolute top-1 left-1 bg-black/70 text-white text-[10px] px-2 py-1 rounded z-50 font-mono">
+          {debugInfo}
+        </div>
+      )}
       {isLoadingWeek && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200">
           <div className="flex items-center space-x-2">
