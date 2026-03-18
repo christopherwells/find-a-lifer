@@ -223,44 +223,49 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function importToStore(
+    storeName: typeof STORE_NAME | typeof PARTNER_STORE,
+    speciesCodes: string[],
+    comNames: string[],
+    currentSet: Set<string>,
+    setter: (s: Set<string>) => void,
+  ): Promise<{newCount: number, existingCount: number}> {
+    const db = await getDB()
+    const existingCodes = new Set(currentSet)
+
+    const tx = db.transaction(storeName, 'readwrite')
+    for (let i = 0; i < speciesCodes.length; i++) {
+      const entry: LifeListEntry = {
+        speciesCode: speciesCodes[i],
+        comName: comNames[i],
+        dateAdded: Date.now(),
+        source: 'import'
+      }
+      await tx.store.put(entry)
+    }
+    await tx.done
+
+    const allEntries = await db.getAll(storeName)
+    const codes = new Set(allEntries.map(entry => entry.speciesCode))
+    setter(codes)
+
+    let newCount = 0
+    let existingCount = 0
+    for (const code of speciesCodes) {
+      if (existingCodes.has(code)) {
+        existingCount++
+      } else {
+        newCount++
+      }
+    }
+    return { newCount, existingCount }
+  }
+
   const importSpeciesList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
     try {
-      const db = await getDB()
-
-      // Snapshot existing species before import to determine new vs existing
-      const existingCodes = new Set(seenSpecies)
-
-      const tx = db.transaction(STORE_NAME, 'readwrite')
-
-      for (let i = 0; i < speciesCodes.length; i++) {
-        const entry: LifeListEntry = {
-          speciesCode: speciesCodes[i],
-          comName: comNames[i],
-          dateAdded: Date.now(),
-          source: 'import'
-        }
-        await tx.store.put(entry)
-      }
-
-      await tx.done
-
-      const allEntries = await db.getAll(STORE_NAME)
-      const codes = new Set(allEntries.map(entry => entry.speciesCode))
-      setSeenSpecies(codes)
-
-      // Count new vs existing from the imported list
-      let newCount = 0
-      let existingCount = 0
-      for (const code of speciesCodes) {
-        if (existingCodes.has(code)) {
-          existingCount++
-        } else {
-          newCount++
-        }
-      }
-
-      console.log(`Imported ${speciesCodes.length} species (${newCount} new, ${existingCount} already existed)`)
-      return { newCount, existingCount }
+      const result = await importToStore(STORE_NAME, speciesCodes, comNames, seenSpecies, setSeenSpecies)
+      console.log(`Imported ${speciesCodes.length} species (${result.newCount} new, ${result.existingCount} already existed)`)
+      return result
     } catch (error) {
       console.error('Error importing species list:', error)
       throw error
@@ -280,37 +285,9 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
 
   const importPartnerList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
     try {
-      const db = await getDB()
-      const existingCodes = new Set(partnerSeenSpecies)
-
-      const tx = db.transaction(PARTNER_STORE, 'readwrite')
-      for (let i = 0; i < speciesCodes.length; i++) {
-        const entry: LifeListEntry = {
-          speciesCode: speciesCodes[i],
-          comName: comNames[i],
-          dateAdded: Date.now(),
-          source: 'import'
-        }
-        await tx.store.put(entry)
-      }
-      await tx.done
-
-      const allEntries = await db.getAll(PARTNER_STORE)
-      const codes = new Set(allEntries.map(entry => entry.speciesCode))
-      setPartnerSeenSpecies(codes)
-
-      let newCount = 0
-      let existingCount = 0
-      for (const code of speciesCodes) {
-        if (existingCodes.has(code)) {
-          existingCount++
-        } else {
-          newCount++
-        }
-      }
-
-      console.log(`Imported ${speciesCodes.length} partner species (${newCount} new, ${existingCount} already existed)`)
-      return { newCount, existingCount }
+      const result = await importToStore(PARTNER_STORE, speciesCodes, comNames, partnerSeenSpecies, setPartnerSeenSpecies)
+      console.log(`Imported ${speciesCodes.length} partner species (${result.newCount} new, ${result.existingCount} already existed)`)
+      return result
     } catch (error) {
       console.error('Error importing partner list:', error)
       throw error

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import { useSpecies } from '../hooks/useSpecies'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species } from './types'
 import { FamilyGroupSkeleton } from './Skeleton'
-import { fetchSpecies } from '../lib/dataCache'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import SuggestionSection from './SuggestionSection'
 import { getDisplayGroup } from '../lib/familyGroups'
@@ -30,6 +31,7 @@ import {
 export default function GoalBirdsTab() {
   const { isSpeciesSeen, seenSpecies } = useLifeList()
   const { user } = useAuth()
+  const { showToast } = useToast()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [activeListId, setActiveListId] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -41,11 +43,9 @@ export default function GoalBirdsTab() {
   const [deletingListId, setDeletingListId] = useState<string | null>(null)
 
   // Species search/add state
-  const [allSpecies, setAllSpecies] = useState<Species[]>([])
+  const { species: allSpecies, loading: speciesLoading } = useSpecies()
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [showSuccessToast, setShowSuccessToast] = useState('')
-  const [showDuplicateToast, setShowDuplicateToast] = useState('')
   const [createListError, setCreateListError] = useState('')
 
   // Shared goal lists
@@ -65,19 +65,6 @@ export default function GoalBirdsTab() {
       setFriends(friendsList)
     }).catch(err => console.error('Failed to load shared lists:', err))
   }, [user])
-
-  // Auto-clear toast messages after 3 seconds
-  useEffect(() => {
-    if (!showSuccessToast) return
-    const timer = setTimeout(() => setShowSuccessToast(''), 3000)
-    return () => clearTimeout(timer)
-  }, [showSuccessToast])
-
-  useEffect(() => {
-    if (!showDuplicateToast) return
-    const timer = setTimeout(() => setShowDuplicateToast(''), 3000)
-    return () => clearTimeout(timer)
-  }, [showDuplicateToast])
 
   // List picker for one-tap add with multiple goal lists
   const [listPickerSpecies, setListPickerSpecies] = useState<Species | null>(null)
@@ -137,20 +124,6 @@ export default function GoalBirdsTab() {
     setListFilterTerm('')
   }, [activeListId])
 
-  // Load species metadata for search/add functionality
-  useEffect(() => {
-    const loadSpecies = async () => {
-      try {
-        const data: Species[] = await fetchSpecies()
-        setAllSpecies(data)
-        console.log('Goal Birds: Loaded species metadata', data.length)
-      } catch (error) {
-        console.error('Failed to load species for Goal Birds:', error)
-      }
-    }
-    loadSpecies()
-  }, [])
-
   // Region dropdown data — derived from species metadata (same pattern as SpeciesTab)
   const regionDropdownData = useMemo(() => {
     const allCodes = Array.from(new Set(allSpecies.flatMap(s => s.regions ?? [])))
@@ -208,7 +181,7 @@ export default function GoalBirdsTab() {
       await goalListsDB.saveList(newList)
       setGoalLists(prev => [...prev, newList])
       setActiveListId(newList.id)
-      setShowSuccessToast(`Created "${name}" with ${species.length} species`)
+      showToast({ type: 'success', message: `Created "${name}" with ${species.length} species` })
     } catch (error) {
       console.error('Failed to create template goal list:', error)
     } finally {
@@ -348,7 +321,7 @@ export default function GoalBirdsTab() {
     a.download = `${list.name.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-')}.json`
     a.click()
     URL.revokeObjectURL(url)
-    setShowSuccessToast(`Exported "${list.name}"`)
+    showToast({ type: 'success', message: `Exported "${list.name}"` })
   }
 
   // Import goal list from JSON file
@@ -366,11 +339,11 @@ export default function GoalBirdsTab() {
 
         // Validate the imported data
         if (data.app !== 'find-a-lifer' || data.type !== 'goal-list') {
-          setShowDuplicateToast('Invalid file: not a Find-A-Lifer goal list')
+          showToast({ type: 'muted', message: 'Invalid file: not a Find-A-Lifer goal list' })
           return
         }
         if (!data.name || !Array.isArray(data.speciesCodes)) {
-          setShowDuplicateToast('Invalid file: missing name or species codes')
+          showToast({ type: 'muted', message: 'Invalid file: missing name or species codes' })
           return
         }
 
@@ -396,9 +369,9 @@ export default function GoalBirdsTab() {
         await goalListsDB.saveList(newList)
         setGoalLists(prev => [...prev, newList])
         setActiveListId(newList.id)
-        setShowSuccessToast(`Imported "${name}" with ${data.speciesCodes.length} species`)
+        showToast({ type: 'success', message: `Imported "${name}" with ${data.speciesCodes.length} species` })
       } catch {
-        setShowDuplicateToast('Failed to import: invalid JSON file')
+        showToast({ type: 'muted', message: 'Failed to import: invalid JSON file' })
       }
     }
     input.click()
@@ -415,9 +388,9 @@ export default function GoalBirdsTab() {
     }
     try {
       await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2))
-      setShowSuccessToast('Copied to clipboard!')
+      showToast({ type: 'success', message: 'Copied to clipboard!' })
     } catch {
-      setShowDuplicateToast('Failed to copy to clipboard')
+      showToast({ type: 'muted', message: 'Failed to copy to clipboard' })
     }
   }
 
@@ -445,7 +418,7 @@ export default function GoalBirdsTab() {
 
       // Check for duplicates
       if (targetList.speciesCodes.includes(species.speciesCode)) {
-        setShowDuplicateToast(`${species.comName} is already in ${targetList.name}`)
+        showToast({ type: 'muted', message: `${species.comName} is already in ${targetList.name}` })
         setSearchQuery('')
         setShowSuggestions(false)
         return
@@ -465,7 +438,7 @@ export default function GoalBirdsTab() {
       )
 
       // Show success toast
-      setShowSuccessToast(`Added ${species.comName} to ${targetList.name}`)
+      showToast({ type: 'success', message: `Added ${species.comName} to ${targetList.name}` })
 
       // Clear search
       setSearchQuery('')
@@ -497,7 +470,7 @@ export default function GoalBirdsTab() {
       )
 
       // Show success toast
-      setShowSuccessToast(`Removed ${speciesName} from ${activeList.name}`)
+      showToast({ type: 'success', message: `Removed ${speciesName} from ${activeList.name}` })
     } catch (error) {
       console.error('Failed to remove species from goal list:', error)
     }
@@ -1847,48 +1820,6 @@ export default function GoalBirdsTab() {
             >
               Cancel
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Success Toast */}
-      {showSuccessToast && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="text-sm font-medium">{showSuccessToast}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Duplicate Toast */}
-      {showDuplicateToast && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-yellow-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="text-sm font-medium">{showDuplicateToast}</span>
           </div>
         </div>
       )}

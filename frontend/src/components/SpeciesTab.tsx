@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useToast } from '../contexts/ToastContext'
 import { useCelebrations } from '../hooks/useCelebrations'
+import { useSpecies } from '../hooks/useSpecies'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species, SpeciesTabProps } from './types'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { getConservationDotColor, getRestrictedRangeDotColor } from '../lib/badgeUtils'
-import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
+import { fetchRegionNames } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
 import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
 import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES, expandRegionFilter } from '../lib/regionGroups'
@@ -16,10 +18,10 @@ import { TOOLTIPS } from '../lib/tooltipContent'
 type SpeciesByGroup = Record<string, Species[]>
 
 export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSpeciesFiltersChange }: SpeciesTabProps) {
-  const [allSpecies, setAllSpecies] = useState<Species[]>([])
+  const { species: rawSpecies, loading } = useSpecies()
   const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
   const [groupOrder, setGroupOrder] = useState<string[]>([]) // groups in taxonomic order
-  const [loading, setLoading] = useState(true)
+  const [allSpecies, setAllSpecies] = useState<Species[]>([])
   const [error, setError] = useState<string | null>(null)
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string> | 'all'>('all') // 'all' = all collapsed
   const [searchTerm, setSearchTerm] = useState('')
@@ -40,6 +42,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   const [regionNameMap, setRegionNameMap] = useState<Record<string, string>>({})
   const [showFilters, setShowFilters] = useState(false)
   const { isSpeciesSeen, getTotalSeen } = useLifeList()
+  const { showToast } = useToast()
   const { celebrateToggle } = useCelebrations(allSpecies)
 
   // Region filtering state
@@ -49,14 +52,6 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   // Goal list management for adding species to goal lists
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [addingSpecies, setAddingSpecies] = useState<{ code: string; name: string } | null>(null)
-  const [showSuccessMessage, setShowSuccessMessage] = useState<string | null>(null)
-
-  // Auto-clear success message after 3 seconds
-  useEffect(() => {
-    if (!showSuccessMessage) return
-    const timer = setTimeout(() => setShowSuccessMessage(null), 3000)
-    return () => clearTimeout(timer)
-  }, [showSuccessMessage])
 
   // Species info card
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
@@ -76,43 +71,32 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
     return () => clearTimeout(timer)
   }, [highlightedSpecies])
 
-  // Fetch species data from API (shared cache)
+  // Sort and group species once loaded from shared hook
   useEffect(() => {
-    const loadSpecies = async () => {
-      try {
-        setLoading(true)
-        const data: Species[] = await fetchSpecies()
+    if (rawSpecies.length === 0) return
 
-        // Sort by taxonomic order
-        const sorted = data.sort((a, b) => a.taxonOrder - b.taxonOrder)
-        setAllSpecies(sorted)
+    // Sort by taxonomic order
+    const sorted = [...rawSpecies].sort((a, b) => a.taxonOrder - b.taxonOrder)
+    setAllSpecies(sorted)
 
-        // Group by display group (species stay in taxonOrder within each group)
-        const byGroup: SpeciesByGroup = {}
-        const groupMinOrder: Record<string, number> = {}
-        sorted.forEach((species) => {
-          const group = getDisplayGroup(species.familyComName)
-          if (!byGroup[group]) {
-            byGroup[group] = []
-            groupMinOrder[group] = species.taxonOrder
-          }
-          byGroup[group].push(species)
-          groupMinOrder[group] = Math.min(groupMinOrder[group], species.taxonOrder)
-        })
-        setSpeciesByGroup(byGroup)
-        // Sort groups by ecological display order (mostly taxonomic with beginner-friendly adjustments)
-        setGroupOrder(Object.keys(byGroup).sort((a, b) =>
-          getGroupSortKey(a, groupMinOrder[a]) - getGroupSortKey(b, groupMinOrder[b])
-        ))
-        setLoading(false)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error')
-        setLoading(false)
+    // Group by display group (species stay in taxonOrder within each group)
+    const byGroup: SpeciesByGroup = {}
+    const groupMinOrder: Record<string, number> = {}
+    sorted.forEach((species) => {
+      const group = getDisplayGroup(species.familyComName)
+      if (!byGroup[group]) {
+        byGroup[group] = []
+        groupMinOrder[group] = species.taxonOrder
       }
-    }
-
-    loadSpecies()
-  }, [])
+      byGroup[group].push(species)
+      groupMinOrder[group] = Math.min(groupMinOrder[group], species.taxonOrder)
+    })
+    setSpeciesByGroup(byGroup)
+    // Sort groups by ecological display order (mostly taxonomic with beginner-friendly adjustments)
+    setGroupOrder(Object.keys(byGroup).sort((a, b) =>
+      getGroupSortKey(a, groupMinOrder[a]) - getGroupSortKey(b, groupMinOrder[b])
+    ))
+  }, [rawSpecies])
 
   // Load region names after species are loaded
   useEffect(() => {
@@ -234,7 +218,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
       console.log(`Added ${addingSpecies.name} (${addingSpecies.code}) to goal list: ${list?.name}`)
 
       // Show success message
-      setShowSuccessMessage(`Added ${addingSpecies.name} to ${list?.name}`)
+      showToast({ type: 'success', message: `Added ${addingSpecies.name} to ${list?.name}` })
 
       // Close dialog
       setAddingSpecies(null)
@@ -804,27 +788,6 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success Message Toast */}
-      {showSuccessMessage && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="text-sm font-medium">{showSuccessMessage}</span>
           </div>
         </div>
       )}

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useSpecies } from '../hooks/useSpecies'
 import type { LifeListEntry } from '../contexts/LifeListContext'
-import type { Species } from './types'
 import { ProgressSkeleton } from './Skeleton'
-import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
+import { fetchRegionNames } from '../lib/dataCache'
 import { getDisplayGroup } from '../lib/familyGroups'
 import { REGION_GROUPS, GROUPED_CODES } from '../lib/regionGroups'
 import { computeStreak, computeWeeklySummary } from '../lib/streakUtils'
@@ -18,29 +18,18 @@ export default function ProgressTab() {
     listScope, setListScope, seenSpecies,
   } = useLifeList()
   const { user } = useAuth()
-  const [allSpecies, setAllSpecies] = useState<Species[]>([])
+  const { species: allSpecies, loading } = useSpecies()
   const [regionNames, setRegionNames] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [friendLeaderboard, setFriendLeaderboard] = useState<LeaderboardEntry[]>([])
   const [streakInfo, setStreakInfo] = useState<{ currentStreak: number; longestStreak: number; lastActiveDate: string | null } | null>(null)
   const [weeklySummary, setWeeklySummary] = useState<{ newLifers: number; newFamiliesStarted: number } | null>(null)
 
-  // Load species metadata and region names on mount
+  // Load region names on mount
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        const [data, names] = await Promise.all([fetchSpecies(), fetchRegionNames()])
-        setAllSpecies(data)
-        setRegionNames(names)
-      } catch (error) {
-        console.error('ProgressTab: failed to load data', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadData()
+    fetchRegionNames()
+      .then(names => setRegionNames(names))
+      .catch(err => console.error('ProgressTab: failed to load region names', err))
   }, [])
 
   // Load streak & weekly summary data
