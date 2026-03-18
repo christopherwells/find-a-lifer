@@ -47,13 +47,17 @@ const INVASION_STYLE: Record<string, { bg: string; text: string; emoji: string }
 }
 
 const HABITAT_STYLE: Record<string, { bg: string; text: string; emoji: string }> = {
-  'Forest':          { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300', emoji: '\u{1F332}' },
-  'Aquatic':         { bg: 'bg-sky-100 dark:bg-sky-900/40',         text: 'text-sky-800 dark:text-sky-300',         emoji: '\u{1F4A7}' },
-  'Wetland':         { bg: 'bg-teal-100 dark:bg-teal-900/40',       text: 'text-teal-800 dark:text-teal-300',       emoji: '\u{1F3DE}\u{FE0F}' },
-  'Grassland':       { bg: 'bg-lime-100 dark:bg-lime-900/40',       text: 'text-lime-800 dark:text-lime-300',       emoji: '\u{1F33F}' },
-  'Agricultural':    { bg: 'bg-yellow-100 dark:bg-yellow-900/40',   text: 'text-yellow-800 dark:text-yellow-300',   emoji: '\u{1F33E}' },
-  'Urban-tolerant':  { bg: 'bg-stone-100 dark:bg-stone-700/40',     text: 'text-stone-700 dark:text-stone-300',     emoji: '\u{1F3D9}\u{FE0F}' },
-  'Scrubland':       { bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300',     emoji: '\u{1FAB4}' },
+  'Forest':            { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300', emoji: '\u{1F332}' },
+  'Conifer Forest':    { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300', emoji: '\u{1F332}' },
+  'Tropical Forest':   { bg: 'bg-green-100 dark:bg-green-900/40',    text: 'text-green-800 dark:text-green-300',     emoji: '\u{1F334}' },
+  'Deciduous Forest':  { bg: 'bg-lime-100 dark:bg-lime-900/40',      text: 'text-lime-800 dark:text-lime-300',       emoji: '\u{1F333}' },
+  'Mixed Forest':      { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300', emoji: '\u{1F343}' },
+  'Aquatic':           { bg: 'bg-sky-100 dark:bg-sky-900/40',         text: 'text-sky-800 dark:text-sky-300',         emoji: '\u{1F4A7}' },
+  'Wetland':           { bg: 'bg-teal-100 dark:bg-teal-900/40',       text: 'text-teal-800 dark:text-teal-300',       emoji: '\u{1F3DE}\u{FE0F}' },
+  'Grassland':         { bg: 'bg-lime-100 dark:bg-lime-900/40',       text: 'text-lime-800 dark:text-lime-300',       emoji: '\u{1F33F}' },
+  'Agricultural':      { bg: 'bg-yellow-100 dark:bg-yellow-900/40',   text: 'text-yellow-800 dark:text-yellow-300',   emoji: '\u{1F33E}' },
+  'Urban-tolerant':    { bg: 'bg-stone-100 dark:bg-stone-700/40',     text: 'text-stone-700 dark:text-stone-300',     emoji: '\u{1F3D9}\u{FE0F}' },
+  'Scrubland':         { bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300',     emoji: '\u{1FAB4}' },
 }
 
 function getStyle(variant: BadgeProps['variant'], value: string) {

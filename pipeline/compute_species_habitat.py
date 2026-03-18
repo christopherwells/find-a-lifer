@@ -23,10 +23,9 @@ SPECIES_JSON = FRONTEND_DATA / "species.json"
 RESOLUTION = 4
 
 # Habitat label thresholds (minimum weighted average to qualify)
-# Based on actual cell covariate distributions
-# Uses combined forest (sum of all tree types) for the "Forest" label
-HABITAT_THRESHOLDS = [
-    ("Forest", "_total_forest", 0.15),  # sum of needleleaf + evergreen_broadleaf + deciduous_broadleaf + mixed_forest (or legacy trees)
+# Forest types get specific labels when one type dominates (>60% of total forest)
+# Otherwise falls back to generic "Forest"
+NON_FOREST_THRESHOLDS = [
     ("Aquatic", "water", 0.15),
     ("Wetland", "flooded", 0.03),
     ("Grassland", "herb", 0.08),
@@ -34,6 +33,15 @@ HABITAT_THRESHOLDS = [
     ("Urban-tolerant", "urban", 0.005),
     ("Scrubland", "shrub", 0.10),
 ]
+
+FOREST_THRESHOLD = 0.15  # min total forest to qualify for any forest label
+FOREST_DOMINANCE = 0.60  # min share of total forest for a specific type label
+FOREST_TYPE_LABELS = {
+    "needleleaf": "Conifer Forest",
+    "evergreen_broadleaf": "Tropical Forest",
+    "deciduous_broadleaf": "Deciduous Forest",
+    "mixed_forest": "Mixed Forest",
+}
 
 # All covariate keys to aggregate (supports both split and legacy formats)
 FOREST_KEYS = ["needleleaf", "evergreen_broadleaf", "deciduous_broadleaf", "mixed_forest"]
@@ -128,15 +136,29 @@ def main():
         # Normalize weighted covariates
         norm_cov = {k: v / total_weight for k, v in weighted_cov.items()}
 
-        # Compute total forest for threshold check
-        if "needleleaf" in norm_cov:
-            norm_cov["_total_forest"] = sum(norm_cov.get(k, 0) for k in FOREST_KEYS)
-        else:
-            norm_cov["_total_forest"] = norm_cov.get("trees", 0)
-
         # Derive habitat labels
         labels = []
-        for label, key, threshold in HABITAT_THRESHOLDS:
+
+        # Forest: check total, then assign specific type if one dominates
+        if "needleleaf" in norm_cov:
+            total_forest = sum(norm_cov.get(k, 0) for k in FOREST_KEYS)
+        else:
+            total_forest = norm_cov.get("trees", 0)
+
+        if total_forest >= FOREST_THRESHOLD:
+            # Check if a specific forest type dominates
+            best_type, best_val = None, 0
+            for fkey in FOREST_KEYS:
+                val = norm_cov.get(fkey, 0)
+                if val > best_val:
+                    best_type, best_val = fkey, val
+            if best_type and total_forest > 0 and best_val / total_forest >= FOREST_DOMINANCE:
+                labels.append(FOREST_TYPE_LABELS[best_type])
+            else:
+                labels.append("Forest")
+
+        # Non-forest habitats
+        for label, key, threshold in NON_FOREST_THRESHOLDS:
             if norm_cov.get(key, 0) >= threshold:
                 labels.append(label)
 
