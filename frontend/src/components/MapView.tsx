@@ -1838,21 +1838,39 @@ export default memo(function MapView({
               {(() => {
                 const cov = popupCovariates as unknown as Record<string, number>
                 const ocean = cov.ocean || 0
-                const landCovKeys = ['trees', 'shrub', 'herb', 'cultivated', 'urban', 'water', 'flooded'] as const
+                // Support both split forest types (new) and combined 'trees' (legacy)
+                const hasForestSplit = 'needleleaf' in cov || 'evergreen_broadleaf' in cov
+                const landCovKeys = hasForestSplit
+                  ? ['needleleaf', 'evergreen_broadleaf', 'deciduous_broadleaf', 'mixed_forest', 'shrub', 'herb', 'cultivated', 'urban', 'water', 'flooded']
+                  : ['trees', 'shrub', 'herb', 'cultivated', 'urban', 'water', 'flooded']
                 const landSum = landCovKeys.reduce((s, k) => s + (cov[k] || 0), 0)
-                const bareOther = Math.max(0, 1 - ocean - landSum)
+                const barren = Math.max(0, 1 - ocean - landSum)
 
-                // All categories including ocean and bare
-                const categories = [
+                // 12-bin categories with simple, friendly names and emojis
+                const categories = hasForestSplit ? [
                   { key: 'ocean', val: ocean, color: '#1B4F72', label: 'Ocean', icon: '\u{1F30A}' },
-                  { key: 'trees', val: cov.trees || 0, color: '#22763F', label: 'Forest', icon: '\u{1F332}' },
-                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Shrub', icon: '\u{1FAB4}' },
+                  { key: 'needleleaf', val: cov.needleleaf || 0, color: '#1B5E20', label: 'Conifer', icon: '\u{1F332}' },
+                  { key: 'evergreen_broadleaf', val: cov.evergreen_broadleaf || 0, color: '#2E7D32', label: 'Tropical', icon: '\u{1F334}' },
+                  { key: 'deciduous_broadleaf', val: cov.deciduous_broadleaf || 0, color: '#558B2F', label: 'Deciduous', icon: '\u{1F333}' },
+                  { key: 'mixed_forest', val: cov.mixed_forest || 0, color: '#33691E', label: 'Mixed', icon: '\u{1F343}' },
+                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Scrub', icon: '\u{1FAB4}' },
                   { key: 'herb', val: cov.herb || 0, color: '#A8D08D', label: 'Grassland', icon: '\u{1F33F}' },
-                  { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Cropland', icon: '\u{1F33E}' },
-                  { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Urban', icon: '\u{1F3D9}' },
+                  { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Farmland', icon: '\u{1F33E}' },
+                  { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Developed', icon: '\u{1F3D8}' },
                   { key: 'water', val: cov.water || 0, color: '#4A90D9', label: 'Freshwater', icon: '\u{1F4A7}' },
                   { key: 'flooded', val: cov.flooded || 0, color: '#6B8E9B', label: 'Wetland', icon: '\u{1F3DE}' },
-                  { key: 'bare', val: bareOther, color: '#C4A882', label: 'Bare/Other', icon: '\u{1FABB}' },
+                  { key: 'barren', val: barren, color: '#C4A882', label: 'Barren', icon: '\u{1F3DC}' },
+                ] : [
+                  // Legacy fallback (combined trees)
+                  { key: 'ocean', val: ocean, color: '#1B4F72', label: 'Ocean', icon: '\u{1F30A}' },
+                  { key: 'trees', val: cov.trees || 0, color: '#22763F', label: 'Forest', icon: '\u{1F332}' },
+                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Scrub', icon: '\u{1FAB4}' },
+                  { key: 'herb', val: cov.herb || 0, color: '#A8D08D', label: 'Grassland', icon: '\u{1F33F}' },
+                  { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Farmland', icon: '\u{1F33E}' },
+                  { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Developed', icon: '\u{1F3D8}' },
+                  { key: 'water', val: cov.water || 0, color: '#4A90D9', label: 'Freshwater', icon: '\u{1F4A7}' },
+                  { key: 'flooded', val: cov.flooded || 0, color: '#6B8E9B', label: 'Wetland', icon: '\u{1F3DE}' },
+                  { key: 'barren', val: barren, color: '#C4A882', label: 'Barren', icon: '\u{1F3DC}' },
                 ]
                 const total = categories.reduce((s, c) => s + c.val, 0)
                 const scale = total > 0 ? 100 / total : 0

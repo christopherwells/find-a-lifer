@@ -53,10 +53,13 @@ ELEVATION_DIR = SCRIPT_DIR / "reference" / "elevation"
 
 RESOLUTIONS = [3, 4]
 
-# EarthEnv class files and how to aggregate them
+# EarthEnv class files — one key per land cover category
+# Split forest into individual types for finer resolution
 LANDCOVER_CLASSES = {
-    "trees": ["needleleaf_trees.tif", "evergreen_broadleaf.tif",
-              "deciduous_broadleaf.tif", "mixed_trees.tif"],
+    "needleleaf": ["needleleaf_trees.tif"],
+    "evergreen_broadleaf": ["evergreen_broadleaf.tif"],
+    "deciduous_broadleaf": ["deciduous_broadleaf.tif"],
+    "mixed_forest": ["mixed_trees.tif"],
     "shrub": ["shrubs.tif"],
     "herb": ["herbaceous.tif"],
     "cultivated": ["cultivated.tif"],
@@ -198,7 +201,8 @@ def covariate_similarity(cov_a, cov_b):
     """Compute similarity between two covariate vectors (0 to 1).
     Uses inverse Euclidean distance in normalized feature space."""
     # Land cover features (already 0-1)
-    lc_keys = ["trees", "shrub", "herb", "cultivated", "urban", "water", "flooded"]
+    lc_keys = ["needleleaf", "evergreen_broadleaf", "deciduous_broadleaf", "mixed_forest",
+               "shrub", "herb", "cultivated", "urban", "water", "flooded"]
     diff_sq = 0.0
     for k in lc_keys:
         diff_sq += (cov_a.get(k, 0) - cov_b.get(k, 0)) ** 2

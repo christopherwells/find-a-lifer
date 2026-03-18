@@ -23,9 +23,10 @@ SPECIES_JSON = FRONTEND_DATA / "species.json"
 RESOLUTION = 4
 
 # Habitat label thresholds (minimum weighted average to qualify)
-# Based on actual cell covariate distributions (avg trees=0.12, water=0.18, etc.)
+# Based on actual cell covariate distributions
+# Uses combined forest (sum of all tree types) for the "Forest" label
 HABITAT_THRESHOLDS = [
-    ("Forest", "trees", 0.15),
+    ("Forest", "_total_forest", 0.15),  # sum of needleleaf + evergreen_broadleaf + deciduous_broadleaf + mixed_forest (or legacy trees)
     ("Aquatic", "water", 0.15),
     ("Wetland", "flooded", 0.03),
     ("Grassland", "herb", 0.08),
@@ -33,6 +34,11 @@ HABITAT_THRESHOLDS = [
     ("Urban-tolerant", "urban", 0.005),
     ("Scrubland", "shrub", 0.10),
 ]
+
+# All covariate keys to aggregate (supports both split and legacy formats)
+FOREST_KEYS = ["needleleaf", "evergreen_broadleaf", "deciduous_broadleaf", "mixed_forest"]
+LEGACY_FOREST_KEY = "trees"
+ALL_LAND_KEYS = FOREST_KEYS + ["shrub", "herb", "cultivated", "urban", "water", "flooded"]
 
 
 def main():
@@ -101,8 +107,15 @@ def main():
                 if weight < 0.01:
                     continue  # Skip very low frequencies
 
-                for key in ["trees", "shrub", "herb", "cultivated", "urban", "water", "flooded"]:
-                    weighted_cov[key] += cov.get(key, 0) * weight
+                # Support both split forest (new) and combined trees (legacy)
+                if "needleleaf" in cov:
+                    for key in ALL_LAND_KEYS:
+                        weighted_cov[key] += cov.get(key, 0) * weight
+                else:
+                    # Legacy format with combined 'trees'
+                    weighted_cov["trees"] += cov.get("trees", 0) * weight
+                    for key in ["shrub", "herb", "cultivated", "urban", "water", "flooded"]:
+                        weighted_cov[key] += cov.get(key, 0) * weight
                 total_weight += weight
 
                 if cov.get("elev_mean", 0) > 0:
@@ -114,6 +127,12 @@ def main():
 
         # Normalize weighted covariates
         norm_cov = {k: v / total_weight for k, v in weighted_cov.items()}
+
+        # Compute total forest for threshold check
+        if "needleleaf" in norm_cov:
+            norm_cov["_total_forest"] = sum(norm_cov.get(k, 0) for k in FOREST_KEYS)
+        else:
+            norm_cov["_total_forest"] = norm_cov.get("trees", 0)
 
         # Derive habitat labels
         labels = []

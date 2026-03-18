@@ -172,7 +172,12 @@ def covariate_similarity(cov_a, cov_b):
     """
     if not cov_a or not cov_b:
         return 0.5  # neutral if covariates missing
-    lc_keys = ["trees", "shrub", "herb", "cultivated", "urban", "water", "flooded"]
+    # Support both split forest (needleleaf etc.) and legacy combined 'trees'
+    if "needleleaf" in cov_a or "needleleaf" in cov_b:
+        lc_keys = ["needleleaf", "evergreen_broadleaf", "deciduous_broadleaf", "mixed_forest",
+                    "shrub", "herb", "cultivated", "urban", "water", "flooded"]
+    else:
+        lc_keys = ["trees", "shrub", "herb", "cultivated", "urban", "water", "flooded"]
     diff_sq = sum((cov_a.get(k, 0) - cov_b.get(k, 0)) ** 2 for k in lc_keys)
     elev_diff = (cov_a.get("elev_mean", 0) - cov_b.get("elev_mean", 0)) / 1000.0
     diff_sq += elev_diff ** 2

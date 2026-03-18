@@ -135,16 +135,21 @@ export interface YearList {
 }
 
 export interface CellCovariates {
-  trees: number
+  needleleaf: number        // coniferous forest
+  evergreen_broadleaf: number  // tropical/subtropical forest
+  deciduous_broadleaf: number  // temperate deciduous forest
+  mixed_forest: number      // mixed forest
   shrub: number
-  herb: number
-  cultivated: number
+  herb: number              // grassland
+  cultivated: number        // cropland
   urban: number
-  water: number    // freshwater (inland lakes, rivers — from EarthEnv)
-  flooded: number
-  ocean: number    // ocean fraction (from Natural Earth coastline polygons)
+  water: number             // freshwater (inland lakes, rivers — from EarthEnv)
+  flooded: number           // wetland
+  ocean: number             // ocean fraction (from Natural Earth coastline polygons)
   elev_mean: number
   elev_std: number
+  // Legacy compat: 'trees' may exist in older data (sum of all forest types)
+  trees?: number
 }
 
 export interface GoalWindowResult {
