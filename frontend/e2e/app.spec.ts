@@ -97,6 +97,137 @@ test.describe('Find-A-Lifer App', () => {
   })
 })
 
+test.describe('Regression: Core Feature Interactions', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoReady(page)
+  })
+
+  test('Species tab loads groups and species list', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Species' }).click()
+    await expect(page.getByText('Species Checklist')).toBeVisible({ timeout: 10000 })
+    // Should show seen/total count (e.g., "0/1511")
+    await expect(page.getByText(/\d+\/\d+/)).toBeVisible({ timeout: 5000 })
+  })
+
+  test('Species tab search filters species', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Species' }).click()
+    await expect(page.getByText('Species Checklist')).toBeVisible({ timeout: 10000 })
+    const searchInput = page.getByPlaceholder('Search species...')
+    await expect(searchInput).toBeVisible()
+    await searchInput.fill('robin')
+    // Should show filtered results
+    await expect(page.getByText(/robin/i)).toBeVisible({ timeout: 5000 })
+  })
+
+  test('Species tab filter toggle shows filter dropdowns', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Species' }).click()
+    await expect(page.getByText('Species Checklist')).toBeVisible({ timeout: 10000 })
+    // Click the filter toggle button
+    const filterBtn = page.getByTestId('filter-toggle-btn')
+    await expect(filterBtn).toBeVisible()
+    await filterBtn.click()
+    // Should show region filter dropdown
+    await expect(page.getByTestId('region-filter')).toBeVisible({ timeout: 3000 })
+  })
+
+  test('view mode switching cycles through all modes', async ({ page }) => {
+    // Density (default)
+    await expect(page.getByTestId('view-mode-density')).toBeVisible()
+    // Switch to Frequency
+    await page.getByTestId('view-mode-probability').click()
+    // Switch to Range
+    await page.getByTestId('view-mode-species').click()
+    // Switch to Goals
+    await page.getByTestId('view-mode-goal-birds').click()
+    // Back to Density
+    await page.getByTestId('view-mode-density').click()
+  })
+
+  test('Goals tab shows create list button', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Goals' }).click()
+    await expect(page.getByText('Goal Birds')).toBeVisible({ timeout: 10000 })
+    // Should have a "+ New List" button
+    await expect(page.getByText('+ New List')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('Goals tab loads with goal list UI', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Goals' }).click()
+    await expect(page.getByText('Goal Birds')).toBeVisible({ timeout: 10000 })
+    // The "+ New List" button should be visible at the top
+    await expect(page.getByText('+ New List')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('Progress tab shows all stats sections', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Stats' }).click()
+    await expect(page.getByTestId('progress-tab')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('My Progress')).toBeVisible()
+    await expect(page.getByTestId('quick-stats')).toBeVisible()
+    await expect(page.getByText('Overall Progress')).toBeVisible()
+    await expect(page.getByText('Progress by Group')).toBeVisible()
+    await expect(page.getByText('Progress by Region')).toBeVisible()
+  })
+
+  test('Profile tab shows all sections', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+    await expect(page.getByText('Profile & Data')).toBeVisible()
+    await expect(page.getByText('Import eBird Life List')).toBeVisible()
+    // Export only visible when species > 0, so check life list stats instead
+    await expect(page.getByTestId('total-seen-count')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Year Lists')).toBeVisible()
+    await expect(page.getByText('Partner Life List')).toBeVisible()
+    await expect(page.getByText('Preferences')).toBeVisible()
+  })
+
+  test('map container is present and interactive', async ({ page }) => {
+    const map = page.getByTestId('map-container')
+    await expect(map).toBeVisible()
+    // Map should have a maplibregl canvas
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible({ timeout: 10000 })
+  })
+
+  test('Explore tab opacity slider is visible', async ({ page }) => {
+    await expect(page.getByTestId('opacity-slider')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('TopBar kebab menu has Tutorial and About options', async ({ page }) => {
+    const kebab = page.getByTestId('topbar-menu-button')
+    await expect(kebab).toBeVisible()
+    await kebab.click()
+    await expect(page.getByTestId('topbar-help-button')).toBeVisible({ timeout: 3000 })
+    await expect(page.getByTestId('topbar-about-button')).toBeVisible()
+  })
+
+  test('About page opens from kebab menu', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-about-button').click()
+    // About page should be visible
+    await expect(page.getByText('What is Find-A-Lifer?')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('Trip Plan tab mode switching works correctly', async ({ page }) => {
+    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Plan' }).click()
+    await expect(page.getByText('Trip Planning')).toBeVisible()
+
+    // Default is hotspots
+    await expect(page.getByTestId('hotspots-mode-btn')).toBeVisible()
+
+    // Switch to Location
+    await page.getByTestId('location-mode-btn').click()
+    await expect(page.getByText('Select a location', { exact: true })).toBeVisible({ timeout: 5000 })
+
+    // Switch to Window
+    await page.getByTestId('window-mode-btn').click()
+    await expect(page.getByText('Select Target Species')).toBeVisible({ timeout: 3000 })
+
+    // Switch to Compare
+    await page.getByTestId('compare-mode-btn').click()
+    await expect(page.getByText('Location A', { exact: true })).toBeVisible({ timeout: 3000 })
+
+    // Back to Hotspots
+    await page.getByTestId('hotspots-mode-btn').click()
+  })
+})
+
 test.describe('Phase 2 Features', () => {
   test.beforeEach(async ({ page }) => {
     await gotoReady(page)
