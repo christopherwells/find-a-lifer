@@ -2029,12 +2029,15 @@ export default memo(function MapView({
                                   {lifer.conservStatus && lifer.conservStatus !== 'Unknown' && lifer.conservStatus !== 'Least Concern' && (
                                     <Badge variant="conservation" value={lifer.conservStatus} size="icon" />
                                   )}
-                                  {lifer.difficultyRating != null && lifer.difficultyRating >= 7 && (
+                                  {lifer.difficultyRating != null && lifer.difficultyRating >= 5 && (
                                     <span
                                       className={`inline-flex items-center justify-center min-w-[1.1rem] h-4 px-0.5 rounded text-[9px] font-bold flex-shrink-0 ${
-                                        lifer.difficultyRating >= 9 ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300'
-                                        : lifer.difficultyRating >= 8 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
-                                        : 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300'
+                                        lifer.difficultyRating >= 10 ? 'bg-red-200 dark:bg-red-900/60 text-red-900 dark:text-red-200'
+                                        : lifer.difficultyRating >= 9 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+                                        : lifer.difficultyRating >= 8 ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300'
+                                        : lifer.difficultyRating >= 7 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300'
+                                        : lifer.difficultyRating >= 6 ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300'
+                                        : 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                                       }`}
                                       title={`Difficulty: ${lifer.difficultyRating}/10`}
                                     >
