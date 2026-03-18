@@ -606,10 +606,11 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                   data-testid="difficulty-filter"
                 >
                   <option value="">All Levels</option>
-                  <option value="Easy">Easy</option>
-                  <option value="Moderate">Moderate</option>
-                  <option value="Hard">Hard</option>
-                  <option value="Very Hard">Very Hard</option>
+                  <option value="Easy">Easy (1-2)</option>
+                  <option value="Moderate">Moderate (3-4)</option>
+                  <option value="Hard">Hard (5-6)</option>
+                  <option value="Very Hard">Very Hard (7-8)</option>
+                  <option value="Extremely Hard">Extremely Hard (9-10)</option>
                 </select>
                 <Tooltip content={TOOLTIPS.difficulty} />
               </div>
