@@ -605,12 +605,12 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                   className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                   data-testid="difficulty-filter"
                 >
-                  <option value="">All Levels</option>
-                  <option value="Easy">Easy (1-2)</option>
-                  <option value="Moderate">Moderate (3-4)</option>
-                  <option value="Hard">Hard (5-6)</option>
-                  <option value="Very Hard">Very Hard (7-8)</option>
-                  <option value="Extremely Hard">Extremely Hard (9-10)</option>
+                  <option value="">Difficulty</option>
+                  <option value="Easy">1-2 Easy</option>
+                  <option value="Moderate">3-4 Moderate</option>
+                  <option value="Hard">5-6 Hard</option>
+                  <option value="Very Hard">7-8 Very Hard</option>
+                  <option value="Extremely Hard">9-10 Extreme</option>
                 </select>
                 <Tooltip content={TOOLTIPS.difficulty} />
               </div>

@@ -1567,6 +1567,25 @@ export default memo(function MapView({
         } else {
           setNeutralOverlay()
         }
+
+        // DEBUG: verify feature states were actually applied
+        if (map.current) {
+          let staleCount = 0
+          let hiddenCount = 0
+          let coloredCount = 0
+          for (const cellId of allCellIdsRef.current) {
+            try {
+              const state = map.current.getFeatureState({ source: 'grid', id: cellId })
+              if (!state || state.value === undefined) staleCount++
+              else if (state.value < 0) hiddenCount++
+              else coloredCount++
+            } catch { /* tile not loaded */ }
+          }
+          console.log(`Density VERIFY: ${coloredCount} colored, ${hiddenCount} hidden, ${staleCount} stale/unset (of ${allCellIdsRef.current.size} total)`)
+          if (staleCount > 0) {
+            console.warn(`WARNING: ${staleCount} cells have NO feature state — these may show stale colors!`)
+          }
+        }
       }
       loadDensity()
     }
