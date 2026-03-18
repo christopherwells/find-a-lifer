@@ -117,17 +117,30 @@ def compute_difficulty_scores():
     season_vals = [results[sid]["metrics"]["seasonality"] for sid in species_ids]
     season_pct = rank_percentiles(season_vals)
 
+    # Compute combined scores
+    combined = []
     for i, sid in enumerate(species_ids):
-        # Weighted combination of percentile ranks (0-1 scale)
         raw_score = (
             0.40 * spatial_pct[i] +
             0.40 * freq_pct[i] +
             0.20 * season_pct[i]
         )
+        combined.append((sid, raw_score))
 
-        # Map to 1-10 scale directly
-        score_1_10 = max(1, min(10, round(raw_score * 9 + 1)))
-        # Also store 0-100 for granularity
+    # Force even 1-10 distribution using decile thresholds
+    sorted_scores = sorted(s for _, s in combined)
+    n_total = len(sorted_scores)
+    decile_thresholds = [sorted_scores[int(n_total * d / 10)] for d in range(10)] + [1.01]
+
+    for sid, raw_score in combined:
+        # Find which decile this score falls into (1-10)
+        score_1_10 = 10
+        for d in range(10):
+            if raw_score < decile_thresholds[d + 1]:
+                score_1_10 = d + 1
+                break
+
+        # Store 0-100 for granularity
         score_0_100 = round(raw_score * 100, 1)
 
         # Label from 1-10 scale
@@ -143,6 +156,7 @@ def compute_difficulty_scores():
             label = "Extremely Hard"
 
         results[sid]["difficultyScore"] = score_0_100
+        results[sid]["difficultyRating"] = score_1_10  # 1-10 evenly distributed
         results[sid]["difficultyLabel"] = label
 
     # Distribution on 1-10 scale

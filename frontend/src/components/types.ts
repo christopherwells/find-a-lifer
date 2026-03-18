@@ -25,6 +25,7 @@ export interface Species {
   invasionStatus: Record<string, string>
   conservStatus: string
   difficultyScore: number
+  difficultyRating: number  // 1-10 evenly distributed
   difficultyLabel: string
   isRestrictedRange: boolean
   ebirdUrl: string

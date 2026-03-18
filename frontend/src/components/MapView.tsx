@@ -110,6 +110,7 @@ interface LiferInCell {
   conservStatus?: string
   difficultyLabel?: string
   difficultyScore?: number
+  difficultyRating?: number
   isRestrictedRange?: boolean
 }
 
@@ -890,6 +891,7 @@ export default memo(function MapView({
                     conservStatus: meta?.conservStatus,
                     difficultyLabel: meta?.difficultyLabel,
                     difficultyScore: meta?.difficultyScore,
+                    difficultyRating: meta?.difficultyRating,
                     isRestrictedRange: meta?.isRestrictedRange
                   })
                 })
@@ -943,6 +945,7 @@ export default memo(function MapView({
                     conservStatus: meta?.conservStatus,
                     difficultyLabel: meta?.difficultyLabel,
                     difficultyScore: meta?.difficultyScore,
+                    difficultyRating: meta?.difficultyRating,
                     isRestrictedRange: meta?.isRestrictedRange
                   })
                 })
@@ -2017,16 +2020,16 @@ export default memo(function MapView({
                                   {lifer.conservStatus && lifer.conservStatus !== 'Unknown' && lifer.conservStatus !== 'Least Concern' && (
                                     <Badge variant="conservation" value={lifer.conservStatus} size="icon" />
                                   )}
-                                  {lifer.difficultyScore != null && lifer.difficultyScore >= 75 && (
+                                  {lifer.difficultyRating != null && lifer.difficultyRating >= 7 && (
                                     <span
                                       className={`inline-flex items-center justify-center min-w-[1.1rem] h-4 px-0.5 rounded text-[9px] font-bold flex-shrink-0 ${
-                                        lifer.difficultyScore >= 90 ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300'
-                                        : lifer.difficultyScore >= 80 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+                                        lifer.difficultyRating >= 9 ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300'
+                                        : lifer.difficultyRating >= 8 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
                                         : 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300'
                                       }`}
-                                      title={`Difficulty: ${Math.round(lifer.difficultyScore / 10)}/10`}
+                                      title={`Difficulty: ${lifer.difficultyRating}/10`}
                                     >
-                                      {Math.round(lifer.difficultyScore / 10)}
+                                      {lifer.difficultyRating}
                                     </span>
                                   )}
                                 </div>

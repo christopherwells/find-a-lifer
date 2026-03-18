@@ -113,8 +113,8 @@ export default function SpeciesInfoCard({
           {/* Badges */}
           <div className="flex flex-wrap gap-1.5" data-testid="species-info-badges">
             <Badge variant="conservation" value={species.conservStatus} size="pill" />
-            {species.difficultyScore != null && (
-              <Badge variant="difficulty" value={`${species.difficultyLabel} (${Math.max(1, Math.min(10, Math.round(species.difficultyScore / 10)))}/10)`} size="pill" />
+            {species.difficultyRating > 0 && (
+              <Badge variant="difficulty" value={`${species.difficultyLabel} (${species.difficultyRating}/10)`} size="pill" />
             )}
             {species.isRestrictedRange && (
               <Badge variant="restricted-range" value="Restricted Range" size="pill" />

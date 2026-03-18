@@ -452,6 +452,47 @@ def find_ebd_files(skip_regions=None):
     # Search in both data/ and data/downloads/
     search_dirs = [DATA_DIR, DOWNLOADS_DIR]
 
+    # Pattern 0: ebd_{REGION}_smp_rel*.zip (zip archives containing both EBD + sampling)
+    import zipfile as _zipfile
+    for search_dir in search_dirs:
+        if not search_dir.exists():
+            continue
+        for zip_file in sorted(search_dir.glob("ebd_*_smp_rel*.zip")):
+            parts = zip_file.name.split("_smp_")
+            if len(parts) != 2:
+                continue
+            region = parts[0].replace("ebd_", "")
+            if region in found_regions:
+                continue
+            if region in skip:
+                print(f"  Skipping {region} (already archived)")
+                found_regions.add(region)
+                continue
+            # Check zip contains both EBD and sampling files
+            try:
+                with _zipfile.ZipFile(zip_file) as zf:
+                    names = zf.namelist()
+                    ebd_name = next((n for n in names if n.endswith('.txt') and '_sampling' not in n and n.startswith('ebd_')), None)
+                    sed_name = next((n for n in names if '_sampling' in n and n.endswith('.txt')), None)
+                    if ebd_name and sed_name:
+                        # Extract to a temp location or use zip paths directly
+                        # The pipeline reads via open(), so extract first
+                        extract_dir = zip_file.parent / f"_extracted_{region}"
+                        extract_dir.mkdir(exist_ok=True)
+                        ebd_path = extract_dir / ebd_name
+                        sed_path = extract_dir / sed_name
+                        if not ebd_path.exists():
+                            print(f"  Extracting {zip_file.name} ({zip_file.stat().st_size / 1024 / 1024:.0f} MB)...")
+                            sys.stdout.flush()
+                            zf.extract(ebd_name, extract_dir)
+                            zf.extract(sed_name, extract_dir)
+                        pairs.append((region, ebd_path, sed_path))
+                        found_regions.add(region)
+                    else:
+                        print(f"  WARNING: {zip_file.name} missing EBD or sampling file inside zip")
+            except Exception as e:
+                print(f"  WARNING: Could not read {zip_file.name}: {e}")
+
     # Pattern 1: ebd_{REGION}_smp_rel*.txt(.gz)
     for ext in ['txt', 'txt.gz']:
         for search_dir in search_dirs:
@@ -1270,6 +1311,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         if taxon_id in difficulty_map:
             d = difficulty_map[taxon_id]
             entry["difficultyScore"] = d["difficultyScore"]
+            entry["difficultyRating"] = d.get("difficultyRating", max(1, min(10, round(d["difficultyScore"] / 10))))
             entry["difficultyLabel"] = d["difficultyLabel"]
             difficulty_matched += 1
 

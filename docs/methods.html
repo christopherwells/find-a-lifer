@@ -612,24 +612,24 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Each species receives a difficulty score (0&ndash;100) computed from three factors derived from the eBird Basic Dataset at H3 resolution 4.</p>
 
 <h3>13.1 Components</h3>
+<p>Each component is <strong>rank-based</strong>: species are ranked across the full dataset, and the rank is converted to a 0&ndash;1 percentile. This ensures the full scoring range is used regardless of the underlying data distribution.</p>
 <table>
   <tr><th>Factor</th><th>Weight</th><th>Description</th></tr>
-  <tr><td>Spatial constraint</td><td>40%</td><td>Fraction of H3 cells where the species occurs (inverted: rarer = harder)</td></tr>
-  <tr><td>Average frequency</td><td>40%</td><td>Mean reporting frequency across all cell-weeks where present (inverted: lower freq = harder)</td></tr>
-  <tr><td>Seasonality</td><td>20%</td><td>Shannon entropy of weekly detection distribution, normalized to [0, 1]. Narrow seasonal peak = harder to time.</td></tr>
+  <tr><td>Spatial constraint</td><td>40%</td><td>Rank of cells where species occurs (fewer cells = higher difficulty rank)</td></tr>
+  <tr><td>Average frequency</td><td>40%</td><td>Rank of mean reporting frequency (lower freq = higher difficulty rank)</td></tr>
+  <tr><td>Seasonality</td><td>20%</td><td>Rank of Shannon entropy of weekly detection distribution (narrower peak = harder)</td></tr>
 </table>
 
-<h3>13.2 Labels</h3>
-<p>Labels are assigned using percentile thresholds across all species, ensuring a reasonable distribution:</p>
+<h3>13.2 Rating Scale</h3>
+<p>The combined score is mapped to a 1&ndash;10 rating using <strong>decile thresholds</strong>, guaranteeing an even distribution (~10% of species per level). Each species also receives a text label:</p>
 <table>
-  <tr><th>Label</th><th>Percentile Range</th></tr>
-  <tr><td>Easy</td><td>0&ndash;20th percentile</td></tr>
-  <tr><td>Moderate</td><td>20th&ndash;45th percentile</td></tr>
-  <tr><td>Hard</td><td>45th&ndash;70th percentile</td></tr>
-  <tr><td>Very Hard</td><td>70th&ndash;90th percentile</td></tr>
-  <tr><td>Extremely Hard</td><td>90th&ndash;100th percentile</td></tr>
+  <tr><th>Rating</th><th>Label</th><th>Example Species</th></tr>
+  <tr><td>1&ndash;2</td><td>Easy</td><td>American Robin (1), Mallard (1), Bald Eagle (1)</td></tr>
+  <tr><td>3&ndash;4</td><td>Moderate</td><td>Red Crossbill (3), Horned Grebe (3)</td></tr>
+  <tr><td>5&ndash;6</td><td>Hard</td><td>Bobolink (5), Resplendent Quetzal (6)</td></tr>
+  <tr><td>7&ndash;8</td><td>Very Hard</td><td>Ivory Gull (7)</td></tr>
+  <tr><td>9&ndash;10</td><td>Extremely Hard</td><td>Rarest vagrants and extreme specialists</td></tr>
 </table>
-<p>Calibration check: American Robin = Easy, Northern Cardinal = Easy, Ivory Gull = Very Hard, Kirtland's Warbler = Very Hard.</p>
 
 <!-- ============================================================ -->
 <h2 id="parameters">14. Parameter Reference</h2>
