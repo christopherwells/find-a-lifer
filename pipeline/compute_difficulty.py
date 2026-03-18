@@ -78,37 +78,10 @@ def compute_difficulty_scores():
         else:
             seasonality = 1.0  # Only one week of data = very seasonal
 
-        # Combine into difficulty score (0-100)
-        # Lower spatial breadth, lower avg freq, higher seasonality = harder
-        spatial_score = 1 - spatial_breadth  # 0 = everywhere, 1 = one cell
-        freq_score = 1 - min(avg_freq, 1.0)  # 0 = always found, 1 = never
-        season_score = seasonality  # 0 = year-round, 1 = very narrow window
-
-        # Weighted combination
-        raw_score = (
-            0.40 * spatial_score +
-            0.40 * freq_score +
-            0.20 * season_score
-        )
-
-        # Scale to 0-100
-        difficulty_score = round(raw_score * 100, 1)
-
-        # Map to labels
-        if difficulty_score < 20:
-            label = "Easy"
-        elif difficulty_score < 40:
-            label = "Moderate"
-        elif difficulty_score < 60:
-            label = "Hard"
-        elif difficulty_score < 80:
-            label = "Very Hard"
-        else:
-            label = "Extremely Hard"
-
+        # Store raw metrics for rank-based scoring (done in second pass)
         results[species_id] = {
-            "difficultyScore": difficulty_score,
-            "difficultyLabel": label,
+            "difficultyScore": 0,  # placeholder, computed below
+            "difficultyLabel": "",
             "metrics": {
                 "spatialBreadth": round(spatial_breadth, 4),
                 "avgFreq": round(avg_freq, 4),
@@ -117,28 +90,70 @@ def compute_difficulty_scores():
             }
         }
 
-    # Percentile-based labeling for better distribution
-    raw_scores = sorted(r["difficultyScore"] for r in results.values())
-    n = len(raw_scores)
-    p20 = raw_scores[int(n * 0.20)]
-    p45 = raw_scores[int(n * 0.45)]
-    p70 = raw_scores[int(n * 0.70)]
-    p90 = raw_scores[int(n * 0.90)]
-    print(f"\nPercentile thresholds: P20={p20}, P45={p45}, P70={p70}, P90={p90}")
+    # Second pass: rank-based percentile scoring
+    # Each metric is ranked across all species, then converted to 0-1 percentile
+    species_ids = list(results.keys())
+    n = len(species_ids)
 
-    # Re-label using percentile thresholds
-    for r in results.values():
-        s = r["difficultyScore"]
-        if s <= p20:
-            r["difficultyLabel"] = "Easy"
-        elif s <= p45:
-            r["difficultyLabel"] = "Moderate"
-        elif s <= p70:
-            r["difficultyLabel"] = "Hard"
-        elif s <= p90:
-            r["difficultyLabel"] = "Very Hard"
+    def rank_percentiles(values):
+        """Convert raw values to 0-1 percentiles (higher value = higher percentile)."""
+        indexed = sorted(enumerate(values), key=lambda x: x[1])
+        percentiles = [0.0] * len(values)
+        for rank, (idx, _) in enumerate(indexed):
+            percentiles[idx] = rank / max(n - 1, 1)
+        return percentiles
+
+    # Spatial: more cells = easier → invert so rare = high percentile
+    spatial_vals = [results[sid]["metrics"]["spatialBreadth"] for sid in species_ids]
+    spatial_pct = rank_percentiles(spatial_vals)
+    spatial_pct = [1 - p for p in spatial_pct]  # invert: rare = hard
+
+    # Frequency: higher freq = easier → invert
+    freq_vals = [results[sid]["metrics"]["avgFreq"] for sid in species_ids]
+    freq_pct = rank_percentiles(freq_vals)
+    freq_pct = [1 - p for p in freq_pct]  # invert: low freq = hard
+
+    # Seasonality: higher = more seasonal = harder (no invert)
+    season_vals = [results[sid]["metrics"]["seasonality"] for sid in species_ids]
+    season_pct = rank_percentiles(season_vals)
+
+    for i, sid in enumerate(species_ids):
+        # Weighted combination of percentile ranks (0-1 scale)
+        raw_score = (
+            0.40 * spatial_pct[i] +
+            0.40 * freq_pct[i] +
+            0.20 * season_pct[i]
+        )
+
+        # Map to 1-10 scale directly
+        score_1_10 = max(1, min(10, round(raw_score * 9 + 1)))
+        # Also store 0-100 for granularity
+        score_0_100 = round(raw_score * 100, 1)
+
+        # Label from 1-10 scale
+        if score_1_10 <= 2:
+            label = "Easy"
+        elif score_1_10 <= 4:
+            label = "Moderate"
+        elif score_1_10 <= 6:
+            label = "Hard"
+        elif score_1_10 <= 8:
+            label = "Very Hard"
         else:
-            r["difficultyLabel"] = "Extremely Hard"
+            label = "Extremely Hard"
+
+        results[sid]["difficultyScore"] = score_0_100
+        results[sid]["difficultyLabel"] = label
+
+    # Distribution on 1-10 scale
+    scale_dist = defaultdict(int)
+    for r in results.values():
+        s = max(1, min(10, round(r["difficultyScore"] / 10)))
+        scale_dist[s] += 1
+    print(f"\n1-10 scale distribution:")
+    for i in range(1, 11):
+        bar = "#" * (scale_dist.get(i, 0) // 5)
+        print(f"  {i:2d}: {scale_dist.get(i, 0):4d} {bar}")
 
     # Distribution check
     dist = defaultdict(int)
