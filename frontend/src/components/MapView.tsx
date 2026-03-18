@@ -146,7 +146,7 @@ function buildAmberExpression(): maplibregl.ExpressionSpecification {
     'interpolate',
     ['linear'],
     ['coalesce', ['feature-state', 'value'], -1],
-    -1, 'rgba(200, 200, 200, 0.1)',       // Default: no data
+    -1, 'rgba(0, 0, 0, 0)',               // Default: no data (transparent)
     0, 'rgba(212, 160, 23, 0.1)',          // Low intensity
     1, 'rgba(212, 160, 23, 0.85)',         // High intensity
   ] as maplibregl.ExpressionSpecification
@@ -1126,6 +1126,7 @@ export default memo(function MapView({
         map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
         map.current.setPaintProperty('grid-fill', 'fill-opacity', [
               'case',
+              ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,  // No data: hidden
               ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
               ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
               heatmapOpacity
@@ -1145,6 +1146,7 @@ export default memo(function MapView({
         map.current.setPaintProperty('grid-fill', 'fill-color', buildHeatExpression())
         map.current.setPaintProperty('grid-fill', 'fill-opacity', [
               'case',
+              ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,  // No data: hidden
               ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
               ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
               heatmapOpacity
@@ -1300,6 +1302,7 @@ export default memo(function MapView({
             map.current.setPaintProperty('grid-fill', 'fill-color', buildAmberExpression())
             map.current.setPaintProperty('grid-fill', 'fill-opacity', [
               'case',
+              ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,  // No data: hidden
               ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
               ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
               heatmapOpacity
@@ -1858,7 +1861,7 @@ export default memo(function MapView({
                 {[
                   { key: 'trees', color: '#22763F', icon: '\u{1F332}', label: 'Forest' },
                   { key: 'shrub', color: '#8B6914', icon: '\u{1FAB4}', label: 'Shrub' },
-                  { key: 'herb', color: '#A8D08D', icon: '\u{1F33F}', label: 'Grass' },
+                  { key: 'herb', color: '#A8D08D', icon: '\u{1F33F}', label: 'Grassland' },
                   { key: 'cultivated', color: '#D4A843', icon: '\u{1F33E}', label: 'Crop' },
                   { key: 'urban', color: '#888', icon: '\u{1F3D9}', label: 'Urban' },
                   { key: 'water', color: '#4A90D9', icon: '\u{1F4A7}', label: 'Water' },
