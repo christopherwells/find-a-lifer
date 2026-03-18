@@ -1499,7 +1499,7 @@ export default memo(function MapView({
             liferData.forEach(([cellId, liferCount]) => {
               if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
             })
-            console.log(`Density lifer: seenIds=${seenIds.size}, liferCells=${cellLiferCounts.size}/${weekCells.size} cells with lifers`)
+            console.log(`Density lifer: seenIds=${seenIds.size}, liferCells=${cellLiferCounts.size}/${weekCells.size} cells with lifers, allCellIds=${allCellIdsRef.current.size}`)
           } catch (error) {
             if (!cancelled) console.error('Lifer summary: error loading data', error)
             // Do NOT fall back to weeklySummary — that shows total species
