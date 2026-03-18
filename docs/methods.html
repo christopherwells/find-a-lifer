@@ -173,6 +173,8 @@
     <li><a href="#output">Output Format</a></li>
     <li><a href="#client">Client-Side Computation</a></li>
     <li><a href="#labeling">Grid Cell Labeling</a></li>
+    <li><a href="#habitat">Habitat Classification</a></li>
+    <li><a href="#photos">Species Photo Attribution</a></li>
     <li><a href="#parameters">Parameter Reference</a></li>
     <li><a href="#references">References</a></li>
   </ol>
@@ -531,7 +533,60 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </div>
 
 <!-- ============================================================ -->
-<h2 id="parameters">11. Parameter Reference</h2>
+<h2 id="habitat">11. Habitat Classification</h2>
+
+<p>Each species is assigned habitat labels based on its occurrence patterns across environmental covariates. The pipeline (<code>compute_species_habitat.py</code>) computes frequency-weighted average covariates for each species across all cells and weeks where it occurs.</p>
+
+<h3>11.1 Covariate Sources</h3>
+<p>Cell-level environmental covariates are extracted from <a href="https://www.earthenv.org/landcover">EarthEnv</a> consensus land cover (1-km resolution) and elevation data. Each H3 cell receives the average covariate values within its boundaries. Covariates include: tree cover, shrub cover, herbaceous cover, cultivated land, urban extent, open water, flooded vegetation, and elevation (mean + standard deviation).</p>
+
+<h3>11.2 Species Habitat Profiles</h3>
+<p>For each species, occurrence cells are weighted by reporting frequency to compute a habitat profile. This gives more weight to cells where the species is commonly reported, reducing the influence of stray observations.</p>
+
+<div class="formula">
+  habitat<sub>label</sub>(species) = frequency-weighted mean of covariate across all occurrence cells
+</div>
+
+<h3>11.3 Label Thresholds</h3>
+<p>Habitat labels are assigned when weighted averages exceed calibrated thresholds. These thresholds are lower than raw land-cover percentages because H3 cells contain mixed land and water, diluting individual cover fractions.</p>
+
+<table>
+  <tr><th>Habitat Label</th><th>Covariate</th><th>Threshold</th></tr>
+  <tr><td>Forest</td><td>tree cover</td><td>&ge; 0.15</td></tr>
+  <tr><td>Aquatic</td><td>open water</td><td>&ge; 0.15</td></tr>
+  <tr><td>Wetland</td><td>flooded vegetation</td><td>&ge; 0.03</td></tr>
+  <tr><td>Grassland</td><td>herbaceous cover</td><td>&ge; 0.08</td></tr>
+  <tr><td>Agricultural</td><td>cultivated land</td><td>&ge; 0.10</td></tr>
+  <tr><td>Urban-tolerant</td><td>urban extent</td><td>&ge; 0.005</td></tr>
+  <tr><td>Scrubland</td><td>shrub cover</td><td>&ge; 0.10</td></tr>
+</table>
+
+<div class="rationale">
+  <strong>Why calibrated thresholds?</strong> At H3 resolution 4, the average tree cover across all cells is approximately 0.12, not 0.40 as one might expect from satellite-derived land cover. This is because each hexagonal cell (~45 km diameter) aggregates diverse terrain. Thresholds were calibrated against the actual distribution of covariates to ensure meaningful species counts per label.
+</div>
+
+<h3>11.4 Elevation</h3>
+<p>Each species receives a preferred elevation range: the frequency-weighted mean, minimum, and maximum elevation across occurrence cells. This helps users understand whether a species is typically found at lowland, foothill, or montane elevations.</p>
+
+<!-- ============================================================ -->
+<h2 id="photos">12. Species Photo Attribution</h2>
+
+<p>Species photos are sourced from <a href="https://commons.wikimedia.org/">Wikimedia Commons</a> via <a href="https://www.wikidata.org/">Wikidata</a>. The pipeline queries Wikidata for the P18 (image) property of bird taxa, then fetches metadata from the Wikimedia Commons API.</p>
+
+<h3>12.1 License Filtering</h3>
+<p>Only images with permissive licenses are used:</p>
+<ul>
+  <li><strong>CC0</strong> (Public Domain)</li>
+  <li><strong>CC BY</strong> (Attribution)</li>
+  <li><strong>CC BY-SA</strong> (Attribution-ShareAlike)</li>
+</ul>
+<p>Images with non-commercial restrictions (CC BY-NC, CC BY-NC-SA) are excluded. Each retained photo includes full attribution: photographer name, license type, and a link to the original on Commons.</p>
+
+<h3>12.2 Display</h3>
+<p>Photos are hotlinked from Wikimedia Commons servers (400px thumbnail width). Species without a qualifying photo show a placeholder silhouette. Attribution text is displayed in the species information card footer.</p>
+
+<!-- ============================================================ -->
+<h2 id="parameters">13. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -555,7 +610,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">12. References</h2>
+<h2 id="references">14. References</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
@@ -565,6 +620,8 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li>Natural Earth. Free vector and raster map data. <a href="https://www.naturalearthdata.com/">naturalearthdata.com</a></li>
   <li>Tuanmu, M.-N. and W. Jetz. 2014. A global 1-km consensus land-cover product for biodiversity and ecosystem modelling. <em>Global Ecology and Biogeography</em>, 23(9), 1031-1045. <a href="https://www.earthenv.org/landcover">EarthEnv</a></li>
   <li>GeoNames. Geographical database. <a href="https://www.geonames.org/">geonames.org</a> (CC BY 4.0)</li>
+  <li>Wikimedia Commons. Free media repository. <a href="https://commons.wikimedia.org/">commons.wikimedia.org</a> (Various CC licenses)</li>
+  <li>Wikidata. Free structured knowledge base. <a href="https://www.wikidata.org/">wikidata.org</a> (CC0)</li>
 </ul>
 
 <p class="updated">Last updated: March 2026. Pipeline source code: <code>pipeline/process_ebd.py</code></p>

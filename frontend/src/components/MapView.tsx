@@ -3,6 +3,9 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { getDisplayGroup } from '../lib/familyGroups'
 import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
+import Badge from './Badge'
+import SpeciesInfoCard from './SpeciesInfoCard'
+import type { Species, CellCovariates } from './types'
 
 // Safe min/max for large arrays (avoids call stack overflow with spread on 100K+ elements)
 function safeMin(arr: number[]): number {
@@ -77,6 +80,7 @@ interface SpeciesMeta {
 }
 
 interface GoalBirdInCell {
+  species_id: number
   speciesCode: string
   comName: string
   sciName: string
@@ -96,6 +100,7 @@ interface GoalBirdsPopup {
 }
 
 interface LiferInCell {
+  species_id: number
   speciesCode: string
   comName: string
   sciName: string
@@ -152,6 +157,8 @@ interface LifersPopup {
   coordinates: [number, number]
   lifers: LiferInCell[]
   totalSpecies: number
+  filteredTotal: number  // species matching active filters (before seen check)
+  hasActiveFilter: boolean
   nChecklists?: number
   label?: string
   estimated?: boolean
@@ -285,8 +292,16 @@ export default memo(function MapView({
   const [goalBirdsPopup, setGoalBirdsPopup] = useState<GoalBirdsPopup | null>(null)
   // Lifer density click-to-inspect popup
   const [lifersPopup, setLifersPopup] = useState<LifersPopup | null>(null)
+  // Popup pagination — show all or first 20
+  const [popupShowAll, setPopupShowAll] = useState(false)
+  // Species info card opened from popup species name click
+  const [popupSpeciesCard, setPopupSpeciesCard] = useState<Species | null>(null)
+  // Cell covariates for popup habitat bar
+  const [popupCovariates, setPopupCovariates] = useState<CellCovariates | null>(null)
   // Checklist counts per cell (from weekly summary, for low-data warnings)
   const cellChecklistCountsRef = useRef<Map<number, number>>(new Map())
+  // Species counts per cell (from weekly summary, for fallback when cells file is missing data)
+  const cellSpeciesCountsRef = useRef<Map<number, number>>(new Map())
   // Active H3 resolution (changes with zoom level)
   const [activeResolution, setActiveResolution] = useState(3)
   const activeResolutionRef = useRef(3)
@@ -428,6 +443,25 @@ export default memo(function MapView({
     })
   }, [])
 
+  // Load cell covariates when popup opens
+  useEffect(() => {
+    if (!lifersPopup) {
+      setPopupCovariates(null)
+      return
+    }
+    let cancelled = false
+    import('../lib/dataCache').then(({ fetchCovariates }) => {
+      fetchCovariates(activeResolution).then(covMap => {
+        if (!cancelled) {
+          setPopupCovariates(covMap.get(lifersPopup.cellId) ?? null)
+        }
+      }).catch(() => {
+        if (!cancelled) setPopupCovariates(null)
+      })
+    })
+    return () => { cancelled = true }
+  }, [lifersPopup?.cellId, activeResolution]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Zoom to selected region
   useEffect(() => {
     if (!map.current) return
@@ -510,12 +544,15 @@ export default memo(function MapView({
         const summary: WeeklySummary = await fetchWeekSummary(currentWeek, activeResolution)
         if (abortController.signal.aborted) return
         setWeeklySummary(summary)
-        // Build checklist counts map from summary (4th element if present)
+        // Build checklist counts and species counts maps from summary
         const counts = new Map<number, number>()
-        summary.forEach(([cellId, , , nChecklists]) => {
+        const speciesCounts = new Map<number, number>()
+        summary.forEach(([cellId, speciesCount, , nChecklists]) => {
           if (nChecklists != null) counts.set(cellId, nChecklists)
+          if (speciesCount > 0) speciesCounts.set(cellId, speciesCount)
         })
         cellChecklistCountsRef.current = counts
+        cellSpeciesCountsRef.current = speciesCounts
         setWeeklyData([]) // Clear full data — loaded on demand
         console.log(`Loaded week ${currentWeek} summary: ${summary.length} cells`)
       } catch (error) {
@@ -614,6 +651,16 @@ export default memo(function MapView({
 
     // Add navigation controls
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right')
+
+    // Add GPS locate button
+    map.current.addControl(
+      new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: false,
+        showUserLocation: true,
+      }),
+      'top-right'
+    )
 
     // Add scale bar
     map.current.addControl(
@@ -825,6 +872,7 @@ export default memo(function MapView({
                   if (speciesFilterIdsRef.current && !speciesFilterIdsRef.current.has(record.species_id)) return
                   const meta = idToMeta.get(record.species_id)
                   goalBirds.push({
+                    species_id: record.species_id,
                     speciesCode: record.speciesCode,
                     comName: record.comName,
                     sciName: meta?.sciName || '',
@@ -838,6 +886,7 @@ export default memo(function MapView({
 
                 goalBirds.sort((a, b) => b.probability - a.probability)
                 setGoalBirdsPopup({ cellId, coordinates: coords, birds: goalBirds, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel })
+                setPopupShowAll(false)
                 console.log(`Goal Birds popup: cell ${cellId} has ${goalBirds.length} goal birds`)
               }
 
@@ -865,12 +914,16 @@ export default memo(function MapView({
                 const idToMeta = new Map<number, SpeciesMeta>()
                 if (speciesMetaCache) speciesMetaCache.forEach(s => idToMeta.set(s.species_id, s))
 
+                const hasActiveFilter = speciesFilterIdsRef.current !== null
+                let filteredTotal = 0
                 const lifers: LiferInCell[] = []
                 records.forEach((record) => {
+                  if (hasActiveFilter && !speciesFilterIdsRef.current!.has(record.species_id)) return
+                  filteredTotal++
                   if (currentSeenSpecies.has(record.speciesCode)) return
-                  if (speciesFilterIdsRef.current && !speciesFilterIdsRef.current.has(record.species_id)) return
                   const meta = idToMeta.get(record.species_id)
                   lifers.push({
+                    species_id: record.species_id,
                     speciesCode: record.speciesCode,
                     comName: record.comName,
                     sciName: meta?.sciName || '',
@@ -885,8 +938,11 @@ export default memo(function MapView({
 
                 lifers.sort((a, b) => b.probability - a.probability)
                 const isEstimated = (smoothedMapRef.current.get(cellId) ?? 0) > 0
-                setLifersPopup({ cellId, coordinates: coords, lifers, totalSpecies: records.length, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel, estimated: isEstimated })
-                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers out of ${records.length} species`)
+                // Use cells file count, but fall back to summary species count for cells with data inconsistency
+                const totalSpecies = records.length > 0 ? records.length : (cellSpeciesCountsRef.current.get(cellId) ?? 0)
+                setLifersPopup({ cellId, coordinates: coords, lifers, totalSpecies, filteredTotal, hasActiveFilter, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel, estimated: isEstimated })
+                setPopupShowAll(false)
+                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers out of ${totalSpecies} species`)
               }
 
               const densityCached = cellDataCache.get(densityCacheKey)
@@ -1000,14 +1056,22 @@ export default memo(function MapView({
 
     // Helper: clear previous feature states and apply new ones.
     // Callers should pass already-masked values so the color scale is correct.
+    // Uses bulk removeFeatureState({source}) to atomically clear ALL feature states,
+    // preventing stale colored cells when individual per-cell clearing fails mid-iteration.
     const applyFeatureStates = (cellValues: Map<number, number>) => {
       if (!map.current || cancelled) return
       try {
-        featureStateCellIds.current.forEach((cellId) => {
-          map.current!.removeFeatureState({ source: 'grid', id: cellId })
-        })
+        // Bulk clear: removes ALL feature states for the grid source at once.
+        // This is more reliable than per-cell iteration which can fail mid-way
+        // and leave stale states that are then lost from tracking.
+        map.current.removeFeatureState({ source: 'grid' })
       } catch {
-        // Source tiles may not be loaded yet — ok to skip clearing
+        // Source tiles may not be loaded yet — try per-cell fallback
+        featureStateCellIds.current.forEach((cellId) => {
+          try {
+            map.current!.removeFeatureState({ source: 'grid', id: cellId })
+          } catch { /* skip individual cell */ }
+        })
       }
       featureStateCellIds.current.clear()
       try {
@@ -1044,9 +1108,15 @@ export default memo(function MapView({
 
     const clearFeatureStates = () => {
       if (!map.current) return
-      featureStateCellIds.current.forEach((cellId) => {
-        map.current!.removeFeatureState({ source: 'grid', id: cellId })
-      })
+      try {
+        map.current.removeFeatureState({ source: 'grid' })
+      } catch {
+        featureStateCellIds.current.forEach((cellId) => {
+          try {
+            map.current!.removeFeatureState({ source: 'grid', id: cellId })
+          } catch { /* skip */ }
+        })
+      }
       featureStateCellIds.current.clear()
     }
 
@@ -1252,11 +1322,16 @@ export default memo(function MapView({
       const loadCombinedProbability = async () => {
         try {
           const { fetchWeekCells, computeCombinedProbability } = await import('../lib/dataCache')
+          // Ensure species metadata is loaded before building seenIds
+          const currentSeenSpecies = seenSpeciesRef.current
+          if (!speciesMetaCache && currentSeenSpecies.size > 0) {
+            await loadSpeciesMetaCache()
+          }
+          if (cancelled) return
           const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
 
           // Build target species set: goal list species not yet seen, or all lifers
-          const currentSeenSpecies = seenSpeciesRef.current
           const goalSpeciesIdSet = goalSpeciesIdSetRef.current
           const useGoalFilter = goalBirdsOnlyFilter && goalSpeciesCodes.size > 0
 
@@ -1401,6 +1476,12 @@ export default memo(function MapView({
         if ((seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter) {
           try {
             const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
+            // Ensure species metadata is loaded before building seenIds.
+            // Without this, seenIds stays empty and ALL species show as lifers.
+            if (!speciesMetaCache && seenSpecies.size > 0) {
+              await loadSpeciesMetaCache()
+            }
+            if (cancelled) return
             const weekCells = await fetchWeekCells(currentWeek, activeResolution)
             if (cancelled) return
 
@@ -1625,11 +1706,15 @@ export default memo(function MapView({
                     className={`px-3 py-2 flex items-center justify-between ${bird.isSeen ? 'opacity-50' : ''}`}
                   >
                     <div className="min-w-0 flex-1 mr-2">
-                      <div
-                        className={`text-sm font-medium ${bird.isSeen ? 'line-through text-gray-400' : 'text-gray-800'}`}
+                      <button
+                        className={`text-sm font-medium text-left ${bird.isSeen ? 'line-through text-gray-400' : 'text-gray-800 hover:text-[#2C3E7B]'} cursor-pointer`}
+                        onClick={() => {
+                          const meta = speciesByIdCache?.get(bird.species_id)
+                          if (meta) setPopupSpeciesCard(meta as unknown as Species)
+                        }}
                       >
                         {bird.comName}
-                      </div>
+                      </button>
                       <div
                         className={`text-xs ${bird.isSeen ? 'line-through text-gray-300' : 'text-gray-500'}`}
                       >
@@ -1637,56 +1722,14 @@ export default memo(function MapView({
                       </div>
                       {/* Badges */}
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {/* Conservation status badge */}
                         {bird.conservStatus && bird.conservStatus !== 'Unknown' && (
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                              bird.conservStatus === 'Least Concern'
-                                ? 'bg-green-100 text-green-800'
-                                : bird.conservStatus === 'Near Threatened'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : bird.conservStatus === 'Vulnerable'
-                                ? 'bg-orange-100 text-orange-800'
-                                : bird.conservStatus === 'Endangered'
-                                ? 'bg-red-100 text-red-800'
-                                : bird.conservStatus === 'Critically Endangered'
-                                ? 'bg-red-200 text-red-900'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                            data-testid={`goal-popup-conservation-badge-${bird.speciesCode}`}
-                          >
-                            🌿
-                          </span>
+                          <Badge variant="conservation" value={bird.conservStatus} size="icon" />
                         )}
-                        {/* Difficulty badge */}
                         {bird.difficultyLabel && (
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                              bird.difficultyLabel === 'Easy'
-                                ? 'bg-green-100 text-green-800'
-                                : bird.difficultyLabel === 'Moderate'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : bird.difficultyLabel === 'Hard'
-                                ? 'bg-orange-100 text-orange-800'
-                                : bird.difficultyLabel === 'Very Hard'
-                                ? 'bg-red-100 text-red-800'
-                                : bird.difficultyLabel === 'Extremely Hard'
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                            data-testid={`goal-popup-difficulty-badge-${bird.speciesCode}`}
-                          >
-                            🔭
-                          </span>
+                          <Badge variant="difficulty" value={bird.difficultyLabel} size="icon" />
                         )}
-                        {/* Restricted range badge */}
                         {bird.isRestrictedRange && (
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                            data-testid={`goal-popup-restricted-badge-${bird.speciesCode}`}
-                          >
-                            📍
-                          </span>
+                          <Badge variant="restricted-range" value="Restricted Range" size="icon" />
                         )}
                       </div>
                     </div>
@@ -1723,10 +1766,18 @@ export default memo(function MapView({
               <div className="text-sm font-semibold text-teal-900">{seenSpecies.size === 0 ? '🔭 Species in Area' : '🔭 Lifers in Area'}</div>
               <div className="text-xs text-teal-700">
                 {seenSpecies.size === 0
-                  ? `${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                  ? lifersPopup.hasActiveFilter
+                    ? `${lifersPopup.filteredTotal} of ${lifersPopup.totalSpecies} match filter · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                    : `${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
                   : lifersPopup.lifers.length === 0
-                    ? `No lifers to find / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
-                    : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} to find / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
+                    ? lifersPopup.hasActiveFilter
+                      ? `No lifers match filter / ${lifersPopup.filteredTotal} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                      : lifersPopup.totalSpecies === 0
+                        ? `No species data · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                        : `No lifers to find / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                    : lifersPopup.hasActiveFilter
+                      ? `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} match filter / ${lifersPopup.filteredTotal} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`
+                      : `${lifersPopup.lifers.length} lifer${lifersPopup.lifers.length !== 1 ? 's' : ''} to find / ${lifersPopup.totalSpecies} species · ${lifersPopup.label || `Cell ${lifersPopup.cellId}`}`}
               </div>
             </div>
             <button
@@ -1743,39 +1794,119 @@ export default memo(function MapView({
 
           {/* Estimated cell warning */}
           {lifersPopup.estimated && (
-            <div className="px-3 py-1.5 bg-red-50 border-b border-red-200 flex items-center gap-1.5">
+            <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-1.5">
               <span className="text-red-500 text-xs">⚠</span>
-              <span className="text-[10px] text-red-700">
+              <span className="text-[10px] text-red-700 dark:text-red-400">
                 No checklist data — species estimated from neighboring cells
               </span>
             </div>
           )}
           {/* Low data warning */}
           {!lifersPopup.estimated && lifersPopup.nChecklists != null && lifersPopup.nChecklists < 10 && (
-            <div className="px-3 py-1.5 bg-amber-50 border-b border-teal-200 flex items-center gap-1.5">
+            <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 border-b border-teal-200 dark:border-teal-800 flex items-center gap-1.5">
               <span className="text-amber-500 text-xs">⚠</span>
-              <span className="text-[10px] text-amber-700">
+              <span className="text-[10px] text-amber-700 dark:text-amber-400">
                 Limited data ({lifersPopup.nChecklists} checklist{lifersPopup.nChecklists !== 1 ? 's' : ''}) — frequencies may be unreliable
               </span>
             </div>
           )}
 
-          {/* Import prompt when no life list */}
-          {seenSpecies.size === 0 && lifersPopup.lifers.length > 0 && (
-            <div className="px-3 py-2 bg-gray-50 border-b border-teal-200 text-center">
-              <p className="text-[11px] text-gray-500">Import your life list in <strong>Profile</strong> to see which are lifers</p>
+          {/* Import prompt when no life list (only show when no filter is active) */}
+          {seenSpecies.size === 0 && lifersPopup.lifers.length > 0 && !lifersPopup.hasActiveFilter && (
+            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-teal-200 dark:border-teal-800 text-center">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Import your life list in <strong>Profile</strong> to see which are lifers</p>
+            </div>
+          )}
+          {/* Filter active indicator */}
+          {lifersPopup.hasActiveFilter && (
+            <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border-b border-teal-200 dark:border-teal-800 flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+              </svg>
+              <span className="text-[10px] text-blue-700 dark:text-blue-400">
+                Filtered — {lifersPopup.filteredTotal} of {lifersPopup.totalSpecies} species match
+              </span>
+            </div>
+          )}
+          {/* Habitat bar */}
+          {popupCovariates && (
+            <div className="px-3 py-2 border-b border-teal-200 dark:border-teal-800 space-y-1" data-testid="habitat-bar">
+              <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Habitat</p>
+              <div className="flex h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700">
+                {[
+                  { key: 'trees', color: '#22763F', label: 'Forest' },
+                  { key: 'shrub', color: '#8B6914', label: 'Shrub' },
+                  { key: 'herb', color: '#A8D08D', label: 'Grass' },
+                  { key: 'cultivated', color: '#D4A843', label: 'Cropland' },
+                  { key: 'urban', color: '#888', label: 'Urban' },
+                  { key: 'water', color: '#4A90D9', label: 'Water' },
+                  { key: 'flooded', color: '#6B8E9B', label: 'Wetland' },
+                ].map(({ key, color }) => {
+                  const val = (popupCovariates as unknown as Record<string, number>)[key] || 0
+                  if (val < 0.02) return null
+                  return (
+                    <div
+                      key={key}
+                      style={{ width: `${val * 100}%`, backgroundColor: color }}
+                      title={`${key}: ${(val * 100).toFixed(0)}%`}
+                    />
+                  )
+                })}
+              </div>
+              <div className="flex flex-wrap gap-x-2 gap-y-0">
+                {[
+                  { key: 'trees', color: '#22763F', icon: '\u{1F332}', label: 'Forest' },
+                  { key: 'shrub', color: '#8B6914', icon: '\u{1FAB4}', label: 'Shrub' },
+                  { key: 'herb', color: '#A8D08D', icon: '\u{1F33F}', label: 'Grass' },
+                  { key: 'cultivated', color: '#D4A843', icon: '\u{1F33E}', label: 'Crop' },
+                  { key: 'urban', color: '#888', icon: '\u{1F3D9}', label: 'Urban' },
+                  { key: 'water', color: '#4A90D9', icon: '\u{1F4A7}', label: 'Water' },
+                  { key: 'flooded', color: '#6B8E9B', icon: '\u{1F3DE}', label: 'Wetland' },
+                ].map(({ key, icon, label }) => {
+                  const val = (popupCovariates as unknown as Record<string, number>)[key] || 0
+                  if (val < 0.05) return null
+                  return (
+                    <span key={key} className="text-[9px] text-gray-500 dark:text-gray-400">
+                      {icon} {label} {(val * 100).toFixed(0)}%
+                    </span>
+                  )
+                })}
+                {popupCovariates.elev_mean > 0 && (
+                  <span className="text-[9px] text-gray-500 dark:text-gray-400">
+                    ⛰ {Math.round(popupCovariates.elev_mean)}m
+                  </span>
+                )}
+              </div>
             </div>
           )}
           {/* Lifer list */}
           <div className="overflow-y-auto flex-1">
             {lifersPopup.lifers.length === 0 ? (
               <div className="px-3 py-4 text-center text-sm text-gray-500">
-                {seenSpecies.size === 0 ? (
+                {lifersPopup.hasActiveFilter ? (
+                  lifersPopup.filteredTotal === 0 ? (
+                    <>
+                      <p>No species matching your filter were recorded in this cell this week.</p>
+                      <p className="text-xs text-gray-400 mt-1">Try a different cell, week, or clear the filter.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-2xl mb-2">🎉</div>
+                      <p>You've seen all {lifersPopup.filteredTotal} matching species in this cell!</p>
+                      <p className="text-xs text-gray-400 mt-1">Try a different cell or week to find more lifers.</p>
+                    </>
+                  )
+                ) : seenSpecies.size === 0 ? (
                   <>
                     <p>Import your life list in the <strong>Profile</strong> tab to see which are lifers.</p>
                     {lifersPopup.totalSpecies > 0 && (
                       <p className="text-xs text-gray-400 mt-1">{lifersPopup.totalSpecies} species recorded here this week.</p>
                     )}
+                  </>
+                ) : lifersPopup.totalSpecies === 0 ? (
+                  <>
+                    <p>No species data for this cell this week.</p>
+                    <p className="text-xs text-gray-400 mt-1">Try a different cell or week.</p>
                   </>
                 ) : (
                   <>
@@ -1788,11 +1919,11 @@ export default memo(function MapView({
             ) : (
               <div>
                 {(() => {
-                  // Group lifers by family in eBird taxonomic order
+                  // Group lifers by display group in ecological order
                   const familyMap = new Map<string, LiferInCell[]>()
                   const familyMinOrder = new Map<string, number>()
                   lifersPopup.lifers.forEach((lifer) => {
-                    const family = lifer.familyComName || 'Other'
+                    const family = getDisplayGroup(lifer.familyComName || 'Other')
                     if (!familyMap.has(family)) familyMap.set(family, [])
                     familyMap.get(family)!.push(lifer)
                     const order = lifer.taxonOrder ?? 99999
@@ -1804,47 +1935,65 @@ export default memo(function MapView({
                     (a, b) => (familyMinOrder.get(a[0]) ?? 99999) - (familyMinOrder.get(b[0]) ?? 99999)
                   )
                   families.forEach(([, lifers]) => lifers.sort((a, b) => (a.taxonOrder ?? 99999) - (b.taxonOrder ?? 99999)))
-                  return families.map(([family, lifers]) => (
-                    <div key={family}>
-                      <div className="px-2 py-0.5 bg-gray-100 border-b border-gray-200 sticky top-0">
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{family}</span>
-                      </div>
-                      {lifers.map((lifer) => (
-                        <div
-                          key={lifer.speciesCode}
-                          data-testid={`lifer-item-${lifer.speciesCode}`}
-                          className="px-2 py-0.5 flex items-center border-b border-gray-50 leading-tight"
-                        >
-                          <span className="text-xs text-gray-800 truncate flex-1">{lifer.comName}</span>
-                          <div className="flex items-center gap-px flex-shrink-0 ml-1">
-                            {lifer.conservStatus && lifer.conservStatus !== 'Unknown' && lifer.conservStatus !== 'Least Concern' && (
-                              <span
-                                className={`text-[10px] w-4 h-4 flex items-center justify-center rounded ${
-                                  lifer.conservStatus === 'Near Threatened' ? 'bg-yellow-100 text-yellow-700'
-                                  : lifer.conservStatus === 'Vulnerable' ? 'bg-orange-100 text-orange-700'
-                                  : lifer.conservStatus === 'Endangered' ? 'bg-red-100 text-red-700'
-                                  : lifer.conservStatus === 'Critically Endangered' ? 'bg-red-200 text-red-900'
-                                  : 'bg-gray-100 text-gray-500'
-                                }`}
-                                title={lifer.conservStatus}
-                              >!</span>
-                            )}
-                            {lifer.difficultyLabel && lifer.difficultyLabel !== 'Easy' && lifer.difficultyLabel !== 'Moderate' && (
-                              <span
-                                className={`text-[10px] w-4 h-4 flex items-center justify-center rounded ${
-                                  lifer.difficultyLabel === 'Hard' ? 'bg-orange-100 text-orange-700'
-                                  : lifer.difficultyLabel === 'Very Hard' ? 'bg-red-100 text-red-700'
-                                  : lifer.difficultyLabel === 'Extremely Hard' ? 'bg-purple-100 text-purple-700'
-                                  : 'bg-gray-100 text-gray-500'
-                                }`}
-                                title={lifer.difficultyLabel}
-                              >H</span>
-                            )}
+                  // Pagination: flatten to count total, then paginate within families
+                  const allLifers = families.flatMap(([, lifers]) => lifers)
+                  const POPUP_PAGE_SIZE = 20
+                  const totalCount = allLifers.length
+                  const displayLimit = popupShowAll ? totalCount : POPUP_PAGE_SIZE
+                  let displayedCount = 0
+
+                  return (
+                    <>
+                      {families.map(([family, lifers]) => {
+                        // Skip families entirely if we've hit the limit
+                        if (!popupShowAll && displayedCount >= displayLimit) return null
+                        const remainingSlots = displayLimit - displayedCount
+                        const visibleLifers = popupShowAll ? lifers : lifers.slice(0, remainingSlots)
+                        displayedCount += visibleLifers.length
+                        return (
+                          <div key={family}>
+                            <div className="px-2 py-0.5 bg-gray-100 border-b border-gray-200 sticky top-0">
+                              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{family}</span>
+                            </div>
+                            {visibleLifers.map((lifer) => (
+                              <div
+                                key={lifer.speciesCode}
+                                data-testid={`lifer-item-${lifer.speciesCode}`}
+                                className="px-2 py-0.5 flex items-center border-b border-gray-50 leading-tight"
+                              >
+                                <button
+                                  className="text-xs text-gray-800 dark:text-gray-200 truncate flex-1 text-left hover:text-[#2C3E7B] dark:hover:text-blue-400 cursor-pointer"
+                                  onClick={() => {
+                                    const meta = speciesByIdCache?.get(lifer.species_id)
+                                    if (meta) setPopupSpeciesCard(meta as unknown as Species)
+                                  }}
+                                >
+                                  {lifer.comName}
+                                </button>
+                                <div className="flex items-center gap-px flex-shrink-0 ml-1">
+                                  {lifer.conservStatus && lifer.conservStatus !== 'Unknown' && lifer.conservStatus !== 'Least Concern' && (
+                                    <Badge variant="conservation" value={lifer.conservStatus} size="icon" />
+                                  )}
+                                  {lifer.difficultyLabel && lifer.difficultyLabel !== 'Easy' && lifer.difficultyLabel !== 'Moderate' && (
+                                    <Badge variant="difficulty" value={lifer.difficultyLabel} size="icon" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))
+                        )
+                      })}
+                      {!popupShowAll && totalCount > POPUP_PAGE_SIZE && (
+                        <button
+                          className="w-full px-3 py-2 text-xs text-[#2C3E7B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-center"
+                          onClick={() => setPopupShowAll(true)}
+                          data-testid="popup-show-all"
+                        >
+                          Show all {totalCount} species
+                        </button>
+                      )}
+                    </>
+                  )
                 })()}
               </div>
             )}
@@ -1853,10 +2002,24 @@ export default memo(function MapView({
           {/* Footer hint */}
           <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 rounded-b-lg">
             <p className="text-xs text-gray-400 text-center">
-              Click another cell to update · Sorted by abundance
+              Click species name for details · Click cell to update
             </p>
           </div>
         </div>
+      )}
+
+      {/* Species Info Card from popup click */}
+      {popupSpeciesCard && (
+        <SpeciesInfoCard
+          species={popupSpeciesCard}
+          onClose={() => setPopupSpeciesCard(null)}
+          currentWeek={currentWeek}
+          onCellClick={(cellId, coordinates) => {
+            setPopupSpeciesCard(null)
+            setLifersPopup(null)
+            onLocationSelect?.({ cellId, coordinates })
+          }}
+        />
       )}
     </div>
   )

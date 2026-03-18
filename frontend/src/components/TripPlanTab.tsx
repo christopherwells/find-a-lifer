@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
-import type { Species, TripPlanTabProps, TripLifer, HotspotLocation, WeekOpportunity, SelectedLocation } from './types'
+import type { Species, TripPlanTabProps, TripLifer, HotspotLocation, WeekOpportunity, SelectedLocation, GoalWindowResult } from './types'
 import { ListSkeleton } from './Skeleton'
-import { fetchSpecies, fetchGrid } from '../lib/dataCache'
+import { fetchSpecies, fetchGrid, computeGoalWindowOpportunities, getCellLabels } from '../lib/dataCache'
 
 /** Format coordinates as a human-readable string, handling all hemispheres */
 function formatCoords(coordinates: [number, number]): string {
@@ -11,6 +11,9 @@ function formatCoords(coordinates: [number, number]): string {
   const lngDir = lng >= 0 ? 'E' : 'W'
   return `${Math.abs(lat).toFixed(2)}\u00B0${latDir}, ${Math.abs(lng).toFixed(2)}\u00B0${lngDir}`
 }
+
+// Stable empty array to avoid creating new references on every render
+const EMPTY_GOAL_LISTS: import('../lib/goalListsDB').GoalList[] = []
 
 // Bounding boxes for region filtering [west, south, east, north]
 const REGION_BBOX: Record<string, [number, number, number, number]> = {
@@ -25,10 +28,15 @@ const REGION_BBOX: Record<string, [number, number, number, number]> = {
 export default function TripPlanTab({
   selectedLocation,
   currentWeek = 26,
+  onWeekChange,
   onLocationSelect,
   selectedRegion = null,
   onCompareLocationsChange,
+  goalLists = EMPTY_GOAL_LISTS,
+  activeGoalListId = null,
+  goalSpeciesCodes: _goalSpeciesCodes,
 }: TripPlanTabProps) {
+  void _goalSpeciesCodes // available for future use
   // Mode: 'location', 'hotspots', 'window', or 'compare'
   const [mode, setMode] = useState<'location' | 'hotspots' | 'window' | 'compare'>('hotspots')
 
@@ -52,11 +60,21 @@ export default function TripPlanTab({
   const [hotspotSortMode, setHotspotSortMode] = useState<'liferCount' | 'cellId'>('liferCount')
 
   // Window mode
+  const [windowSubMode, setWindowSubMode] = useState<'single' | 'goal-list'>('single')
   const [selectedSpeciesForWindow, setSelectedSpeciesForWindow] = useState<Species | null>(null)
   const [weekOpportunities, setWeekOpportunities] = useState<WeekOpportunity[]>([])
   const [windowLoading, setWindowLoading] = useState(false)
   const [speciesSearchTerm, setSpeciesSearchTerm] = useState('')
   const [showSpeciesSuggestions, setShowSpeciesSuggestions] = useState(false)
+
+  // Goal-list Window mode
+  const [goalWindowResults, setGoalWindowResults] = useState<GoalWindowResult[]>([])
+  const [goalWindowLoading, setGoalWindowLoading] = useState(false)
+  const [goalWindowListId, setGoalWindowListId] = useState<string | null>(activeGoalListId)
+  const [goalWindowStartWeek, setGoalWindowStartWeek] = useState(1)
+  const [goalWindowEndWeek, setGoalWindowEndWeek] = useState(52)
+  const [goalWindowThreshold, setGoalWindowThreshold] = useState(5) // percentage
+  const [goalWindowExpandedIdx, setGoalWindowExpandedIdx] = useState<number | null>(null)
 
   // Compare mode
   const [locationA, setLocationA] = useState<SelectedLocation | null>(null)
@@ -84,6 +102,13 @@ export default function TripPlanTab({
   const [gridData, setGridData] = useState<any>(null)
   const [dataError, setDataError] = useState<string | null>(null)
   const { seenSpecies } = useLifeList()
+
+  // Build species_id → Species lookup
+  const speciesById = useMemo(() => {
+    const m = new Map<number, Species>()
+    speciesData.forEach(sp => m.set(sp.species_id, sp))
+    return m
+  }, [speciesData])
 
   // Build cell_id → label lookup from grid features
   const cellLabels = useMemo(() => {
@@ -315,6 +340,94 @@ export default function TripPlanTab({
 
     return () => controller.abort()
   }, [mode, selectedSpeciesForWindow, speciesLoaded, gridData, selectedRegion])
+
+  // Calculate goal-list window of opportunity
+  useEffect(() => {
+    if (mode !== 'window' || windowSubMode !== 'goal-list' || !speciesLoaded || !gridData) {
+      setGoalWindowResults([])
+      return
+    }
+
+    // Find the selected goal list
+    const selectedList = goalLists.find(l => l.id === goalWindowListId)
+    if (!selectedList || selectedList.speciesCodes.length === 0) {
+      setGoalWindowResults([])
+      return
+    }
+
+    const controller = new AbortController()
+
+    const calc = async () => {
+      setGoalWindowLoading(true)
+      setGoalWindowExpandedIdx(null)
+      try {
+        // Build species ID set from goal list codes
+        const goalSpeciesIdSet = new Set<number>()
+        for (const code of selectedList.speciesCodes) {
+          const sp = speciesData.find(s => s.speciesCode === code)
+          if (sp) goalSpeciesIdSet.add(sp.species_id)
+        }
+        if (goalSpeciesIdSet.size === 0) {
+          setGoalWindowResults([])
+          return
+        }
+
+        // Build seen species ID set
+        const seenIdSet = new Set<number>()
+        for (const code of seenSpecies) {
+          const sp = speciesData.find(s => s.speciesCode === code)
+          if (sp) seenIdSet.add(sp.species_id)
+        }
+
+        // Build cell coords and labels from grid data
+        const cellCoordsMap = new Map<number, [number, number]>()
+        if (gridData.features) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature
+          gridData.features.forEach((f: any) => {
+            const id = f.properties?.cell_id
+            if (id != null && f.properties.center_lng != null && f.properties.center_lat != null) {
+              cellCoordsMap.set(id, [f.properties.center_lng, f.properties.center_lat])
+            } else if (id != null && f.geometry?.coordinates?.[0]?.[0]) {
+              const coords = f.geometry.coordinates[0][0]
+              cellCoordsMap.set(id, [coords[0], coords[1]])
+            }
+          })
+        }
+
+        const labelsMap = await getCellLabels()
+        if (controller.signal.aborted) return
+
+        const regionBbox = selectedRegion ? REGION_BBOX[selectedRegion] : null
+
+        const results = await computeGoalWindowOpportunities(
+          goalSpeciesIdSet,
+          seenIdSet,
+          speciesById,
+          cellCoordsMap,
+          labelsMap,
+          [goalWindowStartWeek, goalWindowEndWeek],
+          goalWindowThreshold / 100,
+          4, // resolution
+          regionBbox,
+          controller.signal
+        )
+        if (controller.signal.aborted) return
+
+        setGoalWindowResults(results)
+        console.log(`Goal Window: found ${results.length} results for list "${selectedList.name}"`)
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Goal Window: error', error)
+          setGoalWindowResults([])
+        }
+      } finally {
+        setGoalWindowLoading(false)
+      }
+    }
+    calc()
+
+    return () => controller.abort()
+  }, [mode, windowSubMode, goalWindowListId, goalWindowStartWeek, goalWindowEndWeek, goalWindowThreshold, speciesLoaded, speciesData, speciesById, gridData, seenSpecies, selectedRegion, goalLists])
 
   // Compare two locations
   useEffect(() => {
@@ -588,6 +701,9 @@ export default function TripPlanTab({
     setShowSpeciesSuggestions(false)
     setWeekOpportunities([])
     setWindowLoading(false)
+    setGoalWindowResults([])
+    setGoalWindowLoading(false)
+    setGoalWindowExpandedIdx(null)
 
     // Clear compare mode
     setLocationA(null)
@@ -664,9 +780,38 @@ export default function TripPlanTab({
         </div>
       )}
 
-      {/* Window Mode: Species Search */}
+      {/* Window Mode: Sub-mode toggle + controls */}
       {mode === 'window' && (
-        <div className="mt-3">
+        <div className="mt-3 space-y-3">
+          {/* Sub-mode toggle: Single Species vs Goal List */}
+          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 grid grid-cols-2">
+            <button
+              onClick={() => setWindowSubMode('single')}
+              className={`py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
+                windowSubMode === 'single'
+                  ? 'bg-white dark:bg-gray-800 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+              data-testid="window-single-btn"
+            >
+              Single Species
+            </button>
+            <button
+              onClick={() => setWindowSubMode('goal-list')}
+              className={`py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
+                windowSubMode === 'goal-list'
+                  ? 'bg-white dark:bg-gray-800 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+              data-testid="window-goal-list-btn"
+            >
+              Goal List
+            </button>
+          </div>
+
+          {/* Single Species sub-mode */}
+          {windowSubMode === 'single' && (
+            <div>
           <label className="block text-sm font-medium text-[#2C3E50] dark:text-gray-200 mb-1">Select Target Species</label>
           <div className="relative">
             <input
@@ -710,6 +855,99 @@ export default function TripPlanTab({
             <div className="mt-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-2">
               <div className="text-sm font-medium text-blue-800 dark:text-blue-300">{selectedSpeciesForWindow.comName}</div>
               <div className="text-xs italic text-blue-600 dark:text-blue-400">{selectedSpeciesForWindow.sciName}</div>
+            </div>
+          )}
+            </div>
+          )}
+
+          {/* Goal List sub-mode */}
+          {windowSubMode === 'goal-list' && (
+            <div className="space-y-3">
+              {/* Goal list selector */}
+              <div>
+                <label className="block text-sm font-medium text-[#2C3E50] dark:text-gray-200 mb-1">Goal List</label>
+                {goalLists.length === 0 ? (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                    Create a goal list in the Goals tab first.
+                  </p>
+                ) : (
+                  <select
+                    value={goalWindowListId || ''}
+                    onChange={(e) => setGoalWindowListId(e.target.value || null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+                    data-testid="goal-window-list-select"
+                  >
+                    <option value="">Select a goal list...</option>
+                    {goalLists.map(list => (
+                      <option key={list.id} value={list.id}>
+                        {list.name} ({list.speciesCodes.length} species)
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Week range */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[#2C3E50] dark:text-gray-200">Week Range</label>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Start Week</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="52"
+                    value={goalWindowStartWeek}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10)
+                      setGoalWindowStartWeek(val)
+                      if (val > goalWindowEndWeek) setGoalWindowEndWeek(val)
+                    }}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                    data-testid="goal-window-start-week"
+                  />
+                  <div className="text-xs text-center text-[#2C3E7B] dark:text-blue-400 font-medium">
+                    Week {goalWindowStartWeek} (~{getWeekLabel(goalWindowStartWeek)})
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">End Week</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="52"
+                    value={goalWindowEndWeek}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10)
+                      setGoalWindowEndWeek(val)
+                      if (val < goalWindowStartWeek) setGoalWindowStartWeek(val)
+                    }}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                    data-testid="goal-window-end-week"
+                  />
+                  <div className="text-xs text-center text-[#2C3E7B] dark:text-blue-400 font-medium">
+                    Week {goalWindowEndWeek} (~{getWeekLabel(goalWindowEndWeek)})
+                  </div>
+                </div>
+              </div>
+
+              {/* Frequency threshold */}
+              <div>
+                <label className="block text-sm font-medium text-[#2C3E50] dark:text-gray-200 mb-1">
+                  Min Reporting Frequency: {goalWindowThreshold}%
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="50"
+                  value={goalWindowThreshold}
+                  onChange={(e) => setGoalWindowThreshold(parseInt(e.target.value, 10))}
+                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                  data-testid="goal-window-threshold"
+                />
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                  Only count species reported on ≥{goalWindowThreshold}% of checklists
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -1031,91 +1269,209 @@ export default function TripPlanTab({
             </div>
           )
         ) : mode === 'window' ? (
-          !selectedSpeciesForWindow ? (
-            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 text-center">
-              <p className="text-sm text-blue-700 dark:text-blue-400">
-                <span className="font-medium">Search for a species</span> above to see its window of opportunity.
-              </p>
-            </div>
-          ) : windowLoading ? (
-            <ListSkeleton count={4} />
-          ) : weekOpportunities.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                <span className="font-medium">No data found</span> for {selectedSpeciesForWindow.comName}. This species may not be recorded in this region.
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div className="mb-3">
-                <h4 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100 mb-1">
-                  Window of Opportunity
-                </h4>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Best weeks to find <span className="font-medium text-[#2C3E7B] dark:text-blue-400">{selectedSpeciesForWindow.comName}</span>
+          windowSubMode === 'single' ? (
+            // Single species window results
+            !selectedSpeciesForWindow ? (
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 text-center">
+                <p className="text-sm text-blue-700 dark:text-blue-400">
+                  <span className="font-medium">Search for a species</span> above to see its window of opportunity.
                 </p>
               </div>
-              <div className="space-y-2" data-testid="window-opportunity-list">
-                {weekOpportunities.map((opp, index) => (
-                  <div
-                    key={opp.week}
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:border-[#2C3E7B] dark:hover:border-blue-500 transition-colors"
-                  >
-                    {/* Week Header */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="text-xs text-gray-400 dark:text-gray-500 w-5 text-right font-mono">
-                          #{index + 1}
+            ) : windowLoading ? (
+              <ListSkeleton count={4} />
+            ) : weekOpportunities.length === 0 ? (
+              <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="font-medium">No data found</span> for {selectedSpeciesForWindow.comName}. This species may not be recorded in this region.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-3">
+                  <h4 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100 mb-1">
+                    Window of Opportunity
+                  </h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Best weeks to find <span className="font-medium text-[#2C3E7B] dark:text-blue-400">{selectedSpeciesForWindow.comName}</span>
+                  </p>
+                </div>
+                <div className="space-y-2" data-testid="window-opportunity-list">
+                  {weekOpportunities.map((opp, index) => (
+                    <div
+                      key={opp.week}
+                      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:border-[#2C3E7B] dark:hover:border-blue-500 transition-colors"
+                    >
+                      {/* Week Header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs text-gray-400 dark:text-gray-500 w-5 text-right font-mono">
+                            #{index + 1}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-[#2C3E50] dark:text-gray-200">
+                              Week {opp.week}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              ~{getWeekLabel(opp.week)}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-semibold text-[#2C3E50] dark:text-gray-200">
-                            Week {opp.week}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            ~{getWeekLabel(opp.week)}
-                          </div>
+                        <div className={`px-2 py-1 rounded text-xs font-medium ${getProbabilityColor(opp.avgProbability)}`}>
+                          {formatProbability(opp.avgProbability)} avg
                         </div>
                       </div>
-                      <div className={`px-2 py-1 rounded text-xs font-medium ${getProbabilityColor(opp.avgProbability)}`}>
-                        {formatProbability(opp.avgProbability)} avg
+
+                      {/* Top Locations */}
+                      <div className="mt-2 space-y-1">
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          Best locations:
+                        </div>
+                        {opp.topLocations.slice(0, 3).map((loc, locIndex) => (
+                          <button
+                            key={loc.cellId}
+                            onClick={() => {
+                              if (onLocationSelect) {
+                                onLocationSelect({
+                                  cellId: loc.cellId,
+                                  coordinates: loc.coordinates,
+                                  name: cellLabels.get(loc.cellId)
+                                })
+                              }
+                            }}
+                            className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-50 dark:bg-gray-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded text-left transition-colors"
+                            data-testid={`window-location-${opp.week}-${locIndex}`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                {formatLocation(loc.coordinates, loc.cellId)}
+                              </div>
+                            </div>
+                            <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${getProbabilityColor(loc.probability)}`}>
+                              {formatProbability(loc.probability)}
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     </div>
-
-                    {/* Top Locations */}
-                    <div className="mt-2 space-y-1">
-                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        Best locations:
+                  ))}
+                </div>
+              </div>
+            )
+          ) : (
+            // Goal list window results
+            !goalWindowListId ? (
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 text-center">
+                <p className="text-sm text-blue-700 dark:text-blue-400">
+                  <span className="font-medium">Select a goal list</span> above to find the best times and places to see multiple targets.
+                </p>
+              </div>
+            ) : goalWindowLoading ? (
+              <div className="space-y-2">
+                <ListSkeleton count={4} />
+                <p className="text-xs text-gray-400 dark:text-gray-500 text-center animate-pulse">
+                  Scanning {goalWindowEndWeek - goalWindowStartWeek + 1} weeks...
+                </p>
+              </div>
+            ) : goalWindowResults.length === 0 ? (
+              <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {(() => {
+                    const selectedList = goalLists.find(l => l.id === goalWindowListId)
+                    const allSeen = selectedList?.speciesCodes.every(c => seenSpecies.has(c))
+                    if (allSeen) return <><span className="font-medium">All species seen!</span> You've already seen every species in this goal list.</>
+                    return <><span className="font-medium">No results found.</span> Try lowering the frequency threshold or widening the week range.</>
+                  })()}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-3">
+                  <h4 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100 mb-1">
+                    Best Opportunities
+                  </h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Where the most unseen target species overlap at peak frequency
+                  </p>
+                </div>
+                <div className="space-y-2" data-testid="goal-window-results">
+                  {goalWindowResults.map((result, index) => (
+                    <div
+                      key={`${result.week}-${result.cellId}`}
+                      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:border-[#2C3E7B] dark:hover:border-blue-500 transition-colors"
+                    >
+                      {/* Result Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs text-gray-400 dark:text-gray-500 w-5 text-right font-mono">
+                            #{index + 1}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-[#2C3E50] dark:text-gray-200">
+                              Week {result.week} <span className="font-normal text-gray-400">·</span> {result.cellName || formatCoords(result.coordinates)}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              ~{getWeekLabel(result.week)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-[#2C3E7B] dark:text-blue-400">
+                            {result.targetCount}/{result.totalGoalSpecies}
+                          </div>
+                          <div className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getProbabilityColor(result.combinedFreq)}`}>
+                            {formatProbability(result.combinedFreq)}
+                          </div>
+                        </div>
                       </div>
-                      {opp.topLocations.slice(0, 3).map((loc, locIndex) => (
+
+                      {/* Action buttons */}
+                      <div className="flex gap-2 mt-2">
                         <button
-                          key={loc.cellId}
                           onClick={() => {
+                            if (onWeekChange) onWeekChange(result.week)
                             if (onLocationSelect) {
                               onLocationSelect({
-                                cellId: loc.cellId,
-                                coordinates: loc.coordinates,
-                                name: cellLabels.get(loc.cellId)
+                                cellId: result.cellId,
+                                coordinates: result.coordinates,
+                                name: result.cellName || undefined,
                               })
                             }
                           }}
-                          className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-50 dark:bg-gray-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded text-left transition-colors"
-                          data-testid={`window-location-${opp.week}-${locIndex}`}
+                          className="flex-1 text-xs text-[#2C3E7B] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded px-2 py-1 transition-colors font-medium"
+                          data-testid={`goal-window-show-map-${index}`}
                         >
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                              {formatLocation(loc.coordinates, loc.cellId)}
-                            </div>
-                          </div>
-                          <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${getProbabilityColor(loc.probability)}`}>
-                            {formatProbability(loc.probability)}
-                          </div>
+                          Show on Map
                         </button>
-                      ))}
+                        <button
+                          onClick={() => setGoalWindowExpandedIdx(goalWindowExpandedIdx === index ? null : index)}
+                          className="flex-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded px-2 py-1 transition-colors"
+                          data-testid={`goal-window-expand-${index}`}
+                        >
+                          {goalWindowExpandedIdx === index ? 'Hide Species' : `Show ${result.speciesPresent.length} Species`}
+                        </button>
+                      </div>
+
+                      {/* Expanded species list */}
+                      {goalWindowExpandedIdx === index && (
+                        <div className="mt-2 border-t border-gray-100 dark:border-gray-700 pt-2 space-y-1">
+                          {result.speciesPresent.map((sp) => (
+                            <div
+                              key={sp.speciesId}
+                              className="flex items-center justify-between px-2 py-1 text-xs"
+                            >
+                              <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
+                              <span className={`px-1.5 py-0.5 rounded font-medium ${getProbabilityColor(sp.freq)}`}>
+                                {formatProbability(sp.freq)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )
           )
         ) : mode === 'compare' ? (
           !locationA || !locationB ? (

@@ -3,10 +3,13 @@ import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species, SpeciesTabProps } from './types'
 import SpeciesInfoCard from './SpeciesInfoCard'
+import { getConservationDotColor, getRestrictedRangeDotColor } from '../lib/badgeUtils'
 import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
 import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
 import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES, expandRegionFilter } from '../lib/regionGroups'
+import Tooltip from './Tooltip'
+import { TOOLTIPS } from '../lib/tooltipContent'
 
 /** Species grouped by display group name, in taxonomic order */
 type SpeciesByGroup = Record<string, Species[]>
@@ -558,47 +561,56 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
             </select>
             {/* Secondary filters row */}
             <div className="flex gap-1.5">
-              <select
-                id="conservation-filter"
-                value={selectedConservStatus}
-                onChange={(e) => setSelectedConservStatus(e.target.value)}
-                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                data-testid="conservation-filter"
-              >
-                <option value="">All Statuses</option>
-                <option value="Least Concern">Least Concern</option>
-                <option value="Near Threatened">Near Threatened</option>
-                <option value="Vulnerable">Vulnerable</option>
-                <option value="Endangered">Endangered</option>
-                <option value="Critically Endangered">Critically Endangered</option>
-                <option value="Extinct in the Wild">Extinct in Wild</option>
-                <option value="Data Deficient">Data Deficient</option>
-              </select>
-              <select
-                id="invasion-filter"
-                value={selectedInvasionStatus}
-                onChange={(e) => setSelectedInvasionStatus(e.target.value)}
-                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                data-testid="invasion-filter"
-              >
-                <option value="">All Origins</option>
-                <option value="Native">Native</option>
-                <option value="Introduced">Introduced</option>
-                <option value="Vagrant/Accidental">Vagrant/Accidental</option>
-              </select>
-              <select
-                id="difficulty-filter"
-                value={selectedDifficulty}
-                onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                data-testid="difficulty-filter"
-              >
-                <option value="">All Levels</option>
-                <option value="Easy">Easy</option>
-                <option value="Moderate">Moderate</option>
-                <option value="Hard">Hard</option>
-                <option value="Very Hard">Very Hard</option>
-              </select>
+              <div className="flex-1 flex items-center gap-0.5">
+                <select
+                  id="conservation-filter"
+                  value={selectedConservStatus}
+                  onChange={(e) => setSelectedConservStatus(e.target.value)}
+                  className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  data-testid="conservation-filter"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Least Concern">Least Concern</option>
+                  <option value="Near Threatened">Near Threatened</option>
+                  <option value="Vulnerable">Vulnerable</option>
+                  <option value="Endangered">Endangered</option>
+                  <option value="Critically Endangered">Critically Endangered</option>
+                  <option value="Extinct in the Wild">Extinct in Wild</option>
+                  <option value="Data Deficient">Data Deficient</option>
+                </select>
+                <Tooltip content="IUCN Red List classification of extinction risk." />
+              </div>
+              <div className="flex-1 flex items-center gap-0.5">
+                <select
+                  id="invasion-filter"
+                  value={selectedInvasionStatus}
+                  onChange={(e) => setSelectedInvasionStatus(e.target.value)}
+                  className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  data-testid="invasion-filter"
+                >
+                  <option value="">All Origins</option>
+                  <option value="Native">Native</option>
+                  <option value="Introduced">Introduced</option>
+                  <option value="Vagrant/Accidental">Vagrant/Accidental</option>
+                </select>
+                <Tooltip content="Whether a species is native, introduced, or vagrant in a region." />
+              </div>
+              <div className="flex-1 flex items-center gap-0.5">
+                <select
+                  id="difficulty-filter"
+                  value={selectedDifficulty}
+                  onChange={(e) => setSelectedDifficulty(e.target.value)}
+                  className="flex-1 min-w-0 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  data-testid="difficulty-filter"
+                >
+                  <option value="">All Levels</option>
+                  <option value="Easy">Easy</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Hard">Hard</option>
+                  <option value="Very Hard">Very Hard</option>
+                </select>
+                <Tooltip content={TOOLTIPS.difficulty} />
+              </div>
             </div>
             {/* Clear filters */}
             {activeFilterCount > 0 && (
@@ -688,7 +700,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                         ref={(el) => {
                           speciesRefs.current[species.speciesCode] = el
                         }}
-                        className={`flex items-center gap-1.5 px-2 py-1 border-b border-gray-50 dark:border-gray-800 transition-colors ${
+                        className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 border-b border-gray-50 dark:border-gray-800 transition-colors ${
                           highlightedSpecies === species.speciesCode
                             ? 'bg-yellow-50 dark:bg-yellow-900/30 ring-1 ring-yellow-300 dark:ring-yellow-600'
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -716,10 +728,10 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                         {/* Inline status dots */}
                         <div className="flex items-center gap-0.5 flex-shrink-0">
                           {species.conservStatus && species.conservStatus !== 'Least Concern' && species.conservStatus !== 'Data Deficient' && (
-                            <span className={`w-1.5 h-1.5 rounded-full ${species.conservStatus === 'Near Threatened' ? 'bg-yellow-400' : species.conservStatus === 'Vulnerable' ? 'bg-orange-400' : 'bg-red-500'}`} title={species.conservStatus} data-testid={`checklist-conservation-badge-${species.speciesCode}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${getConservationDotColor(species.conservStatus)}`} title={species.conservStatus} data-testid={`checklist-conservation-badge-${species.speciesCode}`} />
                           )}
                           {species.isRestrictedRange && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Restricted range" data-testid={`checklist-restricted-badge-${species.speciesCode}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${getRestrictedRangeDotColor()}`} title="Restricted range" data-testid={`checklist-restricted-badge-${species.speciesCode}`} />
                           )}
                         </div>
                         {/* Add to goal list */}

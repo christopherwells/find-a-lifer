@@ -16,6 +16,13 @@ vi.mock('../contexts/LifeListContext', () => ({
     isSpeciesSeen: mockIsSpeciesSeen,
     getTotalSeen: mockGetTotalSeen,
     seenSpecies: new Set<string>(),
+    // Year lists
+    yearLists: [],
+    activeYearListId: null,
+    setActiveYearListId: vi.fn(),
+    yearSeenSpecies: new Set<string>(),
+    listScope: 'lifetime' as const,
+    setListScope: vi.fn(),
   }),
 }))
 

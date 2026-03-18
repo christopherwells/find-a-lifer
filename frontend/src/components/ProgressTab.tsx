@@ -7,7 +7,11 @@ import { getDisplayGroup } from '../lib/familyGroups'
 import { REGION_GROUPS, GROUPED_CODES } from '../lib/regionGroups'
 
 export default function ProgressTab() {
-  const { isSpeciesSeen, getTotalSeen } = useLifeList()
+  const {
+    isSpeciesSeen, getTotalSeen,
+    yearLists, activeYearListId, setActiveYearListId, yearSeenSpecies,
+    listScope, setListScope,
+  } = useLifeList()
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
   const [regionNames, setRegionNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -33,9 +37,33 @@ export default function ProgressTab() {
     return <ProgressSkeleton />
   }
 
+  // Determine scope: year vs lifetime
+  const isYearScope = listScope === 'year' && activeYearListId != null && yearSeenSpecies.size > 0
+  const activeYearList = isYearScope ? yearLists.find(l => l.id === activeYearListId) : null
+
+  // Species "seen" check respects scope
+  const isSeen = (speciesCode: string): boolean => {
+    return isYearScope ? yearSeenSpecies.has(speciesCode) : isSpeciesSeen(speciesCode)
+  }
+
   const totalSpecies = allSpecies.length
-  const totalSeen = getTotalSeen()
+  const totalSeen = isYearScope ? yearSeenSpecies.size : getTotalSeen()
   const percentComplete = totalSpecies > 0 ? (totalSeen / totalSpecies) * 100 : 0
+
+  // Pace tracking for year scope
+  const paceProjection = (() => {
+    if (!isYearScope || !activeYearList) return null
+    const now = new Date()
+    const yearStart = new Date(activeYearList.year, 0, 1)
+    const yearEnd = new Date(activeYearList.year, 11, 31)
+    const isCurrentYear = activeYearList.year === now.getFullYear()
+    if (!isCurrentYear) return null // Only show pace for current year
+    const dayOfYear = Math.floor((now.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    const totalDays = Math.floor((yearEnd.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    const rate = totalSeen / dayOfYear
+    const projected = Math.round(rate * totalDays)
+    return { dayOfYear, totalDays, rate, projected }
+  })()
 
   // Calculate group breakdown (using display groups, not raw families)
   const groupStats: { [groupName: string]: { total: number; seen: number } } = {}
@@ -45,7 +73,7 @@ export default function ProgressTab() {
       groupStats[group] = { total: 0, seen: 0 }
     }
     groupStats[group].total++
-    if (isSpeciesSeen(species.speciesCode)) {
+    if (isSeen(species.speciesCode)) {
       groupStats[group].seen++
     }
   })
@@ -76,7 +104,7 @@ export default function ProgressTab() {
   const regionStats: { [key: string]: { total: number; seen: number } } = {}
   allSpecies.forEach((species) => {
     if (!species.regions) return
-    const seen = isSpeciesSeen(species.speciesCode)
+    const seen = isSeen(species.speciesCode)
     // Track which groups have already been counted for this species
     const countedGroups = new Set<string>()
     for (const regionCode of species.regions) {
@@ -125,6 +153,72 @@ export default function ProgressTab() {
       <p className="text-sm text-gray-600 dark:text-gray-400">
         Track your birding progress with stats and visual breakdowns by group.
       </p>
+
+      {/* Scope Toggle — only show when year lists exist */}
+      {yearLists.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 grid grid-cols-2 gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5" data-testid="progress-scope-toggle">
+              <button
+                onClick={() => setListScope('lifetime')}
+                className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  !isYearScope
+                    ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+                data-testid="progress-scope-lifetime"
+              >
+                Lifetime
+              </button>
+              <button
+                onClick={() => {
+                  setListScope('year')
+                  if (!activeYearListId && yearLists.length > 0) {
+                    setActiveYearListId(yearLists[0].id)
+                  }
+                }}
+                className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  isYearScope
+                    ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+                data-testid="progress-scope-year"
+              >
+                Year
+              </button>
+            </div>
+          </div>
+
+          {/* Year list selector (when in year scope) */}
+          {isYearScope && yearLists.length > 1 && (
+            <select
+              value={activeYearListId || ''}
+              onChange={(e) => setActiveYearListId(e.target.value || null)}
+              className="w-full px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              data-testid="progress-year-selector"
+            >
+              {yearLists
+                .sort((a, b) => b.year - a.year)
+                .map((yl) => (
+                <option key={yl.id} value={yl.id}>{yl.year} ({yl.speciesCodes.length} species)</option>
+              ))}
+            </select>
+          )}
+
+          {/* Pace tracking for current year */}
+          {paceProjection && (
+            <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-3" data-testid="pace-tracking">
+              <p className="text-sm font-medium text-teal-800 dark:text-teal-200">
+                {totalSeen} species in {paceProjection.dayOfYear} days
+              </p>
+              <p className="text-xs text-teal-600 dark:text-teal-400 mt-0.5">
+                On pace for ~{paceProjection.projected} by Dec 31
+                {' '}({paceProjection.rate.toFixed(1)} species/day)
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick Stats Cards */}
       <div className="grid grid-cols-2 gap-3" data-testid="quick-stats">

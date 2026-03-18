@@ -41,6 +41,8 @@ interface SidePanelProps {
   speciesFilters?: SpeciesFilters
   onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
   onCompareLocationsChange?: (locations: CompareLocations | null) => void
+  beginnerMode?: boolean
+  onBeginnerModeChange?: (value: boolean) => void
 }
 
 interface Tab {
@@ -124,6 +126,8 @@ export default memo(function SidePanel({
   speciesFilters,
   onSpeciesFiltersChange,
   onCompareLocationsChange,
+  beginnerMode,
+  onBeginnerModeChange,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explore')
 
@@ -261,6 +265,8 @@ export default memo(function SidePanel({
                 dataRange={dataRange}
                 showTotalRichness={showTotalRichness}
                 onShowTotalRichnessChange={onShowTotalRichnessChange}
+                beginnerMode={beginnerMode}
+                onBeginnerModeChange={onBeginnerModeChange}
               />
             )}
             {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} speciesFilters={speciesFilters} onSpeciesFiltersChange={onSpeciesFiltersChange} />}
@@ -273,6 +279,9 @@ export default memo(function SidePanel({
                 onLocationSelect={onSelectedLocationChange}
                 selectedRegion={selectedRegion}
                 onCompareLocationsChange={onCompareLocationsChange}
+                goalLists={goalLists}
+                activeGoalListId={activeGoalListId}
+                goalSpeciesCodes={goalSpeciesCodes}
               />
             )}
             {activeTab === 'progress' && <ProgressTab />}

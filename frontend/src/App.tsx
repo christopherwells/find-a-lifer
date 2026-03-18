@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import TopBar from './components/TopBar'
 import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
+import AboutPage from './components/AboutPage'
+import OnboardingOverlay from './components/OnboardingOverlay'
 import { useLifeList } from './contexts/LifeListContext'
 import { goalListsDB, type GoalList } from './lib/goalListsDB'
 import type { SpeciesFilters, CompareLocations } from './components/types'
@@ -42,7 +44,22 @@ function App() {
   const [showTotalRichness, setShowTotalRichness] = useState(false)
   const [speciesFilters, setSpeciesFilters] = useState<SpeciesFilters>({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
   const [compareLocations, setCompareLocations] = useState<CompareLocations | null>(null)
-  const { seenSpecies } = useLifeList()
+  const [showAbout, setShowAbout] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('hasSeenOnboarding'))
+  const [beginnerMode, setBeginnerMode] = useState(() => {
+    const stored = localStorage.getItem('beginnerMode')
+    if (stored !== null) return stored === 'true'
+    // Default to beginner mode for first 3 sessions (count +1 for current session)
+    const count = parseInt(localStorage.getItem('sessionCount') || '0', 10) + 1
+    return count < 3
+  })
+  const { effectiveSeenSpecies } = useLifeList()
+
+  // Session counting for progressive disclosure
+  useEffect(() => {
+    const count = parseInt(localStorage.getItem('sessionCount') || '0', 10) + 1
+    localStorage.setItem('sessionCount', String(count))
+  }, [])
 
   // Persist dark mode and toggle class on document root
   useEffect(() => {
@@ -85,12 +102,24 @@ function App() {
     return new Set<string>(activeList.speciesCodes)
   }, [activeGoalListId, goalLists])
 
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('hasSeenOnboarding', 'true')
+    setShowOnboarding(false)
+  }
+
+  const handleShowOnboarding = () => {
+    localStorage.removeItem('hasSeenOnboarding')
+    setShowOnboarding(true)
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900">
       {/* Top Bar */}
       <TopBar
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((prev) => !prev)}
+        onShowAbout={() => setShowAbout(true)}
+        onShowOnboarding={handleShowOnboarding}
       />
 
       {/* Main Content: Map + Side Panel */}
@@ -104,7 +133,7 @@ function App() {
             goalBirdsOnlyFilter={goalBirdsOnlyFilter}
             onLocationSelect={setSelectedLocation}
             goalSpeciesCodes={goalSpeciesCodes}
-            seenSpecies={seenSpecies}
+            seenSpecies={effectiveSeenSpecies}
             selectedSpecies={selectedSpecies}
             selectedRegion={selectedRegion}
             heatmapOpacity={heatmapOpacity}
@@ -157,8 +186,19 @@ function App() {
           speciesFilters={speciesFilters}
           onSpeciesFiltersChange={setSpeciesFilters}
           onCompareLocationsChange={setCompareLocations}
+          beginnerMode={beginnerMode}
+          onBeginnerModeChange={(value) => {
+            setBeginnerMode(value)
+            localStorage.setItem('beginnerMode', String(value))
+          }}
         />
       </div>
+
+      {/* Modals */}
+      {showAbout && <AboutPage onClose={() => setShowAbout(false)} />}
+      {showOnboarding && (
+        <OnboardingOverlay onComplete={handleOnboardingComplete} />
+      )}
     </div>
   )
 }

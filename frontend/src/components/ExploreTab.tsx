@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ExploreTabProps, SpeciesMeta } from './types'
 import { fetchSpecies } from '../lib/dataCache'
+import Tooltip from './Tooltip'
+import { TOOLTIPS } from '../lib/tooltipContent'
 
 export default function ExploreTab({
   currentWeek = 26,
@@ -24,6 +26,8 @@ export default function ExploreTab({
   dataRange = [0, 0],
   showTotalRichness = false,
   onShowTotalRichnessChange,
+  beginnerMode = false,
+  onBeginnerModeChange,
 }: ExploreTabProps) {
   // Species picker state for Species Range view
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
@@ -32,6 +36,7 @@ export default function ExploreTab({
 
   // Animation state
   const [isAnimating, setIsAnimating] = useState(false)
+  const [showWrapIndicator, setShowWrapIndicator] = useState(false)
   const animationIntervalRef = useRef<number | null>(null)
   const currentWeekRef = useRef(currentWeek)
 
@@ -89,29 +94,39 @@ export default function ExploreTab({
     currentWeekRef.current = currentWeek
   }, [currentWeek])
 
-  // Animation controls
+  // Animation controls — recursive setTimeout for variable delay at year wrap
   const startAnimation = () => {
     if (animationIntervalRef.current !== null) return
     setIsAnimating(true)
-    animationIntervalRef.current = window.setInterval(() => {
-      const nextWeek = currentWeekRef.current >= 52 ? 1 : currentWeekRef.current + 1
+    const step = () => {
+      const current = currentWeekRef.current
+      const nextWeek = current >= 52 ? 1 : current + 1
+      const isWrapping = current >= 52
       onWeekChange?.(nextWeek)
-    }, 1000)
+      if (isWrapping) setShowWrapIndicator(true)
+      // Use longer delay at year wrap for visual pause
+      animationIntervalRef.current = window.setTimeout(() => {
+        if (isWrapping) setShowWrapIndicator(false)
+        step()
+      }, isWrapping ? 1500 : 1000)
+    }
+    step()
   }
 
   const stopAnimation = () => {
     if (animationIntervalRef.current !== null) {
-      clearInterval(animationIntervalRef.current)
+      clearTimeout(animationIntervalRef.current)
       animationIntervalRef.current = null
     }
     setIsAnimating(false)
+    setShowWrapIndicator(false)
   }
 
-  // Clean up interval on unmount
+  // Clean up timeout on unmount
   useEffect(() => {
     return () => {
       if (animationIntervalRef.current !== null) {
-        clearInterval(animationIntervalRef.current)
+        clearTimeout(animationIntervalRef.current)
       }
     }
   }, [])
@@ -121,12 +136,15 @@ export default function ExploreTab({
       {/* View Mode Toggle */}
       <div>
         <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex gap-1">
-          {[
-            { mode: 'density' as const, label: 'Richness' },
-            { mode: 'probability' as const, label: 'Frequency' },
-            { mode: 'species' as const, label: 'Range' },
-            { mode: 'goal-birds' as const, label: 'Goals' },
-          ].map(({ mode, label }) => (
+          {(beginnerMode
+            ? [{ mode: 'density' as const, label: 'Richness' }]
+            : [
+                { mode: 'density' as const, label: 'Richness' },
+                { mode: 'probability' as const, label: 'Frequency' },
+                { mode: 'species' as const, label: 'Range' },
+                { mode: 'goal-birds' as const, label: 'Goals' },
+              ]
+          ).map(({ mode, label }) => (
             <button
               key={mode}
               data-testid={`view-mode-${mode}`}
@@ -140,6 +158,12 @@ export default function ExploreTab({
               {label}
             </button>
           ))}
+        </div>
+        <div className="flex items-center gap-1 mt-1">
+          <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />
+          <span className="text-[10px] text-gray-400 dark:text-gray-500">
+            {viewMode === 'density' ? 'Lifer density per cell' : viewMode === 'probability' ? 'Combined lifer probability' : viewMode === 'species' ? 'Single species frequency' : 'Goal list species per cell'}
+          </span>
         </div>
       </div>
 
@@ -185,7 +209,7 @@ export default function ExploreTab({
           }`}
           aria-pressed={goalBirdsOnlyFilter}
         >
-          <span>Goal Birds Only</span>
+          <span className="flex items-center gap-1">Goal Birds Only <Tooltip content={TOOLTIPS.goalBirdsOnly} /></span>
           <span
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
               goalBirdsOnlyFilter ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
@@ -211,7 +235,7 @@ export default function ExploreTab({
           }`}
           aria-pressed={showTotalRichness}
         >
-          <span>Show All Species</span>
+          <span className="flex items-center gap-1">Show All Species <Tooltip content={TOOLTIPS.totalRichness} /></span>
           <span
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
               showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
@@ -311,7 +335,11 @@ export default function ExploreTab({
           <label htmlFor="week-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300">
             Week
           </label>
-          <span className="text-xs font-bold text-[#2C3E7B] dark:text-blue-400 bg-white dark:bg-gray-700 px-2.5 py-1 rounded-lg shadow-sm">
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm transition-colors duration-300 ${
+            showWrapIndicator
+              ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40'
+              : 'text-[#2C3E7B] dark:text-blue-400 bg-white dark:bg-gray-700'
+          }`}>
             Wk {currentWeek} · {getWeekLabel(currentWeek)}
           </span>
         </div>
@@ -349,35 +377,81 @@ export default function ExploreTab({
         </div>
       </div>
 
-      {/* Opacity Slider */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label htmlFor="opacity-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-            Opacity
-          </label>
-          <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-            {Math.round(heatmapOpacity * 100)}%
-          </span>
-        </div>
-        <input
-          id="opacity-slider"
-          type="range"
-          min="0"
-          max="100"
-          value={Math.round(heatmapOpacity * 100)}
-          onChange={(e) => onHeatmapOpacityChange?.(parseInt(e.target.value, 10) / 100)}
-          className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
-          data-testid="opacity-slider"
-          aria-label="Adjust heatmap opacity"
-        />
-      </div>
+      {/* Advanced Controls — hidden in beginner mode behind details/summary */}
+      {beginnerMode ? (
+        <details className="group" data-testid="advanced-controls-details">
+          <summary className="flex items-center justify-between cursor-pointer text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 py-2">
+            <span>Advanced Controls</span>
+            <svg className="h-4 w-4 transition-transform group-open:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </summary>
+          <div className="space-y-4 pt-2">
+            {/* Opacity Slider */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="opacity-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                  Opacity <Tooltip content={TOOLTIPS.opacity} />
+                </label>
+                <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                  {Math.round(heatmapOpacity * 100)}%
+                </span>
+              </div>
+              <input
+                id="opacity-slider"
+                type="range"
+                min="0"
+                max="100"
+                value={Math.round(heatmapOpacity * 100)}
+                onChange={(e) => onHeatmapOpacityChange?.(parseInt(e.target.value, 10) / 100)}
+                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                data-testid="opacity-slider"
+                aria-label="Adjust heatmap opacity"
+              />
+            </div>
+            {/* Exit beginner mode */}
+            <button
+              onClick={() => onBeginnerModeChange?.(false)}
+              className="w-full text-[11px] text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium text-center"
+              data-testid="exit-beginner-mode"
+            >
+              Show all controls permanently
+            </button>
+          </div>
+        </details>
+      ) : (
+        <>
+          {/* Opacity Slider */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="opacity-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                Opacity <Tooltip content={TOOLTIPS.opacity} />
+              </label>
+              <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                {Math.round(heatmapOpacity * 100)}%
+              </span>
+            </div>
+            <input
+              id="opacity-slider"
+              type="range"
+              min="0"
+              max="100"
+              value={Math.round(heatmapOpacity * 100)}
+              onChange={(e) => onHeatmapOpacityChange?.(parseInt(e.target.value, 10) / 100)}
+              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              data-testid="opacity-slider"
+              aria-label="Adjust heatmap opacity"
+            />
+          </div>
+        </>
+      )}
 
-      {/* Lifer Count Range Filter */}
-      {viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0 && (
+      {/* Lifer Count Range Filter — hidden in beginner mode */}
+      {!beginnerMode && viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-              Lifer Range
+            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
+              Lifer Range <Tooltip content={TOOLTIPS.liferRange} />
             </label>
             <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 tabular-nums">
               {liferCountRange[0]}–{Math.min(liferCountRange[1], dataRange[1])}
@@ -427,6 +501,19 @@ export default function ExploreTab({
           )}
         </div>
       )}
+
+      {/* Responsible birding footer */}
+      <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-4 px-2">
+        Please bird responsibly.{' '}
+        <a
+          href="https://www.aba.org/aba-code-of-birding-ethics/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-gray-600 dark:hover:text-gray-400"
+        >
+          ABA Code of Birding Ethics
+        </a>
+      </p>
     </div>
   )
 }

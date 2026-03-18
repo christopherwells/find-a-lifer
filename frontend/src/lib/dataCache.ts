@@ -1,4 +1,4 @@
-import type { Species } from '../components/types'
+import type { Species, GoalWindowResult, CellCovariates } from '../components/types'
 
 /**
  * Shared data cache for static files.
@@ -34,6 +34,9 @@ const weekSummaryCache = new Map<string, Promise<[number, number, number, number
 
 // Cache species-weeks files: "res-speciesCode" -> data
 const speciesWeeksCache = new Map<string, Promise<Record<string, [number, number][]>>>()
+
+// Cache cell covariates: "res" -> Map<cellId, CellCovariates>
+const covariatesCache = new Map<string, Promise<Map<number, CellCovariates>>>()
 
 // Resolution metadata cache
 let resolutionsPromise: Promise<{ resolutions: number[]; default: number; zoomThresholds: Record<string, [number, number]> }> | null = null
@@ -215,6 +218,36 @@ export function fetchSpeciesWeeks(speciesCode: string, resolution?: number): Pro
   return p
 }
 
+/**
+ * Fetch environmental covariates for all cells at a given resolution.
+ * Returns Map<cellId, CellCovariates> with land cover and elevation data.
+ */
+export function fetchCovariates(resolution?: number): Promise<Map<number, CellCovariates>> {
+  const res = resolution ?? DEFAULT_RES
+  const key = String(res)
+  let p = covariatesCache.get(key)
+  if (!p) {
+    p = fetch(`${resPath(res)}/covariates.json`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then((data: Record<string, CellCovariates>) => {
+        const map = new Map<number, CellCovariates>()
+        for (const [id, cov] of Object.entries(data)) {
+          map.set(Number(id), cov)
+        }
+        return map
+      })
+      .catch(err => {
+        covariatesCache.delete(key)
+        throw err
+      })
+    covariatesCache.set(key, p)
+  }
+  return p
+}
+
 /** Build a map of cell_id → label from grid GeoJSON (cached per resolution) */
 export async function getCellLabels(resolution?: number): Promise<Map<number, string>> {
   const grid = await fetchGrid(resolution)
@@ -226,6 +259,69 @@ export async function getCellLabels(resolution?: number): Promise<Map<number, st
     if (cellId != null && label) labels.set(cellId, label)
   }
   return labels
+}
+
+/**
+ * Returns a 52-element array of average reporting frequencies for a species.
+ * Each element represents the average frequency (0-1) across all cells for that week.
+ */
+export async function getSpeciesFrequencyProfile(
+  speciesCode: string,
+  resolution?: number
+): Promise<number[]> {
+  const weeksData = await fetchSpeciesWeeks(speciesCode, resolution)
+  const profile: number[] = new Array(52).fill(0)
+
+  for (let w = 1; w <= 52; w++) {
+    const cells = weeksData[String(w)]
+    if (!cells || cells.length === 0) continue
+    let totalFreq = 0
+    for (const [, freq] of cells) {
+      totalFreq += freq / 255
+    }
+    profile[w - 1] = totalFreq / cells.length
+  }
+
+  return profile
+}
+
+/**
+ * Returns top N cells with highest frequency for a species in a given week.
+ */
+export async function getSpeciesBestLocations(
+  speciesCode: string,
+  week: number,
+  resolution?: number,
+  topN = 5
+): Promise<Array<{ cellId: number; coordinates: [number, number]; name: string; freq: number }>> {
+  const weeksData = await fetchSpeciesWeeks(speciesCode, resolution)
+  const cells = weeksData[String(week)]
+  if (!cells || cells.length === 0) return []
+
+  // Sort by frequency descending
+  const sorted = [...cells].sort((a, b) => b[1] - a[1]).slice(0, topN)
+
+  // Get labels and coordinates
+  const grid = await fetchGrid(resolution)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const features = (grid as any).features as Array<{ properties: { cell_id: number; label?: string; center_lat: number; center_lng: number } }>
+  const cellMap = new Map<number, { label: string; coords: [number, number] }>()
+  for (const f of features) {
+    cellMap.set(f.properties.cell_id, {
+      label: f.properties.label || `Cell ${f.properties.cell_id}`,
+      coords: [f.properties.center_lng, f.properties.center_lat],
+    })
+  }
+
+  return sorted.map(([cellId, freq]) => {
+    const info = cellMap.get(cellId)
+    return {
+      cellId,
+      coordinates: info?.coords ?? [0, 0],
+      name: info?.label ?? `Cell ${cellId}`,
+      freq: freq / 255,
+    }
+  })
 }
 
 // ---- Client-side computation (replaces backend POST endpoints) ----
@@ -347,4 +443,111 @@ export function getSpeciesBatch(
     }
   })
   return result
+}
+
+/**
+ * Compute multi-species Window of Opportunity for a goal list.
+ * For each week × cell, counts how many unseen goal species are present above
+ * a frequency threshold, and computes combined observation probability.
+ * Returns top results ranked by target count then combined frequency.
+ *
+ * Loads week cells data in batches of 8 for concurrency control.
+ */
+export async function computeGoalWindowOpportunities(
+  goalSpeciesIds: Set<number>,
+  seenSpeciesIds: Set<number>,
+  speciesById: Map<number, Species>,
+  cellCoords: Map<number, [number, number]>,
+  cellLabels: Map<number, string>,
+  weekRange: [number, number],
+  minFreqThreshold: number = 0.05,
+  resolution: number = 4,
+  regionBbox?: [number, number, number, number] | null,
+  abortSignal?: AbortSignal
+): Promise<GoalWindowResult[]> {
+  // Build set of unseen goal species
+  const unseenGoalIds = new Set<number>()
+  goalSpeciesIds.forEach(id => {
+    if (!seenSpeciesIds.has(id)) unseenGoalIds.add(id)
+  })
+  if (unseenGoalIds.size === 0) return []
+
+  const totalGoalSpecies = unseenGoalIds.size
+  const thresholdUint8 = Math.round(minFreqThreshold * 255)
+
+  // Determine weeks to load
+  const weeks: number[] = []
+  for (let w = weekRange[0]; w <= weekRange[1]; w++) {
+    weeks.push(w)
+  }
+
+  // Load weeks in batches of 8 for concurrency control
+  const BATCH_SIZE = 8
+  const allResults: GoalWindowResult[] = []
+
+  for (let batchStart = 0; batchStart < weeks.length; batchStart += BATCH_SIZE) {
+    if (abortSignal?.aborted) return []
+
+    const batch = weeks.slice(batchStart, batchStart + BATCH_SIZE)
+    const weekCellsMaps = await Promise.all(
+      batch.map(w => fetchWeekCells(w, resolution))
+    )
+
+    for (let bi = 0; bi < batch.length; bi++) {
+      const week = batch[bi]
+      const weekCells = weekCellsMaps[bi]
+
+      weekCells.forEach(({ speciesIds, freqs }, cellId) => {
+        // Optional region filtering
+        if (regionBbox) {
+          const coords = cellCoords.get(cellId)
+          if (!coords) return
+          const [west, south, east, north] = regionBbox
+          if (coords[0] < west || coords[0] > east || coords[1] < south || coords[1] > north) return
+        }
+
+        if (!freqs) return // need frequency data for threshold check
+
+        const presentSpecies: Array<{ speciesId: number; speciesCode: string; comName: string; freq: number }> = []
+        let probNone = 1.0
+
+        for (let i = 0; i < speciesIds.length; i++) {
+          if (!unseenGoalIds.has(speciesIds[i])) continue
+          if (freqs[i] < thresholdUint8) continue
+
+          const sp = speciesById.get(speciesIds[i])
+          const freq = freqs[i] / 255
+          probNone *= (1 - freq)
+          presentSpecies.push({
+            speciesId: speciesIds[i],
+            speciesCode: sp?.speciesCode || '',
+            comName: sp?.comName || 'Unknown',
+            freq,
+          })
+        }
+
+        if (presentSpecies.length === 0) return
+
+        const coords = cellCoords.get(cellId) || [0, 0] as [number, number]
+        allResults.push({
+          week,
+          cellId,
+          cellName: cellLabels.get(cellId) || '',
+          coordinates: coords,
+          targetCount: presentSpecies.length,
+          totalGoalSpecies,
+          combinedFreq: 1 - probNone,
+          speciesPresent: presentSpecies.sort((a, b) => b.freq - a.freq),
+        })
+      })
+    }
+  }
+
+  // Sort by target count desc, then combined freq desc
+  allResults.sort((a, b) => {
+    if (b.targetCount !== a.targetCount) return b.targetCount - a.targetCount
+    return b.combinedFreq - a.combinedFreq
+  })
+
+  return allResults.slice(0, 50)
 }

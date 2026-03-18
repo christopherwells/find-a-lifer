@@ -1,31 +1,59 @@
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { Species } from './types'
+import Badge from './Badge'
+import Sparkline from './Sparkline'
+import { getDisplayGroup } from '../lib/familyGroups'
+import { getSpeciesFrequencyProfile, getSpeciesBestLocations } from '../lib/dataCache'
 
-// SpeciesInfoCard - popup modal showing species details (photo, badges, eBird link)
+interface SpeciesInfoCardProps {
+  species: Species
+  onClose: () => void
+  currentWeek?: number
+  onCellClick?: (cellId: number, coordinates: [number, number]) => void
+}
+
+// SpeciesInfoCard - popup modal showing species details, sparkline, best locations, habitat
 export default function SpeciesInfoCard({
   species,
   onClose,
-}: {
-  species: Species
-  onClose: () => void
-}) {
-  const conservationColors: Record<string, { bg: string; text: string; label: string }> = {
-    'Least Concern': { bg: 'bg-green-100', text: 'text-green-800', label: 'Least Concern' },
-    'Near Threatened': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Near Threatened' },
-    'Vulnerable': { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Vulnerable' },
-    'Endangered': { bg: 'bg-red-100', text: 'text-red-800', label: 'Endangered' },
-    'Critically Endangered': { bg: 'bg-red-200', text: 'text-red-900', label: 'Critically Endangered' },
-    'Data Deficient': { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Data Deficient' },
-  }
-  const difficultyColors: Record<string, { bg: string; text: string }> = {
-    'Easy': { bg: 'bg-green-100', text: 'text-green-800' },
-    'Moderate': { bg: 'bg-yellow-100', text: 'text-yellow-800' },
-    'Hard': { bg: 'bg-orange-100', text: 'text-orange-800' },
-    'Very Hard': { bg: 'bg-red-100', text: 'text-red-800' },
-    'Extremely Hard': { bg: 'bg-purple-100', text: 'text-purple-800' },
-  }
-  const conservStyle = conservationColors[species.conservStatus] ?? conservationColors['Data Deficient']
-  const diffStyle = difficultyColors[species.difficultyLabel] ?? { bg: 'bg-gray-100', text: 'text-gray-600' }
+  currentWeek,
+  onCellClick,
+}: SpeciesInfoCardProps) {
+  const [freqProfile, setFreqProfile] = useState<number[] | null>(null)
+  const [bestLocations, setBestLocations] = useState<Array<{ cellId: number; coordinates: [number, number]; name: string; freq: number }> | null>(null)
+  const [loadingLocations, setLoadingLocations] = useState(false)
+
+  const week = currentWeek ?? (() => {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), 0, 1)
+    const diff = now.getTime() - start.getTime()
+    return Math.min(52, Math.max(1, Math.ceil(diff / (7 * 24 * 60 * 60 * 1000))))
+  })()
+
+  // Load frequency profile
+  useEffect(() => {
+    let cancelled = false
+    getSpeciesFrequencyProfile(species.speciesCode).then(profile => {
+      if (!cancelled) setFreqProfile(profile)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [species.speciesCode])
+
+  // Load best locations for current week
+  useEffect(() => {
+    let cancelled = false
+    setLoadingLocations(true)
+    getSpeciesBestLocations(species.speciesCode, week).then(locs => {
+      if (!cancelled) {
+        setBestLocations(locs)
+        setLoadingLocations(false)
+      }
+    }).catch(() => {
+      if (!cancelled) setLoadingLocations(false)
+    })
+    return () => { cancelled = true }
+  }, [species.speciesCode, week])
 
   return createPortal(
     <div
@@ -34,12 +62,12 @@ export default function SpeciesInfoCard({
       data-testid="species-info-card-overlay"
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden"
+        className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         data-testid="species-info-card"
       >
         {/* Photo area */}
-        <div className="relative bg-gray-100 h-36 flex items-center justify-center overflow-hidden">
+        <div className="relative bg-gray-100 dark:bg-gray-800 h-36 flex-shrink-0 flex items-center justify-center overflow-hidden">
           {species.photoUrl ? (
             <img
               src={species.photoUrl}
@@ -47,7 +75,7 @@ export default function SpeciesInfoCard({
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="flex flex-col items-center gap-2 text-gray-400">
+            <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
@@ -57,7 +85,7 @@ export default function SpeciesInfoCard({
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-2 right-2 bg-white bg-opacity-90 rounded-full p-1.5 text-gray-600 hover:text-gray-900 shadow transition-colors"
+            className="absolute top-2 right-2 bg-white dark:bg-gray-800 bg-opacity-90 dark:bg-opacity-90 rounded-full p-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white shadow transition-colors"
             data-testid="species-info-card-close"
             aria-label="Close species info"
           >
@@ -67,69 +95,101 @@ export default function SpeciesInfoCard({
           </button>
         </div>
 
-        {/* Info body */}
-        <div className="p-4 space-y-3">
+        {/* Scrollable info body */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
           {/* Names */}
           <div>
-            <h3 className="text-lg font-bold text-[#2C3E50] leading-tight" data-testid="species-info-common-name">
+            <h3 className="text-lg font-bold text-[#2C3E50] dark:text-gray-100 leading-tight" data-testid="species-info-common-name">
               {species.comName}
             </h3>
-            <p className="text-sm italic text-gray-500" data-testid="species-info-sci-name">
+            <p className="text-sm italic text-gray-500 dark:text-gray-400" data-testid="species-info-sci-name">
               {species.sciName}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">{species.familyComName}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{getDisplayGroup(species.familyComName ?? '')}</p>
           </div>
 
           {/* Badges */}
-          <div className="flex flex-wrap gap-2" data-testid="species-info-badges">
-            {/* Conservation status badge */}
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${conservStyle.bg} ${conservStyle.text}`}
-              data-testid="species-info-conservation-badge"
-            >
-              🌿 {conservStyle.label}
-            </span>
-            {/* Difficulty badge */}
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${diffStyle.bg} ${diffStyle.text}`}
-              data-testid="species-info-difficulty-badge"
-            >
-              🔭 {species.difficultyLabel}
-            </span>
-            {/* Restricted range badge */}
+          <div className="flex flex-wrap gap-1.5" data-testid="species-info-badges">
+            <Badge variant="conservation" value={species.conservStatus} size="pill" />
+            <Badge variant="difficulty" value={species.difficultyLabel} size="pill" />
             {species.isRestrictedRange && (
-              <span
-                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                data-testid="species-info-restricted-badge"
-              >
-                📍 Restricted Range
-              </span>
+              <Badge variant="restricted-range" value="Restricted Range" size="pill" />
             )}
             {/* Invasion status badge if not native everywhere */}
             {(() => {
-              const statuses = Object.values(species.invasionStatus || {})
-              const isNativeAnywhere = statuses.includes('Native')
               const nonNativeRegions = Object.entries(species.invasionStatus || {})
                 .filter(([, s]) => s !== 'Native')
-              if (nonNativeRegions.length === 0 || (isNativeAnywhere && nonNativeRegions.length === 0)) return null
-              // Pick the highest-priority non-native status (Introduced > Vagrant/Accidental)
+              if (nonNativeRegions.length === 0) return null
+              const isNativeAnywhere = Object.values(species.invasionStatus || {}).includes('Native')
               const hasIntroduced = nonNativeRegions.some(([, s]) => s === 'Introduced')
               const primaryStatus = hasIntroduced ? 'Introduced' : nonNativeRegions[0][1]
               const regionsForStatus = nonNativeRegions.filter(([, s]) => s === primaryStatus)
-              // If native somewhere but introduced/vagrant elsewhere, show with regions
               const label = isNativeAnywhere
                 ? `${primaryStatus} (${regionsForStatus.map(([r]) => r).join(', ')})`
                 : primaryStatus
-              return (
-                <span
-                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
-                  data-testid="species-info-invasion-badge"
-                >
-                  ⚠️ {label}
-                </span>
-              )
+              return <Badge variant="invasion" value={label} size="pill" />
             })()}
           </div>
+
+          {/* Habitat badges */}
+          {species.habitatLabels && species.habitatLabels.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Habitat</p>
+              <div className="flex flex-wrap gap-1.5" data-testid="species-info-habitat">
+                {species.habitatLabels.map((label) => (
+                  <Badge key={label} variant="habitat" value={label} size="pill" />
+                ))}
+              </div>
+              {species.preferredElevation && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Elevation: ~{species.preferredElevation.mean.toLocaleString()}m
+                  {species.preferredElevation.min !== species.preferredElevation.max && (
+                    <span className="text-gray-400 dark:text-gray-500">
+                      {' '}({species.preferredElevation.min.toLocaleString()}–{species.preferredElevation.max.toLocaleString()}m)
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Sparkline — 52-week frequency chart */}
+          {freqProfile && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Seasonality</p>
+              <Sparkline data={freqProfile} currentWeek={week} />
+            </div>
+          )}
+
+          {/* Best locations for current week */}
+          {(bestLocations || loadingLocations) && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                Best Locations (Week {week})
+              </p>
+              {loadingLocations ? (
+                <p className="text-xs text-gray-400">Loading...</p>
+              ) : bestLocations && bestLocations.length > 0 ? (
+                <div className="space-y-1">
+                  {bestLocations.map((loc) => (
+                    <button
+                      key={loc.cellId}
+                      onClick={() => onCellClick?.(loc.cellId, loc.coordinates)}
+                      className="w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                      data-testid={`best-loc-${loc.cellId}`}
+                    >
+                      <span className="text-gray-700 dark:text-gray-300 truncate flex-1 mr-2">{loc.name}</span>
+                      <span className="text-[#2C3E7B] dark:text-blue-400 font-medium flex-shrink-0">
+                        {(loc.freq * 100).toFixed(0)}%
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 dark:text-gray-500">Not recorded this week</p>
+              )}
+            </div>
+          )}
 
           {/* eBird link */}
           <a

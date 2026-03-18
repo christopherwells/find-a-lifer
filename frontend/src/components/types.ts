@@ -29,10 +29,14 @@ export interface Species {
   isRestrictedRange: boolean
   ebirdUrl: string
   photoUrl: string
+  photoAttribution?: string
+  photoLicense?: string
   seasonalityScore: number
   peakWeek: number
   rangeShiftScore: number
   regions?: string[]
+  habitatLabels?: string[]
+  preferredElevation?: { mean: number; min: number; max: number }
 }
 
 export interface SpeciesByFamily {
@@ -61,6 +65,8 @@ export interface ExploreTabProps {
   dataRange?: [number, number]
   showTotalRichness?: boolean
   onShowTotalRichnessChange?: (value: boolean) => void
+  beginnerMode?: boolean
+  onBeginnerModeChange?: (value: boolean) => void
 }
 
 export interface SpeciesFilters {
@@ -89,6 +95,9 @@ export interface TripPlanTabProps {
   onLocationSelect?: (location: SelectedLocation | null) => void
   selectedRegion?: string | null
   onCompareLocationsChange?: (locations: CompareLocations | null) => void
+  goalLists?: GoalList[]
+  activeGoalListId?: string | null
+  goalSpeciesCodes?: Set<string>
 }
 
 export interface TripLifer {
@@ -116,4 +125,34 @@ export interface WeekOpportunity {
     coordinates: [number, number]
     probability: number
   }>
+}
+
+export interface YearList {
+  id: string
+  year: number
+  speciesCodes: string[]
+  importedAt: string
+}
+
+export interface CellCovariates {
+  trees: number
+  shrub: number
+  herb: number
+  cultivated: number
+  urban: number
+  water: number
+  flooded: number
+  elev_mean: number
+  elev_std: number
+}
+
+export interface GoalWindowResult {
+  week: number
+  cellId: number
+  cellName: string
+  coordinates: [number, number]
+  targetCount: number         // how many goal species present above threshold
+  totalGoalSpecies: number    // total unseen species in goal list
+  combinedFreq: number        // P = 1 - ∏(1 - freq_i) for present goal species
+  speciesPresent: Array<{ speciesId: number; speciesCode: string; comName: string; freq: number }>
 }

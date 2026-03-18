@@ -1,13 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species } from './types'
 import { FamilyGroupSkeleton } from './Skeleton'
 import { fetchSpecies } from '../lib/dataCache'
 import SpeciesInfoCard from './SpeciesInfoCard'
+import { getDisplayGroup } from '../lib/familyGroups'
+import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES } from '../lib/regionGroups'
+import {
+  CONSERVATION_TEMPLATES,
+  REGIONAL_TEMPLATES,
+  computeConservationTemplate,
+  computeRegionalTemplate,
+  type ConservationTemplateType,
+  type RegionalTemplateType,
+} from '../lib/goalTemplates'
 
 export default function GoalBirdsTab() {
-  const { isSpeciesSeen } = useLifeList()
+  const { isSpeciesSeen, seenSpecies } = useLifeList()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [activeListId, setActiveListId] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -57,6 +67,13 @@ export default function GoalBirdsTab() {
   const [showRaptorsSuggestions, setShowRaptorsSuggestions] = useState(true)
   const [showLBJsSuggestions, setShowLBJsSuggestions] = useState(true)
   const [showAlmostCompleteFamiliesSuggestions, setShowAlmostCompleteFamiliesSuggestions] = useState(true)
+
+  // Conservation & regional template state
+  const [showTemplateSection, setShowTemplateSection] = useState(false)
+  const [templateRegion, setTemplateRegion] = useState<string>('')
+  const [conservTemplateType, setConservTemplateType] = useState<ConservationTemplateType>('threatened')
+  const [regionalTemplateType, setRegionalTemplateType] = useState<RegionalTemplateType>('regional-specialties')
+  const [templateCreating, setTemplateCreating] = useState(false)
 
   // Curated Regional Icons — signature/must-see birds for each North American region
   // Derived from pipeline config curated data
@@ -280,6 +297,71 @@ export default function GoalBirdsTab() {
     loadSpecies()
   }, [])
 
+  // Region dropdown data — derived from species metadata (same pattern as SpeciesTab)
+  const regionDropdownData = useMemo(() => {
+    const allCodes = Array.from(new Set(allSpecies.flatMap(s => s.regions ?? [])))
+    const individualCodes = allCodes
+      .filter(c => !GROUPED_CODES.has(c))
+      .sort()
+    const activeGroups = Object.entries(REGION_GROUPS)
+      .filter(([, codes]) => codes.some(c => allCodes.includes(c)))
+      .map(([name]) => name)
+    const groupsByCategory = activeGroups.reduce<Record<string, string[]>>((acc, name) => {
+      const cat = REGION_GROUP_CATEGORIES[name] ?? 'Other'
+      ;(acc[cat] ??= []).push(name)
+      return acc
+    }, {})
+    return { individualCodes, groupsByCategory }
+  }, [allSpecies])
+
+  // Computed conservation template preview
+  const conservTemplatePreview = useMemo(() => {
+    if (!showTemplateSection || allSpecies.length === 0) return []
+    const selectedTemplate = CONSERVATION_TEMPLATES.find(t => t.id === conservTemplateType)
+    if (selectedTemplate?.requiresRegion && !templateRegion) return []
+    return computeConservationTemplate(conservTemplateType, allSpecies, templateRegion, seenSpecies)
+  }, [showTemplateSection, allSpecies, conservTemplateType, templateRegion, seenSpecies])
+
+  // Computed regional template preview
+  const regionalTemplatePreview = useMemo(() => {
+    if (!showTemplateSection || allSpecies.length === 0 || !templateRegion) return []
+    return computeRegionalTemplate(regionalTemplateType, allSpecies, templateRegion, seenSpecies)
+  }, [showTemplateSection, allSpecies, regionalTemplateType, templateRegion, seenSpecies])
+
+  // Create a goal list from template results
+  const handleCreateFromTemplate = async (species: Species[], templateLabel: string) => {
+    if (species.length === 0) return
+    setTemplateCreating(true)
+    try {
+      const regionSuffix = templateRegion ? ` — ${templateRegion}` : ''
+      let name = `${templateLabel}${regionSuffix}`
+
+      // Avoid duplicate names
+      const existingNames = new Set(goalLists.map(l => l.name.toLowerCase()))
+      let counter = 2
+      while (existingNames.has(name.toLowerCase())) {
+        name = `${templateLabel}${regionSuffix} (${counter})`
+        counter++
+      }
+
+      const newList: GoalList = {
+        id: crypto.randomUUID(),
+        name,
+        speciesCodes: species.map(s => s.speciesCode),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      await goalListsDB.saveList(newList)
+      setGoalLists(prev => [...prev, newList])
+      setActiveListId(newList.id)
+      setShowSuccessToast(`Created "${name}" with ${species.length} species`)
+    } catch (error) {
+      console.error('Failed to create template goal list:', error)
+    } finally {
+      setTemplateCreating(false)
+    }
+  }
+
   const handleCreateList = async () => {
     if (!newListName.trim()) {
       setCreateListError('Please enter a list name')
@@ -394,6 +476,95 @@ export default function GoalBirdsTab() {
   const handleCancelDelete = () => {
     setShowDeleteDialog(false)
     setDeletingListId(null)
+  }
+
+  // Export goal list as JSON file download
+  const handleExportList = (list: GoalList) => {
+    const exportData = {
+      app: 'find-a-lifer',
+      version: 1,
+      type: 'goal-list',
+      name: list.name,
+      speciesCodes: list.speciesCodes,
+    }
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${list.name.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setShowSuccessToast(`Exported "${list.name}"`)
+  }
+
+  // Import goal list from JSON file
+  const handleImportList = async () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+
+        // Validate the imported data
+        if (data.app !== 'find-a-lifer' || data.type !== 'goal-list') {
+          setShowDuplicateToast('Invalid file: not a Find-A-Lifer goal list')
+          return
+        }
+        if (!data.name || !Array.isArray(data.speciesCodes)) {
+          setShowDuplicateToast('Invalid file: missing name or species codes')
+          return
+        }
+
+        // Generate unique name
+        let name = data.name
+        const existingNames = new Set(goalLists.map(l => l.name.toLowerCase()))
+        if (existingNames.has(name.toLowerCase())) {
+          name = `${name} (imported)`
+          let counter = 2
+          while (existingNames.has(name.toLowerCase())) {
+            name = `${data.name} (imported ${counter})`
+            counter++
+          }
+        }
+
+        const newList: GoalList = {
+          id: crypto.randomUUID(),
+          name,
+          speciesCodes: data.speciesCodes,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        await goalListsDB.saveList(newList)
+        setGoalLists(prev => [...prev, newList])
+        setActiveListId(newList.id)
+        setShowSuccessToast(`Imported "${name}" with ${data.speciesCodes.length} species`)
+      } catch {
+        setShowDuplicateToast('Failed to import: invalid JSON file')
+      }
+    }
+    input.click()
+  }
+
+  // Copy goal list to clipboard as JSON
+  const handleCopyToClipboard = async (list: GoalList) => {
+    const exportData = {
+      app: 'find-a-lifer',
+      version: 1,
+      type: 'goal-list',
+      name: list.name,
+      speciesCodes: list.speciesCodes,
+    }
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2))
+      setShowSuccessToast('Copied to clipboard!')
+    } catch {
+      setShowDuplicateToast('Failed to copy to clipboard')
+    }
   }
 
   // Handle species search and add — shows list picker if multiple lists exist
@@ -572,6 +743,7 @@ export default function GoalBirdsTab() {
               </div>
             ) : (
               /* Normal list selector with rename button */
+              <>
               <div className="flex gap-2">
                 <select
                   value={activeListId || ''}
@@ -607,9 +779,39 @@ export default function GoalBirdsTab() {
                         <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                     </button>
+                    <button
+                      onClick={() => handleExportList(activeList)}
+                      className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                      title="Export list as JSON"
+                      data-testid="export-list-btn"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => void handleCopyToClipboard(activeList)}
+                      className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                      title="Copy list to clipboard"
+                      data-testid="copy-list-btn"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                      </svg>
+                    </button>
                   </>
                 )}
               </div>
+              {/* Import button — always visible, even without active list */}
+              <button
+                onClick={() => void handleImportList()}
+                className="w-full mt-1 px-3 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                data-testid="import-list-btn"
+              >
+                Import Goal List from JSON
+              </button>
+              </>
             )}
           </div>
         )}
@@ -2101,10 +2303,10 @@ export default function GoalBirdsTab() {
             {(() => {
               const activeListCodes = new Set(activeList.speciesCodes)
 
-              // Group all species by family
+              // Group all species by display group
               const familyMap = new Map<string, { total: number; seen: number; unseen: Species[] }>()
               for (const sp of allSpecies) {
-                const family = sp.familyComName
+                const family = getDisplayGroup(sp.familyComName ?? '')
                 if (!family) continue
                 if (!familyMap.has(family)) {
                   familyMap.set(family, { total: 0, seen: 0, unseen: [] })
@@ -2251,6 +2453,203 @@ export default function GoalBirdsTab() {
                 </div>
               )
             })()}
+
+            {/* ── Goal List Templates ── */}
+            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+              <button
+                onClick={() => setShowTemplateSection(prev => !prev)}
+                className="w-full flex items-center justify-between py-2 px-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                data-testid="template-section-toggle"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-violet-600 font-bold text-sm">🎯</span>
+                  <span className="text-sm font-semibold text-violet-800 dark:text-violet-200">Goal List Templates</span>
+                </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`h-4 w-4 text-violet-600 transition-transform ${showTemplateSection ? 'rotate-180' : ''}`}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {showTemplateSection && (
+                <div className="mt-3 space-y-4">
+                  {/* Region selector (shared by both template types) */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Region (optional for conservation, required for regional)</label>
+                    <select
+                      value={templateRegion}
+                      onChange={(e) => setTemplateRegion(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-500 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                      data-testid="template-region-select"
+                    >
+                      <option value="">All Regions</option>
+                      {regionDropdownData.individualCodes.map((code) => (
+                        <option key={code} value={code}>{code}</option>
+                      ))}
+                      {Object.entries(regionDropdownData.groupsByCategory).map(([category, names]) => (
+                        <optgroup key={category} label={category}>
+                          {names.map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Conservation Templates */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Conservation Goals</h4>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {CONSERVATION_TEMPLATES.map((tmpl) => (
+                        <button
+                          key={tmpl.id}
+                          onClick={() => setConservTemplateType(tmpl.id)}
+                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                            conservTemplateType === tmpl.id
+                              ? 'bg-violet-100 dark:bg-violet-900/40 border-violet-400 dark:border-violet-600 text-violet-800 dark:text-violet-200'
+                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                          data-testid={`conservation-template-${tmpl.id}`}
+                          title={tmpl.description}
+                        >
+                          {tmpl.emoji} {tmpl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Conservation preview */}
+                    {(() => {
+                      const selectedTemplate = CONSERVATION_TEMPLATES.find(t => t.id === conservTemplateType)
+                      if (selectedTemplate?.requiresRegion && !templateRegion) {
+                        return (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
+                            Select a region above to see {selectedTemplate.label.toLowerCase()}.
+                          </p>
+                        )
+                      }
+                      if (conservTemplatePreview.length === 0) {
+                        return (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
+                            No unseen {selectedTemplate?.label.toLowerCase() ?? 'species'} found{templateRegion ? ` in ${templateRegion}` : ''}.
+                          </p>
+                        )
+                      }
+                      return (
+                        <div data-testid="conservation-template-preview">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {conservTemplatePreview.length} unseen species
+                            </span>
+                            <button
+                              onClick={() => void handleCreateFromTemplate(conservTemplatePreview, selectedTemplate?.label ?? 'Conservation')}
+                              disabled={templateCreating}
+                              className="px-2 py-1 text-[11px] font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 rounded-md transition-colors"
+                              data-testid="conservation-create-list-btn"
+                            >
+                              {templateCreating ? 'Creating...' : `Create Goal List (${conservTemplatePreview.length})`}
+                            </button>
+                          </div>
+                          <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
+                            {conservTemplatePreview.slice(0, 50).map((sp) => (
+                              <div
+                                key={sp.speciesCode}
+                                className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
+                                data-testid={`conservation-preview-${sp.speciesCode}`}
+                              >
+                                <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
+                                  {sp.conservStatus || '—'}
+                                </span>
+                              </div>
+                            ))}
+                            {conservTemplatePreview.length > 50 && (
+                              <p className="text-[10px] text-gray-400 text-center py-1">
+                                +{conservTemplatePreview.length - 50} more
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Regional Templates */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Regional Goals</h4>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {REGIONAL_TEMPLATES.map((tmpl) => (
+                        <button
+                          key={tmpl.id}
+                          onClick={() => setRegionalTemplateType(tmpl.id)}
+                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                            regionalTemplateType === tmpl.id
+                              ? 'bg-teal-100 dark:bg-teal-900/40 border-teal-400 dark:border-teal-600 text-teal-800 dark:text-teal-200'
+                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                          data-testid={`regional-template-${tmpl.id}`}
+                          title={tmpl.description}
+                        >
+                          {tmpl.emoji} {tmpl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Regional preview */}
+                    {!templateRegion ? (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
+                        Select a region above to see regional specialties.
+                      </p>
+                    ) : regionalTemplatePreview.length === 0 ? (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
+                        No unseen regional specialties found in {templateRegion}.
+                      </p>
+                    ) : (
+                      <div data-testid="regional-template-preview">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {regionalTemplatePreview.length} regional species
+                          </span>
+                          <button
+                            onClick={() => {
+                              const tmpl = REGIONAL_TEMPLATES.find(t => t.id === regionalTemplateType)
+                              void handleCreateFromTemplate(regionalTemplatePreview, tmpl?.label ?? 'Regional')
+                            }}
+                            disabled={templateCreating}
+                            className="px-2 py-1 text-[11px] font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 rounded-md transition-colors"
+                            data-testid="regional-create-list-btn"
+                          >
+                            {templateCreating ? 'Creating...' : `Create Goal List (${regionalTemplatePreview.length})`}
+                          </button>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
+                          {regionalTemplatePreview.slice(0, 50).map((sp) => (
+                            <div
+                              key={sp.speciesCode}
+                              className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
+                              data-testid={`regional-preview-${sp.speciesCode}`}
+                            >
+                              <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
+                                {(sp.regions ?? []).length} regions
+                              </span>
+                            </div>
+                          ))}
+                          {regionalTemplatePreview.length > 50 && (
+                            <p className="text-[10px] text-gray-400 text-center py-1">
+                              +{regionalTemplatePreview.length - 50} more
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </div>

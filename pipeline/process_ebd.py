@@ -1172,6 +1172,16 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     else:
         print(f"\n  No conservation_status.json found — skipping conservation status")
 
+    # Load species photo metadata (from Wikidata/Commons)
+    PHOTOS_FILE = Path(__file__).parent / "reference" / "species_photos.json"
+    photos_map = {}
+    if PHOTOS_FILE.exists():
+        with open(PHOTOS_FILE) as f:
+            photos_map = json.load(f)
+        print(f"  Loaded photo metadata for {len(photos_map)} species")
+    else:
+        print(f"  No species_photos.json found — skipping photo metadata")
+
     IUCN_CODE_TO_LABEL = {
         "LC": "Least Concern", "NT": "Near Threatened", "VU": "Vulnerable",
         "EN": "Endangered", "CR": "Critically Endangered", "EW": "Extinct in Wild",
@@ -1193,6 +1203,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
 
     conserv_matched = 0
     exotic_matched = 0
+    photos_matched = 0
     species_list = []
     for taxon_id in sorted(species_names.keys()):
         sci_name = species_scinames.get(taxon_id, "")
@@ -1230,6 +1241,16 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
                 entry["invasionStatus"] = invasion
                 exotic_matched += 1
 
+        # Photo metadata (from Wikidata P18 + Wikimedia Commons)
+        if sci_name in photos_map:
+            photo = photos_map[sci_name]
+            entry["photoUrl"] = photo.get("photoUrl", "")
+            if photo.get("photoAttribution"):
+                entry["photoAttribution"] = photo["photoAttribution"]
+            if photo.get("photoLicense"):
+                entry["photoLicense"] = photo["photoLicense"]
+            photos_matched += 1
+
         species_list.append(entry)
     species_list.sort(key=lambda s: s["taxonOrder"])
     # Build region names for regions actually present in the data
@@ -1246,6 +1267,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     print(f"  species.json: {len(species_list)} species, {len(region_names_used)} regions")
     print(f"  Conservation status: {conserv_matched}/{len(species_list)} matched")
     print(f"  Invasion status: {exotic_matched}/{len(species_list)} with exotic data")
+    print(f"  Photos: {photos_matched}/{len(species_list)} with photo metadata")
 
     families = set(s.get("familyComName", "") for s in species_list if s.get("familyComName"))
     print(f"  Families: {len(families)}")

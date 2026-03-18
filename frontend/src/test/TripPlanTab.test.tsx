@@ -15,6 +15,7 @@ vi.mock('../lib/dataCache', () => ({
   fetchSpeciesWeeks: vi.fn().mockResolvedValue({}),
   getCellLabels: vi.fn().mockResolvedValue(new Map()),
   computeLiferSummary: vi.fn().mockReturnValue(new Map()),
+  computeGoalWindowOpportunities: vi.fn().mockResolvedValue([]),
 }))
 
 // Mock LifeListContext with a stable seenSpecies reference
