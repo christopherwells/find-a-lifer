@@ -26,6 +26,7 @@ SCRIPT_DIR = Path(__file__).parent
 REFERENCE_DIR = SCRIPT_DIR / "reference"
 FRONTEND_DATA = SCRIPT_DIR.parent / "frontend" / "public" / "data"
 
+ARCHIVE_DIR = SCRIPT_DIR.parent / "data" / "archive"
 LAND_SHP = REFERENCE_DIR / "ne_50m_land" / "ne_50m_land.shp"
 
 
@@ -125,9 +126,28 @@ def compute_ocean_for_resolution(res: int, land_union, prepared_land):
 
         updated += 1
 
-    # Write updated covariates
+    # Write updated frontend covariates
     with open(cov_path, "w") as f:
         json.dump(covariates, f, separators=(",", ":"))
+
+    # Also update archive covariates (keyed by h3_index) so similarity function can use ocean
+    archive_cov_path = ARCHIVE_DIR / f"cell_covariates_r{res}.json"
+    if archive_cov_path.exists():
+        archive_cov = json.load(open(archive_cov_path))
+        # Build cell_id → h3_index reverse mapping from grid
+        id_to_h3 = {}
+        for feature in grid["features"]:
+            props = feature["properties"]
+            id_to_h3[str(props["cell_id"])] = props.get("h3_index", "")
+        archive_updated = 0
+        for cell_id, cov in covariates.items():
+            h3_idx = id_to_h3.get(cell_id)
+            if h3_idx and h3_idx in archive_cov:
+                archive_cov[h3_idx]["ocean"] = cov.get("ocean", 0)
+                archive_updated += 1
+        with open(archive_cov_path, "w") as f:
+            json.dump(archive_cov, f, separators=(",", ":"))
+        print(f"    Archive updated: {archive_updated} cells")
 
     print(f"    Updated {updated} cells ({ocean_cells} fully ocean, {coastal_cells} coastal)")
 

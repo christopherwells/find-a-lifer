@@ -202,7 +202,7 @@ def covariate_similarity(cov_a, cov_b):
     Uses inverse Euclidean distance in normalized feature space."""
     # Land cover features (already 0-1)
     lc_keys = ["needleleaf", "evergreen_broadleaf", "deciduous_broadleaf", "mixed_forest",
-               "shrub", "herb", "cultivated", "urban", "water", "flooded"]
+               "shrub", "herb", "cultivated", "urban", "water", "flooded", "ocean"]
     diff_sq = 0.0
     for k in lc_keys:
         diff_sq += (cov_a.get(k, 0) - cov_b.get(k, 0)) ** 2
