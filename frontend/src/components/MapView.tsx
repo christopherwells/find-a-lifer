@@ -322,6 +322,8 @@ export default memo(function MapView({
   const smoothedMapRef = useRef<Map<number, number>>(new Map())
   // Map cell_id -> [lng, lat] centroid (used for region bbox masking)
   const cellCentersRef = useRef<Map<number, [number, number]>>(new Map())
+  // All cell IDs in current grid (for exhaustive feature-state setting)
+  const allCellIdsRef = useRef<Set<number>>(new Set())
   // Bumped after grid swap completes so overlay effect waits for new grid
   const [gridVersion, setGridVersion] = useState(0)
   // Track last reported data range to avoid redundant callbacks
@@ -743,6 +745,7 @@ export default memo(function MapView({
         })
         smoothedMapRef.current = newSmoothedMap
         cellCentersRef.current = newCentersMap
+        allCellIdsRef.current = new Set(newCentersMap.keys())
 
         // Auto-zoom to data extent on first load
         if (gridData.features.length > 0 && gridData.features.length < 500) {
@@ -1034,6 +1037,7 @@ export default memo(function MapView({
           })
           smoothedMapRef.current = newSmoothedMap
           cellCentersRef.current = newCentersMap
+          allCellIdsRef.current = new Set(newCentersMap.keys())
           src.setData(newGrid)
           // Bump gridVersion so the overlay effect re-runs after grid is ready
           setGridVersion(v => v + 1)
@@ -1072,51 +1076,40 @@ export default memo(function MapView({
       return masked
     }
 
-    // Helper: clear previous feature states and apply new ones.
-    // Callers should pass already-masked values so the color scale is correct.
-    // Uses bulk removeFeatureState({source}) to atomically clear ALL feature states,
-    // preventing stale colored cells when individual per-cell clearing fails mid-iteration.
+    // Helper: apply feature states to ALL grid cells.
+    // Cells in cellValues get their value; ALL other cells get value=-1 (hidden).
+    // This guarantees no stale colored cells — every cell is explicitly set.
     const applyFeatureStates = (cellValues: Map<number, number>) => {
       if (!map.current || cancelled) return
-      try {
-        // Bulk clear: removes ALL feature states for the grid source at once.
-        // This is more reliable than per-cell iteration which can fail mid-way
-        // and leave stale states that are then lost from tracking.
-        map.current.removeFeatureState({ source: 'grid' })
-      } catch {
-        // Source tiles may not be loaded yet — try per-cell fallback
-        featureStateCellIds.current.forEach((cellId) => {
+
+      const allCellIds = allCellIdsRef.current
+      const setStates = () => {
+        if (!map.current || cancelled) return
+        let setCount = 0
+        for (const cellId of allCellIds) {
           try {
-            map.current!.removeFeatureState({ source: 'grid', id: cellId })
-          } catch { /* skip individual cell */ }
-        })
+            const value = cellValues.get(cellId) ?? -1 // -1 = hidden (transparent)
+            const smoothed = value >= 0 ? (smoothedMapRef.current.get(cellId) ?? 0) : 0
+            map.current.setFeatureState({ source: 'grid', id: cellId }, { value, smoothed })
+            setCount++
+          } catch { /* tile not loaded yet for this cell */ }
+        }
+        featureStateCellIds.current = new Set(allCellIds)
+        return setCount
       }
-      featureStateCellIds.current.clear()
-      try {
-        cellValues.forEach((value, cellId) => {
-          const smoothed = smoothedMapRef.current.get(cellId) ?? 0
-          map.current!.setFeatureState({ source: 'grid', id: cellId }, { value, smoothed })
-          featureStateCellIds.current.add(cellId)
-        })
-      } catch {
-        // Source tiles not ready yet — retry when tiles load
+
+      const count = setStates()
+      // If we couldn't set all cells (tiles not loaded), retry on sourcedata
+      if (count !== undefined && count < allCellIds.size) {
         const retryOnSourceData = () => {
           if (!map.current || cancelled) {
             map.current?.off('sourcedata', retryOnSourceData)
             return
           }
-          try {
-            cellValues.forEach((value, cellId) => {
-              if (!featureStateCellIds.current.has(cellId)) {
-                const smoothed = smoothedMapRef.current.get(cellId) ?? 0
-                map.current!.setFeatureState({ source: 'grid', id: cellId }, { value, smoothed })
-                featureStateCellIds.current.add(cellId)
-              }
-            })
+          const retryCount = setStates()
+          if (retryCount !== undefined && retryCount >= allCellIds.size) {
             map.current?.off('sourcedata', retryOnSourceData)
             pendingRetryHandler = null
-          } catch {
-            // Still not ready, will retry on next sourcedata event
           }
         }
         pendingRetryHandler = retryOnSourceData
@@ -1124,22 +1117,8 @@ export default memo(function MapView({
       }
     }
 
-    const clearFeatureStates = () => {
-      if (!map.current) return
-      try {
-        map.current.removeFeatureState({ source: 'grid' })
-      } catch {
-        featureStateCellIds.current.forEach((cellId) => {
-          try {
-            map.current!.removeFeatureState({ source: 'grid', id: cellId })
-          } catch { /* skip */ }
-        })
-      }
-      featureStateCellIds.current.clear()
-    }
-
     const setNeutralOverlay = () => {
-      clearFeatureStates()
+      applyFeatureStates(new Map()) // Set all cells to value=-1 (hidden)
       if (map.current?.getLayer('grid-fill')) {
         map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
         map.current.setPaintProperty('grid-fill', 'fill-opacity', [
@@ -1246,7 +1225,7 @@ export default memo(function MapView({
     } else if (viewMode === 'goal-birds') {
       // Goal Birds mode: load batch species data from API
       if (goalSpeciesCodes.size === 0) {
-        clearFeatureStates()
+        applyFeatureStates(new Map())
         if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', [
@@ -1421,7 +1400,7 @@ export default memo(function MapView({
     } else if (viewMode === 'density' && goalBirdsOnlyFilter) {
       // Density mode with Goal Birds Only filter: need batch species data
       if (goalSpeciesCodes.size === 0) {
-        clearFeatureStates()
+        applyFeatureStates(new Map())
         if (map.current?.getLayer('grid-fill')) {
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', [
