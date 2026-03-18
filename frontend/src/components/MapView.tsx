@@ -763,14 +763,14 @@ export default memo(function MapView({
           promoteId: 'cell_id',
         })
 
-        // Add grid cell fill layer (semi-transparent)
+        // Add grid cell fill layer — starts hidden, heatmap paint applied dynamically
         map.current.addLayer({
           id: 'grid-fill',
           type: 'fill',
           source: 'grid',
           paint: {
-            'fill-color': '#088',
-            'fill-opacity': 0.1,
+            'fill-color': 'rgba(0, 0, 0, 0)',
+            'fill-opacity': 0,
           },
         })
 
@@ -1233,6 +1233,7 @@ export default memo(function MapView({
           map.current.setPaintProperty('grid-fill', 'fill-color', 'rgba(200, 200, 200, 0.1)')
           map.current.setPaintProperty('grid-fill', 'fill-opacity', [
               'case',
+              ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,  // No data: hidden
               ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
               ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
               heatmapOpacity
