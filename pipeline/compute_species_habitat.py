@@ -26,8 +26,8 @@ RESOLUTION = 4
 # Forest types get specific labels when one type dominates (>60% of total forest)
 # Otherwise falls back to generic "Forest"
 NON_FOREST_THRESHOLDS = [
-    ("Freshwater", "water", 0.20),
-    ("Ocean", "ocean", 0.15),
+    ("Freshwater", "water", 0.25),    # high bar — avoid labeling land birds near lakes
+    ("Ocean", "ocean", 0.40),         # high bar — only species truly in ocean-dominated cells
     ("Wetland", "flooded", 0.03),
     ("Grassland", "herb", 0.08),
     ("Agricultural", "cultivated", 0.10),
