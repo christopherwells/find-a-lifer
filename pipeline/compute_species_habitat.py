@@ -35,12 +35,12 @@ NON_FOREST_THRESHOLDS = [
 ]
 
 FOREST_THRESHOLD = 0.15  # min total forest to qualify for any forest label
-FOREST_DOMINANCE = 0.60  # min share of total forest for a specific type label
+# Per-type dominance thresholds: specific types get lower bar, mixed is harder
 FOREST_TYPE_LABELS = {
-    "needleleaf": "Conifer Forest",
-    "evergreen_broadleaf": "Tropical Forest",
-    "deciduous_broadleaf": "Deciduous Forest",
-    "mixed_forest": "Mixed Forest",
+    "needleleaf":          ("Conifer Forest",    0.45),  # lower bar — informative
+    "evergreen_broadleaf": ("Tropical Forest",   0.45),  # lower bar — informative
+    "deciduous_broadleaf": ("Deciduous Forest",  0.45),  # lower bar — informative
+    "mixed_forest":        ("Mixed Forest",      0.75),  # higher bar — less informative, downweighted
 }
 
 # All covariate keys to aggregate (supports both split and legacy formats)
@@ -146,15 +146,19 @@ def main():
             total_forest = norm_cov.get("trees", 0)
 
         if total_forest >= FOREST_THRESHOLD:
-            # Check if a specific forest type dominates
-            best_type, best_val = None, 0
-            for fkey in FOREST_KEYS:
-                val = norm_cov.get(fkey, 0)
-                if val > best_val:
-                    best_type, best_val = fkey, val
-            if best_type and total_forest > 0 and best_val / total_forest >= FOREST_DOMINANCE:
-                labels.append(FOREST_TYPE_LABELS[best_type])
-            else:
+            # Check if a specific forest type dominates (per-type thresholds)
+            assigned = False
+            if total_forest > 0:
+                # Sort by value desc, check each against its own threshold
+                type_fracs = [(fkey, norm_cov.get(fkey, 0)) for fkey in FOREST_KEYS]
+                type_fracs.sort(key=lambda x: -x[1])
+                for fkey, val in type_fracs:
+                    label_name, threshold = FOREST_TYPE_LABELS[fkey]
+                    if val / total_forest >= threshold:
+                        labels.append(label_name)
+                        assigned = True
+                        break
+            if not assigned:
                 labels.append("Forest")
 
         # Non-forest habitats
