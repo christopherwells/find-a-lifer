@@ -160,13 +160,13 @@ describe('shareUtils', () => {
 
       appendChildSpy = vi.fn()
       removeChildSpy = vi.fn()
-      vi.spyOn(document.body, 'appendChild').mockImplementation(appendChildSpy)
-      vi.spyOn(document.body, 'removeChild').mockImplementation(removeChildSpy)
+      vi.spyOn(document.body, 'appendChild').mockImplementation(appendChildSpy as unknown as typeof document.body.appendChild)
+      vi.spyOn(document.body, 'removeChild').mockImplementation(removeChildSpy as unknown as typeof document.body.removeChild)
 
       createObjectURLSpy = vi.fn().mockReturnValue('blob:mock-url')
       revokeObjectURLSpy = vi.fn()
-      globalThis.URL.createObjectURL = createObjectURLSpy
-      globalThis.URL.revokeObjectURL = revokeObjectURLSpy
+      globalThis.URL.createObjectURL = createObjectURLSpy as unknown as typeof URL.createObjectURL
+      globalThis.URL.revokeObjectURL = revokeObjectURLSpy as unknown as typeof URL.revokeObjectURL
     })
 
     it('uses navigator.share when available and files are shareable', async () => {
