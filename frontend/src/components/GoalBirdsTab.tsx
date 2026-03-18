@@ -302,7 +302,7 @@ export default function GoalBirdsTab() {
       localStorage.removeItem('activeGoalListId')
     }
     // Reset the within-list filter when switching lists
-    setListFilterTerm('') // eslint-disable-line react-hooks/set-state-in-effect -- intentional reset on list switch
+    setListFilterTerm('')
   }, [activeListId])
 
   // Load species metadata for search/add functionality

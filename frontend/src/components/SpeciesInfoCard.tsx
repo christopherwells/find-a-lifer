@@ -41,7 +41,7 @@ export default function SpeciesInfoCard({
   }, [species.speciesCode])
 
   // Load best locations for current week
-  useEffect(() => {
+  useEffect(() => { // eslint-disable-line react-hooks/set-state-in-effect -- loading state for async fetch
     let cancelled = false
     setLoadingLocations(true)
     getSpeciesBestLocations(species.speciesCode, week).then(locs => {

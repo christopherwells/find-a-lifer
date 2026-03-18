@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const COLORS = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9', '#FF7979', '#7ED6DF', '#E056A0']
 const PARTICLE_COUNT = 25
@@ -26,21 +26,19 @@ function generateParticles(): Particle[] {
 }
 
 export default function Confetti({ active }: { active: boolean }) {
-  const [particles, setParticles] = useState<Particle[]>([])
-  const [visible, setVisible] = useState(false)
+  const [expired, setExpired] = useState(false)
 
-  useEffect(() => {
-    if (active) {
-      setParticles(generateParticles())
-      setVisible(true)
-      const timer = setTimeout(() => setVisible(false), 3000)
-      return () => clearTimeout(timer)
-    } else {
-      setVisible(false)
-    }
+  // Generate new particles each time active becomes true
+  const particles = useMemo(() => active ? generateParticles() : [], [active])
+
+  // Auto-expire after 3 seconds; reset when active changes
+  useEffect(() => { // eslint-disable-line react-hooks/set-state-in-effect -- timer-based visibility toggle
+    if (!active) { setExpired(false); return }
+    const timer = setTimeout(() => setExpired(true), 3000)
+    return () => clearTimeout(timer)
   }, [active])
 
-  if (!visible) return null
+  if (!active || expired) return null
 
   return (
     <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden" aria-hidden="true">
