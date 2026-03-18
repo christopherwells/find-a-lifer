@@ -964,7 +964,14 @@ export default memo(function MapView({
                 const totalSpecies = records.length > 0 ? records.length : (cellSpeciesCountsRef.current.get(cellId) ?? 0)
                 setLifersPopup({ cellId, coordinates: coords, lifers, totalSpecies, filteredTotal, hasActiveFilter, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel, estimated: isEstimated })
                 setPopupShowAll(false)
-                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers out of ${totalSpecies} species`)
+                // Check heatmap state for this cell
+                let heatmapValue = 'unknown'
+                try {
+                  const state = map.current?.getFeatureState({ source: 'grid', id: cellId })
+                  heatmapValue = state?.value !== undefined ? String(state.value) : 'no-state'
+                } catch { heatmapValue = 'error' }
+                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers out of ${totalSpecies} species (heatmap value=${heatmapValue}, seenSpecies=${currentSeenSpecies.size})`)
+                setDebugInfo(`click cell=${cellId}: popup=${lifers.length}lifers/${totalSpecies}sp heatmap=${heatmapValue} seen=${currentSeenSpecies.size}`)
               }
 
               const densityCached = cellDataCache.get(densityCacheKey)
@@ -1611,9 +1618,9 @@ export default memo(function MapView({
         className="w-full h-full"
         style={{ minHeight: '100%' }}
       />
-      {/* DEBUG BANNER — remove after fixing purple hex bug */}
+      {/* DEBUG BANNER — temporary, shows heatmap state info */}
       {debugInfo && (
-        <div className="absolute top-1 left-1 bg-black/70 text-white text-[10px] px-2 py-1 rounded z-50 font-mono">
+        <div className="absolute top-1 left-1 bg-black/70 text-white text-[10px] px-2 py-1 rounded z-50 font-mono max-w-xs">
           {debugInfo}
         </div>
       )}
