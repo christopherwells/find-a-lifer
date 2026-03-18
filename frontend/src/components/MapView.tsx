@@ -289,7 +289,6 @@ export default memo(function MapView({
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary>([])
   const [weeklyData, setWeeklyData] = useState<OccurrenceRecord[]>([])
   const [isLoadingWeek, setIsLoadingWeek] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
   const [gridReady, setGridReady] = useState(false)
   // Ref to track the set of species_ids that are unseen goal species
   const goalSpeciesIdSetRef = useRef<Set<number>>(new Set())
@@ -964,14 +963,7 @@ export default memo(function MapView({
                 const totalSpecies = records.length > 0 ? records.length : (cellSpeciesCountsRef.current.get(cellId) ?? 0)
                 setLifersPopup({ cellId, coordinates: coords, lifers, totalSpecies, filteredTotal, hasActiveFilter, nChecklists: cellChecklistCountsRef.current.get(cellId), label: cellLabel, estimated: isEstimated })
                 setPopupShowAll(false)
-                // Check heatmap state for this cell
-                let heatmapValue = 'unknown'
-                try {
-                  const state = map.current?.getFeatureState({ source: 'grid', id: cellId })
-                  heatmapValue = state?.value !== undefined ? String(state.value) : 'no-state'
-                } catch { heatmapValue = 'error' }
-                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers out of ${totalSpecies} species (heatmap value=${heatmapValue}, seenSpecies=${currentSeenSpecies.size})`)
-                setDebugInfo(`click cell=${cellId}: popup=${lifers.length}lifers/${totalSpecies}sp heatmap=${heatmapValue} seen=${currentSeenSpecies.size}`)
+                console.log(`Lifers popup: cell ${cellId} has ${lifers.length} lifers out of ${totalSpecies} species`)
               }
 
               const densityCached = cellDataCache.get(densityCacheKey)
@@ -1482,9 +1474,6 @@ export default memo(function MapView({
         const cellLiferCounts = new Map<number, number>()
 
         const hasSpeciesFilter = speciesFilterIdsRef.current !== null
-        const branch = (seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter ? 'lifer' : 'total'
-        console.log(`Density: seenSpecies=${seenSpecies.size}, showTotalRichness=${showTotalRichness}, hasFilter=${hasSpeciesFilter}, branch=${branch}`)
-        setDebugInfo(`seen=${seenSpecies.size} branch=${branch}`)
         if ((seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter) {
           try {
             const { fetchWeekCells, computeLiferSummary } = await import('../lib/dataCache')
@@ -1509,9 +1498,7 @@ export default memo(function MapView({
             liferData.forEach(([cellId, liferCount]) => {
               if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
             })
-            const msg = `seen=${seenIds.size} liferCells=${cellLiferCounts.size}/${weekCells.size} allCells=${allCellIdsRef.current.size}`
-            console.log(`Density lifer: ${msg}`)
-            setDebugInfo(msg)
+            console.log(`Density lifer: seenIds=${seenIds.size}, liferCells=${cellLiferCounts.size}/${weekCells.size}`)
           } catch (error) {
             if (!cancelled) console.error('Lifer summary: error loading data', error)
             // Do NOT fall back to weeklySummary — that shows total species
@@ -1593,9 +1580,9 @@ export default memo(function MapView({
               else coloredCount++
             } catch { /* tile not loaded */ }
           }
-          const verifyMsg = `colored=${coloredCount} hidden=${hiddenCount} stale=${staleCount} total=${allCellIdsRef.current.size}`
-          console.log(`Density VERIFY: ${verifyMsg}`)
-          setDebugInfo(prev => prev + ' | ' + verifyMsg)
+          if (staleCount > 0) {
+            console.warn(`Density: ${staleCount} cells have no feature state (tiles not loaded yet)`)
+          }
         }
       }
       loadDensity()
@@ -1618,12 +1605,6 @@ export default memo(function MapView({
         className="w-full h-full"
         style={{ minHeight: '100%' }}
       />
-      {/* DEBUG BANNER — temporary, shows heatmap state info */}
-      {debugInfo && (
-        <div className="absolute top-1 left-1 bg-black/70 text-white text-[10px] px-2 py-1 rounded z-50 font-mono max-w-xs">
-          {debugInfo}
-        </div>
-      )}
       {isLoadingWeek && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200">
           <div className="flex items-center space-x-2">
