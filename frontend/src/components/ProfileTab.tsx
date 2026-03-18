@@ -156,7 +156,7 @@ export default function ProfileTab() {
     setYearImportResult(null)
     try {
       const importFn = async (speciesCodes: string[], comNames: string[]) => {
-        await importYearList(yearImportYear, speciesCodes, comNames)
+        await importYearList(yearImportYear, speciesCodes)
         return { newCount: speciesCodes.length, existingCount: 0 }
       }
       const result = await processCSVFile(file, importFn)

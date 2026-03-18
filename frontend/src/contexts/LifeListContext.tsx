@@ -66,7 +66,7 @@ interface LifeListContextValue {
   yearLists: YearList[]
   activeYearListId: string | null
   setActiveYearListId: (id: string | null) => void
-  importYearList: (year: number, speciesCodes: string[], comNames: string[]) => Promise<YearList>
+  importYearList: (year: number, speciesCodes: string[]) => Promise<YearList>
   deleteYearList: (id: string) => Promise<void>
   yearSeenSpecies: Set<string>
   listScope: 'lifetime' | 'year'
@@ -328,7 +328,7 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
 
   // ── Year list methods ─────────────────────────────────────────────────
 
-  const importYearList = useCallback(async (year: number, speciesCodes: string[], _comNames: string[]): Promise<YearList> => {
+  const importYearList = useCallback(async (year: number, speciesCodes: string[]): Promise<YearList> => {
     try {
       const db = await getDB()
       const newList: YearList = {
