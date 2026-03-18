@@ -57,6 +57,7 @@ function makeSpecies(overrides: Partial<Species> & { speciesCode: string; comNam
     invasionStatus: {},
     conservStatus: 'LC',
     difficultyScore: 1,
+    difficultyRating: 1,
     difficultyLabel: 'Easy',
     isRestrictedRange: false,
     ebirdUrl: '',

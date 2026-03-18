@@ -74,6 +74,8 @@ interface SpeciesMeta {
   taxonOrder?: number
   conservStatus?: string
   difficultyLabel?: string
+  difficultyScore?: number
+  difficultyRating?: number
   isRestrictedRange?: boolean
   invasionStatus?: Record<string, string>
   regions?: string[]
@@ -88,6 +90,8 @@ interface GoalBirdInCell {
   isSeen: boolean
   conservStatus?: string
   difficultyLabel?: string
+  difficultyScore?: number
+  difficultyRating?: number
   isRestrictedRange?: boolean
 }
 

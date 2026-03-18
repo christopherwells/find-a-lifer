@@ -34,10 +34,6 @@ const DIFFICULTY_COLORS: Record<string, { bg: string; text: string; emoji: strin
   'Extremely Hard':  { bg: 'bg-purple-100 dark:bg-purple-900/40', text: 'text-purple-800 dark:text-purple-300', emoji: '\u{1F52D}', char: '' },
 }
 
-/** Convert 0-100 difficulty score to 1-10 display scale */
-export function difficultyToScale(score: number): number {
-  return Math.max(1, Math.min(10, Math.round(score / 10)))
-}
 
 const RESTRICTED_RANGE_STYLE = {
   bg: 'bg-blue-100 dark:bg-blue-900/40',

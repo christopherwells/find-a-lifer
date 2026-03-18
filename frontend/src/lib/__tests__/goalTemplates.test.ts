@@ -24,6 +24,7 @@ function makeSpecies(overrides: Partial<Species> & { speciesCode: string }): Spe
     invasionStatus: {},
     conservStatus: '',
     difficultyScore: 0,
+    difficultyRating: 1,
     difficultyLabel: '',
     isRestrictedRange: false,
     ebirdUrl: '',
