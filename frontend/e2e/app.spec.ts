@@ -423,6 +423,41 @@ test.describe('Regression: Empty hex visibility', () => {
     expect(result.coloredCells).toBe(0)
   })
 
+  test('cells with lifers SHOULD be colored with partial life list', async ({ page }) => {
+    await gotoReady(page)
+
+    // Import only 100 species — most cells should still have lifers
+    const count = await page.evaluate(async () => {
+      const resp = await fetch(document.baseURI.replace(/\/$/, '') + '/data/species.json')
+      const data = await resp.json()
+      const first100 = data.species.slice(0, 100) as Array<{ speciesCode: string; comName: string }>
+      const request = indexedDB.open('find-a-lifer-db', 3)
+      return new Promise<number>((resolve, reject) => {
+        request.onsuccess = () => {
+          const db = request.result
+          const tx = db.transaction('lifeList', 'readwrite')
+          const store = tx.objectStore('lifeList')
+          for (const sp of first100) {
+            store.put({ speciesCode: sp.speciesCode, comName: sp.comName, dateAdded: Date.now(), source: 'import' })
+          }
+          tx.oncomplete = () => resolve(first100.length)
+          tx.onerror = () => reject(tx.error)
+        }
+        request.onerror = () => reject(request.error)
+      })
+    })
+    console.log(`Imported ${count} of 1790 species`)
+
+    await page.reload()
+    await expect(page.getByTestId('top-bar')).toBeVisible({ timeout: 10000 })
+    await page.waitForTimeout(5000)
+
+    const result = await countColoredCells(page)
+    console.log(`Partial list: ${result.coloredCells} colored / ${result.totalGridFeatures} total features`)
+    // With only 100/1790 seen, most cells should have lifers (colored)
+    expect(result.coloredCells).toBeGreaterThan(50)
+  })
+
   test('no colored cells when all species are seen (Richness, res 4)', async ({ page }) => {
     await importAllSpecies(page)
 
