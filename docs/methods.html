@@ -175,6 +175,7 @@
     <li><a href="#labeling">Grid Cell Labeling</a></li>
     <li><a href="#habitat">Habitat Classification</a></li>
     <li><a href="#photos">Species Photo Attribution</a></li>
+    <li><a href="#difficulty">Difficulty Scoring</a></li>
     <li><a href="#parameters">Parameter Reference</a></li>
     <li><a href="#references">References</a></li>
   </ol>
@@ -586,7 +587,32 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Photos are hotlinked from Wikimedia Commons servers (400px thumbnail width). Species without a qualifying photo show a placeholder silhouette. Attribution text is displayed in the species information card footer.</p>
 
 <!-- ============================================================ -->
-<h2 id="parameters">13. Parameter Reference</h2>
+<h2 id="difficulty">13. Difficulty Scoring</h2>
+
+<p>Each species receives a difficulty score (0&ndash;100) computed from three factors derived from the eBird Basic Dataset at H3 resolution 4.</p>
+
+<h3>13.1 Components</h3>
+<table>
+  <tr><th>Factor</th><th>Weight</th><th>Description</th></tr>
+  <tr><td>Spatial constraint</td><td>40%</td><td>Fraction of H3 cells where the species occurs (inverted: rarer = harder)</td></tr>
+  <tr><td>Average frequency</td><td>40%</td><td>Mean reporting frequency across all cell-weeks where present (inverted: lower freq = harder)</td></tr>
+  <tr><td>Seasonality</td><td>20%</td><td>Shannon entropy of weekly detection distribution, normalized to [0, 1]. Narrow seasonal peak = harder to time.</td></tr>
+</table>
+
+<h3>13.2 Labels</h3>
+<p>Labels are assigned using percentile thresholds across all species, ensuring a reasonable distribution:</p>
+<table>
+  <tr><th>Label</th><th>Percentile Range</th></tr>
+  <tr><td>Easy</td><td>0&ndash;20th percentile</td></tr>
+  <tr><td>Moderate</td><td>20th&ndash;45th percentile</td></tr>
+  <tr><td>Hard</td><td>45th&ndash;70th percentile</td></tr>
+  <tr><td>Very Hard</td><td>70th&ndash;90th percentile</td></tr>
+  <tr><td>Extremely Hard</td><td>90th&ndash;100th percentile</td></tr>
+</table>
+<p>Calibration check: American Robin = Easy, Northern Cardinal = Easy, Ivory Gull = Very Hard, Kirtland's Warbler = Very Hard.</p>
+
+<!-- ============================================================ -->
+<h2 id="parameters">14. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -610,7 +636,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">14. References</h2>
+<h2 id="references">15. References</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
