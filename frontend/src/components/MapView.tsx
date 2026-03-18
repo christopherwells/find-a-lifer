@@ -1570,14 +1570,10 @@ export default memo(function MapView({
         // DEBUG: verify feature states were actually applied
         if (map.current) {
           let staleCount = 0
-          let hiddenCount = 0
-          let coloredCount = 0
           for (const cellId of allCellIdsRef.current) {
             try {
               const state = map.current.getFeatureState({ source: 'grid', id: cellId })
               if (!state || state.value === undefined) staleCount++
-              else if (state.value < 0) hiddenCount++
-              else coloredCount++
             } catch { /* tile not loaded */ }
           }
           if (staleCount > 0) {
