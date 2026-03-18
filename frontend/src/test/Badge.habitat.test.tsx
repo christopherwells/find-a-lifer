@@ -14,7 +14,7 @@ const KNOWN_HABITATS = [
   { name: 'Grassland',      emoji: '\u{1F33F}',       bgClass: 'bg-lime-100' },
   { name: 'Agricultural',   emoji: '\u{1F33E}',       bgClass: 'bg-yellow-100' },
   { name: 'Urban-tolerant', emoji: '\u{1F3D9}\u{FE0F}', bgClass: 'bg-stone-100' },
-  { name: 'Scrubland',      emoji: '\u{1FAB4}',       bgClass: 'bg-amber-100' },
+  { name: 'Scrubland',      emoji: '\u{1F335}',       bgClass: 'bg-amber-100' },
 ]
 
 describe('Badge habitat variant', () => {

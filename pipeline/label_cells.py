@@ -155,6 +155,69 @@ def guess_cell_region(center_lat, center_lng, cities):
     return best_region
 
 
+# Ocean/sea region names for unlabeled offshore cells
+# Polygons defined as (min_lat, max_lat, min_lng, max_lng, name)
+OCEAN_REGIONS = [
+    # Caribbean
+    (10, 22, -88, -60, "Caribbean Sea"),
+    # Gulf of Mexico
+    (18, 31, -98, -80, "Gulf of Mexico"),
+    # North Atlantic — by latitude bands
+    (45, 70, -65, -10, "North Atlantic"),
+    (25, 45, -80, -40, "Western Atlantic"),
+    (25, 45, -40, -10, "Central Atlantic"),
+    # Pacific
+    (30, 60, -180, -120, "North Pacific"),
+    (10, 30, -130, -80, "Eastern Pacific"),
+    (0, 10, -120, -75, "Tropical Eastern Pacific"),
+    # Arctic
+    (60, 90, -180, 0, "Arctic Ocean"),
+    # Hudson Bay / Labrador
+    (50, 65, -95, -60, "Hudson Bay"),
+    (45, 60, -60, -45, "Labrador Sea"),
+    # Bering Sea
+    (52, 66, -180, -160, "Bering Sea"),
+    # Gulf of Alaska
+    (52, 62, -160, -130, "Gulf of Alaska"),
+    # Bay of Fundy / Gulf of St. Lawrence
+    (43, 52, -70, -56, "Gulf of St. Lawrence"),
+    # Bahamas / Turks
+    (20, 28, -80, -72, "Bahamas"),
+]
+
+
+def get_ocean_label(lat, lng, nearby_city=None):
+    """Get a descriptive ocean/sea name for an offshore cell.
+    If nearby_city is provided, uses it for specificity (e.g., 'Caribbean Sea off Cozumel').
+    """
+    # Try specific regions first (smaller, more specific polygons)
+    region_name = None
+    for min_lat, max_lat, min_lng, max_lng, name in OCEAN_REGIONS:
+        if min_lat <= lat <= max_lat and min_lng <= lng <= max_lng:
+            region_name = name
+            break
+
+    # Fallback: generic based on hemisphere
+    if not region_name:
+        if lng < -30:
+            if lat > 40:
+                region_name = "North Atlantic"
+            elif lat > 0:
+                region_name = "Western Atlantic"
+            else:
+                region_name = "South Atlantic"
+        else:
+            if lat > 40:
+                region_name = "North Pacific"
+            else:
+                region_name = "Eastern Pacific"
+
+    # Add nearby city for uniqueness if available
+    if nearby_city:
+        return f"{region_name} off {nearby_city}"
+    return region_name
+
+
 def label_grid(grid_path, cities, resolution, preview=False):
     """Add labels to a grid GeoJSON file."""
     with open(grid_path, "r") as f:
@@ -248,9 +311,18 @@ def label_grid(grid_path, cities, resolution, preview=False):
         else:
             center_lat = props.get("center_lat", 0)
             center_lng = props.get("center_lng", 0)
-            lat_dir = "N" if center_lat >= 0 else "S"
-            lon_dir = "W" if center_lng < 0 else "E"
-            props["label"] = f"{abs(center_lat):.1f}°{lat_dir}, {abs(center_lng):.1f}°{lon_dir}"
+            # Find nearest city for "off [City]" qualifier (extended radius)
+            nearest_name = None
+            nearest_dist = float("inf")
+            for c in res_cities:
+                d = haversine_km(center_lat, center_lng, c["lat"], c["lon"])
+                if d < nearest_dist:
+                    nearest_dist = d
+                    nearest_name = c["name"]
+            # Only use "off [City]" if within reasonable distance
+            qualifier = nearest_name if nearest_dist < 500 else None
+            ocean_label = get_ocean_label(center_lat, center_lng, qualifier)
+            props["label"] = ocean_label
             unlabeled += 1
 
     print(f"  Resolution {resolution}: {labeled} labeled, {unlabeled} coordinate-only")

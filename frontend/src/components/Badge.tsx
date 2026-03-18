@@ -19,19 +19,24 @@ interface BadgeProps {
 
 const CONSERVATION_COLORS: Record<string, { bg: string; text: string; emoji: string; char: string }> = {
   'Least Concern':        { bg: 'bg-green-100 dark:bg-green-900/40',   text: 'text-green-800 dark:text-green-300',   emoji: '\u{1F33F}', char: '' },
-  'Near Threatened':      { bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-800 dark:text-yellow-300', emoji: '\u{1F33F}', char: '!' },
-  'Vulnerable':           { bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-800 dark:text-orange-300', emoji: '\u{1F33F}', char: '!' },
-  'Endangered':           { bg: 'bg-red-100 dark:bg-red-900/40',       text: 'text-red-800 dark:text-red-300',       emoji: '\u{1F33F}', char: '!' },
-  'Critically Endangered':{ bg: 'bg-red-200 dark:bg-red-900/60',       text: 'text-red-900 dark:text-red-200',       emoji: '\u{1F33F}', char: '!' },
-  'Data Deficient':       { bg: 'bg-gray-100 dark:bg-gray-700',        text: 'text-gray-600 dark:text-gray-400',     emoji: '\u{1F33F}', char: '?' },
+  'Near Threatened':      { bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-800 dark:text-yellow-300', emoji: '\u{1F33F}', char: 'NT' },
+  'Vulnerable':           { bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-800 dark:text-orange-300', emoji: '\u{1F33F}', char: 'VU' },
+  'Endangered':           { bg: 'bg-red-100 dark:bg-red-900/40',       text: 'text-red-800 dark:text-red-300',       emoji: '\u{1F33F}', char: 'EN' },
+  'Critically Endangered':{ bg: 'bg-red-200 dark:bg-red-900/60',       text: 'text-red-900 dark:text-red-200',       emoji: '\u{1F33F}', char: 'CR' },
+  'Data Deficient':       { bg: 'bg-gray-100 dark:bg-gray-700',        text: 'text-gray-600 dark:text-gray-400',     emoji: '\u{1F33F}', char: 'DD' },
 }
 
 const DIFFICULTY_COLORS: Record<string, { bg: string; text: string; emoji: string; char: string }> = {
   'Easy':            { bg: 'bg-green-100 dark:bg-green-900/40',   text: 'text-green-800 dark:text-green-300',   emoji: '\u{1F52D}', char: '' },
   'Moderate':        { bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-800 dark:text-yellow-300', emoji: '\u{1F52D}', char: '' },
-  'Hard':            { bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-800 dark:text-orange-300', emoji: '\u{1F52D}', char: 'H' },
-  'Very Hard':       { bg: 'bg-red-100 dark:bg-red-900/40',       text: 'text-red-800 dark:text-red-300',       emoji: '\u{1F52D}', char: 'H' },
-  'Extremely Hard':  { bg: 'bg-purple-100 dark:bg-purple-900/40', text: 'text-purple-800 dark:text-purple-300', emoji: '\u{1F52D}', char: 'H' },
+  'Hard':            { bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-800 dark:text-orange-300', emoji: '\u{1F52D}', char: '' },
+  'Very Hard':       { bg: 'bg-red-100 dark:bg-red-900/40',       text: 'text-red-800 dark:text-red-300',       emoji: '\u{1F52D}', char: '' },
+  'Extremely Hard':  { bg: 'bg-purple-100 dark:bg-purple-900/40', text: 'text-purple-800 dark:text-purple-300', emoji: '\u{1F52D}', char: '' },
+}
+
+/** Convert 0-100 difficulty score to 1-10 display scale */
+export function difficultyToScale(score: number): number {
+  return Math.max(1, Math.min(10, Math.round(score / 10)))
 }
 
 const RESTRICTED_RANGE_STYLE = {
@@ -59,7 +64,7 @@ const HABITAT_STYLE: Record<string, { bg: string; text: string; emoji: string }>
   'Grassland':         { bg: 'bg-lime-100 dark:bg-lime-900/40',       text: 'text-lime-800 dark:text-lime-300',       emoji: '\u{1F33F}' },
   'Agricultural':      { bg: 'bg-yellow-100 dark:bg-yellow-900/40',   text: 'text-yellow-800 dark:text-yellow-300',   emoji: '\u{1F33E}' },
   'Urban-tolerant':    { bg: 'bg-stone-100 dark:bg-stone-700/40',     text: 'text-stone-700 dark:text-stone-300',     emoji: '\u{1F3D9}\u{FE0F}' },
-  'Scrubland':         { bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300',     emoji: '\u{1FAB4}' },
+  'Scrubland':         { bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300',     emoji: '\u{1F335}' },
   'Habitat Generalist': { bg: 'bg-gray-100 dark:bg-gray-700/40',     text: 'text-gray-700 dark:text-gray-300',       emoji: '\u{1F30D}' },
 }
 
@@ -99,7 +104,7 @@ export default function Badge({ variant, value, size = 'pill', className = '' }:
     if (!char) return null // Don't show icon badge for Easy/Moderate/Least Concern
     return (
       <span
-        className={`inline-flex items-center justify-center w-4 h-4 rounded text-[10px] font-medium flex-shrink-0 ${style.bg} ${style.text} ${className}`}
+        className={`inline-flex items-center justify-center ${char.length > 1 ? 'min-w-[1.25rem] px-0.5' : 'w-4'} h-4 rounded text-[9px] font-bold flex-shrink-0 ${style.bg} ${style.text} ${className}`}
         title={value}
         data-testid={`badge-${variant}-icon`}
       >

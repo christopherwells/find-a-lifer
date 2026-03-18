@@ -61,11 +61,11 @@ describe('Badge', () => {
 
   // --- Icon size ---
   describe('icon size', () => {
-    it('renders icon for Endangered (char "!")', () => {
+    it('renders icon for Endangered (char "EN")', () => {
       render(<Badge variant="conservation" value="Endangered" size="icon" />)
       const badge = screen.getByTestId('badge-conservation-icon')
       expect(badge).toBeInTheDocument()
-      expect(badge.textContent).toBe('!')
+      expect(badge.textContent).toBe('EN')
     })
 
     it('renders nothing for Least Concern icon (empty char)', () => {
@@ -78,10 +78,9 @@ describe('Badge', () => {
       expect(container.innerHTML).toBe('')
     })
 
-    it('renders "H" for Hard difficulty icon', () => {
-      render(<Badge variant="difficulty" value="Hard" size="icon" />)
-      const badge = screen.getByTestId('badge-difficulty-icon')
-      expect(badge.textContent).toBe('H')
+    it('renders nothing for Hard difficulty icon (no icon-size char)', () => {
+      const { container } = render(<Badge variant="difficulty" value="Hard" size="icon" />)
+      expect(container.innerHTML).toBe('')
     })
 
     it('renders "R" for restricted-range icon', () => {

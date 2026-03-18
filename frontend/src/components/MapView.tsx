@@ -574,10 +574,13 @@ export default memo(function MapView({
   useEffect(() => {
     if (!map.current || !selectedLocation) return
 
+    // Offset for side panel: on desktop (>=768px), panel is ~384px on the right
+    const isDesktop = window.innerWidth >= 768
     map.current.flyTo({
       center: selectedLocation.coordinates,
       zoom: 7,
-      duration: 1500
+      duration: 1500,
+      padding: isDesktop ? { top: 0, bottom: 0, left: 0, right: 384 } : { top: 0, bottom: 200, left: 0, right: 0 },
     })
 
     console.log(`Map: zooming to selected location Cell #${selectedLocation.cellId}`)
@@ -1859,7 +1862,7 @@ export default memo(function MapView({
                   { key: 'evergreen_broadleaf', val: cov.evergreen_broadleaf || 0, color: '#2E7D32', label: 'Tropical', icon: '\u{1F334}' },
                   { key: 'deciduous_broadleaf', val: cov.deciduous_broadleaf || 0, color: '#558B2F', label: 'Deciduous', icon: '\u{1F333}' },
                   { key: 'mixed_forest', val: cov.mixed_forest || 0, color: '#33691E', label: 'Mixed', icon: '\u{1F343}' },
-                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Scrub', icon: '\u{1FAB4}' },
+                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Scrub', icon: '\u{1F335}' },
                   { key: 'herb', val: cov.herb || 0, color: '#A8D08D', label: 'Grassland', icon: '\u{1F33F}' },
                   { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Farmland', icon: '\u{1F33E}' },
                   { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Developed', icon: '\u{1F3D8}' },
@@ -1870,7 +1873,7 @@ export default memo(function MapView({
                   // Legacy fallback (combined trees)
                   { key: 'ocean', val: ocean, color: '#1B4F72', label: 'Ocean', icon: '\u{1F30A}' },
                   { key: 'trees', val: cov.trees || 0, color: '#22763F', label: 'Forest', icon: '\u{1F332}' },
-                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Scrub', icon: '\u{1FAB4}' },
+                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Scrub', icon: '\u{1F335}' },
                   { key: 'herb', val: cov.herb || 0, color: '#A8D08D', label: 'Grassland', icon: '\u{1F33F}' },
                   { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Farmland', icon: '\u{1F33E}' },
                   { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Developed', icon: '\u{1F3D8}' },
