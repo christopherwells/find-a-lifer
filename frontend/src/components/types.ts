@@ -140,8 +140,9 @@ export interface CellCovariates {
   herb: number
   cultivated: number
   urban: number
-  water: number
+  water: number    // freshwater (inland lakes, rivers — from EarthEnv)
   flooded: number
+  ocean: number    // ocean fraction (from Natural Earth coastline polygons)
   elev_mean: number
   elev_std: number
 }

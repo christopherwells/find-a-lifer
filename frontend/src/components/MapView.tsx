@@ -1836,51 +1836,60 @@ export default memo(function MapView({
             <div className="px-3 py-2 border-b border-teal-200 dark:border-teal-800 space-y-1" data-testid="habitat-bar">
               <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Habitat</p>
               {(() => {
-                const covKeys = ['trees', 'shrub', 'herb', 'cultivated', 'urban', 'water', 'flooded'] as const
-                const covColors: Record<string, string> = { trees: '#22763F', shrub: '#8B6914', herb: '#A8D08D', cultivated: '#D4A843', urban: '#888', water: '#4A90D9', flooded: '#6B8E9B' }
-                const vals = covKeys.map(k => (popupCovariates as unknown as Record<string, number>)[k] || 0)
-                const total = vals.reduce((s, v) => s + v, 0)
-                const scale = total > 0 ? 1 / total : 0 // Normalize to fill bar
+                const cov = popupCovariates as unknown as Record<string, number>
+                const ocean = cov.ocean || 0
+                const landCovKeys = ['trees', 'shrub', 'herb', 'cultivated', 'urban', 'water', 'flooded'] as const
+                const landSum = landCovKeys.reduce((s, k) => s + (cov[k] || 0), 0)
+                const bareOther = Math.max(0, 1 - ocean - landSum)
+
+                // All categories including ocean and bare
+                const categories = [
+                  { key: 'ocean', val: ocean, color: '#1B4F72', label: 'Ocean', icon: '\u{1F30A}' },
+                  { key: 'trees', val: cov.trees || 0, color: '#22763F', label: 'Forest', icon: '\u{1F332}' },
+                  { key: 'shrub', val: cov.shrub || 0, color: '#8B6914', label: 'Shrub', icon: '\u{1FAB4}' },
+                  { key: 'herb', val: cov.herb || 0, color: '#A8D08D', label: 'Grassland', icon: '\u{1F33F}' },
+                  { key: 'cultivated', val: cov.cultivated || 0, color: '#D4A843', label: 'Cropland', icon: '\u{1F33E}' },
+                  { key: 'urban', val: cov.urban || 0, color: '#888', label: 'Urban', icon: '\u{1F3D9}' },
+                  { key: 'water', val: cov.water || 0, color: '#4A90D9', label: 'Freshwater', icon: '\u{1F4A7}' },
+                  { key: 'flooded', val: cov.flooded || 0, color: '#6B8E9B', label: 'Wetland', icon: '\u{1F3DE}' },
+                  { key: 'bare', val: bareOther, color: '#C4A882', label: 'Bare/Other', icon: '\u{1FABB}' },
+                ]
+                const total = categories.reduce((s, c) => s + c.val, 0)
+                const scale = total > 0 ? 100 / total : 0
+
                 return (
-                  <div className="flex h-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
-                    {covKeys.map((key, i) => {
-                      const pct = vals[i] * scale * 100
-                      if (pct < 1.5) return null
-                      return (
-                        <div
-                          key={key}
-                          style={{ width: `${pct}%`, backgroundColor: covColors[key] }}
-                          title={`${key}: ${(vals[i] * 100).toFixed(0)}%`}
-                        />
-                      )
-                    })}
-                  </div>
+                  <>
+                    <div className="flex h-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                      {categories.map(({ key, val, color }) => {
+                        const pct = val * scale
+                        if (pct < 1.5) return null
+                        return (
+                          <div
+                            key={key}
+                            style={{ width: `${pct}%`, backgroundColor: color }}
+                            title={`${key}: ${(val * 100).toFixed(0)}%`}
+                          />
+                        )
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-x-2 gap-y-0">
+                      {categories.map(({ key, val, icon, label }) => {
+                        if (val < 0.03) return null
+                        return (
+                          <span key={key} className="text-[9px] text-gray-500 dark:text-gray-400">
+                            {icon} {label} {(val * 100).toFixed(0)}%
+                          </span>
+                        )
+                      })}
+                      {popupCovariates.elev_mean > 0 && (
+                        <span className="text-[9px] text-gray-500 dark:text-gray-400">
+                          ⛰ {Math.round(popupCovariates.elev_mean)}m
+                        </span>
+                      )}
+                    </div>
+                  </>
                 )
               })()}
-              <div className="flex flex-wrap gap-x-2 gap-y-0">
-                {[
-                  { key: 'trees', color: '#22763F', icon: '\u{1F332}', label: 'Forest' },
-                  { key: 'shrub', color: '#8B6914', icon: '\u{1FAB4}', label: 'Shrub' },
-                  { key: 'herb', color: '#A8D08D', icon: '\u{1F33F}', label: 'Grassland' },
-                  { key: 'cultivated', color: '#D4A843', icon: '\u{1F33E}', label: 'Crop' },
-                  { key: 'urban', color: '#888', icon: '\u{1F3D9}', label: 'Urban' },
-                  { key: 'water', color: '#4A90D9', icon: '\u{1F4A7}', label: 'Water' },
-                  { key: 'flooded', color: '#6B8E9B', icon: '\u{1F3DE}', label: 'Wetland' },
-                ].map(({ key, icon, label }) => {
-                  const val = (popupCovariates as unknown as Record<string, number>)[key] || 0
-                  if (val < 0.05) return null
-                  return (
-                    <span key={key} className="text-[9px] text-gray-500 dark:text-gray-400">
-                      {icon} {label} {(val * 100).toFixed(0)}%
-                    </span>
-                  )
-                })}
-                {popupCovariates.elev_mean > 0 && (
-                  <span className="text-[9px] text-gray-500 dark:text-gray-400">
-                    ⛰ {Math.round(popupCovariates.elev_mean)}m
-                  </span>
-                )}
-              </div>
             </div>
           )}
           {/* Lifer list */}
