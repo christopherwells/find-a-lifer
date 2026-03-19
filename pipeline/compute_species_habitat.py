@@ -63,6 +63,133 @@ LEGACY_FOREST_KEY = "trees"
 ALL_LAND_KEYS = FOREST_KEYS + ["shrub", "herb", "cultivated", "urban", "water", "flooded", "ocean"]
 
 
+# Sub-region bounding boxes (must match frontend/src/lib/subRegions.ts)
+SUB_REGIONS = {
+    "ca-west": ("Western Canada", [-141, 48, -120, 70]),
+    "ca-central": ("Central Canada", [-120, 48, -89, 70]),
+    "ca-east": ("Eastern Canada", [-89, 42, -50, 63]),
+    "mx": ("Mexico", [-118, 14, -86, 33]),
+    "ca-north": ("Northern Central America", [-92, 12, -83, 18]),
+    "ca-south": ("Southern Central America", [-86, 7, -77, 12]),
+    "caribbean-greater": ("Greater Antilles", [-85, 17, -64, 24]),
+    "atlantic-west": ("Western Atlantic Islands", [-80, 20, -60, 33]),
+    "us-ak": ("Alaska", [-180, 51, -130, 72]),
+    "us-hi": ("Hawaii", [-161, 18, -154, 23]),
+}
+
+
+def compute_habitat_for_cells(weeks_data, covariates, cell_filter=None):
+    """Compute frequency-weighted habitat covariates for a species.
+
+    Args:
+        weeks_data: {week_str: [[cell_id, freq], ...]}
+        covariates: {cell_id: {covariate_dict}}
+        cell_filter: optional set of cell_ids to include (None = all)
+
+    Returns:
+        (norm_cov, elev_values, total_weight) or (None, None, 0) if no data
+    """
+    weighted_cov = defaultdict(float)
+    total_weight = 0.0
+    elev_values = []
+
+    for _week, cells in weeks_data.items():
+        for cell_id, freq in cells:
+            if cell_filter is not None and cell_id not in cell_filter:
+                continue
+            cov = covariates.get(cell_id)
+            if not cov:
+                continue
+            weight = freq / 255.0
+            if weight < 0.01:
+                continue
+
+            if "needleleaf" in cov:
+                for key in ALL_LAND_KEYS:
+                    weighted_cov[key] += cov.get(key, 0) * weight
+            else:
+                weighted_cov["trees"] += cov.get("trees", 0) * weight
+                for key in ["shrub", "herb", "cultivated", "urban", "water", "flooded"]:
+                    weighted_cov[key] += cov.get(key, 0) * weight
+            total_weight += weight
+
+            if cov.get("elev_mean", 0) > 0:
+                elev_values.append((cov["elev_mean"], weight))
+
+    if total_weight == 0:
+        return None, None, 0
+
+    norm_cov = {k: v / total_weight for k, v in weighted_cov.items()}
+    return norm_cov, elev_values, total_weight
+
+
+def derive_labels(norm_cov, family=""):
+    """Derive habitat labels from normalized covariates."""
+    labels = []
+
+    # Forest
+    if "needleleaf" in norm_cov:
+        total_forest = sum(norm_cov.get(k, 0) for k in FOREST_KEYS)
+    else:
+        total_forest = norm_cov.get("trees", 0)
+
+    if total_forest >= FOREST_THRESHOLD:
+        assigned = False
+        if total_forest > 0:
+            type_fracs = [(fkey, norm_cov.get(fkey, 0)) for fkey in FOREST_KEYS]
+            type_fracs.sort(key=lambda x: -x[1])
+            for fkey, val in type_fracs:
+                label_name, threshold = FOREST_TYPE_LABELS[fkey]
+                if val / total_forest >= threshold:
+                    labels.append(label_name)
+                    assigned = True
+                    break
+        if not assigned:
+            labels.append("Forest")
+
+    # Freshwater
+    raw_water = norm_cov.get("water", 0)
+    ocean_val = norm_cov.get("ocean", 0)
+    freshwater = max(0, raw_water - ocean_val)
+    norm_cov["_freshwater"] = freshwater
+
+    is_water_family = family in WATER_ASSOCIATED_FAMILIES
+
+    for label, key, threshold in NON_FOREST_THRESHOLDS:
+        actual_key = "_freshwater" if key == "water" else key
+        t = threshold
+        if is_water_family:
+            if key == "water":
+                t = WATER_FAMILY_FRESHWATER_THRESHOLD
+            elif key == "ocean":
+                t = WATER_FAMILY_OCEAN_THRESHOLD
+        if norm_cov.get(actual_key, 0) >= t:
+            labels.append(label)
+
+    if len(labels) >= 4:
+        labels.append("Habitat Generalist")
+    elif len(labels) == 0:
+        labels.append("Habitat Generalist")
+
+    return labels
+
+
+def compute_elevation(elev_values):
+    """Compute preferred elevation from weighted values."""
+    if not elev_values:
+        return None
+    total_weight = sum(w for _, w in elev_values)
+    if total_weight <= 0:
+        return None
+    weighted_mean = sum(e * w for e, w in elev_values) / total_weight
+    elevs = [e for e, _ in elev_values]
+    return {
+        "mean": round(weighted_mean),
+        "min": round(min(elevs)),
+        "max": round(max(elevs)),
+    }
+
+
 def main():
     cov_path = FRONTEND_DATA / f"r{RESOLUTION}" / "covariates.json"
     species_weeks_dir = FRONTEND_DATA / f"r{RESOLUTION}" / "species-weeks"
@@ -102,8 +229,28 @@ def main():
     code_to_idx = {sp["speciesCode"]: i for i, sp in enumerate(species_list)}
     code_to_family = {sp["speciesCode"]: sp.get("familyComName", "") for sp in species_list}
 
+    # Build cell_id → centroid mapping for sub-region filtering
+    grid_path = FRONTEND_DATA / f"r{RESOLUTION}" / "grid.geojson"
+    cell_centroids = {}
+    if grid_path.exists():
+        grid = json.load(open(grid_path))
+        for f in grid["features"]:
+            p = f["properties"]
+            cell_centroids[p["cell_id"]] = (p.get("center_lng", 0), p.get("center_lat", 0))
+
+    # Build per-sub-region cell ID sets
+    region_cell_sets = {}
+    for region_id, (region_name, bbox) in SUB_REGIONS.items():
+        west, south, east, north = bbox
+        cells_in = set()
+        for cid, (lng, lat) in cell_centroids.items():
+            if west <= lng <= east and south <= lat <= north:
+                cells_in.add(cid)
+        if cells_in:
+            region_cell_sets[region_id] = cells_in
+
     # Process each species-weeks file
-    habitat_results = {}  # speciesCode -> {labels, elevation}
+    habitat_results = {}  # speciesCode -> {labels, elevation, regionalHabitat}
     processed = 0
     skipped = 0
 
@@ -116,110 +263,33 @@ def main():
         with open(sw_file) as f:
             weeks_data = json.load(f)
 
-        # Aggregate frequency-weighted covariates across all weeks and cells
-        weighted_cov = defaultdict(float)
-        total_weight = 0.0
-        elev_values = []  # (elev_mean, weight) tuples
+        family = code_to_family.get(code, "")
 
-        for _week, cells in weeks_data.items():
-            for cell_id, freq in cells:
-                cov = covariates.get(cell_id)
-                if not cov:
-                    continue
-                weight = freq / 255.0  # freq is uint8
-                if weight < 0.01:
-                    continue  # Skip very low frequencies
-
-                # Support both split forest (new) and combined trees (legacy)
-                if "needleleaf" in cov:
-                    for key in ALL_LAND_KEYS:
-                        weighted_cov[key] += cov.get(key, 0) * weight
-                else:
-                    # Legacy format with combined 'trees'
-                    weighted_cov["trees"] += cov.get("trees", 0) * weight
-                    for key in ["shrub", "herb", "cultivated", "urban", "water", "flooded"]:
-                        weighted_cov[key] += cov.get(key, 0) * weight
-                total_weight += weight
-
-                if cov.get("elev_mean", 0) > 0:
-                    elev_values.append((cov["elev_mean"], weight))
-
-        if total_weight == 0:
+        # Global habitat computation
+        norm_cov, elev_values, total_weight = compute_habitat_for_cells(weeks_data, covariates)
+        if norm_cov is None:
             skipped += 1
             continue
 
-        # Normalize weighted covariates
-        norm_cov = {k: v / total_weight for k, v in weighted_cov.items()}
+        labels = derive_labels(norm_cov, family)
+        preferred_elev = compute_elevation(elev_values) if elev_values else None
 
-        # Derive habitat labels
-        labels = []
-
-        # Forest: check total, then assign specific type if one dominates
-        if "needleleaf" in norm_cov:
-            total_forest = sum(norm_cov.get(k, 0) for k in FOREST_KEYS)
-        else:
-            total_forest = norm_cov.get("trees", 0)
-
-        if total_forest >= FOREST_THRESHOLD:
-            # Check if a specific forest type dominates (per-type thresholds)
-            assigned = False
-            if total_forest > 0:
-                # Sort by value desc, check each against its own threshold
-                type_fracs = [(fkey, norm_cov.get(fkey, 0)) for fkey in FOREST_KEYS]
-                type_fracs.sort(key=lambda x: -x[1])
-                for fkey, val in type_fracs:
-                    label_name, threshold = FOREST_TYPE_LABELS[fkey]
-                    if val / total_forest >= threshold:
-                        labels.append(label_name)
-                        assigned = True
-                        break
-            if not assigned:
-                labels.append("Forest")
-
-        # Compute true freshwater: EarthEnv 'water' includes ocean pixels,
-        # so freshwater = water - ocean (clamped >= 0)
-        raw_water = norm_cov.get("water", 0)
-        ocean_val = norm_cov.get("ocean", 0)
-        norm_cov["_freshwater"] = max(0, raw_water - ocean_val)
-
-        # Non-forest habitats (use _freshwater instead of raw water)
-        # Water-associated families get lower thresholds for freshwater/ocean
-        family = code_to_family.get(code, "")
-        is_water_family = family in WATER_ASSOCIATED_FAMILIES
-
-        for label, key, threshold in NON_FOREST_THRESHOLDS:
-            actual_key = "_freshwater" if key == "water" else key
-            # Use lower threshold for water families
-            if is_water_family:
-                if key == "water":
-                    threshold = WATER_FAMILY_FRESHWATER_THRESHOLD
-                elif key == "ocean":
-                    threshold = WATER_FAMILY_OCEAN_THRESHOLD
-            if norm_cov.get(actual_key, 0) >= threshold:
-                labels.append(label)
-
-        # Tag habitat generalists: species with 4+ labels or no strong habitat preference
-        if len(labels) >= 4:
-            labels.append("Habitat Generalist")
-        elif len(labels) == 0:
-            labels.append("Habitat Generalist")
-
-        # Compute preferred elevation
-        preferred_elev = None
-        if elev_values:
-            total_elev_weight = sum(w for _, w in elev_values)
-            if total_elev_weight > 0:
-                weighted_mean = sum(e * w for e, w in elev_values) / total_elev_weight
-                elevs = [e for e, _ in elev_values]
-                preferred_elev = {
-                    "mean": round(weighted_mean),
-                    "min": round(min(elevs)),
-                    "max": round(max(elevs)),
+        # Per-sub-region habitat computation
+        regional_habitat = {}
+        for region_id, cell_set in region_cell_sets.items():
+            r_norm, r_elev, r_weight = compute_habitat_for_cells(weeks_data, covariates, cell_set)
+            if r_norm is not None:
+                r_labels = derive_labels(r_norm, family)
+                r_elevation = compute_elevation(r_elev) if r_elev else None
+                regional_habitat[region_id] = {
+                    "labels": r_labels,
+                    "elevation": r_elevation,
                 }
 
         habitat_results[code] = {
             "labels": labels,
             "elevation": preferred_elev,
+            "regionalHabitat": regional_habitat if regional_habitat else None,
         }
         processed += 1
 
@@ -234,6 +304,10 @@ def main():
     for label, count in sorted(label_counts.items(), key=lambda x: -x[1]):
         print(f"  {label}: {count} species")
 
+    # Count regional habitat coverage
+    with_regional = sum(1 for r in habitat_results.values() if r.get("regionalHabitat"))
+    print(f"  {with_regional} species with regional habitat data")
+
     # Merge into species.json
     merged = 0
     for sp in species_list:
@@ -244,6 +318,8 @@ def main():
                 sp["habitatLabels"] = result["labels"]
             if result["elevation"]:
                 sp["preferredElevation"] = result["elevation"]
+            if result.get("regionalHabitat"):
+                sp["regionalHabitat"] = result["regionalHabitat"]
             merged += 1
 
     # Write back

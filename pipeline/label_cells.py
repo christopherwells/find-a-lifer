@@ -344,18 +344,28 @@ def label_grid(grid_path, cities, resolution, preview=False):
         else:
             center_lat = props.get("center_lat", 0)
             center_lng = props.get("center_lng", 0)
-            # Find nearest city for "off [City]" qualifier (extended radius)
-            nearest_name = None
+            # Find nearest city (extended radius)
+            nearest_city = None
             nearest_dist = float("inf")
             for c in res_cities:
                 d = haversine_km(center_lat, center_lng, c["lat"], c["lon"])
                 if d < nearest_dist:
                     nearest_dist = d
-                    nearest_name = c["name"]
-            # Only use "off [City]" if within reasonable distance
-            qualifier = nearest_name if nearest_dist < 500 else None
-            ocean_label = get_ocean_label(center_lat, center_lng, qualifier)
-            props["label"] = ocean_label
+                    nearest_city = c
+
+            # Decide: inland cells get "Near [City]", ocean cells get ocean label
+            # Use extended radius for inland: if nearest city < 400km, it's inland
+            if nearest_city and nearest_dist < 400:
+                # Inland cell — use "Near [City], [Region]"
+                if nearest_city["country"] in ("US", "CA"):
+                    props["label"] = f"Near {nearest_city['name']}, {nearest_city['region']}"
+                else:
+                    props["label"] = f"Near {nearest_city['name']}, {nearest_city['country']}"
+            else:
+                # Likely ocean or very remote — use ocean label
+                qualifier = nearest_city["name"] if nearest_city and nearest_dist < 500 else None
+                ocean_label = get_ocean_label(center_lat, center_lng, qualifier)
+                props["label"] = ocean_label
             unlabeled += 1
 
     print(f"  Resolution {resolution}: {labeled} labeled, {unlabeled} coordinate-only")

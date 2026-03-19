@@ -28,6 +28,7 @@ export interface Species {
   difficultyRating: number  // 1-10 evenly distributed
   difficultyLabel: string
   regionalDifficulty?: Record<string, number>  // sub-region key -> 1-10 rating
+  regionalHabitat?: Record<string, { labels: string[]; elevation?: { mean: number; min: number; max: number } }>
   isRestrictedRange: boolean
   ebirdUrl: string
   photoUrl: string

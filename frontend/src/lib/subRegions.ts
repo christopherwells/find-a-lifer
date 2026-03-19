@@ -41,37 +41,37 @@ const CA_EAST: SubRegion = {
 
 const US_NORTHEAST: SubRegion = {
   id: 'us-ne',
-  name: 'Northeast',
+  name: 'Northeastern US',
   bbox: [-80, 37, -66, 48],
 }
 
 const US_SOUTHEAST: SubRegion = {
   id: 'us-se',
-  name: 'Southeast',
+  name: 'Southeastern US',
   bbox: [-95, 24, -75, 37],
 }
 
 const US_MIDWEST: SubRegion = {
   id: 'us-mw',
-  name: 'Midwest',
+  name: 'Midwestern US',
   bbox: [-105, 36, -80, 49],
 }
 
 const US_SOUTHWEST: SubRegion = {
   id: 'us-sw',
-  name: 'Southwest',
+  name: 'Southwestern US',
   bbox: [-115, 25, -93, 37],
 }
 
 const US_WEST: SubRegion = {
   id: 'us-west',
-  name: 'West',
+  name: 'Western US',
   bbox: [-125, 32, -116, 49],
 }
 
 const US_ROCKIES: SubRegion = {
   id: 'us-rockies',
-  name: 'Rockies',
+  name: 'US Rockies',
   bbox: [-117, 35, -102, 49],
 }
 

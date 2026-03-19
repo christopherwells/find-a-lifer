@@ -124,11 +124,18 @@ export default function SpeciesInfoCard({
   const difficultyRating = selectedRegionId && species.regionalDifficulty?.[selectedRegionId]
     ? species.regionalDifficulty[selectedRegionId]
     : species.difficultyRating
-  const difficultyLabel = selectedRegionId && species.regionalDifficulty?.[selectedRegionId]
-    ? `${species.difficultyLabel || 'Difficulty'} (${species.regionalDifficulty[selectedRegionId]}/10)`
-    : species.difficultyRating > 0
-      ? `${species.difficultyLabel} (${species.difficultyRating}/10)`
-      : ''
+
+  // Derive label from the ACTUAL rating (not the global label)
+  function ratingToLabel(r: number): string {
+    if (r <= 2) return 'Easy'
+    if (r <= 4) return 'Moderate'
+    if (r <= 6) return 'Hard'
+    if (r <= 8) return 'Very Hard'
+    return 'Extremely Hard'
+  }
+  const difficultyLabel = difficultyRating > 0
+    ? `${ratingToLabel(difficultyRating)} (${difficultyRating}/10)`
+    : ''
   const difficultyRegionNote = selectedRegionId && species.regionalDifficulty?.[selectedRegionId] && selectedRegion
     ? ` in ${selectedRegion.name}`
     : ''
