@@ -5,6 +5,7 @@ import { getDisplayGroup } from '../lib/familyGroups'
 import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
 import Badge from './Badge'
 import SpeciesInfoCard from './SpeciesInfoCard'
+import { detectSubRegion } from '../lib/subRegions'
 import type { Species, CellCovariates } from './types'
 import {
   safeMin, safeMax, computeCentroid,
@@ -170,6 +171,7 @@ export default memo(function MapView({
   const [popupShowAll, setPopupShowAll] = useState(false)
   // Species info card opened from popup species name click
   const [popupSpeciesCard, setPopupSpeciesCard] = useState<Species | null>(null)
+  const [popupRegionContext, setPopupRegionContext] = useState<{ subRegionId: string; cellLng: number; cellLat: number } | null>(null)
   // Cell covariates for popup habitat bar
   const [popupCovariates, setPopupCovariates] = useState<CellCovariates | null>(null)
   // Checklist counts per cell (from weekly summary, for low-data warnings)
@@ -1768,7 +1770,14 @@ export default memo(function MapView({
                         className={`text-sm font-medium text-left ${bird.isSeen ? 'line-through text-gray-400' : 'text-gray-800 hover:text-[#2C3E7B]'} cursor-pointer`}
                         onClick={() => {
                           const meta = speciesByIdCache?.get(bird.species_id)
-                          if (meta) setPopupSpeciesCard(meta as unknown as Species)
+                          if (meta) {
+                            setPopupSpeciesCard(meta as unknown as Species)
+                            if (goalBirdsPopup) {
+                              const [lng, lat] = goalBirdsPopup.coordinates
+                              const region = detectSubRegion(lng, lat)
+                              setPopupRegionContext(region ? { subRegionId: region.id, cellLng: lng, cellLat: lat } : null)
+                            }
+                          }
                         }}
                       >
                         {bird.comName}
@@ -2051,7 +2060,14 @@ export default memo(function MapView({
                                   className="text-xs text-gray-800 dark:text-gray-200 truncate flex-1 text-left hover:text-[#2C3E7B] dark:hover:text-blue-400 cursor-pointer"
                                   onClick={() => {
                                     const meta = speciesByIdCache?.get(lifer.species_id)
-                                    if (meta) setPopupSpeciesCard(meta as unknown as Species)
+                                    if (meta) {
+                                      setPopupSpeciesCard(meta as unknown as Species)
+                                      if (lifersPopup) {
+                                        const [lng, lat] = lifersPopup.coordinates
+                                        const region = detectSubRegion(lng, lat)
+                                        setPopupRegionContext(region ? { subRegionId: region.id, cellLng: lng, cellLat: lat } : null)
+                                      }
+                                    }
                                   }}
                                 >
                                   {lifer.comName}
@@ -2110,8 +2126,9 @@ export default memo(function MapView({
       {popupSpeciesCard && (
         <SpeciesInfoCard
           species={popupSpeciesCard}
-          onClose={() => setPopupSpeciesCard(null)}
+          onClose={() => { setPopupSpeciesCard(null); setPopupRegionContext(null) }}
           currentWeek={currentWeek}
+          regionContext={popupRegionContext ?? undefined}
           onCellClick={(cellId, coordinates) => {
             setPopupSpeciesCard(null)
             setLifersPopup(null)
