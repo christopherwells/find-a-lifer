@@ -187,7 +187,7 @@ export function getSmartGoalSuggestions(
   seenCodes: Set<string>,
   goalCodes: Set<string>,
   familyProgress: Map<string, { total: number; seen: number }>,
-  currentWeek: number,
+  _currentWeek: number,
   weekFrequencies: Map<string, number>,
   maxResults = 15
 ): SmartGoalSpecies[] {
