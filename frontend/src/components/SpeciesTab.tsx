@@ -22,7 +22,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
   const [groupOrder, setGroupOrder] = useState<string[]>([]) // groups in taxonomic order
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string> | 'all'>('all') // 'all' = all collapsed
   const [searchTerm, setSearchTerm] = useState('')
   // All filters are lifted to App.tsx via speciesFilters / onSpeciesFiltersChange
