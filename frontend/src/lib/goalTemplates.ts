@@ -15,7 +15,7 @@ export function computeThreatenedSpecies(
   region: string,
   seenCodes: Set<string>
 ): Species[] {
-  const threatened = new Set(['VU', 'EN', 'CR'])
+  const threatened = new Set(['Vulnerable', 'Endangered', 'Critically Endangered'])
   return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
     threatened.has(sp.conservStatus)
   )
@@ -28,7 +28,7 @@ export function computeDataDeficientSpecies(
   seenCodes: Set<string>
 ): Species[] {
   return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
-    sp.conservStatus === 'DD'
+    sp.conservStatus === 'Data Deficient'
   )
 }
 
@@ -39,7 +39,7 @@ export function computeNearThreatenedSpecies(
   seenCodes: Set<string>
 ): Species[] {
   return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
-    sp.conservStatus === 'NT'
+    sp.conservStatus === 'Near Threatened'
   )
 }
 
@@ -61,14 +61,74 @@ export function computeInvasiveSpecies(
   })
 }
 
-/** Restricted-range species in a region (or all if no region). */
+/** Restricted-range species: found in 2 or fewer regions. */
 export function computeRestrictedRangeSpecies(
   allSpecies: Species[],
   region: string,
   seenCodes: Set<string>
 ): Species[] {
   return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
-    sp.isRestrictedRange
+    (sp.regions?.length ?? 0) > 0 && (sp.regions?.length ?? 99) <= 2
+  )
+}
+
+// ── Difficulty-based templates ───────────────────────────────────────────
+
+/** Easy lifers: difficulty rating 1-3 (in region if specified). */
+export function computeEasySpecies(
+  allSpecies: Species[],
+  region: string,
+  seenCodes: Set<string>
+): Species[] {
+  return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
+    sp.difficultyRating >= 1 && sp.difficultyRating <= 3
+  ).sort((a, b) => a.difficultyRating - b.difficultyRating)
+}
+
+/** Hardest birds: difficulty rating 8-10 (in region if specified). */
+export function computeHardestSpecies(
+  allSpecies: Species[],
+  region: string,
+  seenCodes: Set<string>
+): Species[] {
+  return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
+    sp.difficultyRating >= 8
+  ).sort((a, b) => b.difficultyRating - a.difficultyRating)
+}
+
+// ── Habitat-based templates ─────────────────────────────────────────────
+
+/** Forest specialists: species with any forest habitat label. */
+export function computeForestSpecialists(
+  allSpecies: Species[],
+  region: string,
+  seenCodes: Set<string>
+): Species[] {
+  const forestLabels = new Set(['Forest', 'Conifer Forest', 'Tropical Forest', 'Deciduous Forest', 'Mixed Forest'])
+  return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
+    sp.habitatLabels?.some(l => forestLabels.has(l)) ?? false
+  )
+}
+
+/** Ocean birds: species with Ocean habitat label. */
+export function computeOceanBirds(
+  allSpecies: Species[],
+  region: string,
+  seenCodes: Set<string>
+): Species[] {
+  return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
+    sp.habitatLabels?.includes('Ocean') ?? false
+  )
+}
+
+/** Wetland birds: species with Freshwater or Wetland habitat label. */
+export function computeWetlandBirds(
+  allSpecies: Species[],
+  region: string,
+  seenCodes: Set<string>
+): Species[] {
+  return filterByRegionAndStatus(allSpecies, region, seenCodes, (sp) =>
+    sp.habitatLabels?.some(l => l === 'Freshwater' || l === 'Wetland') ?? false
   )
 }
 
@@ -98,9 +158,9 @@ export function computeRegionalSpecialties(
       species: sp,
       totalRegions: (sp.regions ?? []).length,
     }))
-    // Species in fewer total regions are more "regional"
-    .sort((a, b) => a.totalRegions - b.totalRegions)
-    .slice(0, 30)
+    // Species in fewer total regions are more "regional"; within same count, easier first
+    .sort((a, b) => a.totalRegions - b.totalRegions || a.species.difficultyRating - b.species.difficultyRating)
+    .slice(0, 50)
     .map((entry) => entry.species)
 }
 
@@ -112,6 +172,10 @@ export type ConservationTemplateType =
   | 'data-deficient'
   | 'invasive'
   | 'restricted-range'
+
+export type DifficultyTemplateType = 'easy-lifers' | 'hardest-birds'
+
+export type HabitatTemplateType = 'forest-specialists' | 'ocean-birds' | 'wetland-birds'
 
 export type RegionalTemplateType = 'regional-specialties'
 
@@ -165,6 +229,66 @@ export const CONSERVATION_TEMPLATES: Array<{
   },
 ]
 
+export const DIFFICULTY_TEMPLATES: Array<{
+  id: DifficultyTemplateType
+  label: string
+  emoji: string
+  description: string
+  color: string
+  requiresRegion: boolean
+}> = [
+  {
+    id: 'easy-lifers',
+    label: 'Easy Lifers',
+    emoji: '⭐',
+    description: 'Birds rated 1-3/10 difficulty — great for building your list',
+    color: 'green',
+    requiresRegion: false,
+  },
+  {
+    id: 'hardest-birds',
+    label: 'Hardest Birds',
+    emoji: '🔭',
+    description: 'Birds rated 8-10/10 difficulty — the ultimate challenge',
+    color: 'purple',
+    requiresRegion: false,
+  },
+]
+
+export const HABITAT_TEMPLATES: Array<{
+  id: HabitatTemplateType
+  label: string
+  emoji: string
+  description: string
+  color: string
+  requiresRegion: boolean
+}> = [
+  {
+    id: 'forest-specialists',
+    label: 'Forest Specialists',
+    emoji: '🌲',
+    description: 'Birds of forests — conifer, tropical, deciduous, and mixed',
+    color: 'emerald',
+    requiresRegion: false,
+  },
+  {
+    id: 'ocean-birds',
+    label: 'Ocean Birds',
+    emoji: '🌊',
+    description: 'Seabirds and offshore specialists',
+    color: 'blue',
+    requiresRegion: false,
+  },
+  {
+    id: 'wetland-birds',
+    label: 'Wetland Birds',
+    emoji: '💧',
+    description: 'Freshwater and wetland species',
+    color: 'cyan',
+    requiresRegion: false,
+  },
+]
+
 export const REGIONAL_TEMPLATES: Array<{
   id: RegionalTemplateType
   label: string
@@ -201,6 +325,38 @@ export function computeConservationTemplate(
       return computeInvasiveSpecies(allSpecies, region, seenCodes)
     case 'restricted-range':
       return computeRestrictedRangeSpecies(allSpecies, region, seenCodes)
+  }
+}
+
+/** Compute species list for a given difficulty template type. */
+export function computeDifficultyTemplate(
+  type: DifficultyTemplateType,
+  allSpecies: Species[],
+  region: string,
+  seenCodes: Set<string>
+): Species[] {
+  switch (type) {
+    case 'easy-lifers':
+      return computeEasySpecies(allSpecies, region, seenCodes)
+    case 'hardest-birds':
+      return computeHardestSpecies(allSpecies, region, seenCodes)
+  }
+}
+
+/** Compute species list for a given habitat template type. */
+export function computeHabitatTemplate(
+  type: HabitatTemplateType,
+  allSpecies: Species[],
+  region: string,
+  seenCodes: Set<string>
+): Species[] {
+  switch (type) {
+    case 'forest-specialists':
+      return computeForestSpecialists(allSpecies, region, seenCodes)
+    case 'ocean-birds':
+      return computeOceanBirds(allSpecies, region, seenCodes)
+    case 'wetland-birds':
+      return computeWetlandBirds(allSpecies, region, seenCodes)
   }
 }
 
