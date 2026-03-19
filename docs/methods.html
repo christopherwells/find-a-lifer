@@ -176,6 +176,8 @@
     <li><a href="#habitat">Habitat Classification</a></li>
     <li><a href="#photos">Species Photo Attribution</a></li>
     <li><a href="#difficulty">Difficulty Scoring</a></li>
+    <li><a href="#multi-range">Multi-Species Range Overlay</a></li>
+    <li><a href="#gamification">Gamification &amp; Social Features</a></li>
     <li><a href="#parameters">Parameter Reference</a></li>
     <li><a href="#references">References</a></li>
   </ol>
@@ -632,7 +634,37 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="parameters">14. Parameter Reference</h2>
+<h2 id="multi-range">14. Multi-Species Range Overlay</h2>
+
+<p>Range mode supports comparing 2&ndash;4 species simultaneously. Each species is assigned a distinct color from a fixed palette (blue, red, green, purple). Cells where multiple species overlap show blended colors, with gold indicating all selected species are present.</p>
+
+<h3>14.1 Implementation</h3>
+<p>For each selected species, per-cell reporting frequencies are loaded in parallel from the species-weeks data. A <strong>bitmask</strong> encodes which species are present in each cell (bit 0 = species 1, bit 1 = species 2, etc.). The bitmask is stored as a MapLibre feature-state value, and a <code>match</code> expression maps each possible bitmask to its corresponding color.</p>
+
+<h3>14.2 Color Assignment</h3>
+<table>
+  <tr><th>Presence</th><th>Color</th></tr>
+  <tr><td>Single species only</td><td>Assigned palette color (blue/red/green/purple)</td></tr>
+  <tr><td>Partial overlap</td><td>Blended color of present species</td></tr>
+  <tr><td>All selected species</td><td>Gold (#FFD700)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="gamification">15. Gamification &amp; Social Features</h2>
+
+<p>Phase 3 added celebration toasts, milestone tracking, streaks, and shareable milestone cards. Phase 4 added Firebase-backed social features.</p>
+
+<h3>15.1 Celebrations</h3>
+<p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts. Celebrations can be disabled in Profile &gt; Preferences.</p>
+
+<h3>15.2 Activity Tracking</h3>
+<p>Streak tracking computes consecutive days with manual species additions (excluding bulk imports). Weekly summary shows new lifers and new family groups started. Data derived from IndexedDB <code>dateAdded</code> and <code>source</code> fields on life list entries.</p>
+
+<h3>15.3 Firebase Social</h3>
+<p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards (global top 10 + friends) in Progress tab.</p>
+
+<!-- ============================================================ -->
+<h2 id="parameters">16. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -656,7 +688,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">15. References</h2>
+<h2 id="references">17. References</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
