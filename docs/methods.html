@@ -177,6 +177,7 @@
     <li><a href="#photos">Species Photo Attribution</a></li>
     <li><a href="#difficulty">Difficulty Scoring</a></li>
     <li><a href="#multi-range">Multi-Species Range Overlay</a></li>
+    <li><a href="#sub-regions">Sub-Regions &amp; Regional Species Cards</a></li>
     <li><a href="#gamification">Gamification &amp; Social Features</a></li>
     <li><a href="#parameters">Parameter Reference</a></li>
     <li><a href="#references">References</a></li>
@@ -650,7 +651,37 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="gamification">15. Gamification &amp; Social Features</h2>
+<h2 id="sub-regions">15. Sub-Regions &amp; Regional Species Cards</h2>
+
+<p>Species cards are region-aware. When opened from a map click, the card auto-detects the geographic sub-region and filters all displayed data (seasonality, difficulty, best locations, invasion status) to that region.</p>
+
+<h3>15.1 Sub-Region Definitions</h3>
+<p>16 sub-regions are defined using coordinate bounding boxes. Detection uses the clicked cell's centroid coordinates.</p>
+
+<table>
+  <tr><th>Group</th><th>Sub-Regions</th></tr>
+  <tr><td>Canada (3-way)</td><td>Western Canada (BC), Central Canada (AB/SK/MB), Eastern Canada (ON east)</td></tr>
+  <tr><td>US (8 regions)</td><td>Northeast, Southeast, Midwest, Southwest, West, Rockies, Alaska, Hawaii</td></tr>
+  <tr><td>Mexico</td><td>Whole country</td></tr>
+  <tr><td>Central America</td><td>Northern (BZ/GT/SV/HN/NI), Southern (CR/PA) &mdash; split at the Nicaraguan Depression biogeographic barrier</td></tr>
+  <tr><td>Caribbean</td><td>Greater Antilles, Western Atlantic Islands (BM/BS)</td></tr>
+</table>
+
+<h3>15.2 Regional Difficulty</h3>
+<p>Difficulty ratings are pre-computed per sub-region using the same rank-based percentile approach as global scores, but scoped to cells within each region. This produces dramatically different ratings: a Rusty Blackbird scores 3/10 in Eastern Canada but 10/10 in Mexico. Stored in <code>species.regionalDifficulty</code> as a <code>Record&lt;subRegionId, number&gt;</code>.</p>
+
+<h3>15.3 Regional Data Filtering</h3>
+<p>When a sub-region is selected, the species card filters:</p>
+<ul>
+  <li><strong>Seasonality sparkline</strong> &mdash; only cells within the region's bounding box</li>
+  <li><strong>Best locations</strong> &mdash; filtered to region (with "Show global" toggle)</li>
+  <li><strong>Difficulty</strong> &mdash; regional rating from pre-computed data</li>
+  <li><strong>Invasion status</strong> &mdash; only shows status for the region's country codes</li>
+</ul>
+<p>A dropdown on the card shows all regions where the species has occurrence data, allowing manual switching. The dropdown is populated by scanning the species-weeks data for cell centroids in each sub-region.</p>
+
+<!-- ============================================================ -->
+<h2 id="gamification">16. Gamification &amp; Social Features</h2>
 
 <p>Phase 3 added celebration toasts, milestone tracking, streaks, and shareable milestone cards. Phase 4 added Firebase-backed social features.</p>
 
@@ -664,7 +695,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards (global top 10 + friends) in Progress tab.</p>
 
 <!-- ============================================================ -->
-<h2 id="parameters">16. Parameter Reference</h2>
+<h2 id="parameters">17. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -688,7 +719,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">17. References</h2>
+<h2 id="references">18. References</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
