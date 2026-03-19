@@ -265,21 +265,50 @@ export async function getCellLabels(resolution?: number): Promise<Map<number, st
  * Returns a 52-element array of average reporting frequencies for a species.
  * Each element represents the average frequency (0-1) across all cells for that week.
  */
+/** Optional bounding box filter for regional data: [west, south, east, north] */
+export type RegionBBox = [number, number, number, number]
+
+/** Cache of cell_id → [lng, lat] centroids for region filtering */
+let cellCentroidCache: Map<number, [number, number]> | null = null
+async function getCellCentroids(resolution?: number): Promise<Map<number, [number, number]>> {
+  if (cellCentroidCache) return cellCentroidCache
+  const grid = await fetchGrid(resolution)
+  const map = new Map<number, [number, number]>()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const f of (grid as any).features) {
+    map.set(f.properties.cell_id, [f.properties.center_lng, f.properties.center_lat])
+  }
+  cellCentroidCache = map
+  return map
+}
+
+function cellInBBox(lng: number, lat: number, bbox: RegionBBox): boolean {
+  return lng >= bbox[0] && lat >= bbox[1] && lng <= bbox[2] && lat <= bbox[3]
+}
+
 export async function getSpeciesFrequencyProfile(
   speciesCode: string,
-  resolution?: number
+  resolution?: number,
+  regionFilter?: RegionBBox
 ): Promise<number[]> {
   const weeksData = await fetchSpeciesWeeks(speciesCode, resolution)
+  const centroids = regionFilter ? await getCellCentroids(resolution) : null
   const profile: number[] = new Array(52).fill(0)
 
   for (let w = 1; w <= 52; w++) {
     const cells = weeksData[String(w)]
     if (!cells || cells.length === 0) continue
     let totalFreq = 0
-    for (const [, freq] of cells) {
+    let count = 0
+    for (const [cellId, freq] of cells) {
+      if (regionFilter && centroids) {
+        const c = centroids.get(cellId)
+        if (!c || !cellInBBox(c[0], c[1], regionFilter)) continue
+      }
       totalFreq += freq / 255
+      count++
     }
-    profile[w - 1] = totalFreq / cells.length
+    if (count > 0) profile[w - 1] = totalFreq / count
   }
 
   return profile
@@ -292,14 +321,12 @@ export async function getSpeciesBestLocations(
   speciesCode: string,
   week: number,
   resolution?: number,
-  topN = 5
+  topN = 5,
+  regionFilter?: RegionBBox
 ): Promise<Array<{ cellId: number; coordinates: [number, number]; name: string; freq: number }>> {
   const weeksData = await fetchSpeciesWeeks(speciesCode, resolution)
   const cells = weeksData[String(week)]
   if (!cells || cells.length === 0) return []
-
-  // Sort by frequency descending
-  const sorted = [...cells].sort((a, b) => b[1] - a[1]).slice(0, topN)
 
   // Get labels and coordinates
   const grid = await fetchGrid(resolution)
@@ -312,6 +339,18 @@ export async function getSpeciesBestLocations(
       coords: [f.properties.center_lng, f.properties.center_lat],
     })
   }
+
+  // Filter by region if specified
+  let filtered = cells
+  if (regionFilter) {
+    filtered = cells.filter(([cellId]) => {
+      const info = cellMap.get(cellId)
+      return info && cellInBBox(info.coords[0], info.coords[1], regionFilter)
+    })
+  }
+
+  // Sort by frequency descending
+  const sorted = [...filtered].sort((a, b) => b[1] - a[1]).slice(0, topN)
 
   return sorted.map(([cellId, freq]) => {
     const info = cellMap.get(cellId)
