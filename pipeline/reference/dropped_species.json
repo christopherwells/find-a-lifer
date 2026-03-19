@@ -1,1 +1,1178 @@
-[]
+[
+  {
+    "speciesCode": "grerhe1",
+    "comName": "Greater Rhea",
+    "sciName": "Rhea americana",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "maggoo1",
+    "comName": "Magpie Goose",
+    "sciName": "Anseranas semipalmata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "lwfgoo",
+    "comName": "Lesser White-fronted Goose",
+    "sciName": "Anser erythropus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "buwgoo1",
+    "comName": "Blue-winged Goose",
+    "sciName": "Cyanochen cyanoptera",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "comduc3",
+    "comName": "Comb Duck",
+    "sciName": "Sarkidiornis sylvicola",
+    "regions": [
+      "PA"
+    ]
+  },
+  {
+    "speciesCode": "radshe1",
+    "comName": "Radjah Shelduck",
+    "sciName": "Radjah radjah",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "creduc1",
+    "comName": "Crested Duck",
+    "sciName": "Lophonetta specularioides",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "hottea1",
+    "comName": "Blue-billed Teal",
+    "sciName": "Spatula hottentota",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "spbduc",
+    "comName": "Eastern Spot-billed Duck",
+    "sciName": "Anas zonorhyncha",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "yebtea1",
+    "comName": "Yellow-billed Teal",
+    "sciName": "Anas flavirostris",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "chetea1",
+    "comName": "Chestnut Teal",
+    "sciName": "Anas castanea",
+    "regions": [
+      "CA",
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "soupoc1",
+    "comName": "Southern Pochard",
+    "sciName": "Netta erythrophthalma",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "baepoc1",
+    "comName": "Baer's Pochard",
+    "sciName": "Aythya baeri",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "grypep2",
+    "comName": "Gray Peacock-Pheasant",
+    "sciName": "Polyplectron bicalcaratum",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blbqua1",
+    "comName": "Blue-breasted Quail",
+    "sciName": "Synoicus chinensis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "spepig1",
+    "comName": "Speckled Pigeon",
+    "sciName": "Columba guinea",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "cowpig1",
+    "comName": "Common Wood-Pigeon",
+    "sciName": "Columba palumbus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "rindov",
+    "comName": "Ring-necked Dove",
+    "sciName": "Streptopelia capicola",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "laudov1",
+    "comName": "Laughing Dove",
+    "sciName": "Spilopelia senegalensis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "crepig1",
+    "comName": "Crested Pigeon",
+    "sciName": "Ocyphaps lophotes",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "grygab1",
+    "comName": "Gray Go-away-bird",
+    "sciName": "Crinifer concolor",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "oricuc2",
+    "comName": "Oriental Cuckoo",
+    "sciName": "Cuculus optatus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "whtnee",
+    "comName": "White-throated Needletail",
+    "sciName": "Hirundapus caudacutus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "fotswi",
+    "comName": "Pacific Swift",
+    "sciName": "Apus pacificus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "demcra1",
+    "comName": "Demoiselle Crane",
+    "sciName": "Grus virgo",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "bkwsti",
+    "comName": "Black-winged Stilt",
+    "sciName": "Himantopus himantopus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "kenplo1",
+    "comName": "Kentish Plover",
+    "sciName": "Anarhynchus alexandrinus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "litcur",
+    "comName": "Little Curlew",
+    "sciName": "Numenius minutus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "solsni1",
+    "comName": "Solitary Snipe",
+    "sciName": "Gallinago solitaria",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "pitsni",
+    "comName": "Pin-tailed Snipe",
+    "sciName": "Gallinago stenura",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "grnsan",
+    "comName": "Green Sandpiper",
+    "sciName": "Tringa ochropus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "brbsan",
+    "comName": "Broad-billed Sandpiper",
+    "sciName": "Calidris falcinellus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "spbsan1",
+    "comName": "Spoon-billed Sandpiper",
+    "sciName": "Calidris pygmaea",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "silgul2",
+    "comName": "Silver Gull",
+    "sciName": "Chroicocephalus novaehollandiae",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "bugnod",
+    "comName": "Blue-gray Noddy",
+    "sciName": "Anous ceruleus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "grcter1",
+    "comName": "Great Crested Tern",
+    "sciName": "Thalasseus bergii",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "salalb1",
+    "comName": "Salvin's Albatross",
+    "sciName": "Thalassarche salvini",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "bkbalb",
+    "comName": "Black-browed Albatross",
+    "sciName": "Thalassarche melanophris",
+    "regions": [
+      "BM",
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "bripet",
+    "comName": "European Storm-Petrel",
+    "sciName": "Hydrobates pelagicus",
+    "regions": [
+      "CA",
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "grwpet2",
+    "comName": "Gray-faced Petrel",
+    "sciName": "Pterodroma gouldi",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "whcpet1",
+    "comName": "White-chinned Petrel",
+    "sciName": "Procellaria aequinoctialis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "strshe",
+    "comName": "Streaked Shearwater",
+    "sciName": "Calonectris leucomelas",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "litshe1",
+    "comName": "Barolo Shearwater",
+    "sciName": "Puffinus baroli",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "lesfri",
+    "comName": "Lesser Frigatebird",
+    "sciName": "Fregata ariel",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "darter3",
+    "comName": "African Darter",
+    "sciName": "Anhinga rufa",
+    "regions": [
+      "MX"
+    ]
+  },
+  {
+    "speciesCode": "eurspa1",
+    "comName": "Eurasian Sparrowhawk",
+    "sciName": "Accipiter nisus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "norhar1",
+    "comName": "Hen Harrier",
+    "sciName": "Circus cyaneus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blakit1",
+    "comName": "Black Kite",
+    "sciName": "Milvus migrans",
+    "regions": [
+      "BS"
+    ]
+  },
+  {
+    "speciesCode": "blchor1",
+    "comName": "Black-casqued Hornbill",
+    "sciName": "Ceratogymna atrata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "piphor1",
+    "comName": "Piping Hornbill",
+    "sciName": "Bycanistes fistulator",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "orphor1",
+    "comName": "Oriental Pied-Hornbill",
+    "sciName": "Anthracoceros albirostris",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "ncbeat1",
+    "comName": "Northern Carmine Bee-eater",
+    "sciName": "Merops nubicus",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "comkin1",
+    "comName": "Common Kingfisher",
+    "sciName": "Alcedo atthis",
+    "regions": [
+      "CU"
+    ]
+  },
+  {
+    "speciesCode": "eurwry",
+    "comName": "Eurasian Wryneck",
+    "sciName": "Jynx torquilla",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "grswoo",
+    "comName": "Great Spotted Woodpecker",
+    "sciName": "Dendrocopos major",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "reffal1",
+    "comName": "Red-footed Falcon",
+    "sciName": "Falco vespertinus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "lanfal1",
+    "comName": "Lanner Falcon",
+    "sciName": "Falco biarmicus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "litcor2",
+    "comName": "Little Corella",
+    "sciName": "Cacatua sanguinea",
+    "regions": [
+      "CA",
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "eclpar4",
+    "comName": "Papuan Eclectus",
+    "sciName": "Eclectus polychloros",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "maupar1",
+    "comName": "Echo Parakeet",
+    "sciName": "Psittacula eques",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "plhpar1",
+    "comName": "Plum-headed Parakeet",
+    "sciName": "Psittacula cyanocephala",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "rebpar4",
+    "comName": "Red-breasted Parakeet",
+    "sciName": "Psittacula alexandri",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "boupar2",
+    "comName": "Bourke's Parrot",
+    "sciName": "Neopsephotus bourkii",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "criros2",
+    "comName": "Crimson Rosella",
+    "sciName": "Platycercus elegans",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "easros1",
+    "comName": "Eastern Rosella",
+    "sciName": "Platycercus eximius",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "duslor1",
+    "comName": "Dusky Lory",
+    "sciName": "Chalcopsitta fuscata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "railor5",
+    "comName": "Rainbow Lorikeet",
+    "sciName": "Trichoglossus moluccanus",
+    "regions": [
+      "PR"
+    ]
+  },
+  {
+    "speciesCode": "rehlov1",
+    "comName": "Red-headed Lovebird",
+    "sciName": "Agapornis pullarius",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "lillov1",
+    "comName": "Lilian's Lovebird",
+    "sciName": "Agapornis lilianae",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "grepar",
+    "comName": "Gray Parrot",
+    "sciName": "Psittacus erithacus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "rebpar1",
+    "comName": "Red-bellied Parrot",
+    "sciName": "Poicephalus rufiventris",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "yefpar4",
+    "comName": "Yellow-fronted Parrot",
+    "sciName": "Poicephalus flavifrons",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "yelpar1",
+    "comName": "Yellow-lored Amazon",
+    "sciName": "Amazona xantholora",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "pacpar2",
+    "comName": "Pacific Parrotlet",
+    "sciName": "Forpus coelestis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "mabpar",
+    "comName": "Maroon-bellied Parakeet",
+    "sciName": "Pyrrhura frontalis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "gncpar",
+    "comName": "Green-cheeked Parakeet",
+    "sciName": "Pyrrhura molinae",
+    "regions": [
+      "PR",
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blcpar1",
+    "comName": "Black-capped Parakeet",
+    "sciName": "Pyrrhura rupicola",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "hyamac1",
+    "comName": "Hyacinth Macaw",
+    "sciName": "Anodorhynchus hyacinthinus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "pefpar1",
+    "comName": "Peach-fronted Parakeet",
+    "sciName": "Eupsittula aurea",
+    "regions": [
+      "PR",
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "duhpar",
+    "comName": "Dusky-headed Parakeet",
+    "sciName": "Aratinga weddellii",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "refmac1",
+    "comName": "Red-fronted Macaw",
+    "sciName": "Ara rubrogenys",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "pacpar1",
+    "comName": "Pacific Parakeet",
+    "sciName": "Psittacara strenuus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "whcela1",
+    "comName": "White-crested Elaenia",
+    "sciName": "Elaenia albiceps",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "azwmag2",
+    "comName": "Azure-winged Magpie",
+    "sciName": "Cyanopica cyanus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "rbbmag",
+    "comName": "Red-billed Blue-Magpie",
+    "sciName": "Urocissa erythroryncha",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "orimag1",
+    "comName": "Oriental Magpie",
+    "sciName": "Pica serica",
+    "regions": [
+      "PA",
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "eurmag1",
+    "comName": "Eurasian Magpie",
+    "sciName": "Pica pica",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "whnrav1",
+    "comName": "White-necked Raven",
+    "sciName": "Corvus albicollis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "cintit13",
+    "comName": "Asian Tit",
+    "sciName": "Parus cinereus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blalar1",
+    "comName": "Black Lark",
+    "sciName": "Melanocorypha yeltoniensis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "pagwar1",
+    "comName": "Pallas's Grasshopper Warbler",
+    "sciName": "Helopsaltes certhiola",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "migwar",
+    "comName": "Middendorff's Grasshopper Warbler",
+    "sciName": "Helopsaltes ochotensis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "lanwar",
+    "comName": "Lanceolated Warbler",
+    "sciName": "Locustella lanceolata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "comhom2",
+    "comName": "Siberian House-Martin",
+    "sciName": "Delichon lagopodum",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "colfin1",
+    "comName": "Collared Finchbill",
+    "sciName": "Spizixos semitorques",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "woowar",
+    "comName": "Wood Warbler",
+    "sciName": "Phylloscopus sibilatrix",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "yetwow1",
+    "comName": "Yellow-throated Woodland-Warbler",
+    "sciName": "Phylloscopus ruficapilla",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "brasta1",
+    "comName": "Brahminy Starling",
+    "sciName": "Sturnia pagodarum",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "whcsta1",
+    "comName": "White-cheeked Starling",
+    "sciName": "Spodiopsar cineraceus",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "whvmyn1",
+    "comName": "Great Myna",
+    "sciName": "Acridotheres grandis",
+    "regions": [
+      "PR"
+    ]
+  },
+  {
+    "speciesCode": "lotmoc1",
+    "comName": "Long-tailed Mockingbird",
+    "sciName": "Mimus longicaudatus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "eurbla",
+    "comName": "Eurasian Blackbird",
+    "sciName": "Turdus merula",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "dusthr1",
+    "comName": "Naumann's Thrush",
+    "sciName": "Turdus naumanni",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "asbfly",
+    "comName": "Asian Brown Flycatcher",
+    "sciName": "Muscicapa dauurica",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "spofly1",
+    "comName": "Spotted Flycatcher",
+    "sciName": "Muscicapa striata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "eurrob1",
+    "comName": "European Robin",
+    "sciName": "Erithacus rubecula",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "rutrob1",
+    "comName": "Rufous-tailed Robin",
+    "sciName": "Larvivora sibilans",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "sibrob",
+    "comName": "Siberian Blue Robin",
+    "sciName": "Larvivora cyane",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "rtrthr1",
+    "comName": "Rufous-tailed Rock-Thrush",
+    "sciName": "Monticola saxatilis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "burthr",
+    "comName": "Blue Rock-Thrush",
+    "sciName": "Monticola solitarius",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "piewhe1",
+    "comName": "Pied Wheatear",
+    "sciName": "Oenanthe pleschanka",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "gopwea1",
+    "comName": "Golden Palm Weaver",
+    "sciName": "Ploceus bojeri",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "redbis",
+    "comName": "Southern Red Bishop",
+    "sciName": "Euplectes orix",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "zanbis1",
+    "comName": "Zanzibar Red Bishop",
+    "sciName": "Euplectes nigroventris",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blwbis1",
+    "comName": "Black-winged Bishop",
+    "sciName": "Euplectes hordeaceus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "diafir1",
+    "comName": "Diamond Firetail",
+    "sciName": "Stagonopleura guttata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "rebfir1",
+    "comName": "Red-browed Firetail",
+    "sciName": "Neochmia temporalis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "stafin1",
+    "comName": "Star Finch",
+    "sciName": "Emblema ruficauda",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "magman1",
+    "comName": "Magpie Mannikin",
+    "sciName": "Spermestes fringilloides",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "whhmun1",
+    "comName": "White-headed Munia",
+    "sciName": "Lonchura maja",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "crrwax1",
+    "comName": "Crimson-rumped Waxbill",
+    "sciName": "Estrilda rhodopyga",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "cutthr1",
+    "comName": "Cut-throat",
+    "sciName": "Amadina fasciata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "bubcor1",
+    "comName": "Southern Cordonbleu",
+    "sciName": "Uraeginthus angolensis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blccor1",
+    "comName": "Blue-capped Cordonbleu",
+    "sciName": "Uraeginthus cyanocephalus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "grwpyt1",
+    "comName": "Green-winged Pytilia",
+    "sciName": "Pytilia melba",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "btpwhy1",
+    "comName": "Broad-tailed Paradise-Whydah",
+    "sciName": "Vidua obtusa",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "eapwhy1",
+    "comName": "Eastern Paradise-Whydah",
+    "sciName": "Vidua paradisaea",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "vilind",
+    "comName": "Village Indigobird",
+    "sciName": "Vidua chalybeata",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "sugspa1",
+    "comName": "Sudan Golden Sparrow",
+    "sciName": "Passer luteus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "trepip",
+    "comName": "Tree Pipit",
+    "sciName": "Anthus trivialis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "pecpip",
+    "comName": "Pechora Pipit",
+    "sciName": "Anthus gustavi",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "orabul1",
+    "comName": "Orange Bullfinch",
+    "sciName": "Pyrrhula aurantiaca",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "whrsee",
+    "comName": "White-rumped Seedeater",
+    "sciName": "Crithagra leucopygia",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "eurlin1",
+    "comName": "Eurasian Linnet",
+    "sciName": "Linaria cannabina",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "eurgol2",
+    "comName": "Gray-crowned Goldfinch",
+    "sciName": "Carduelis caniceps",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "hoosis1",
+    "comName": "Hooded Siskin",
+    "sciName": "Spinus magellanicus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blasis1",
+    "comName": "Black Siskin",
+    "sciName": "Spinus atratus",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "palbun",
+    "comName": "Pallas's Bunting",
+    "sciName": "Emberiza pallasi",
+    "regions": [
+      "CA",
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "yebbun",
+    "comName": "Yellow-breasted Bunting",
+    "sciName": "Emberiza aureola",
+    "regions": [
+      "CA"
+    ]
+  },
+  {
+    "speciesCode": "yebbun1",
+    "comName": "Yellow-browed Bunting",
+    "sciName": "Emberiza chrysophrys",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "epaori1",
+    "comName": "Epaulet Oriole",
+    "sciName": "Icterus cayanensis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "blftan1",
+    "comName": "Black-faced Tanager",
+    "sciName": "Schistochlamys melanopis",
+    "regions": [
+      "PA"
+    ]
+  },
+  {
+    "speciesCode": "hootan1",
+    "comName": "Hooded Tanager",
+    "sciName": "Nemosia pileata",
+    "regions": [
+      "PA"
+    ]
+  },
+  {
+    "speciesCode": "partan1",
+    "comName": "Paradise Tanager",
+    "sciName": "Tangara chilensis",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "pabsee1",
+    "comName": "Parrot-billed Seedeater",
+    "sciName": "Sporophila peruviana",
+    "regions": [
+      "US"
+    ]
+  },
+  {
+    "speciesCode": "chtsee1",
+    "comName": "Chestnut-throated Seedeater",
+    "sciName": "Sporophila telasco",
+    "regions": [
+      "US"
+    ]
+  }
+]
