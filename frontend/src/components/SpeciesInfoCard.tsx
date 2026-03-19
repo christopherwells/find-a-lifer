@@ -69,12 +69,12 @@ export default function SpeciesInfoCard({
         data-testid="species-info-card"
       >
         {/* Photo area */}
-        <div className="relative bg-gray-100 dark:bg-gray-800 h-36 flex-shrink-0 flex items-center justify-center overflow-hidden">
+        <div className="relative bg-gray-100 dark:bg-gray-800 h-44 flex-shrink-0 flex items-center justify-center overflow-hidden">
           {species.photoUrl ? (
             <img
               src={species.photoUrl}
               alt={species.comName}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
