@@ -27,6 +27,7 @@ export interface Species {
   difficultyScore: number
   difficultyRating: number  // 1-10 evenly distributed
   difficultyLabel: string
+  regionalDifficulty?: Record<string, number>  // sub-region key -> 1-10 rating
   isRestrictedRange: boolean
   ebirdUrl: string
   photoUrl: string

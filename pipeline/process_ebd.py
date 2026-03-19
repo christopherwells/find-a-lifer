@@ -1313,6 +1313,8 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             entry["difficultyScore"] = d["difficultyScore"]
             entry["difficultyRating"] = d.get("difficultyRating", max(1, min(10, round(d["difficultyScore"] / 10))))
             entry["difficultyLabel"] = d["difficultyLabel"]
+            if "regionalDifficulty" in d:
+                entry["regionalDifficulty"] = d["regionalDifficulty"]
             difficulty_matched += 1
 
         species_list.append(entry)
