@@ -6,6 +6,7 @@ import { useSpecies } from '../hooks/useSpecies'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species, SpeciesTabProps } from './types'
 import SpeciesInfoCard from './SpeciesInfoCard'
+import { SUB_REGIONS } from '../lib/subRegions'
 import { getConservationDotColor, getRestrictedRangeDotColor } from '../lib/badgeUtils'
 import { fetchRegionNames } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
@@ -55,6 +56,21 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
 
   // Species info card
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
+
+  // Map active region filter to a regionContext for the species card
+  const speciesTabRegionContext = useMemo(() => {
+    if (!selectedRegionFilter) return undefined
+    // Find a sub-region whose regionCodes include the filter value
+    const region = SUB_REGIONS.find(r =>
+      r.regionCodes?.includes(selectedRegionFilter)
+    )
+    if (region) {
+      // Use center of the sub-region's bbox as the "cell" coordinates
+      const [west, south, east, north] = region.bbox
+      return { subRegionId: region.id, cellLng: (west + east) / 2, cellLat: (south + north) / 2 }
+    }
+    return undefined
+  }, [selectedRegionFilter])
 
   // Autocomplete state
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -797,6 +813,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
         <SpeciesInfoCard
           species={selectedSpeciesCard}
           onClose={() => setSelectedSpeciesCard(null)}
+          regionContext={speciesTabRegionContext}
         />
       )}
     </div>
