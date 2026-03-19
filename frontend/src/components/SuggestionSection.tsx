@@ -41,8 +41,10 @@ export default function SuggestionSection({
     <div className="mt-4" data-testid={`suggestions-section-${id}`}>
       <button
         onClick={onToggle}
-        className={`w-full flex items-center justify-between py-2 px-3 ${colorTheme.bg} border ${colorTheme.border} rounded-lg ${colorTheme.hover} transition-colors`}
+        className={`w-full flex items-center justify-between py-2.5 px-3 ${colorTheme.bg} border ${colorTheme.border} rounded-lg ${colorTheme.hover} transition-colors`}
         data-testid={`${id}-suggestions-toggle`}
+        aria-expanded={isExpanded}
+        aria-controls={`section-${id}`}
       >
         <div className="flex items-center gap-2">
           <span className={`${colorTheme.icon} font-bold text-sm`}>{emoji}</span>
@@ -62,13 +64,13 @@ export default function SuggestionSection({
       </button>
 
       {isExpanded && (
-        <div className="mt-1 space-y-1" data-testid={`${id}-suggestions-list`}>
+        <div className="mt-1 space-y-1" id={`section-${id}`} role="region" aria-label={title} data-testid={`${id}-suggestions-list`}>
           {species.map((sp) => {
             const alreadyInList = activeListCodes.has(sp.speciesCode)
             return (
               <div
                 key={sp.speciesCode}
-                className={`flex items-center justify-between px-2 py-1 rounded ${
+                className={`flex items-center justify-between px-2 py-2.5 rounded ${
                   alreadyInList
                     ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
                     : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -102,8 +104,9 @@ export default function SuggestionSection({
                 ) : (
                   <button
                     onClick={() => onAddSpecies(sp)}
-                    className="ml-2 flex-shrink-0 px-1.5 py-0.5 text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors"
+                    className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors"
                     title={`Add ${sp.comName} to goal list`}
+                    aria-label={`Add ${sp.comName} to goal list`}
                   >
                     +
                   </button>

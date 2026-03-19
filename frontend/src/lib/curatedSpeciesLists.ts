@@ -80,6 +80,8 @@ export const COLORFUL_CHARACTERS: string[] = [
 
 // Curated Owls & Nightbirds — nocturnal species requiring special effort to find
 // Owls, nightjars, nighthawks, poorwills, and other nightbirds of North America
+// NOTE: Could be made dynamic using familyGroups display groups "Owls" + "Nightjars and Allies"
+// via getDisplayGroup(). Hardcoded list is curated to highlight the most-wanted species only.
 export const OWLS_NIGHTBIRDS: string[] = [
   'grhowl',    // Great Horned Owl — iconic large owl, widespread
   'snoowl1',   // Snowy Owl — spectacular Arctic visitor, beloved irruptive species
@@ -109,6 +111,8 @@ export const OWLS_NIGHTBIRDS: string[] = [
 ]
 
 // Curated Raptors — hawks, eagles, falcons, ospreys, kites, harriers, and vultures
+// NOTE: Could be made dynamic using familyGroups display groups "Vultures, Hawks, and Allies" + "Falcons"
+// via getDisplayGroup(). Hardcoded list is curated to highlight the most-wanted species only.
 export const RAPTORS: string[] = [
   'osprey',    // Osprey — fish-hunting raptor, dramatic dives
   'baleag',    // Bald Eagle — national symbol, unmistakable adult plumage

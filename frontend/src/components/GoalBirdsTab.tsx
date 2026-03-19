@@ -9,6 +9,7 @@ import { FamilyGroupSkeleton } from './Skeleton'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import SuggestionSection from './SuggestionSection'
 import { getDisplayGroup } from '../lib/familyGroups'
+import { getRecommendedSections } from '../lib/recommendationEngine'
 import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES } from '../lib/regionGroups'
 import {
   CONSERVATION_TEMPLATES,
@@ -100,8 +101,11 @@ export default function GoalBirdsTab() {
   const [listFilterTerm, setListFilterTerm] = useState('')
 
   // Suggestions section expand/collapse state — single Set replaces 11 booleans
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['rarest','easyWins','hardest','migrants','regionalIcons','seasonal','colorful','owls','raptors','lbjs','almostComplete']))
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const toggleSection = (id: string) => setExpandedSections(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })
+
+  // Smart recommendation: show only recommended sections by default, rest behind "Show all"
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false)
 
   // Conservation & regional template state
   const [showTemplateSection, setShowTemplateSection] = useState(false)
@@ -169,6 +173,46 @@ export default function GoalBirdsTab() {
     }, {})
     return { individualCodes, groupsByCategory }
   }, [allSpecies])
+
+  // Smart recommendation: compute which suggestion sections to highlight
+  const recommendedSectionIds = useMemo(() => {
+    const familyProgress = new Map<string, { total: number; seen: number }>()
+    for (const sp of allSpecies) {
+      const group = getDisplayGroup(sp.familyComName ?? '')
+      if (!group) continue
+      const entry = familyProgress.get(group) || { total: 0, seen: 0 }
+      entry.total++
+      if (isSpeciesSeen(sp.speciesCode)) entry.seen++
+      familyProgress.set(group, entry)
+    }
+    const sections = getRecommendedSections(seenSpecies.size, familyProgress)
+    // Map recommendation engine section IDs to our UI section IDs
+    const idMap: Record<string, string> = {
+      'easy-wins': 'easyWins',
+      'almost-complete': 'almostComplete',
+      'rarest': 'rarest',
+      'hardest': 'hardest',
+      'migrants': 'migrants',
+      'seasonal': 'seasonal',
+      'colorful': 'colorful',
+      'owls': 'owls',
+      'raptors': 'raptors',
+      'lbjs': 'lbjs',
+      'regional-icons': 'regionalIcons',
+    }
+    return new Set(sections.map(s => idMap[s] ?? s))
+  }, [allSpecies, seenSpecies.size, isSpeciesSeen])
+
+  // Auto-expand recommended sections on first load
+  useEffect(() => {
+    if (recommendedSectionIds.size > 0) {
+      setExpandedSections(prev => {
+        const next = new Set(prev)
+        for (const id of recommendedSectionIds) next.add(id)
+        return next
+      })
+    }
+  }, [recommendedSectionIds])
 
   // Computed conservation template preview
   const conservTemplatePreview = useMemo(() => {
@@ -548,6 +592,11 @@ export default function GoalBirdsTab() {
     })
   })()
 
+  /** Returns true if the section should be rendered (recommended OR "Show all" is on). */
+  const isSectionVisible = (sectionId: string): boolean => {
+    return showAllSuggestions || recommendedSectionIds.has(sectionId)
+  }
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -629,8 +678,9 @@ export default function GoalBirdsTab() {
                   <>
                     <button
                       onClick={() => handleStartRename(activeList)}
-                      className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
                       title="Rename list"
+                      aria-label={`Rename ${activeList.name}`}
                       data-testid="rename-list-btn"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -639,8 +689,9 @@ export default function GoalBirdsTab() {
                     </button>
                     <button
                       onClick={() => handleStartDelete(activeList)}
-                      className="px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 transition-colors"
                       title="Delete list"
+                      aria-label={`Delete ${activeList.name}`}
                       data-testid="delete-list-btn"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -649,8 +700,9 @@ export default function GoalBirdsTab() {
                     </button>
                     <button
                       onClick={() => handleExportList(activeList)}
-                      className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
                       title="Export list as JSON"
+                      aria-label="Export goal list"
                       data-testid="export-list-btn"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -659,8 +711,9 @@ export default function GoalBirdsTab() {
                     </button>
                     <button
                       onClick={() => void handleCopyToClipboard(activeList)}
-                      className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
                       title="Copy list to clipboard"
+                      aria-label="Copy goal list to clipboard"
                       data-testid="copy-list-btn"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -674,7 +727,7 @@ export default function GoalBirdsTab() {
               {/* Import button — always visible, even without active list */}
               <button
                 onClick={() => void handleImportList()}
-                className="w-full mt-1 px-3 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                className="w-full mt-1 px-3 py-2.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
                 data-testid="import-list-btn"
               >
                 Import Goal List from JSON
@@ -896,8 +949,9 @@ export default function GoalBirdsTab() {
                   {listFilterTerm ? (
                     <button
                       onClick={() => setListFilterTerm('')}
-                      className="absolute right-2 top-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
+                      className="absolute right-1 top-0.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                       title="Clear filter"
+                      aria-label="Clear filter"
                       data-testid="goal-list-filter-clear"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -905,7 +959,7 @@ export default function GoalBirdsTab() {
                       </svg>
                     </button>
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2 top-1.5 h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2 top-1.5 h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   )}
@@ -936,6 +990,11 @@ export default function GoalBirdsTab() {
                         className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"
                         data-testid="goal-list-progress-bar"
                         title={`${progressPct}% complete`}
+                        role="progressbar"
+                        aria-valuenow={seenCount}
+                        aria-valuemin={0}
+                        aria-valuemax={total}
+                        aria-label={`${seenCount} of ${total} species seen`}
                       >
                         <div
                           className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
@@ -958,7 +1017,7 @@ export default function GoalBirdsTab() {
                     return (
                       <div
                         key={code}
-                        className={`px-2 py-1.5 rounded flex items-center gap-2 transition-colors group ${
+                        className={`px-2 py-2.5 rounded flex items-center gap-2 transition-colors group ${
                           seen
                             ? 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
                             : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1025,8 +1084,9 @@ export default function GoalBirdsTab() {
                           {species && (
                             <button
                               onClick={() => setSelectedSpeciesCard(species)}
-                              className="p-1 text-[#2C3E7B] hover:bg-[#2C3E7B] hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100"
+                              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[#2C3E7B] hover:bg-[#2C3E7B] hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100"
                               title="View species info"
+                              aria-label={`View info about ${species.comName}`}
                               data-testid={`goal-species-info-icon-${code}`}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1037,8 +1097,9 @@ export default function GoalBirdsTab() {
                           {/* Remove button */}
                           <button
                             onClick={() => handleRemoveSpecies(code, species?.comName || code)}
-                            className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors opacity-0 group-hover:opacity-100"
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors opacity-0 group-hover:opacity-100"
                             title="Remove from list"
+                            aria-label={`Remove ${species?.comName || code} from list`}
                             data-testid={`remove-species-${code}`}
                           >
                             <svg
@@ -1071,7 +1132,7 @@ export default function GoalBirdsTab() {
             )}
 
             {/* Rarest in North America Suggestions */}
-            {(() => {
+            {isSectionVisible('rarest') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const rarestSuggestions = allSpecies
                 .filter((sp) => sp.isRestrictedRange && !isSpeciesSeen(sp.speciesCode))
@@ -1103,7 +1164,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Easy Wins Suggestions */}
-            {(() => {
+            {isSectionVisible('easyWins') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const easyWinsSuggestions = allSpecies
                 .filter((sp) => sp.difficultyScore < 0.25 && !isSpeciesSeen(sp.speciesCode))
@@ -1123,8 +1184,10 @@ export default function GoalBirdsTab() {
                 <div className="mt-4" data-testid="easy-wins-suggestions-section">
                   <button
                     onClick={() => toggleSection('easyWins')}
-                    className="w-full flex items-center justify-between py-2 px-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+                    className="w-full flex items-center justify-between py-2.5 px-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
                     data-testid="easy-wins-suggestions-toggle"
+                    aria-expanded={expandedSections.has('easyWins')}
+                    aria-controls="section-easyWins"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-green-600 font-bold text-sm">⭐</span>
@@ -1139,14 +1202,14 @@ export default function GoalBirdsTab() {
                   </button>
 
                   {expandedSections.has('easyWins') && (
-                    <div className="mt-1 space-y-1" data-testid="easy-wins-suggestions-list">
+                    <div className="mt-1 space-y-1" id="section-easyWins" role="region" aria-label="Easy Wins" data-testid="easy-wins-suggestions-list">
                       {easyWinsSuggestions.map((sp) => {
                         const alreadyInList = activeListCodes.has(sp.speciesCode)
                         const badgeStyle = getEasyBadgeStyle(sp.difficultyScore)
                         return (
                           <div
                             key={sp.speciesCode}
-                            className={`flex items-center justify-between px-2 py-1 rounded ${
+                            className={`flex items-center justify-between px-2 py-2.5 rounded ${
                               alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             data-testid={`easy-wins-suggestion-${sp.speciesCode}`}
@@ -1165,7 +1228,7 @@ export default function GoalBirdsTab() {
                             {alreadyInList ? (
                               <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`easy-wins-already-added-${sp.speciesCode}`}>✓</div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 px-1.5 py-0.5 text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} data-testid={`easy-wins-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`easy-wins-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1177,7 +1240,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Hardest to Find Suggestions */}
-            {(() => {
+            {isSectionVisible('hardest') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const hardestSuggestions = allSpecies
                 .filter((sp) => sp.difficultyScore >= 0.75 && !isSpeciesSeen(sp.speciesCode))
@@ -1197,8 +1260,10 @@ export default function GoalBirdsTab() {
                 <div className="mt-4" data-testid="hardest-suggestions-section">
                   <button
                     onClick={() => toggleSection('hardest')}
-                    className="w-full flex items-center justify-between py-2 px-3 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                    className="w-full flex items-center justify-between py-2.5 px-3 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
                     data-testid="hardest-suggestions-toggle"
+                    aria-expanded={expandedSections.has('hardest')}
+                    aria-controls="section-hardest"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-purple-600 font-bold text-sm">🔭</span>
@@ -1211,12 +1276,12 @@ export default function GoalBirdsTab() {
                   </button>
 
                   {expandedSections.has('hardest') && (
-                    <div className="mt-1 space-y-1" data-testid="hardest-suggestions-list">
+                    <div className="mt-1 space-y-1" id="section-hardest" role="region" aria-label="Hardest to Find" data-testid="hardest-suggestions-list">
                       {hardestSuggestions.map((sp) => {
                         const alreadyInList = activeListCodes.has(sp.speciesCode)
                         const badgeStyle = getDifficultyBadgeStyle(sp.difficultyScore)
                         return (
-                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-1 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`hardest-suggestion-${sp.speciesCode}`}>
+                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`hardest-suggestion-${sp.speciesCode}`}>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
@@ -1229,7 +1294,7 @@ export default function GoalBirdsTab() {
                             {alreadyInList ? (
                               <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`hardest-already-added-${sp.speciesCode}`}>✓</div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 px-1.5 py-0.5 text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} data-testid={`hardest-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`hardest-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1241,7 +1306,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Long-Distance Migrants Suggestions */}
-            {(() => {
+            {isSectionVisible('migrants') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const migrantSuggestions = allSpecies
                 .filter((sp) => (sp.rangeShiftScore ?? 0) >= 0.5 && !isSpeciesSeen(sp.speciesCode))
@@ -1261,8 +1326,10 @@ export default function GoalBirdsTab() {
                 <div className="mt-4" data-testid="migrants-suggestions-section">
                   <button
                     onClick={() => toggleSection('migrants')}
-                    className="w-full flex items-center justify-between py-2 px-3 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors"
+                    className="w-full flex items-center justify-between py-2.5 px-3 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors"
                     data-testid="migrants-suggestions-toggle"
+                    aria-expanded={expandedSections.has('migrants')}
+                    aria-controls="section-migrants"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-sky-600 font-bold text-sm">🦅</span>
@@ -1275,12 +1342,12 @@ export default function GoalBirdsTab() {
                   </button>
 
                   {expandedSections.has('migrants') && (
-                    <div className="mt-1 space-y-1" data-testid="migrants-suggestions-list">
+                    <div className="mt-1 space-y-1" id="section-migrants" role="region" aria-label="Long-Distance Migrants" data-testid="migrants-suggestions-list">
                       {migrantSuggestions.map((sp) => {
                         const alreadyInList = activeListCodes.has(sp.speciesCode)
                         const badgeStyle = getMigrantBadgeStyle(sp.rangeShiftScore ?? 0)
                         return (
-                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-1 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`migrants-suggestion-${sp.speciesCode}`}>
+                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`migrants-suggestion-${sp.speciesCode}`}>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
@@ -1298,7 +1365,7 @@ export default function GoalBirdsTab() {
                                 </svg>
                               </div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 px-1.5 py-0.5 text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} data-testid={`migrants-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`migrants-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1310,7 +1377,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Regional Icons Suggestions */}
-            {(() => {
+            {isSectionVisible('regionalIcons') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               interface RegionalIconEntry { speciesCode: string; comName: string; sciName: string; region: string; regionKey: string; emoji: string }
               const regionalIconEntries: RegionalIconEntry[] = []
@@ -1329,7 +1396,7 @@ export default function GoalBirdsTab() {
 
               return (
                 <div className="mt-4" data-testid="regional-icons-suggestions-section">
-                  <button onClick={() => toggleSection('regionalIcons')} className="w-full flex items-center justify-between py-2 px-3 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors" data-testid="regional-icons-suggestions-toggle">
+                  <button onClick={() => toggleSection('regionalIcons')} className="w-full flex items-center justify-between py-2.5 px-3 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors" data-testid="regional-icons-suggestions-toggle" aria-expanded={expandedSections.has('regionalIcons')} aria-controls="section-regionalIcons">
                     <div className="flex items-center gap-2">
                       <span className="text-teal-600 font-bold text-sm">🗺️</span>
                       <span className="text-sm font-semibold text-teal-800">Regional Icons</span>
@@ -1341,7 +1408,7 @@ export default function GoalBirdsTab() {
                   </button>
 
                   {expandedSections.has('regionalIcons') && (
-                    <div className="mt-1 space-y-3" data-testid="regional-icons-suggestions-list">
+                    <div className="mt-1 space-y-3" id="section-regionalIcons" role="region" aria-label="Regional Icons" data-testid="regional-icons-suggestions-list">
                       {regionsToShow.map((regionGroup) => {
                         const entries = groupedByRegion[regionGroup.region] || []
                         return (
@@ -1356,7 +1423,7 @@ export default function GoalBirdsTab() {
                                 const sp = allSpecies.find((s) => s.speciesCode === entry.speciesCode)
                                 if (!sp) return null
                                 return (
-                                  <div key={entry.speciesCode} className={`flex items-center justify-between px-2 py-1 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`regional-icons-suggestion-${entry.speciesCode}`}>
+                                  <div key={entry.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`regional-icons-suggestion-${entry.speciesCode}`}>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{entry.comName}</span>
@@ -1369,7 +1436,7 @@ export default function GoalBirdsTab() {
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                       </div>
                                     ) : (
-                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 px-1.5 py-0.5 text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${entry.comName} to goal list`} data-testid={`regional-icons-add-btn-${entry.speciesCode}`}>
+                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${entry.comName} to goal list`} aria-label={`Add ${entry.comName} to goal list`} data-testid={`regional-icons-add-btn-${entry.speciesCode}`}>
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
                                       </button>
                                     )}
@@ -1387,7 +1454,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Seasonal Specialties Suggestions */}
-            {(() => {
+            {isSectionVisible('seasonal') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const seasonalSuggestions = allSpecies
                 .filter((sp) => (sp.seasonalityScore ?? 0) >= 0.5 && !isSpeciesSeen(sp.speciesCode))
@@ -1414,7 +1481,7 @@ export default function GoalBirdsTab() {
 
               return (
                 <div className="mt-4" data-testid="seasonal-specialties-section">
-                  <button onClick={() => toggleSection('seasonal')} className="w-full flex items-center justify-between py-2 px-3 bg-cyan-50 border border-cyan-200 rounded-lg hover:bg-cyan-100 transition-colors" data-testid="seasonal-suggestions-toggle">
+                  <button onClick={() => toggleSection('seasonal')} className="w-full flex items-center justify-between py-2.5 px-3 bg-cyan-50 border border-cyan-200 rounded-lg hover:bg-cyan-100 transition-colors" data-testid="seasonal-suggestions-toggle" aria-expanded={expandedSections.has('seasonal')} aria-controls="section-seasonal">
                     <div className="flex items-center gap-2">
                       <span className="text-cyan-600 font-bold text-sm">🗓️</span>
                       <span className="text-sm font-semibold text-cyan-800">Seasonal Specialties</span>
@@ -1426,13 +1493,13 @@ export default function GoalBirdsTab() {
                   </button>
 
                   {expandedSections.has('seasonal') && (
-                    <div className="mt-1 space-y-1" data-testid="seasonal-suggestions-list">
+                    <div className="mt-1 space-y-1" id="section-seasonal" role="region" aria-label="Seasonal Specialties" data-testid="seasonal-suggestions-list">
                       {seasonalSuggestions.map((sp) => {
                         const alreadyInList = activeListCodes.has(sp.speciesCode)
                         const seasonLabel = getSeasonLabel(sp.peakWeek ?? 0)
                         const seasonColor = getSeasonColor(sp.peakWeek ?? 0)
                         return (
-                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-1 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`seasonal-suggestion-${sp.speciesCode}`}>
+                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`seasonal-suggestion-${sp.speciesCode}`}>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
@@ -1443,7 +1510,7 @@ export default function GoalBirdsTab() {
                             {alreadyInList ? (
                               <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`seasonal-already-added-${sp.speciesCode}`}>✓</div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 px-1.5 py-0.5 text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} data-testid={`seasonal-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`seasonal-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1455,7 +1522,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Colorful Characters Suggestions */}
-            {(() => {
+            {isSectionVisible('colorful') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const colorfulSuggestions = COLORFUL_CHARACTERS
                 .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
@@ -1485,7 +1552,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Owls & Nightbirds Suggestions */}
-            {(() => {
+            {isSectionVisible('owls') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const owlsNightbirdsSuggestions = OWLS_NIGHTBIRDS
                 .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
@@ -1515,7 +1582,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Raptors Suggestions */}
-            {(() => {
+            {isSectionVisible('raptors') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const raptorsSuggestions = RAPTORS
                 .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
@@ -1545,7 +1612,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* LBJs Suggestions */}
-            {(() => {
+            {isSectionVisible('lbjs') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const lbjsSuggestions = LBJS
                 .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
@@ -1575,7 +1642,7 @@ export default function GoalBirdsTab() {
             })()}
 
             {/* Almost Complete Families Suggestions */}
-            {(() => {
+            {isSectionVisible('almostComplete') && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const familyMap = new Map<string, { total: number; seen: number; unseen: Species[] }>()
               for (const sp of allSpecies) {
@@ -1596,7 +1663,7 @@ export default function GoalBirdsTab() {
 
               return (
                 <div className="mt-4" data-testid="almost-complete-families-section">
-                  <button onClick={() => toggleSection('almostComplete')} className="w-full flex items-center justify-between py-2 px-3 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors" data-testid="almost-complete-families-toggle">
+                  <button onClick={() => toggleSection('almostComplete')} className="w-full flex items-center justify-between py-2.5 px-3 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors" data-testid="almost-complete-families-toggle" aria-expanded={expandedSections.has('almostComplete')} aria-controls="section-almostComplete">
                     <div className="flex items-center gap-2">
                       <span className="text-indigo-600 font-bold text-sm">🏆</span>
                       <span className="text-sm font-semibold text-indigo-800">Almost Complete Families</span>
@@ -1608,7 +1675,7 @@ export default function GoalBirdsTab() {
                   </button>
 
                   {expandedSections.has('almostComplete') && (
-                    <div className="mt-1 space-y-3" data-testid="almost-complete-families-list">
+                    <div className="mt-1 space-y-3" id="section-almostComplete" role="region" aria-label="Almost Complete Families" data-testid="almost-complete-families-list">
                       {almostComplete.map(([familyName, data]) => {
                         const pct = Math.round((data.seen / data.total) * 100)
                         return (
@@ -1624,7 +1691,7 @@ export default function GoalBirdsTab() {
                               {data.unseen.map((sp) => {
                                 const alreadyInList = activeListCodes.has(sp.speciesCode)
                                 return (
-                                  <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-1 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`almost-complete-suggestion-${sp.speciesCode}`}>
+                                  <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`almost-complete-suggestion-${sp.speciesCode}`}>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
@@ -1637,7 +1704,7 @@ export default function GoalBirdsTab() {
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                       </div>
                                     ) : (
-                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 px-1.5 py-0.5 text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} data-testid={`almost-complete-add-btn-${sp.speciesCode}`}>
+                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`almost-complete-add-btn-${sp.speciesCode}`}>
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
                                       </button>
                                     )}
@@ -1654,12 +1721,29 @@ export default function GoalBirdsTab() {
               )
             })()}
 
+            {/* Show all suggestions toggle */}
+            {!showAllSuggestions && recommendedSectionIds.size > 0 && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowAllSuggestions(true)}
+                  className="w-full py-2.5 px-3 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  aria-expanded={false}
+                  aria-controls="section-all-suggestions"
+                  data-testid="show-all-suggestions-btn"
+                >
+                  Show all suggestions
+                </button>
+              </div>
+            )}
+
             {/* ── Goal List Templates ── */}
             <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
               <button
                 onClick={() => setShowTemplateSection(prev => !prev)}
-                className="w-full flex items-center justify-between py-2 px-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                className="w-full flex items-center justify-between py-2.5 px-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
                 data-testid="template-section-toggle"
+                aria-expanded={showTemplateSection}
+                aria-controls="section-templates"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-violet-600 font-bold text-sm">🎯</span>
@@ -1676,7 +1760,7 @@ export default function GoalBirdsTab() {
               </button>
 
               {showTemplateSection && (
-                <div className="mt-3 space-y-4">
+                <div className="mt-3 space-y-4" id="section-templates" role="region" aria-label="Goal List Templates">
                   {/* Region selector (shared by both template types) */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Region (optional for conservation, required for regional)</label>
@@ -1708,7 +1792,7 @@ export default function GoalBirdsTab() {
                         <button
                           key={tmpl.id}
                           onClick={() => setConservTemplateType(tmpl.id)}
-                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
                             conservTemplateType === tmpl.id
                               ? 'bg-violet-100 dark:bg-violet-900/40 border-violet-400 dark:border-violet-600 text-violet-800 dark:text-violet-200'
                               : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1747,7 +1831,7 @@ export default function GoalBirdsTab() {
                             <button
                               onClick={() => void handleCreateFromTemplate(conservTemplatePreview, selectedTemplate?.label ?? 'Conservation')}
                               disabled={templateCreating}
-                              className="px-2 py-1 text-[11px] font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 rounded-md transition-colors"
+                              className="px-2.5 py-2 text-[11px] font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 rounded-md transition-colors"
                               data-testid="conservation-create-list-btn"
                             >
                               {templateCreating ? 'Creating...' : `Create Goal List (${conservTemplatePreview.length})`}
@@ -1785,7 +1869,7 @@ export default function GoalBirdsTab() {
                         <button
                           key={tmpl.id}
                           onClick={() => setDifficultyTemplateType(tmpl.id)}
-                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
                             difficultyTemplateType === tmpl.id
                               ? 'bg-green-100 dark:bg-green-900/40 border-green-400 dark:border-green-600 text-green-800 dark:text-green-200'
                               : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1815,7 +1899,7 @@ export default function GoalBirdsTab() {
                               void handleCreateFromTemplate(difficultyTemplatePreview, tmpl?.label ?? 'Difficulty')
                             }}
                             disabled={templateCreating}
-                            className="px-2 py-1 text-[11px] font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 rounded-md transition-colors"
+                            className="px-2.5 py-2 text-[11px] font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 rounded-md transition-colors"
                             data-testid="difficulty-create-list-btn"
                           >
                             {templateCreating ? 'Creating...' : `Create Goal List (${difficultyTemplatePreview.length})`}
@@ -1852,7 +1936,7 @@ export default function GoalBirdsTab() {
                         <button
                           key={tmpl.id}
                           onClick={() => setHabitatTemplateType(tmpl.id)}
-                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
                             habitatTemplateType === tmpl.id
                               ? 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-400 dark:border-emerald-600 text-emerald-800 dark:text-emerald-200'
                               : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1882,7 +1966,7 @@ export default function GoalBirdsTab() {
                               void handleCreateFromTemplate(habitatTemplatePreview, tmpl?.label ?? 'Habitat')
                             }}
                             disabled={templateCreating}
-                            className="px-2 py-1 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 rounded-md transition-colors"
+                            className="px-2.5 py-2 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 rounded-md transition-colors"
                             data-testid="habitat-create-list-btn"
                           >
                             {templateCreating ? 'Creating...' : `Create Goal List (${habitatTemplatePreview.length})`}
@@ -1919,7 +2003,7 @@ export default function GoalBirdsTab() {
                         <button
                           key={tmpl.id}
                           onClick={() => setRegionalTemplateType(tmpl.id)}
-                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
                             regionalTemplateType === tmpl.id
                               ? 'bg-teal-100 dark:bg-teal-900/40 border-teal-400 dark:border-teal-600 text-teal-800 dark:text-teal-200'
                               : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1953,7 +2037,7 @@ export default function GoalBirdsTab() {
                               void handleCreateFromTemplate(regionalTemplatePreview, tmpl?.label ?? 'Regional')
                             }}
                             disabled={templateCreating}
-                            className="px-2 py-1 text-[11px] font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 rounded-md transition-colors"
+                            className="px-2.5 py-2 text-[11px] font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 rounded-md transition-colors"
                             data-testid="regional-create-list-btn"
                           >
                             {templateCreating ? 'Creating...' : `Create Goal List (${regionalTemplatePreview.length})`}
