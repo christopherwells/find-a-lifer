@@ -5,7 +5,7 @@ import { getDisplayGroup } from '../lib/familyGroups'
 import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
 import Badge from './Badge'
 import SpeciesInfoCard from './SpeciesInfoCard'
-import { detectSubRegion } from '../lib/subRegions'
+import { detectSubRegionForCell, loadCellStates } from '../lib/subRegions'
 import type { Species, CellCovariates } from './types'
 import {
   safeMin, safeMax, computeCentroid,
@@ -534,6 +534,9 @@ export default memo(function MapView({
     if (typeof window !== 'undefined') {
       (window as unknown as Record<string, unknown>).__maplibreglMap = map.current
     }
+
+    // Preload cell states for sub-region detection
+    loadCellStates(4).catch(() => {/* non-critical */})
 
     // Add navigation controls
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right')
@@ -1774,7 +1777,7 @@ export default memo(function MapView({
                             setPopupSpeciesCard(meta as unknown as Species)
                             if (goalBirdsPopup) {
                               const [lng, lat] = goalBirdsPopup.coordinates
-                              const region = detectSubRegion(lng, lat)
+                              const region = detectSubRegionForCell(goalBirdsPopup.cellId)
                               setPopupRegionContext(region ? { subRegionId: region.id, cellLng: lng, cellLat: lat } : null)
                             }
                           }
@@ -2064,7 +2067,7 @@ export default memo(function MapView({
                                       setPopupSpeciesCard(meta as unknown as Species)
                                       if (lifersPopup) {
                                         const [lng, lat] = lifersPopup.coordinates
-                                        const region = detectSubRegion(lng, lat)
+                                        const region = detectSubRegionForCell(lifersPopup.cellId)
                                         setPopupRegionContext(region ? { subRegionId: region.id, cellLng: lng, cellLat: lat } : null)
                                       }
                                     }

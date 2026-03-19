@@ -60,14 +60,13 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   // Map active region filter to a regionContext for the species card
   const speciesTabRegionContext = useMemo(() => {
     if (!selectedRegionFilter) return undefined
-    // Find a sub-region whose regionCodes include the filter value
+    // Find a sub-region whose state codes include the filter value or match its country prefix
     const region = SUB_REGIONS.find(r =>
-      r.regionCodes?.includes(selectedRegionFilter)
+      r.stateCodes.includes(selectedRegionFilter) ||
+      r.stateCodes.some(sc => sc.startsWith(selectedRegionFilter + '-'))
     )
     if (region) {
-      // Use center of the sub-region's bbox as the "cell" coordinates
-      const [west, south, east, north] = region.bbox
-      return { subRegionId: region.id, cellLng: (west + east) / 2, cellLat: (south + north) / 2 }
+      return { subRegionId: region.id, cellLng: 0, cellLat: 0 }
     }
     return undefined
   }, [selectedRegionFilter])

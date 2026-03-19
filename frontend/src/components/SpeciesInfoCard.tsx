@@ -4,7 +4,7 @@ import type { Species } from './types'
 import Badge from './Badge'
 import Sparkline from './Sparkline'
 import { getDisplayGroup } from '../lib/familyGroups'
-import { getSpeciesFrequencyProfile, getSpeciesBestLocations, fetchSpeciesWeeks, fetchGrid } from '../lib/dataCache'
+import { getSpeciesFrequencyProfile, getSpeciesBestLocations, fetchSpeciesWeeks } from '../lib/dataCache'
 import { SUB_REGIONS, getSpeciesSubRegions } from '../lib/subRegions'
 import type { SubRegion } from '../lib/subRegions'
 
@@ -61,18 +61,8 @@ export default function SpeciesInfoCard({
             cellIds.add(cellId)
           }
         }
-        // Get centroids from grid
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const grid = await fetchGrid()
-        const centroidMap = new Map<number, [number, number]>()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const f of (grid as any).features) {
-          if (cellIds.has(f.properties.cell_id)) {
-            centroidMap.set(f.properties.cell_id, [f.properties.center_lng, f.properties.center_lat])
-          }
-        }
-        const centroids = Array.from(centroidMap.values())
-        const regions = getSpeciesSubRegions(centroids)
+        // Get sub-regions for this species using cell IDs
+        const regions = getSpeciesSubRegions(Array.from(cellIds))
         if (!cancelled) setAvailableRegions(regions)
       } catch {
         // Species may not have data
@@ -109,11 +99,6 @@ export default function SpeciesInfoCard({
   }, [species.speciesCode, week, regionStateCodes, showGlobalLocations])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Reset showGlobalLocations when region changes
-  useEffect(() => {
-    setShowGlobalLocations(false)
-  }, [selectedRegionId])
-
   // Compute difficulty display (regional if available)
   const difficultyRating = selectedRegionId && species.regionalDifficulty?.[selectedRegionId]
     ? species.regionalDifficulty[selectedRegionId]
@@ -139,10 +124,12 @@ export default function SpeciesInfoCard({
     const invasionData = species.invasionStatus || {}
     let entries = Object.entries(invasionData)
 
-    // If a region is selected, filter to only region codes in the sub-region
-    if (selectedRegion?.regionCodes) {
-      const regionCodeSet = new Set(selectedRegion.regionCodes)
-      entries = entries.filter(([code]) => regionCodeSet.has(code))
+    // If a region is selected, filter to only country codes that match the sub-region's state codes
+    if (selectedRegion) {
+      // Invasion status uses country codes (e.g., "US", "MX"), state codes are "US-ME", "MX-OAX"
+      // A country code matches if any state code in the sub-region starts with it
+      const countryCodes = new Set(selectedRegion.stateCodes.map(sc => sc.split('-')[0]))
+      entries = entries.filter(([code]) => countryCodes.has(code))
     }
 
     const nonNativeEntries = entries.filter(([, s]) => s !== 'Native')
@@ -215,7 +202,7 @@ export default function SpeciesInfoCard({
           {availableRegions.length > 0 && (
             <select
               value={selectedRegionId || 'global'}
-              onChange={(e) => setSelectedRegionId(e.target.value === 'global' ? null : e.target.value)}
+              onChange={(e) => { setSelectedRegionId(e.target.value === 'global' ? null : e.target.value); setShowGlobalLocations(false) }}
               className="w-full text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
               data-testid="species-info-region-select"
             >

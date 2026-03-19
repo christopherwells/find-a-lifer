@@ -537,8 +537,7 @@ test.describe('Regression: Empty hex visibility', () => {
 
     // Zoom to res 4 range (5.5-7.5) centered on eastern Canada
     await page.evaluate(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const map = (window as any).__maplibreglMap
+      const map = (window as Record<string, unknown>).__maplibreglMap as { jumpTo: (opts: Record<string, unknown>) => void } | undefined
       if (map) map.jumpTo({ center: [-66.5, 46.5], zoom: 6.5 })
     })
     await page.waitForTimeout(2000) // Wait for resolution switch + data load
@@ -553,8 +552,7 @@ test.describe('Regression: Empty hex visibility', () => {
 
     // Zoom to res 5 range (7.5+) centered on New Brunswick
     await page.evaluate(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const map = (window as any).__maplibreglMap
+      const map = (window as Record<string, unknown>).__maplibreglMap as { jumpTo: (opts: Record<string, unknown>) => void } | undefined
       if (map) map.jumpTo({ center: [-66.5, 46.5], zoom: 8 })
     })
     await page.waitForTimeout(2000)

@@ -273,7 +273,7 @@ let cellStatesLoading: Promise<Map<number, string>> | null = null
 async function getCellStates(resolution?: number): Promise<Map<number, string>> {
   if (cellStatesCache) return cellStatesCache
   if (cellStatesLoading) return cellStatesLoading
-  const res = resolution ?? activeResolution
+  const res = resolution ?? 4
   cellStatesLoading = fetch(`${import.meta.env.BASE_URL}data/r${res}/cell_states.json`)
     .then(r => r.ok ? r.json() : {})
     .catch(() => ({}))
