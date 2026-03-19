@@ -159,7 +159,7 @@ def guess_cell_region(center_lat, center_lng, cities):
 # Cells within radius_deg of the point get the island name.
 NAMED_ISLANDS = [
     (5.53, -87.07, 0.8, "Cocos Island"),
-    (32.32, -64.75, 0.5, "Bermuda"),
+    (32.32, -64.75, 2.0, "Bermuda"),
     (18.73, -110.95, 1.0, "Revillagigedo Islands"),
     (29.03, -118.28, 0.8, "Guadalupe Island"),
     (20.43, -86.92, 0.6, "Cozumel"),
