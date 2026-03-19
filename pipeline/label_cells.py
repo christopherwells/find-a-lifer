@@ -155,6 +155,32 @@ def guess_cell_region(center_lat, center_lng, cities):
     return best_region
 
 
+# Named islands — checked before ocean regions. (lat, lng, radius_deg, name)
+# Cells within radius_deg of the point get the island name.
+NAMED_ISLANDS = [
+    (5.53, -87.07, 0.8, "Cocos Island"),
+    (32.32, -64.75, 0.5, "Bermuda"),
+    (18.73, -110.95, 1.0, "Revillagigedo Islands"),
+    (29.03, -118.28, 0.8, "Guadalupe Island"),
+    (20.43, -86.92, 0.6, "Cozumel"),
+    (24.53, -81.80, 0.8, "Florida Keys"),
+    (21.47, -71.14, 1.0, "Turks and Caicos"),
+    (18.22, -66.50, 1.0, "Puerto Rico"),
+    (18.47, -69.90, 1.0, "Hispaniola"),
+    (18.11, -77.30, 1.0, "Jamaica"),
+    (22.00, -79.50, 2.0, "Cuba"),
+    (25.03, -77.50, 1.0, "Nassau, Bahamas"),
+    (26.53, -78.80, 0.8, "Grand Bahama"),
+    (24.07, -74.53, 0.8, "Exuma, Bahamas"),
+    (19.82, -155.47, 1.0, "Hawaii (Big Island)"),
+    (20.80, -156.33, 0.8, "Maui"),
+    (21.47, -158.00, 0.8, "Oahu"),
+    (22.07, -159.50, 0.8, "Kauai"),
+    (56.80, -135.33, 1.5, "Sitka, AK"),
+    (57.05, -170.27, 1.0, "St. Paul Island, AK"),
+    (51.88, -176.65, 1.0, "Adak, AK"),
+]
+
 # Ocean/sea region names for unlabeled offshore cells
 # Polygons defined as (min_lat, max_lat, min_lng, max_lng, name)
 OCEAN_REGIONS = [
@@ -187,10 +213,17 @@ OCEAN_REGIONS = [
 
 
 def get_ocean_label(lat, lng, nearby_city=None):
-    """Get a descriptive ocean/sea name for an offshore cell.
-    If nearby_city is provided, uses it for specificity (e.g., 'Caribbean Sea off Cozumel').
+    """Get a descriptive name for an offshore/island cell.
+    Checks named islands first, then ocean regions, then uses nearby city.
     """
-    # Try specific regions first (smaller, more specific polygons)
+    # Check named islands first (highest priority)
+    for ilat, ilng, radius, iname in NAMED_ISLANDS:
+        if abs(lat - ilat) < radius and abs(lng - ilng) < radius:
+            dist = ((lat - ilat)**2 + (lng - ilng)**2)**0.5
+            if dist <= radius:
+                return iname
+
+    # Try specific ocean regions (smaller, more specific polygons)
     region_name = None
     for min_lat, max_lat, min_lng, max_lng, name in OCEAN_REGIONS:
         if min_lat <= lat <= max_lat and min_lng <= lng <= max_lng:

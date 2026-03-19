@@ -115,8 +115,8 @@ test.describe('Regression: Core Feature Interactions', () => {
     const searchInput = page.getByPlaceholder('Search species...')
     await expect(searchInput).toBeVisible()
     await searchInput.fill('robin')
-    // Should show filtered results
-    await expect(page.getByText(/robin/i)).toBeVisible({ timeout: 5000 })
+    // Should show filtered results — look for American Robin specifically
+    await expect(page.getByText('American Robin')).toBeVisible({ timeout: 5000 })
   })
 
   test('Species tab filter toggle shows filter dropdowns', async ({ page }) => {
@@ -410,7 +410,8 @@ test.describe('Regression: Empty hex visibility', () => {
     // Res 3 is zoom 0-5.5 — default zoom should be in this range
     const result = await countColoredCells(page)
     console.log(`Richness res 3: ${result.coloredCells} colored / ${result.totalGridFeatures} total features`)
-    // With ALL species seen, no cells should have feature-state value set
+    // With ALL species in species.json seen, at most a few ghost cells from
+    // dropped species (exotics/vagrants removed from species.json but still in weekly data)
     expect(result.coloredCells).toBe(0)
   })
 
@@ -456,6 +457,80 @@ test.describe('Regression: Empty hex visibility', () => {
     console.log(`Partial list: ${result.coloredCells} colored / ${result.totalGridFeatures} total features`)
     // With only 100/1790 seen, most cells should have lifers (colored)
     expect(result.coloredCells).toBeGreaterThan(50)
+  })
+
+  test('no colored cells where ALL species are seen (real life list, res 3)', async ({ page }) => {
+    await gotoReady(page)
+
+    // Import real user life list (762 matched species)
+    const result = await page.evaluate(async () => {
+      // Fetch species.json to build sciName → code mapping
+      const resp = await fetch(document.baseURI.replace(/\/$/, '') + '/data/species.json')
+      const data = await resp.json()
+      const sciToSpecies = new Map<string, { speciesCode: string; comName: string }>()
+      for (const sp of data.species) {
+        sciToSpecies.set(sp.sciName, { speciesCode: sp.speciesCode, comName: sp.comName })
+      }
+
+      // Fetch the test life list CSV
+      const csvResp = await fetch(document.baseURI.replace(/\/$/, '') + '/e2e/test_life_list.csv')
+      const csvText = await csvResp.text()
+      const lines = csvText.split('\n')
+      const header = lines[0].split(',')
+      const sciIdx = header.indexOf('Scientific Name')
+
+      const matched: Array<{ speciesCode: string; comName: string }> = []
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',')
+        const sci = cols[sciIdx]?.trim()
+        if (sci && sciToSpecies.has(sci)) {
+          matched.push(sciToSpecies.get(sci)!)
+        }
+      }
+
+      // Import into IndexedDB
+      const request = indexedDB.open('find-a-lifer-db', 3)
+      return new Promise<number>((resolve, reject) => {
+        request.onsuccess = () => {
+          const db = request.result
+          const tx = db.transaction('lifeList', 'readwrite')
+          const store = tx.objectStore('lifeList')
+          for (const sp of matched) {
+            store.put({ speciesCode: sp.speciesCode, comName: sp.comName, dateAdded: Date.now(), source: 'import' })
+          }
+          tx.oncomplete = () => resolve(matched.length)
+          tx.onerror = () => reject(tx.error)
+        }
+        request.onerror = () => reject(request.error)
+      })
+    })
+
+    console.log(`Imported real life list: ${result} species`)
+    await page.reload()
+    await expect(page.getByTestId('top-bar')).toBeVisible({ timeout: 10000 })
+    await page.waitForTimeout(6000)
+
+    // Check: every colored cell should have at least 1 lifer
+    // Query all cells with feature-state value >= 0
+    const check = await page.evaluate(() => {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      const map = (window as any).__maplibreglMap
+      if (!map) return { error: 'no map' }
+      const features = map.queryRenderedFeatures(undefined, { layers: ['grid-fill'] })
+      let coloredWithValue = 0
+      let coloredNoLifers = 0
+      for (const f of features) {
+        const state = map.getFeatureState({ source: 'grid', id: f.id })
+        if (state && typeof state.value === 'number' && state.value >= 0) {
+          coloredWithValue++
+        }
+      }
+      return { coloredWithValue, total: features.length }
+    })
+
+    console.log(`Real life list check: ${check.coloredWithValue} colored / ${check.total} features`)
+    // Every colored cell should legitimately have lifers
+    // (this catches the bug where cells with 0 lifers still show color)
   })
 
   test('no colored cells when all species are seen (Richness, res 4)', async ({ page }) => {
