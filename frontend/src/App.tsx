@@ -7,14 +7,8 @@ import OnboardingOverlay from './components/OnboardingOverlay'
 import Toast from './components/Toast'
 import { useLifeList } from './contexts/LifeListContext'
 import { goalListsDB, type GoalList } from './lib/goalListsDB'
-import type { SpeciesFilters, CompareLocations } from './components/types'
+import type { SelectedLocation, SpeciesFilters, CompareLocations } from './components/types'
 import './App.css'
-
-export interface SelectedLocation {
-  cellId: number
-  coordinates: [number, number] // [lng, lat]
-  name?: string
-}
 
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -86,7 +80,6 @@ function App() {
           return resolvedActiveId
         })
 
-        console.log(`App: loaded ${lists.length} goal lists`)
       } catch (error) {
         console.error('App: failed to load goal lists', error)
       }

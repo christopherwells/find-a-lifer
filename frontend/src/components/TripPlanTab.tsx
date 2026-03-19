@@ -35,9 +35,7 @@ export default function TripPlanTab({
   onCompareLocationsChange,
   goalLists = EMPTY_GOAL_LISTS,
   activeGoalListId = null,
-  goalSpeciesCodes: _goalSpeciesCodes,
 }: TripPlanTabProps) {
-  void _goalSpeciesCodes // available for future use
   // Mode: 'location', 'hotspots', 'window', or 'compare'
   const [mode, setMode] = useState<'location' | 'hotspots' | 'window' | 'compare'>('hotspots')
 

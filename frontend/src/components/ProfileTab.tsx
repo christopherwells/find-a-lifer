@@ -6,6 +6,28 @@ import FriendsSection from './FriendsSection'
 import { fetchSpecies } from '../lib/dataCache'
 import { openFilePicker, processCSVFile, type CSVImportResult } from '../lib/csvImport'
 
+async function handleImport(
+  importFn: (codes: string[], names: string[]) => Promise<{ newCount: number; existingCount: number }>,
+  setImporting: (v: boolean) => void,
+  setResult: (v: CSVImportResult | null) => void,
+  setError?: (v: string | null) => void,
+) {
+  const file = await openFilePicker()
+  if (!file) return
+  setImporting(true)
+  setResult(null)
+  if (setError) setError(null)
+  try {
+    const result = await processCSVFile(file, importFn)
+    setResult(result)
+  } catch (error) {
+    if (setError) setError(error instanceof Error ? error.message : 'Import failed')
+    else console.error('Import error:', error)
+  } finally {
+    setImporting(false)
+  }
+}
+
 async function clearAppCaches(): Promise<boolean> {
   try {
     // Clear Cache API (service worker runtime caches)
@@ -53,22 +75,9 @@ export default function ProfileTab() {
     }
   }, [])
 
-  const handleImportClick = async () => {
+  const handleImportClick = () => {
     if (importing) return
-    const file = await openFilePicker()
-    if (!file) return
-    setImporting(true)
-    setImportResult(null)
-    setImportError(null)
-    try {
-      const result = await processCSVFile(file, importSpeciesList)
-      setImportResult(result)
-    } catch (error) {
-      console.error('Error importing CSV:', error)
-      setImportError(error instanceof Error ? error.message : 'Failed to import CSV file')
-    } finally {
-      setImporting(false)
-    }
+    handleImport(importSpeciesList, setImporting, setImportResult, setImportError)
   }
 
   const handleExport = async () => {
@@ -124,20 +133,9 @@ export default function ProfileTab() {
     window.location.reload()
   }
 
-  const handlePartnerImportClick = async () => {
+  const handlePartnerImportClick = () => {
     if (partnerImporting) return
-    const file = await openFilePicker()
-    if (!file) return
-    setPartnerImporting(true)
-    setPartnerImportResult(null)
-    try {
-      const result = await processCSVFile(file, importPartnerList)
-      setPartnerImportResult(result)
-    } catch (error) {
-      console.error('Error importing partner CSV:', error)
-    } finally {
-      setPartnerImporting(false)
-    }
+    handleImport(importPartnerList, setPartnerImporting, setPartnerImportResult)
   }
 
   const handleClearPartner = async () => {
@@ -151,24 +149,13 @@ export default function ProfileTab() {
     }
   }
 
-  const handleYearImportClick = async () => {
+  const handleYearImportClick = () => {
     if (yearImporting) return
-    const file = await openFilePicker()
-    if (!file) return
-    setYearImporting(true)
-    setYearImportResult(null)
-    try {
-      const importFn = async (speciesCodes: string[]) => {
-        await importYearList(yearImportYear, speciesCodes)
-        return { newCount: speciesCodes.length, existingCount: 0 }
-      }
-      const result = await processCSVFile(file, importFn)
-      setYearImportResult(result)
-    } catch (error) {
-      console.error('Error importing year list CSV:', error)
-    } finally {
-      setYearImporting(false)
+    const yearImportFn = async (speciesCodes: string[]) => {
+      await importYearList(yearImportYear, speciesCodes)
+      return { newCount: speciesCodes.length, existingCount: 0 }
     }
+    handleImport(yearImportFn, setYearImporting, setYearImportResult)
   }
 
   const handleDeleteYearList = async (id: string) => {

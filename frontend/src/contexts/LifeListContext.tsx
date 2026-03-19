@@ -133,15 +133,11 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
         const allEntries = await db.getAll(STORE_NAME)
         const codes = new Set(allEntries.map(entry => entry.speciesCode))
         setSeenSpecies(codes)
-        console.log(`Loaded ${codes.size} species from IndexedDB life list`)
 
         // Load partner list
         const partnerEntries = await db.getAll(PARTNER_STORE)
         const partnerCodes = new Set(partnerEntries.map(entry => entry.speciesCode))
         setPartnerSeenSpecies(partnerCodes)
-        if (partnerCodes.size > 0) {
-          console.log(`Loaded ${partnerCodes.size} species from partner life list`)
-        }
 
         // Load year lists
         const yearListEntries = await db.getAll('yearLists')
@@ -152,9 +148,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
           importedAt: entry.importedAt,
         }))
         setYearLists(loadedYearLists)
-        if (loadedYearLists.length > 0) {
-          console.log(`Loaded ${loadedYearLists.length} year lists`)
-        }
       } catch (error) {
         console.error('Error loading life lists from IndexedDB:', error)
       } finally {
@@ -180,7 +173,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
       }
       await db.put(STORE_NAME, entry)
       setSeenSpecies(prev => new Set(prev).add(speciesCode))
-      console.log(`Marked ${comName} (${speciesCode}) as seen`)
     } catch (error) {
       console.error('Error marking species as seen:', error)
       throw error
@@ -196,7 +188,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
         next.delete(speciesCode)
         return next
       })
-      console.log(`Marked ${speciesCode} as unseen`)
     } catch (error) {
       console.error('Error marking species as unseen:', error)
       throw error
@@ -216,7 +207,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
       const db = await getDB()
       await db.clear(STORE_NAME)
       setSeenSpecies(new Set())
-      console.log('Cleared all species from life list')
     } catch (error) {
       console.error('Error clearing life list:', error)
       throw error
@@ -264,7 +254,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
   const importSpeciesList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
     try {
       const result = await importToStore(STORE_NAME, speciesCodes, comNames, seenSpecies, setSeenSpecies)
-      console.log(`Imported ${speciesCodes.length} species (${result.newCount} new, ${result.existingCount} already existed)`)
       return result
     } catch (error) {
       console.error('Error importing species list:', error)
@@ -286,7 +275,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
   const importPartnerList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
     try {
       const result = await importToStore(PARTNER_STORE, speciesCodes, comNames, partnerSeenSpecies, setPartnerSeenSpecies)
-      console.log(`Imported ${speciesCodes.length} partner species (${result.newCount} new, ${result.existingCount} already existed)`)
       return result
     } catch (error) {
       console.error('Error importing partner list:', error)
@@ -300,7 +288,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
       await db.clear(PARTNER_STORE)
       setPartnerSeenSpecies(new Set())
       setActiveListMode('me')
-      console.log('Cleared partner life list')
     } catch (error) {
       console.error('Error clearing partner list:', error)
       throw error
@@ -323,7 +310,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
       await db.put('yearLists', { id: newList.id, year: newList.year, speciesCodes: newList.speciesCodes, importedAt: newList.importedAt })
       setYearLists(prev => [...prev, newList])
       setActiveYearListId(newList.id)
-      console.log(`Imported year list for ${year} with ${speciesCodes.length} species`)
       return newList
     } catch (error) {
       console.error('Error importing year list:', error)
@@ -340,7 +326,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
         setActiveYearListId(null)
         setListScope('lifetime')
       }
-      console.log(`Deleted year list: ${id}`)
     } catch (error) {
       console.error('Error deleting year list:', error)
       throw error
