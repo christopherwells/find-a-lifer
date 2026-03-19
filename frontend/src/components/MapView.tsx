@@ -1140,12 +1140,12 @@ export default memo(function MapView({
               matchArgs.push(bm, color)
             }
 
-            const colorExpr: maplibregl.ExpressionSpecification = [
+            const colorExpr = [
               'match',
               ['coalesce', ['feature-state', 'value'], -1],
               ...matchArgs,
               'rgba(0, 0, 0, 0)' // fallback (no data)
-            ] as maplibregl.ExpressionSpecification
+            ] as unknown as maplibregl.ExpressionSpecification
 
             if (map.current?.getLayer('grid-fill')) {
               map.current.setPaintProperty('grid-fill', 'fill-color', colorExpr)

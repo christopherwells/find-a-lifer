@@ -518,7 +518,6 @@ test.describe('Regression: Empty hex visibility', () => {
       if (!map) return { error: 'no map' }
       const features = map.queryRenderedFeatures(undefined, { layers: ['grid-fill'] })
       let coloredWithValue = 0
-      let coloredNoLifers = 0
       for (const f of features) {
         const state = map.getFeatureState({ source: 'grid', id: f.id })
         if (state && typeof state.value === 'number' && state.value >= 0) {
