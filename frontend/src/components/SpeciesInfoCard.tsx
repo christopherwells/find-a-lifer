@@ -4,13 +4,17 @@ import type { Species } from './types'
 import Badge from './Badge'
 import Sparkline from './Sparkline'
 import { getDisplayGroup } from '../lib/familyGroups'
-import { getSpeciesFrequencyProfile, getSpeciesBestLocations } from '../lib/dataCache'
+import { getSpeciesFrequencyProfile, getSpeciesBestLocations, fetchSpeciesWeeks, fetchGrid } from '../lib/dataCache'
+import type { RegionBBox } from '../lib/dataCache'
+import { SUB_REGIONS, getSpeciesSubRegions } from '../lib/subRegions'
+import type { SubRegion } from '../lib/subRegions'
 
 interface SpeciesInfoCardProps {
   species: Species
   onClose: () => void
   currentWeek?: number
   onCellClick?: (cellId: number, coordinates: [number, number]) => void
+  regionContext?: { subRegionId: string; cellLng: number; cellLat: number }
 }
 
 // SpeciesInfoCard - popup modal showing species details, sparkline, best locations, habitat
@@ -19,10 +23,16 @@ export default function SpeciesInfoCard({
   onClose,
   currentWeek,
   onCellClick,
+  regionContext,
 }: SpeciesInfoCardProps) {
   const [freqProfile, setFreqProfile] = useState<number[] | null>(null)
   const [bestLocations, setBestLocations] = useState<Array<{ cellId: number; coordinates: [number, number]; name: string; freq: number }> | null>(null)
   const [loadingLocations, setLoadingLocations] = useState(false)
+
+  // Region state
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null) // null = global
+  const [availableRegions, setAvailableRegions] = useState<SubRegion[]>([])
+  const [showGlobalLocations, setShowGlobalLocations] = useState(false)
 
   const week = currentWeek ?? (() => {
     const now = new Date()
@@ -31,21 +41,69 @@ export default function SpeciesInfoCard({
     return Math.min(52, Math.max(1, Math.ceil(diff / (7 * 24 * 60 * 60 * 1000))))
   })()
 
-  // Load frequency profile
+  // Resolve selected region object and bbox
+  const selectedRegion = selectedRegionId
+    ? SUB_REGIONS.find(r => r.id === selectedRegionId) ?? null
+    : null
+  const regionBbox: RegionBBox | undefined = selectedRegion?.bbox
+
+  // Initialize region from context on mount
+  useEffect(() => {
+    if (regionContext) {
+      setSelectedRegionId(regionContext.subRegionId)
+    }
+  }, [regionContext])
+
+  // Load available sub-regions for this species
   useEffect(() => {
     let cancelled = false
-    getSpeciesFrequencyProfile(species.speciesCode).then(profile => {
-      if (!cancelled) setFreqProfile(profile)
-    }).catch(() => {})
+    async function loadRegions() {
+      try {
+        const weeksData = await fetchSpeciesWeeks(species.speciesCode)
+        // Collect unique cell IDs across all weeks
+        const cellIds = new Set<number>()
+        for (const weekKey of Object.keys(weeksData)) {
+          for (const [cellId] of weeksData[weekKey]) {
+            cellIds.add(cellId)
+          }
+        }
+        // Get centroids from grid
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const grid = await fetchGrid()
+        const centroidMap = new Map<number, [number, number]>()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const f of (grid as any).features) {
+          if (cellIds.has(f.properties.cell_id)) {
+            centroidMap.set(f.properties.cell_id, [f.properties.center_lng, f.properties.center_lat])
+          }
+        }
+        const centroids = Array.from(centroidMap.values())
+        const regions = getSpeciesSubRegions(centroids)
+        if (!cancelled) setAvailableRegions(regions)
+      } catch {
+        // Species may not have data
+      }
+    }
+    loadRegions()
     return () => { cancelled = true }
   }, [species.speciesCode])
 
-  // Load best locations for current week
+  // Load frequency profile (region-aware)
+  useEffect(() => {
+    let cancelled = false
+    getSpeciesFrequencyProfile(species.speciesCode, undefined, regionBbox).then(profile => {
+      if (!cancelled) setFreqProfile(profile)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [species.speciesCode, regionBbox])
+
+  // Load best locations for current week (region-aware)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false
     setLoadingLocations(true)
-    getSpeciesBestLocations(species.speciesCode, week).then(locs => {
+    const useBbox = showGlobalLocations ? undefined : regionBbox
+    getSpeciesBestLocations(species.speciesCode, week, undefined, 5, useBbox).then(locs => {
       if (!cancelled) {
         setBestLocations(locs)
         setLoadingLocations(false)
@@ -54,8 +112,50 @@ export default function SpeciesInfoCard({
       if (!cancelled) setLoadingLocations(false)
     })
     return () => { cancelled = true }
-  }, [species.speciesCode, week])
+  }, [species.speciesCode, week, regionBbox, showGlobalLocations])
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Reset showGlobalLocations when region changes
+  useEffect(() => {
+    setShowGlobalLocations(false)
+  }, [selectedRegionId])
+
+  // Compute difficulty display (regional if available)
+  const difficultyRating = selectedRegionId && species.regionalDifficulty?.[selectedRegionId]
+    ? species.regionalDifficulty[selectedRegionId]
+    : species.difficultyRating
+  const difficultyLabel = selectedRegionId && species.regionalDifficulty?.[selectedRegionId]
+    ? `${species.difficultyLabel || 'Difficulty'} (${species.regionalDifficulty[selectedRegionId]}/10)`
+    : species.difficultyRating > 0
+      ? `${species.difficultyLabel} (${species.difficultyRating}/10)`
+      : ''
+  const difficultyRegionNote = selectedRegionId && species.regionalDifficulty?.[selectedRegionId] && selectedRegion
+    ? ` in ${selectedRegion.name}`
+    : ''
+
+  // Compute invasion status badge (region-filtered)
+  const invasionBadge = (() => {
+    const invasionData = species.invasionStatus || {}
+    let entries = Object.entries(invasionData)
+
+    // If a region is selected, filter to only region codes in the sub-region
+    if (selectedRegion?.regionCodes) {
+      const regionCodeSet = new Set(selectedRegion.regionCodes)
+      entries = entries.filter(([code]) => regionCodeSet.has(code))
+    }
+
+    const nonNativeEntries = entries.filter(([, s]) => s !== 'Native')
+    if (nonNativeEntries.length === 0) return null
+
+    const isNativeAnywhere = entries.some(([, s]) => s === 'Native')
+    const hasIntroduced = nonNativeEntries.some(([, s]) => s === 'Introduced')
+    const primaryStatus = hasIntroduced ? 'Introduced' : nonNativeEntries[0][1]
+    const regionsForStatus = nonNativeEntries.filter(([, s]) => s === primaryStatus)
+    const label = isNativeAnywhere
+      ? `${primaryStatus} (${regionsForStatus.map(([r]) => r).join(', ')})`
+      : primaryStatus
+    return <Badge variant="invasion" value={label} size="pill" />
+  })()
 
   return createPortal(
     <div
@@ -110,29 +210,31 @@ export default function SpeciesInfoCard({
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{getDisplayGroup(species.familyComName ?? '')}</p>
           </div>
 
+          {/* Region dropdown */}
+          {availableRegions.length > 0 && (
+            <select
+              value={selectedRegionId || 'global'}
+              onChange={(e) => setSelectedRegionId(e.target.value === 'global' ? null : e.target.value)}
+              className="w-full text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+              data-testid="species-info-region-select"
+            >
+              <option value="global">Global</option>
+              {availableRegions.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          )}
+
           {/* Badges */}
           <div className="flex flex-wrap gap-1.5" data-testid="species-info-badges">
             <Badge variant="conservation" value={species.conservStatus} size="pill" />
-            {species.difficultyRating > 0 && (
-              <Badge variant="difficulty" value={`${species.difficultyLabel} (${species.difficultyRating}/10)`} size="pill" />
+            {difficultyRating > 0 && (
+              <Badge variant="difficulty" value={`${difficultyLabel}${difficultyRegionNote}`} size="pill" />
             )}
             {species.isRestrictedRange && (
               <Badge variant="restricted-range" value="Restricted Range" size="pill" />
             )}
-            {/* Invasion status badge if not native everywhere */}
-            {(() => {
-              const nonNativeRegions = Object.entries(species.invasionStatus || {})
-                .filter(([, s]) => s !== 'Native')
-              if (nonNativeRegions.length === 0) return null
-              const isNativeAnywhere = Object.values(species.invasionStatus || {}).includes('Native')
-              const hasIntroduced = nonNativeRegions.some(([, s]) => s === 'Introduced')
-              const primaryStatus = hasIntroduced ? 'Introduced' : nonNativeRegions[0][1]
-              const regionsForStatus = nonNativeRegions.filter(([, s]) => s === primaryStatus)
-              const label = isNativeAnywhere
-                ? `${primaryStatus} (${regionsForStatus.map(([r]) => r).join(', ')})`
-                : primaryStatus
-              return <Badge variant="invasion" value={label} size="pill" />
-            })()}
+            {invasionBadge}
           </div>
 
           {/* Habitat badges */}
@@ -160,7 +262,9 @@ export default function SpeciesInfoCard({
           {/* Sparkline — 52-week frequency chart */}
           {freqProfile && (
             <div className="space-y-1">
-              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Seasonality</p>
+              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                Seasonality{selectedRegion ? ` — ${selectedRegion.name}` : ''}
+              </p>
               <Sparkline data={freqProfile} currentWeek={week} />
             </div>
           )}
@@ -169,7 +273,7 @@ export default function SpeciesInfoCard({
           {(bestLocations || loadingLocations) && (
             <div className="space-y-1.5">
               <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                Best Locations (Week {week})
+                Best Locations (Week {week}){selectedRegion && !showGlobalLocations ? ` — ${selectedRegion.name}` : ''}
               </p>
               {loadingLocations ? (
                 <p className="text-xs text-gray-400">Loading...</p>
@@ -191,6 +295,16 @@ export default function SpeciesInfoCard({
                 </div>
               ) : (
                 <p className="text-xs text-gray-400 dark:text-gray-500">Not recorded this week</p>
+              )}
+              {/* Show global toggle when region is selected */}
+              {selectedRegionId && (
+                <button
+                  onClick={() => setShowGlobalLocations(prev => !prev)}
+                  className="text-[10px] text-[#2C3E7B] dark:text-blue-400 hover:underline"
+                  data-testid="species-info-toggle-global"
+                >
+                  {showGlobalLocations ? 'Show regional' : 'Show global'}
+                </button>
               )}
             </div>
           )}
