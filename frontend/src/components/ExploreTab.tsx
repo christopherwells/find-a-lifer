@@ -13,6 +13,8 @@ export default function ExploreTab({
   onGoalBirdsOnlyFilterChange,
   selectedSpecies = null,
   onSelectedSpeciesChange,
+  selectedSpeciesMulti = [],
+  onSelectedSpeciesMultiChange,
   goalSpeciesCodes = new Set(),
   goalLists = [],
   activeGoalListId = null,
@@ -33,6 +35,9 @@ export default function ExploreTab({
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
   const [speciesSearch, setSpeciesSearch] = useState('')
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(false)
+
+  // Multi-species compare mode
+  const [compareMode, setCompareMode] = useState(false)
 
   // Animation state
   const [isAnimating, setIsAnimating] = useState(false)
@@ -162,7 +167,7 @@ export default function ExploreTab({
         <div className="flex items-center gap-1 mt-1">
           <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />
           <span className="text-[10px] text-gray-400 dark:text-gray-500">
-            {viewMode === 'density' ? 'Lifer density per cell' : viewMode === 'probability' ? 'Combined lifer probability' : viewMode === 'species' ? 'Single species frequency' : 'Goal list species per cell'}
+            {viewMode === 'density' ? 'Lifer density per cell' : viewMode === 'probability' ? 'Combined lifer probability' : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Multi-species range overlap' : 'Single species frequency') : 'Goal list species per cell'}
           </span>
         </div>
       </div>
@@ -254,7 +259,7 @@ export default function ExploreTab({
       {viewMode === 'species' && (
         <div>
           <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
-            Select Species
+            {compareMode ? 'Compare Species (up to 4)' : 'Select Species'}
           </label>
           {/* Search input */}
           <input
@@ -265,8 +270,78 @@ export default function ExploreTab({
             data-testid="species-range-search"
             className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[#2C3E7B] bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
           />
-          {/* Selected species display */}
-          {selectedSpecies && selectedSpeciesMeta && (
+
+          {/* Multi-species chip row */}
+          {compareMode && selectedSpeciesMulti.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2" data-testid="multi-species-chips">
+              {selectedSpeciesMulti.map((code, idx) => {
+                const MULTI_COLORS = ['#4A90D9', '#E74C3C', '#27AE60', '#8E44AD']
+                const meta = allSpecies.find((s) => s.speciesCode === code)
+                return (
+                  <span
+                    key={code}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white shadow-sm"
+                    style={{ backgroundColor: MULTI_COLORS[idx] || '#666' }}
+                    data-testid={`multi-chip-${code}`}
+                  >
+                    <span className="truncate max-w-[120px]">{meta?.comName || code}</span>
+                    <button
+                      onClick={() => {
+                        const next = selectedSpeciesMulti.filter((c) => c !== code)
+                        onSelectedSpeciesMultiChange?.(next)
+                        // If removing leaves 1 or 0, sync selectedSpecies
+                        if (next.length <= 1) {
+                          onSelectedSpeciesChange?.(next[0] || null)
+                          if (next.length === 0) setCompareMode(false)
+                        } else {
+                          onSelectedSpeciesChange?.(next[0])
+                        }
+                      }}
+                      className="hover:bg-white/30 rounded p-0.5 transition-colors"
+                      aria-label={`Remove ${meta?.comName || code}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </span>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Compare species button / Clear comparison */}
+          {selectedSpecies && !compareMode && (
+            <button
+              onClick={() => {
+                setCompareMode(true)
+                // Seed multi list with the currently selected species
+                if (selectedSpecies && !selectedSpeciesMulti.includes(selectedSpecies)) {
+                  onSelectedSpeciesMultiChange?.([selectedSpecies])
+                }
+              }}
+              className="w-full mt-2 px-3 py-2 text-xs font-medium text-[#2C3E7B] dark:text-blue-400 border border-dashed border-[#2C3E7B]/30 dark:border-blue-400/30 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors"
+              data-testid="compare-species-btn"
+            >
+              + Compare species
+            </button>
+          )}
+          {compareMode && selectedSpeciesMulti.length >= 2 && (
+            <button
+              onClick={() => {
+                setCompareMode(false)
+                onSelectedSpeciesMultiChange?.([])
+                // Keep the first species as selectedSpecies
+              }}
+              className="w-full mt-1.5 text-[11px] text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 font-medium transition-colors"
+              data-testid="clear-comparison-btn"
+            >
+              Clear comparison
+            </button>
+          )}
+
+          {/* Selected species display (single mode only) */}
+          {!compareMode && selectedSpecies && selectedSpeciesMeta && (
             <div className="flex items-center justify-between bg-[#2C3E7B] text-white px-3 py-2.5 rounded-xl text-sm mt-2 shadow-sm">
               <div className="min-w-0 flex-1">
                 <div className="font-semibold truncate">{selectedSpeciesMeta.comName}</div>
@@ -307,12 +382,22 @@ export default function ExploreTab({
                     key={s.speciesCode}
                     data-testid={`species-range-item-${s.speciesCode}`}
                     onClick={() => {
-                      onSelectedSpeciesChange?.(s.speciesCode)
+                      if (compareMode) {
+                        // In compare mode, add to multi list (up to 4, no duplicates)
+                        if (selectedSpeciesMulti.includes(s.speciesCode)) return
+                        if (selectedSpeciesMulti.length >= 4) return
+                        const next = [...selectedSpeciesMulti, s.speciesCode]
+                        onSelectedSpeciesMultiChange?.(next)
+                        onSelectedSpeciesChange?.(next[0]) // Keep first as primary
+                      } else {
+                        onSelectedSpeciesChange?.(s.speciesCode)
+                      }
                       setSpeciesSearch('')
                     }}
                     className={`w-full text-left px-3 py-2.5 text-sm transition-colors hover:bg-blue-50 dark:hover:bg-gray-700 ${
-                      selectedSpecies === s.speciesCode ? 'bg-blue-50 dark:bg-gray-700 font-medium' : ''
-                    }`}
+                      selectedSpecies === s.speciesCode || selectedSpeciesMulti.includes(s.speciesCode) ? 'bg-blue-50 dark:bg-gray-700 font-medium' : ''
+                    } ${compareMode && selectedSpeciesMulti.length >= 4 && !selectedSpeciesMulti.includes(s.speciesCode) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    disabled={compareMode && selectedSpeciesMulti.length >= 4 && !selectedSpeciesMulti.includes(s.speciesCode)}
                   >
                     <div className="font-medium text-gray-800 dark:text-gray-200">{s.comName}</div>
                     <div className="text-xs text-gray-400 dark:text-gray-500 italic">{s.sciName}</div>

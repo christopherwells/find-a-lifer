@@ -25,6 +25,8 @@ interface SidePanelProps {
   onSelectedLocationChange?: (location: { cellId: number; coordinates: [number, number]; name?: string } | null) => void
   selectedSpecies?: string | null
   onSelectedSpeciesChange?: (speciesCode: string | null) => void
+  selectedSpeciesMulti?: string[]
+  onSelectedSpeciesMultiChange?: (codes: string[]) => void
   goalSpeciesCodes?: Set<string>
   goalLists?: GoalList[]
   activeGoalListId?: string | null
@@ -110,6 +112,8 @@ export default memo(function SidePanel({
   onSelectedLocationChange,
   selectedSpecies,
   onSelectedSpeciesChange,
+  selectedSpeciesMulti = [],
+  onSelectedSpeciesMultiChange,
   goalSpeciesCodes,
   goalLists = [],
   activeGoalListId = null,
@@ -252,6 +256,8 @@ export default memo(function SidePanel({
                 onGoalBirdsOnlyFilterChange={onGoalBirdsOnlyFilterChange}
                 selectedSpecies={selectedSpecies}
                 onSelectedSpeciesChange={onSelectedSpeciesChange}
+                selectedSpeciesMulti={selectedSpeciesMulti}
+                onSelectedSpeciesMultiChange={onSelectedSpeciesMultiChange}
                 goalSpeciesCodes={goalSpeciesCodes}
                 goalLists={goalLists}
                 activeGoalListId={activeGoalListId}

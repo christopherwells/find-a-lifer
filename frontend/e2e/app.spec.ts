@@ -581,3 +581,57 @@ test.describe('Onboarding Flow', () => {
     await expect(page.getByTestId('top-bar')).toBeVisible()
   })
 })
+
+test.describe('Range Mode & Multi-Species Comparison', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoReady(page)
+  })
+
+  test('Range mode shows species search and list', async ({ page }) => {
+    // Switch to Range mode
+    await page.getByTestId('view-mode-species').click()
+    // Search input should be visible
+    await expect(page.getByTestId('species-range-search')).toBeVisible({ timeout: 5000 })
+    // Species list should be visible
+    await expect(page.getByTestId('species-range-list')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('Range mode species search filters results', async ({ page }) => {
+    await page.getByTestId('view-mode-species').click()
+    await expect(page.getByTestId('species-range-search')).toBeVisible({ timeout: 5000 })
+    // Search for a specific bird
+    await page.getByTestId('species-range-search').fill('robin')
+    // Should find American Robin in the list
+    await expect(page.getByText('American Robin')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('Range mode can select a species and show Compare button', async ({ page }) => {
+    await page.getByTestId('view-mode-species').click()
+    await expect(page.getByTestId('species-range-search')).toBeVisible({ timeout: 5000 })
+    // Search and select a species
+    await page.getByTestId('species-range-search').fill('robin')
+    await page.getByText('American Robin').click()
+    // Clear button and Compare button should appear
+    await expect(page.getByTestId('clear-selected-species')).toBeVisible({ timeout: 3000 })
+    await expect(page.getByTestId('compare-species-btn')).toBeVisible({ timeout: 3000 })
+  })
+
+  test('Compare mode allows adding multiple species', async ({ page }) => {
+    await page.getByTestId('view-mode-species').click()
+    await expect(page.getByTestId('species-range-search')).toBeVisible({ timeout: 5000 })
+    // Select first species
+    await page.getByTestId('species-range-search').fill('robin')
+    await page.getByText('American Robin').click()
+    // Enter compare mode
+    await page.getByTestId('compare-species-btn').click()
+    // Multi-species chips should appear
+    await expect(page.getByTestId('multi-species-chips')).toBeVisible({ timeout: 3000 })
+    // Add second species
+    await page.getByTestId('species-range-search').fill('blue jay')
+    await page.getByText('Blue Jay').click()
+    // Should have 2 chips now
+    await expect(page.getByTestId('multi-species-chips').locator('[data-testid^="multi-chip-"]')).toHaveCount(2)
+    // Clear comparison button should be visible
+    await expect(page.getByTestId('clear-comparison-btn')).toBeVisible()
+  })
+})

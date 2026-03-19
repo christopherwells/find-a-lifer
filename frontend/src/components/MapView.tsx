@@ -22,6 +22,7 @@ interface MapViewProps {
   goalSpeciesCodes?: Set<string>
   seenSpecies?: Set<string>
   selectedSpecies?: string | null
+  selectedSpeciesMulti?: string[]
   selectedRegion?: string | null
   heatmapOpacity?: number
   selectedLocation?: { cellId: number; coordinates: [number, number] } | null
@@ -141,6 +142,7 @@ export default memo(function MapView({
   goalSpeciesCodes = new Set(),
   seenSpecies = new Set(),
   selectedSpecies = null,
+  selectedSpeciesMulti = [],
   selectedRegion = null,
   heatmapOpacity = 0.8,
   selectedLocation = null,
@@ -1033,7 +1035,7 @@ export default memo(function MapView({
     }
 
     if (viewMode === 'species') {
-      // Species Range mode: load per-species data on demand from API
+      // Species Range mode: single or multi-species
       if (!selectedSpecies) {
         setSelectedSpeciesMeta(null)
         setNeutralOverlay()
@@ -1041,6 +1043,141 @@ export default memo(function MapView({
         return
       }
 
+      // Multi-species compare mode (2-4 species)
+      if (selectedSpeciesMulti.length > 1) {
+        const renderMultiSpecies = async () => {
+          if (!speciesMetaCache) {
+            try { await loadSpeciesMetaCache() } catch { return }
+          }
+          if (cancelled || !speciesMetaCache) return
+
+          // Resolve species metadata for all selected species
+          const speciesMetas = selectedSpeciesMulti.map((code) =>
+            speciesMetaCache!.find((s) => s.speciesCode === code)
+          ).filter(Boolean) as SpeciesMeta[]
+
+          if (speciesMetas.length < 2) return
+          setSelectedSpeciesMeta(speciesMetas[0]) // Primary for legend title
+
+          try {
+            const { fetchWeekCells, getSpeciesCells } = await import('../lib/dataCache')
+            const weekCells = await fetchWeekCells(currentWeek, activeResolution)
+            if (cancelled) return
+
+            // Compute bitmask per cell: bit i = species i is present
+            const cellBitmasks = new Map<number, number>()
+            for (let i = 0; i < speciesMetas.length; i++) {
+              const records = getSpeciesCells(weekCells, speciesMetas[i].species_id)
+              const bit = 1 << i
+              for (const r of records) {
+                if (r.probability > 0) {
+                  const prev = cellBitmasks.get(r.cell_id) || 0
+                  cellBitmasks.set(r.cell_id, prev | bit)
+                }
+              }
+            }
+            if (cancelled) return
+
+            const masked = regionMask(cellBitmasks)
+            console.log(`Multi-species Range: ${speciesMetas.length} species, ${cellBitmasks.size} cells (${masked.size} in region)`)
+
+            if (masked.size === 0) {
+              setNeutralOverlay()
+              setLegendMin(0)
+              setLegendMax(0)
+              return
+            }
+
+            // Use raw bitmask as feature-state value (1..maxBitmask)
+            // Cells not present get -1 via applyFeatureStates
+            applyFeatureStates(masked)
+            setLegendMin(1)
+            setLegendMax((1 << speciesMetas.length) - 1)
+
+            // Build match expression mapping bitmask -> color
+            const MULTI_COLORS = ['#4A90D9', '#E74C3C', '#27AE60', '#8E44AD']
+            const numSpecies = speciesMetas.length
+            const maxBitmask = (1 << numSpecies) - 1
+
+            // Pre-compute blend colors for each possible bitmask
+            const bitmaskColors: [number, string][] = []
+            for (let bm = 1; bm <= maxBitmask; bm++) {
+              if (bm === maxBitmask) {
+                // All species present: gold
+                bitmaskColors.push([bm, '#FFD700'])
+              } else {
+                // Count set bits and blend component colors
+                const presentIndices: number[] = []
+                for (let i = 0; i < numSpecies; i++) {
+                  if (bm & (1 << i)) presentIndices.push(i)
+                }
+                if (presentIndices.length === 1) {
+                  bitmaskColors.push([bm, MULTI_COLORS[presentIndices[0]]])
+                } else {
+                  // Blend: average RGB of present species
+                  const hexToRgb = (hex: string) => {
+                    const n = parseInt(hex.slice(1), 16)
+                    return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+                  }
+                  const rgbToHex = (r: number, g: number, b: number) =>
+                    '#' + [r, g, b].map(c => Math.round(c).toString(16).padStart(2, '0')).join('')
+                  let rSum = 0, gSum = 0, bSum = 0
+                  for (const idx of presentIndices) {
+                    const [r, g, b] = hexToRgb(MULTI_COLORS[idx])
+                    rSum += r; gSum += g; bSum += b
+                  }
+                  const n = presentIndices.length
+                  bitmaskColors.push([bm, rgbToHex(rSum / n, gSum / n, bSum / n)])
+                }
+              }
+            }
+
+            // Build MapLibre match expression
+            const matchArgs: (string | number | maplibregl.ExpressionSpecification)[] = []
+            for (const [bm, color] of bitmaskColors) {
+              matchArgs.push(bm, color)
+            }
+
+            const colorExpr: maplibregl.ExpressionSpecification = [
+              'match',
+              ['coalesce', ['feature-state', 'value'], -1],
+              ...matchArgs,
+              'rgba(0, 0, 0, 0)' // fallback (no data)
+            ] as maplibregl.ExpressionSpecification
+
+            if (map.current?.getLayer('grid-fill')) {
+              map.current.setPaintProperty('grid-fill', 'fill-color', colorExpr)
+              map.current.setPaintProperty('grid-fill', 'fill-opacity', [
+                'case',
+                ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,
+                ['==', ['feature-state', 'smoothed'], 2], heatmapOpacity * 0.4,
+                ['==', ['feature-state', 'smoothed'], 1], heatmapOpacity * 0.6,
+                heatmapOpacity
+              ])
+            }
+            if (map.current?.getLayer('grid-border')) {
+              if (hasRegionFilter) {
+                map.current.setPaintProperty('grid-border', 'line-color', '#666')
+                map.current.setPaintProperty('grid-border', 'line-opacity', [
+                  'case',
+                  ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,
+                  0.4
+                ] as maplibregl.ExpressionSpecification)
+              } else {
+                map.current.setPaintProperty('grid-border', 'line-color', '#666')
+                map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+              }
+            }
+          } catch (error) {
+            if (!cancelled) console.error('Multi-species Range: error loading data', error)
+          }
+        }
+
+        renderMultiSpecies()
+        return
+      }
+
+      // Single species mode
       const lookupAndRender = async () => {
         if (!speciesMetaCache) {
           try { await loadSpeciesMetaCache() } catch { return }
@@ -1457,7 +1594,7 @@ export default memo(function MapView({
         map.current.off('sourcedata', pendingRetryHandler)
       }
     }
-  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness, speciesFilters])
+  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, selectedSpeciesMulti, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness, speciesFilters])
 
   return (
     <div className="relative w-full h-full">
@@ -1477,6 +1614,42 @@ export default memo(function MapView({
       )}
       {/* ── Unified gradient legend bar ── */}
       {(() => {
+        // Multi-species custom legend
+        const isMultiSpecies = viewMode === 'species' && selectedSpeciesMulti.length > 1
+        if (isMultiSpecies) {
+          const MULTI_COLORS = ['#4A90D9', '#E74C3C', '#27AE60', '#8E44AD']
+          return (
+            <div
+              data-testid="map-legend"
+              className="absolute bottom-2 md:bottom-8 left-3 backdrop-blur-xl bg-white/85 dark:bg-gray-900/85 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 px-3.5 py-2.5"
+              style={{ minWidth: '200px', maxWidth: '240px' }}
+            >
+              <div className="text-[11px] font-bold text-gray-800 dark:text-gray-200 mb-2 tracking-tight">Species Comparison</div>
+              <div className="space-y-1">
+                {selectedSpeciesMulti.map((code, idx) => {
+                  const meta = speciesMetaCache?.find((s) => s.speciesCode === code)
+                  return (
+                    <div key={code} className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: MULTI_COLORS[idx] || '#666' }}
+                      />
+                      <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate">{meta?.comName || code}</span>
+                    </div>
+                  )
+                })}
+                <div className="flex items-center gap-1.5 pt-0.5 border-t border-gray-200/50 dark:border-gray-600/50">
+                  <span
+                    className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: '#FFD700' }}
+                  />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">All species overlap</span>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
         // Determine legend config based on current view mode
         let legendTitle = ''
         let gradient = 'linear-gradient(to right, #440154, #482878, #3E4A89, #31688E, #26838F, #1F9D8A, #6CCE59, #B5DE2B, #FDE725, #FCA50A, #E23028)'

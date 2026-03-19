@@ -38,6 +38,7 @@ function App() {
   const [dataRange, setDataRange] = useState<[number, number]>([0, 0])
   const [showTotalRichness, setShowTotalRichness] = useState(false)
   const [speciesFilters, setSpeciesFilters] = useState<SpeciesFilters>({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
+  const [selectedSpeciesMulti, setSelectedSpeciesMulti] = useState<string[]>([])
   const [compareLocations, setCompareLocations] = useState<CompareLocations | null>(null)
   const [showAbout, setShowAbout] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('hasSeenOnboarding'))
@@ -129,6 +130,7 @@ function App() {
             goalSpeciesCodes={goalSpeciesCodes}
             seenSpecies={effectiveSeenSpecies}
             selectedSpecies={selectedSpecies}
+            selectedSpeciesMulti={selectedSpeciesMulti}
             selectedRegion={selectedRegion}
             heatmapOpacity={heatmapOpacity}
             selectedLocation={selectedLocation}
@@ -152,7 +154,10 @@ function App() {
             // Reset goal birds only filter when switching away from density, probability, and species
             if (mode !== 'density' && mode !== 'probability' && mode !== 'species') setGoalBirdsOnlyFilter(false)
             // Reset selected species when switching away from species view
-            if (mode !== 'species') setSelectedSpecies(null)
+            if (mode !== 'species') {
+              setSelectedSpecies(null)
+              setSelectedSpeciesMulti([])
+            }
           }}
           goalBirdsOnlyFilter={goalBirdsOnlyFilter}
           onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
@@ -160,6 +165,8 @@ function App() {
           onSelectedLocationChange={setSelectedLocation}
           selectedSpecies={selectedSpecies}
           onSelectedSpeciesChange={setSelectedSpecies}
+          selectedSpeciesMulti={selectedSpeciesMulti}
+          onSelectedSpeciesMultiChange={setSelectedSpeciesMulti}
           goalSpeciesCodes={goalSpeciesCodes}
           goalLists={goalLists}
           activeGoalListId={activeGoalListId}

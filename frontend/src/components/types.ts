@@ -53,6 +53,8 @@ export interface ExploreTabProps {
   onGoalBirdsOnlyFilterChange?: (value: boolean) => void
   selectedSpecies?: string | null
   onSelectedSpeciesChange?: (speciesCode: string | null) => void
+  selectedSpeciesMulti?: string[]
+  onSelectedSpeciesMultiChange?: (codes: string[]) => void
   goalSpeciesCodes?: Set<string>
   goalLists?: GoalList[]
   activeGoalListId?: string | null
