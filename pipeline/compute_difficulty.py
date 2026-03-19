@@ -26,19 +26,76 @@ REFERENCE_DIR = SCRIPT_DIR / "reference"
 REFERENCE_DIR.mkdir(exist_ok=True)
 FRONTEND_DATA_DIR = SCRIPT_DIR.parent / "frontend" / "public" / "data"
 
-# Sub-region definitions: key -> (display_name, [west, south, east, north])
+# Sub-region definitions: key -> (display_name, state_codes, fallback_bbox)
+# state_codes: set of eBird STATE CODE values (e.g., "US-ME", "CA-BC")
+# fallback_bbox: [west, south, east, north] used when state code is unknown
 SUB_REGIONS = {
-    'ca-west': ('Western Canada', [-141, 48, -120, 70]),
-    'ca-central': ('Central Canada', [-120, 48, -89, 70]),
-    'ca-east': ('Eastern Canada', [-89, 42, -50, 63]),
-    'mx': ('Mexico', [-118, 14, -86, 33]),
-    'ca-north': ('Northern Central America', [-92, 12, -83, 18]),
-    'ca-south': ('Southern Central America', [-86, 7, -77, 12]),
-    'caribbean-greater': ('Greater Antilles', [-85, 17, -64, 24]),
-    'atlantic-west': ('Western Atlantic Islands', [-80, 20, -60, 33]),
-    'us-ak': ('Alaska', [-180, 51, -130, 72]),
-    'us-hi': ('Hawaii', [-161, 18, -154, 23]),
+    'ca-west': ('Western Canada',
+                {'CA-BC', 'CA-AB'},
+                [-141, 48, -125, 70]),
+    'ca-central': ('Central Canada',
+                   {'CA-SK', 'CA-MB'},
+                   [-120, 48, -89, 70]),
+    'ca-east': ('Eastern Canada',
+                {'CA-ON', 'CA-QC', 'CA-NB', 'CA-NS', 'CA-NL', 'CA-PE'},
+                [-89, 42, -50, 63]),
+    'ca-north': ('Northern Canada',
+                 {'CA-YT', 'CA-NT', 'CA-NU'},
+                 [-141, 60, -60, 84]),
+    'mx-north': ('Northern Mexico',
+                 {f'MX-{s}' for s in ['BCN','BCS','SON','CHH','COA','NLE','TAM','SIN',
+                  'DUR','ZAC','SLP','AGU','NAY','JAL']},
+                 [-118, 20, -86, 33]),
+    'mx-south': ('Southern Mexico',
+                 {f'MX-{s}' for s in ['COL','MIC','GUA','GRO','OAX','CHP','TAB','VER',
+                  'PUE','TLA','HID','MEX','MOR','QUE','CAM','ROO','YUC','CMX','DIF']},
+                 [-118, 14, -100, 20]),
+    'ca-c-north': ('Northern Central America',
+                   {'BZ', 'GT', 'SV', 'HN', 'NI'},
+                   [-92, 12, -83, 18]),
+    'ca-c-south': ('Southern Central America',
+                   {'CR', 'PA'},
+                   [-86, 7, -77, 12]),
+    'caribbean-greater': ('Greater Antilles',
+                          {'CU', 'JM', 'HT', 'DO', 'PR'},
+                          [-85, 17, -64, 24]),
+    'atlantic-west': ('Western Atlantic Islands',
+                      {'BM', 'BS', 'TC'},
+                      [-80, 20, -60, 33]),
+    'us-ne': ('Northeastern US',
+              {'US-ME', 'US-NH', 'US-VT', 'US-MA', 'US-RI', 'US-CT',
+               'US-NY', 'US-NJ', 'US-PA', 'US-DE', 'US-MD', 'US-DC'},
+              [-80, 37, -66, 48]),
+    'us-se': ('Southeastern US',
+              {'US-VA', 'US-WV', 'US-NC', 'US-SC', 'US-GA', 'US-FL',
+               'US-AL', 'US-MS', 'US-TN', 'US-KY', 'US-LA', 'US-AR'},
+              [-95, 24, -75, 39]),
+    'us-mw': ('Midwestern US',
+              {'US-OH', 'US-IN', 'US-IL', 'US-MI', 'US-WI', 'US-MN',
+               'US-IA', 'US-MO', 'US-ND', 'US-SD', 'US-NE', 'US-KS'},
+              [-105, 36, -80, 49]),
+    'us-sw': ('Southwestern US',
+              {'US-TX', 'US-OK', 'US-NM', 'US-AZ'},
+              [-115, 25, -93, 37]),
+    'us-west': ('Western US',
+                {'US-CA', 'US-OR', 'US-WA'},
+                [-125, 32, -116, 49]),
+    'us-rockies': ('US Rockies',
+                   {'US-NV', 'US-UT', 'US-CO', 'US-WY', 'US-MT', 'US-ID'},
+                   [-117, 35, -102, 49]),
+    'us-ak': ('Alaska',
+              {'US-AK'},
+              [-180, 51, -130, 72]),
+    'us-hi': ('Hawaii',
+              {'US-HI'},
+              [-161, 18, -154, 23]),
 }
+
+# Build reverse lookup: state_code -> sub_region_id
+STATE_TO_REGION = {}
+for region_id, (_, state_codes, _) in SUB_REGIONS.items():
+    for sc in state_codes:
+        STATE_TO_REGION[sc] = region_id
 
 
 def load_json(path):
@@ -301,16 +358,39 @@ def compute_difficulty_scores():
     print("\nComputing regional difficulty...")
     centroids = load_cell_centroids()
 
+    # Load cell state codes from archive (exact state-level assignment)
+    cell_states = {}
+    cell_states_file = ARCHIVE_DIR / "cell_states_r4.json"
+    if cell_states_file.exists():
+        cell_states = load_json(cell_states_file)
+        print(f"  Loaded cell state codes: {len(cell_states)} cells")
+
     if centroids:
-        # Build region -> set of h3 cells
-        region_cells = {}
-        for region_key, (region_name, bbox) in SUB_REGIONS.items():
-            cells = cells_in_bbox(centroids, bbox)
-            region_cells[region_key] = cells
-            print(f"  {region_key} ({region_name}): {len(cells)} cells")
+        # Build region -> set of h3 cells using state codes first, bbox fallback
+        region_cells = {k: set() for k in SUB_REGIONS}
+        assigned = 0
+        for h3_index in checklists.keys():
+            state_code = cell_states.get(h3_index, "")
+            if state_code and state_code in STATE_TO_REGION:
+                region_cells[STATE_TO_REGION[state_code]].add(h3_index)
+                assigned += 1
+            elif h3_index in centroids:
+                # Fallback: use bbox detection
+                lng, lat = centroids[h3_index]
+                for region_key, (_, _, bbox) in SUB_REGIONS.items():
+                    west, south, east, north = bbox
+                    if west <= lng <= east and south <= lat <= north:
+                        region_cells[region_key].add(h3_index)
+                        assigned += 1
+                        break
+
+        print(f"  Assigned {assigned}/{len(checklists)} cells to sub-regions")
+        for region_key, (region_name, _, _) in SUB_REGIONS.items():
+            if region_cells[region_key]:
+                print(f"  {region_key} ({region_name}): {len(region_cells[region_key])} cells")
 
         # For each region, compute per-species metrics using only that region's cells
-        for region_key, (region_name, bbox) in SUB_REGIONS.items():
+        for region_key, (region_name, _, _) in SUB_REGIONS.items():
             rcells = region_cells[region_key]
             if len(rcells) == 0:
                 print(f"  Skipping {region_key}: no cells")

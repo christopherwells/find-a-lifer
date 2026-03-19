@@ -265,34 +265,43 @@ export async function getCellLabels(resolution?: number): Promise<Map<number, st
  * Returns a 52-element array of average reporting frequencies for a species.
  * Each element represents the average frequency (0-1) across all cells for that week.
  */
-/** Optional bounding box filter for regional data: [west, south, east, north] */
-export type RegionBBox = [number, number, number, number]
+/** Cache of cell_id → state_code for sub-region filtering */
+let cellStatesCache: Map<number, string> | null = null
+let cellStatesLoading: Promise<Map<number, string>> | null = null
 
-/** Cache of cell_id → [lng, lat] centroids for region filtering */
-let cellCentroidCache: Map<number, [number, number]> | null = null
-async function getCellCentroids(resolution?: number): Promise<Map<number, [number, number]>> {
-  if (cellCentroidCache) return cellCentroidCache
-  const grid = await fetchGrid(resolution)
-  const map = new Map<number, [number, number]>()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const f of (grid as any).features) {
-    map.set(f.properties.cell_id, [f.properties.center_lng, f.properties.center_lat])
-  }
-  cellCentroidCache = map
-  return map
+/** Load cell → state code mapping from static JSON */
+async function getCellStates(resolution?: number): Promise<Map<number, string>> {
+  if (cellStatesCache) return cellStatesCache
+  if (cellStatesLoading) return cellStatesLoading
+  const res = resolution ?? activeResolution
+  cellStatesLoading = fetch(`${import.meta.env.BASE_URL}data/r${res}/cell_states.json`)
+    .then(r => r.ok ? r.json() : {})
+    .catch(() => ({}))
+    .then((data: Record<string, string>) => {
+      const map = new Map<number, string>()
+      for (const [cellId, stateCode] of Object.entries(data)) {
+        map.set(Number(cellId), stateCode)
+      }
+      cellStatesCache = map
+      return map
+    })
+  return cellStatesLoading
 }
 
-function cellInBBox(lng: number, lat: number, bbox: RegionBBox): boolean {
-  return lng >= bbox[0] && lat >= bbox[1] && lng <= bbox[2] && lat <= bbox[3]
+/** Check if a cell belongs to a sub-region based on its state code */
+function cellInSubRegion(cellId: number, stateCodes: Set<string>, cellStates: Map<number, string>): boolean {
+  const sc = cellStates.get(cellId)
+  return sc ? stateCodes.has(sc) : false
 }
 
 export async function getSpeciesFrequencyProfile(
   speciesCode: string,
   resolution?: number,
-  regionFilter?: RegionBBox
+  regionStateCodes?: string[]
 ): Promise<number[]> {
   const weeksData = await fetchSpeciesWeeks(speciesCode, resolution)
-  const centroids = regionFilter ? await getCellCentroids(resolution) : null
+  const stateCodeSet = regionStateCodes ? new Set(regionStateCodes) : null
+  const cellStates = stateCodeSet ? await getCellStates(resolution) : null
   const profile: number[] = new Array(52).fill(0)
 
   for (let w = 1; w <= 52; w++) {
@@ -301,9 +310,8 @@ export async function getSpeciesFrequencyProfile(
     let totalFreq = 0
     let count = 0
     for (const [cellId, freq] of cells) {
-      if (regionFilter && centroids) {
-        const c = centroids.get(cellId)
-        if (!c || !cellInBBox(c[0], c[1], regionFilter)) continue
+      if (stateCodeSet && cellStates) {
+        if (!cellInSubRegion(cellId, stateCodeSet, cellStates)) continue
       }
       totalFreq += freq / 255
       count++
@@ -322,7 +330,7 @@ export async function getSpeciesBestLocations(
   week: number,
   resolution?: number,
   topN = 5,
-  regionFilter?: RegionBBox
+  regionStateCodes?: string[]
 ): Promise<Array<{ cellId: number; coordinates: [number, number]; name: string; freq: number }>> {
   const weeksData = await fetchSpeciesWeeks(speciesCode, resolution)
   const cells = weeksData[String(week)]
@@ -340,13 +348,12 @@ export async function getSpeciesBestLocations(
     })
   }
 
-  // Filter by region if specified
+  // Filter by sub-region if specified
   let filtered = cells
-  if (regionFilter) {
-    filtered = cells.filter(([cellId]) => {
-      const info = cellMap.get(cellId)
-      return info && cellInBBox(info.coords[0], info.coords[1], regionFilter)
-    })
+  if (regionStateCodes) {
+    const stateCodeSet = new Set(regionStateCodes)
+    const cellStates = await getCellStates(resolution)
+    filtered = cells.filter(([cellId]) => cellInSubRegion(cellId, stateCodeSet, cellStates))
   }
 
   // Sort by frequency descending

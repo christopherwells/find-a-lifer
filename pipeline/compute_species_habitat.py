@@ -64,18 +64,38 @@ ALL_LAND_KEYS = FOREST_KEYS + ["shrub", "herb", "cultivated", "urban", "water", 
 
 
 # Sub-region bounding boxes (must match frontend/src/lib/subRegions.ts)
+# Sub-region definitions: key -> (display_name, state_codes, fallback_bbox)
+# state_codes used for exact matching via cell_states archive; bbox as fallback
 SUB_REGIONS = {
-    "ca-west": ("Western Canada", [-141, 48, -120, 70]),
-    "ca-central": ("Central Canada", [-120, 48, -89, 70]),
-    "ca-east": ("Eastern Canada", [-89, 42, -50, 63]),
-    "mx": ("Mexico", [-118, 14, -86, 33]),
-    "ca-north": ("Northern Central America", [-92, 12, -83, 18]),
-    "ca-south": ("Southern Central America", [-86, 7, -77, 12]),
-    "caribbean-greater": ("Greater Antilles", [-85, 17, -64, 24]),
-    "atlantic-west": ("Western Atlantic Islands", [-80, 20, -60, 33]),
-    "us-ak": ("Alaska", [-180, 51, -130, 72]),
-    "us-hi": ("Hawaii", [-161, 18, -154, 23]),
+    "ca-west": ("Western Canada", {"CA-BC", "CA-AB"}, [-141, 48, -125, 70]),
+    "ca-central": ("Central Canada", {"CA-SK", "CA-MB"}, [-120, 48, -89, 70]),
+    "ca-east": ("Eastern Canada", {"CA-ON", "CA-QC", "CA-NB", "CA-NS", "CA-NL", "CA-PE"}, [-89, 42, -50, 63]),
+    "ca-north": ("Northern Canada", {"CA-YT", "CA-NT", "CA-NU"}, [-141, 60, -60, 84]),
+    "mx-north": ("Northern Mexico",
+                  {f"MX-{s}" for s in ["BCN","BCS","SON","CHH","COA","NLE","TAM","SIN","DUR","ZAC","SLP","AGU","NAY","JAL"]},
+                  [-118, 20, -86, 33]),
+    "mx-south": ("Southern Mexico",
+                  {f"MX-{s}" for s in ["COL","MIC","GUA","GRO","OAX","CHP","TAB","VER","PUE","TLA","HID","MEX","MOR","QUE","CAM","ROO","YUC","CMX","DIF"]},
+                  [-118, 14, -100, 20]),
+    "ca-c-north": ("Northern Central America", {"BZ", "GT", "SV", "HN", "NI"}, [-92, 12, -83, 18]),
+    "ca-c-south": ("Southern Central America", {"CR", "PA"}, [-86, 7, -77, 12]),
+    "caribbean-greater": ("Greater Antilles", {"CU", "JM", "HT", "DO", "PR"}, [-85, 17, -64, 24]),
+    "atlantic-west": ("Western Atlantic Islands", {"BM", "BS", "TC"}, [-80, 20, -60, 33]),
+    "us-ne": ("Northeastern US", {"US-ME","US-NH","US-VT","US-MA","US-RI","US-CT","US-NY","US-NJ","US-PA","US-DE","US-MD","US-DC"}, [-80, 37, -66, 48]),
+    "us-se": ("Southeastern US", {"US-VA","US-WV","US-NC","US-SC","US-GA","US-FL","US-AL","US-MS","US-TN","US-KY","US-LA","US-AR"}, [-95, 24, -75, 39]),
+    "us-mw": ("Midwestern US", {"US-OH","US-IN","US-IL","US-MI","US-WI","US-MN","US-IA","US-MO","US-ND","US-SD","US-NE","US-KS"}, [-105, 36, -80, 49]),
+    "us-sw": ("Southwestern US", {"US-TX","US-OK","US-NM","US-AZ"}, [-115, 25, -93, 37]),
+    "us-west": ("Western US", {"US-CA","US-OR","US-WA"}, [-125, 32, -116, 49]),
+    "us-rockies": ("US Rockies", {"US-NV","US-UT","US-CO","US-WY","US-MT","US-ID"}, [-117, 35, -102, 49]),
+    "us-ak": ("Alaska", {"US-AK"}, [-180, 51, -130, 72]),
+    "us-hi": ("Hawaii", {"US-HI"}, [-161, 18, -154, 23]),
 }
+
+# Build reverse lookup: state_code -> sub_region_id
+STATE_TO_REGION = {}
+for _region_id, (_, _state_codes, _) in SUB_REGIONS.items():
+    for _sc in _state_codes:
+        STATE_TO_REGION[_sc] = _region_id
 
 
 def compute_habitat_for_cells(weeks_data, covariates, cell_filter=None):
@@ -238,16 +258,28 @@ def main():
             p = f["properties"]
             cell_centroids[p["cell_id"]] = (p.get("center_lng", 0), p.get("center_lat", 0))
 
-    # Build per-sub-region cell ID sets
-    region_cell_sets = {}
-    for region_id, (region_name, bbox) in SUB_REGIONS.items():
-        west, south, east, north = bbox
-        cells_in = set()
-        for cid, (lng, lat) in cell_centroids.items():
-            if west <= lng <= east and south <= lat <= north:
-                cells_in.add(cid)
-        if cells_in:
-            region_cell_sets[region_id] = cells_in
+    # Load cell state codes for exact sub-region assignment
+    cell_states = {}
+    cell_states_file = Path(__file__).parent.parent / "data" / "archive" / f"cell_states_r{RESOLUTION}.json"
+    if cell_states_file.exists():
+        cell_states = json.load(open(cell_states_file))
+        print(f"  Loaded cell state codes: {len(cell_states)} cells")
+
+    # Build per-sub-region cell ID sets (state codes first, bbox fallback)
+    region_cell_sets = {k: set() for k in SUB_REGIONS}
+    for cid in cell_centroids:
+        state_code = cell_states.get(str(cid), "")
+        if state_code and state_code in STATE_TO_REGION:
+            region_cell_sets[STATE_TO_REGION[state_code]].add(cid)
+        elif cid in cell_centroids:
+            lng, lat = cell_centroids[cid]
+            for region_id, (_, _, bbox) in SUB_REGIONS.items():
+                west, south, east, north = bbox
+                if west <= lng <= east and south <= lat <= north:
+                    region_cell_sets[region_id].add(cid)
+                    break
+    # Remove empty regions
+    region_cell_sets = {k: v for k, v in region_cell_sets.items() if v}
 
     # Process each species-weeks file
     habitat_results = {}  # speciesCode -> {labels, elevation, regionalHabitat}

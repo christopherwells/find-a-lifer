@@ -321,7 +321,7 @@ def run_stixel_ensemble(detections, cell_week_checklists, cell_covariates,
 def save_archive(cell_week_checklists_by_res, detections_by_res,
                  species_names, species_scinames, species_taxon_order,
                  species_family, species_regions, species_exotic_codes,
-                 processed_regions):
+                 processed_regions, cell_state_codes_by_res=None):
     """Save intermediate counts to archive directory."""
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -342,6 +342,19 @@ def save_archive(cell_week_checklists_by_res, detections_by_res,
                 data[taxon_id][cell_id] = dict(weeks)
         with open(ARCHIVE_DIR / f"detections_r{res}.json", "w") as f:
             json.dump(data, f, separators=(",", ":"))
+
+    # Save cell → state code mapping (majority state per cell)
+    if cell_state_codes_by_res:
+        for res in RESOLUTIONS:
+            data = {}
+            for cell_id, state_counts in cell_state_codes_by_res[res].items():
+                # Store the most-frequent state code for each cell
+                if state_counts:
+                    best_state = max(state_counts.items(), key=lambda x: x[1])[0]
+                    data[cell_id] = best_state
+            with open(ARCHIVE_DIR / f"cell_states_r{res}.json", "w") as f:
+                json.dump(data, f, separators=(",", ":"))
+            print(f"  Saved r{res} cell states: {len(data)} cells")
 
     # Save species metadata
     meta = {
@@ -567,9 +580,11 @@ def find_ebd_files(skip_regions=None):
 
 # ---- Processing functions (unchanged from original) ----
 
-def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklists_by_res):
+def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklists_by_res,
+                          cell_state_codes_by_res=None):
     """Process a single sampling event file, computing cells at all resolutions.
-    Returns (total_events, filter_stats) with detailed breakdown."""
+    Returns (total_events, filter_stats) with detailed breakdown.
+    If cell_state_codes_by_res provided, tracks STATE CODE per cell for sub-region mapping."""
     total_events = 0
     state_valid = 0
     filter_stats = {
@@ -648,6 +663,12 @@ def process_sampling_file(sed_file, state, valid_checklists, cell_week_checklist
                 valid_checklists[sei] = (lat, lon, week, cell_ids)
                 for res, cell_id in cell_ids.items():
                     cell_week_checklists_by_res[res][cell_id][week] += 1
+                # Track state codes per cell for sub-region mapping
+                if cell_state_codes_by_res is not None:
+                    state_code = row.get("STATE CODE", "") or row.get("STATE", "")
+                    if state_code:
+                        for res, cell_id in cell_ids.items():
+                            cell_state_codes_by_res[res][cell_id][state_code] += 1
                 state_valid += 1
 
             if total_events % 500000 == 0:
@@ -1445,6 +1466,29 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             shutil.copy2(f, root_sw / f.name)
         print("\n  Copied r4 data to root level for backward compatibility")
 
+    # Ship cell_states to frontend for sub-region detection
+    for res in RESOLUTIONS:
+        cs_file = ARCHIVE_DIR / f"cell_states_r{res}.json"
+        res_dir = OUTPUT_DIR / f"r{res}"
+        if cs_file.exists() and res_dir.exists():
+            # Convert h3_index keys to cell_id keys
+            raw_states = json.load(open(cs_file))
+            # Load grid to get h3_index -> cell_id mapping
+            grid_file = res_dir / "grid.geojson"
+            if grid_file.exists():
+                grid = json.load(open(grid_file))
+                h3_to_cellid = {}
+                for feat in grid["features"]:
+                    h3_to_cellid[feat["properties"]["h3_index"]] = feat["properties"]["cell_id"]
+                cell_states_by_id = {}
+                for h3_idx, state_code in raw_states.items():
+                    cid = h3_to_cellid.get(h3_idx)
+                    if cid is not None:
+                        cell_states_by_id[str(cid)] = state_code
+                with open(res_dir / "cell_states.json", "w") as f:
+                    json.dump(cell_states_by_id, f, separators=(",", ":"))
+                print(f"  Shipped r{res} cell_states: {len(cell_states_by_id)} cells")
+
 
 def load_taxonomy():
     """Load eBird taxonomy for species codes and family names."""
@@ -1606,10 +1650,21 @@ def main():
     grand_total_events = 0
     grand_filter_stats = defaultdict(int)
 
+    # Track state codes per cell for sub-region mapping
+    cell_state_codes_by_res = {res: defaultdict(lambda: defaultdict(int)) for res in RESOLUTIONS}
+    # Load existing cell states from archive if present
+    for res in RESOLUTIONS:
+        cs_file = ARCHIVE_DIR / f"cell_states_r{res}.json"
+        if cs_file.exists():
+            data = json.load(open(cs_file))
+            for cell_id, state_code in data.items():
+                cell_state_codes_by_res[res][cell_id][state_code] = 1
+            print(f"  Loaded r{res} cell states: {len(data)} cells")
+
     for region, _, sed_file in new_pairs:
         print(f"\n  Processing {region} sampling events...")
         sys.stdout.flush()
-        total, fstats = process_sampling_file(sed_file, region, valid_checklists, cell_week_checklists_by_res)
+        total, fstats = process_sampling_file(sed_file, region, valid_checklists, cell_week_checklists_by_res, cell_state_codes_by_res)
         grand_total_events += total
         for k, v in fstats.items():
             grand_filter_stats[k] += v
@@ -1658,7 +1713,7 @@ def main():
     save_archive(cell_week_checklists_by_res, detections_by_res,
                  species_names, species_scinames, species_taxon_order,
                  species_family, species_regions, species_exotic_codes,
-                 processed_regions)
+                 processed_regions, cell_state_codes_by_res)
 
     # Save cumulative filter stats
     existing_stats = {}

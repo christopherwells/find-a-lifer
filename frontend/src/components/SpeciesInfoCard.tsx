@@ -5,7 +5,6 @@ import Badge from './Badge'
 import Sparkline from './Sparkline'
 import { getDisplayGroup } from '../lib/familyGroups'
 import { getSpeciesFrequencyProfile, getSpeciesBestLocations, fetchSpeciesWeeks, fetchGrid } from '../lib/dataCache'
-import type { RegionBBox } from '../lib/dataCache'
 import { SUB_REGIONS, getSpeciesSubRegions } from '../lib/subRegions'
 import type { SubRegion } from '../lib/subRegions'
 
@@ -30,7 +29,9 @@ export default function SpeciesInfoCard({
   const [loadingLocations, setLoadingLocations] = useState(false)
 
   // Region state
-  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null) // null = global
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(
+    regionContext?.subRegionId ?? null
+  )
   const [availableRegions, setAvailableRegions] = useState<SubRegion[]>([])
   const [showGlobalLocations, setShowGlobalLocations] = useState(false)
 
@@ -45,14 +46,7 @@ export default function SpeciesInfoCard({
   const selectedRegion = selectedRegionId
     ? SUB_REGIONS.find(r => r.id === selectedRegionId) ?? null
     : null
-  const regionBbox: RegionBBox | undefined = selectedRegion?.bbox
-
-  // Initialize region from context on mount
-  useEffect(() => {
-    if (regionContext) {
-      setSelectedRegionId(regionContext.subRegionId)
-    }
-  }, [regionContext])
+  const regionStateCodes: string[] | undefined = selectedRegion?.stateCodes
 
   // Load available sub-regions for this species
   useEffect(() => {
@@ -91,19 +85,19 @@ export default function SpeciesInfoCard({
   // Load frequency profile (region-aware)
   useEffect(() => {
     let cancelled = false
-    getSpeciesFrequencyProfile(species.speciesCode, undefined, regionBbox).then(profile => {
+    getSpeciesFrequencyProfile(species.speciesCode, undefined, regionStateCodes).then(profile => {
       if (!cancelled) setFreqProfile(profile)
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [species.speciesCode, regionBbox])
+  }, [species.speciesCode, regionStateCodes])
 
   // Load best locations for current week (region-aware)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false
     setLoadingLocations(true)
-    const useBbox = showGlobalLocations ? undefined : regionBbox
-    getSpeciesBestLocations(species.speciesCode, week, undefined, 5, useBbox).then(locs => {
+    const useRegion = showGlobalLocations ? undefined : regionStateCodes
+    getSpeciesBestLocations(species.speciesCode, week, undefined, 5, useRegion).then(locs => {
       if (!cancelled) {
         setBestLocations(locs)
         setLoadingLocations(false)
@@ -112,7 +106,7 @@ export default function SpeciesInfoCard({
       if (!cancelled) setLoadingLocations(false)
     })
     return () => { cancelled = true }
-  }, [species.speciesCode, week, regionBbox, showGlobalLocations])
+  }, [species.speciesCode, week, regionStateCodes, showGlobalLocations])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Reset showGlobalLocations when region changes
