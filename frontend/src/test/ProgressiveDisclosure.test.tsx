@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ExploreTab from '../components/ExploreTab'
 
+vi.mock('../contexts/LifeListContext', () => ({
+  useLifeList: () => ({
+    isSpeciesSeen: vi.fn(() => false),
+    toggleSpecies: vi.fn(),
+    getTotalSeen: () => 0,
+    seenSpecies: new Set<string>(),
+    effectiveSeenSpecies: new Set<string>(),
+  }),
+}))
+
 describe('Progressive Disclosure (Beginner Mode)', () => {
   beforeEach(() => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(

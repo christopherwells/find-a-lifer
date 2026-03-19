@@ -1,8 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
-import type { ExploreTabProps, SpeciesMeta } from './types'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import type { ExploreTabProps, SpeciesMeta, Species } from './types'
 import { fetchSpecies } from '../lib/dataCache'
+import { useLifeList } from '../contexts/LifeListContext'
 import Tooltip from './Tooltip'
 import { TOOLTIPS } from '../lib/tooltipContent'
+
+interface LightweightHighlight {
+  species: Species
+  reason: string
+}
 
 export default function ExploreTab({
   currentWeek = 26,
@@ -39,11 +45,79 @@ export default function ExploreTab({
   // Multi-species compare mode
   const [compareMode, setCompareMode] = useState(false)
 
+  // This Week's Highlights
+  const [fullSpecies, setFullSpecies] = useState<Species[]>([])
+  const [showHighlights, setShowHighlights] = useState(true)
+  const { effectiveSeenSpecies } = useLifeList()
+
   // Animation state
   const [isAnimating, setIsAnimating] = useState(false)
   const [showWrapIndicator, setShowWrapIndicator] = useState(false)
   const animationIntervalRef = useRef<number | null>(null)
   const currentWeekRef = useRef(currentWeek)
+
+  // Load full species data for highlights (cached, shared with MapView)
+  useEffect(() => {
+    if (fullSpecies.length > 0) return
+    fetchSpecies()
+      .then((data) => {
+        setFullSpecies(data as Species[])
+      })
+      .catch((err) => {
+        console.error('ExploreTab: failed to load full species for highlights', err)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Compute lightweight highlights from species metadata (no expensive frequency lookup)
+  const highlights: LightweightHighlight[] = useMemo(() => {
+    if (fullSpecies.length === 0 || effectiveSeenSpecies.size === 0) return []
+    const result: LightweightHighlight[] = []
+    const seen = new Set<string>()
+
+    for (const sp of fullSpecies) {
+      if (effectiveSeenSpecies.has(sp.speciesCode)) continue
+      if (!sp.photoUrl) continue // only show species with photos for visual appeal
+
+      // Goal birds peaking this week
+      if (goalSpeciesCodes.has(sp.speciesCode) && sp.peakWeek === currentWeek) {
+        if (!seen.has(sp.speciesCode)) {
+          result.push({ species: sp, reason: 'Goal bird at peak season' })
+          seen.add(sp.speciesCode)
+        }
+      }
+
+      // Peak season species (peakWeek matches current week, high seasonality)
+      if (sp.peakWeek === currentWeek && sp.seasonalityScore > 0.5 && !seen.has(sp.speciesCode)) {
+        result.push({ species: sp, reason: 'Peak season this week' })
+        seen.add(sp.speciesCode)
+      }
+
+      // Easy wins in season (low difficulty, peak close to current week)
+      if (sp.difficultyRating <= 3 && Math.abs(sp.peakWeek - currentWeek) <= 2 && !seen.has(sp.speciesCode)) {
+        result.push({ species: sp, reason: `Easy lifer — difficulty ${sp.difficultyRating}/10` })
+        seen.add(sp.speciesCode)
+      }
+
+      // Seasonal specialty (very high seasonality, within 3 weeks of peak)
+      if (sp.seasonalityScore > 0.7 && Math.abs(sp.peakWeek - currentWeek) <= 3 && !seen.has(sp.speciesCode)) {
+        result.push({ species: sp, reason: 'Seasonal specialty' })
+        seen.add(sp.speciesCode)
+      }
+
+      if (result.length >= 8) break // limit candidates
+    }
+
+    // Sort: goal birds first, then by seasonality score
+    result.sort((a, b) => {
+      const aGoal = goalSpeciesCodes.has(a.species.speciesCode) ? 0 : 1
+      const bGoal = goalSpeciesCodes.has(b.species.speciesCode) ? 0 : 1
+      if (aGoal !== bGoal) return aGoal - bGoal
+      return b.species.seasonalityScore - a.species.seasonalityScore
+    })
+
+    return result.slice(0, 6)
+  }, [fullSpecies, currentWeek, effectiveSeenSpecies, goalSpeciesCodes])
 
   // Load species metadata when switching to species view
   useEffect(() => {
@@ -253,6 +327,34 @@ export default function ExploreTab({
             />
           </span>
         </button>
+      )}
+
+      {/* This Week's Highlights */}
+      {showHighlights && highlights.length > 0 && (
+        <div className="mb-0">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400">This Week's Highlights</h3>
+            <button onClick={() => setShowHighlights(false)} className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+            {highlights.map(h => (
+              <div
+                key={h.species.speciesCode}
+                className="flex-shrink-0 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => {
+                  onViewModeChange?.('species')
+                  onSelectedSpeciesChange?.(h.species.speciesCode)
+                }}
+              >
+                {h.species.photoUrl && (
+                  <img src={h.species.photoUrl} alt="" className="w-full h-20 rounded object-cover mb-1" loading="lazy" />
+                )}
+                <div className="text-xs font-medium truncate dark:text-gray-200">{h.species.comName}</div>
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{h.reason}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Species Picker — shown in Species Range view */}

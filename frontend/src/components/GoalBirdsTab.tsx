@@ -12,10 +12,16 @@ import { getDisplayGroup } from '../lib/familyGroups'
 import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES } from '../lib/regionGroups'
 import {
   CONSERVATION_TEMPLATES,
+  DIFFICULTY_TEMPLATES,
+  HABITAT_TEMPLATES,
   REGIONAL_TEMPLATES,
   computeConservationTemplate,
+  computeDifficultyTemplate,
+  computeHabitatTemplate,
   computeRegionalTemplate,
   type ConservationTemplateType,
+  type DifficultyTemplateType,
+  type HabitatTemplateType,
   type RegionalTemplateType,
 } from '../lib/goalTemplates'
 import { shareGoalList, getSharedWithMe, type SharedGoalList } from '../lib/sharedGoalListsService'
@@ -27,6 +33,27 @@ import {
   RAPTORS,
   LBJS,
 } from '../lib/curatedSpeciesLists'
+
+/** Returns Tailwind classes for difficulty rating pill. */
+function getDifficultyColor(rating: number): string {
+  if (rating <= 3) return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+  if (rating <= 6) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+  return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+}
+
+/** Returns a colored dot element for conservation status, or null for LC / empty. */
+function getConservStatusDot(status: string): React.ReactNode {
+  let color: string
+  let title: string
+  switch (status) {
+    case 'Critically Endangered': color = 'bg-red-500'; title = 'Critically Endangered'; break
+    case 'Endangered': color = 'bg-orange-500'; title = 'Endangered'; break
+    case 'Vulnerable': color = 'bg-yellow-500'; title = 'Vulnerable'; break
+    case 'Near Threatened': color = 'bg-gray-400'; title = 'Near Threatened'; break
+    default: return null
+  }
+  return <span className={`inline-block w-2 h-2 rounded-full ${color} flex-shrink-0`} title={title} />
+}
 
 export default function GoalBirdsTab() {
   const { isSpeciesSeen, seenSpecies } = useLifeList()
@@ -80,6 +107,8 @@ export default function GoalBirdsTab() {
   const [showTemplateSection, setShowTemplateSection] = useState(false)
   const [templateRegion, setTemplateRegion] = useState<string>('')
   const [conservTemplateType, setConservTemplateType] = useState<ConservationTemplateType>('threatened')
+  const [difficultyTemplateType, setDifficultyTemplateType] = useState<DifficultyTemplateType>('easy-lifers')
+  const [habitatTemplateType, setHabitatTemplateType] = useState<HabitatTemplateType>('forest-specialists')
   const [regionalTemplateType, setRegionalTemplateType] = useState<RegionalTemplateType>('regional-specialties')
   const [templateCreating, setTemplateCreating] = useState(false)
 
@@ -148,6 +177,18 @@ export default function GoalBirdsTab() {
     if (selectedTemplate?.requiresRegion && !templateRegion) return []
     return computeConservationTemplate(conservTemplateType, allSpecies, templateRegion, seenSpecies)
   }, [showTemplateSection, allSpecies, conservTemplateType, templateRegion, seenSpecies])
+
+  // Computed difficulty template preview
+  const difficultyTemplatePreview = useMemo(() => {
+    if (!showTemplateSection || allSpecies.length === 0) return []
+    return computeDifficultyTemplate(difficultyTemplateType, allSpecies, templateRegion, seenSpecies)
+  }, [showTemplateSection, allSpecies, difficultyTemplateType, templateRegion, seenSpecies])
+
+  // Computed habitat template preview
+  const habitatTemplatePreview = useMemo(() => {
+    if (!showTemplateSection || allSpecies.length === 0) return []
+    return computeHabitatTemplate(habitatTemplateType, allSpecies, templateRegion, seenSpecies)
+  }, [showTemplateSection, allSpecies, habitatTemplateType, templateRegion, seenSpecies])
 
   // Computed regional template preview
   const regionalTemplatePreview = useMemo(() => {
@@ -800,14 +841,23 @@ export default function GoalBirdsTab() {
                     <button
                       key={species.speciesCode}
                       onClick={() => handleAddSpecies(species)}
-                      className="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                      className="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center gap-2"
                       data-testid={`species-suggestion-${species.speciesCode}`}
                     >
-                      <div className="text-sm font-medium text-[#2C3E50] dark:text-gray-200">
-                        {species.comName}
-                      </div>
-                      <div className="text-xs italic text-gray-600 dark:text-gray-400">
-                        {species.sciName}
+                      {species.photoUrl ? (
+                        <img src={species.photoUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" loading="lazy" />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                          <span className="text-gray-400 text-xs">🐦</span>
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">
+                          {species.comName}
+                        </div>
+                        <div className="text-xs italic text-gray-600 dark:text-gray-400 truncate">
+                          {species.sciName}
+                        </div>
                       </div>
                     </button>
                   ))}
@@ -908,13 +958,21 @@ export default function GoalBirdsTab() {
                     return (
                       <div
                         key={code}
-                        className={`px-2 py-1 rounded flex items-center justify-between transition-colors group ${
+                        className={`px-2 py-1.5 rounded flex items-center gap-2 transition-colors group ${
                           seen
                             ? 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
                             : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                         data-testid={`goal-species-${code}`}
                       >
+                        {/* Species photo thumbnail */}
+                        {species?.photoUrl ? (
+                          <img src={species.photoUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" loading="lazy" />
+                        ) : (
+                          <div className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-400 text-xs">🐦</span>
+                          </div>
+                        )}
                         {/* Clickable species info area */}
                         <button
                           className="flex-1 min-w-0 text-left"
@@ -922,21 +980,39 @@ export default function GoalBirdsTab() {
                           title={species ? `View ${species.comName} info` : code}
                           data-testid={`goal-species-info-btn-${code}`}
                         >
-                          <div
-                            className={`text-sm font-medium truncate ${
-                              seen
-                                ? 'line-through text-gray-400 dark:text-gray-500'
-                                : 'text-[#2C3E50] dark:text-gray-200 hover:text-[#2C3E7B] dark:hover:text-blue-400'
-                            }`}
-                            data-testid={seen ? `goal-species-seen-${code}` : `goal-species-unseen-${code}`}
-                          >
-                            {species ? species.comName : code}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`text-sm font-medium truncate ${
+                                seen
+                                  ? 'line-through text-gray-400 dark:text-gray-500'
+                                  : 'text-[#2C3E50] dark:text-gray-200 hover:text-[#2C3E7B] dark:hover:text-blue-400'
+                              }`}
+                              data-testid={seen ? `goal-species-seen-${code}` : `goal-species-unseen-${code}`}
+                            >
+                              {species ? species.comName : code}
+                            </span>
+                            {/* Difficulty badge */}
+                            {species && species.difficultyRating > 0 && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full ${getDifficultyColor(species.difficultyRating)}`}>
+                                {species.difficultyRating}/10
+                              </span>
+                            )}
+                            {/* Conservation status dot */}
+                            {species && getConservStatusDot(species.conservStatus)}
                           </div>
-                          {species && (
-                            <div className={`text-xs italic truncate ${seen ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}>
-                              {species.sciName}
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            {species && (
+                              <span className={`text-xs italic truncate ${seen ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}>
+                                {species.sciName}
+                              </span>
+                            )}
+                            {/* Habitat tags */}
+                            {species?.habitatLabels?.slice(0, 2).map(label => (
+                              <span key={label} className="text-[10px] px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-500 dark:text-gray-400">
+                                {label}
+                              </span>
+                            ))}
+                          </div>
                           {seen && (
                             <div className="text-xs text-green-600 font-medium mt-0.5">
                               ✓ Seen
@@ -944,7 +1020,7 @@ export default function GoalBirdsTab() {
                           )}
                         </button>
                         {/* Action buttons */}
-                        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           {/* Info button */}
                           {species && (
                             <button
@@ -983,6 +1059,14 @@ export default function GoalBirdsTab() {
                     )
                   })
                 )}
+              </div>
+            )}
+
+            {/* Empty life list state — encourage import */}
+            {seenSpecies.size === 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-center mt-3">
+                <p className="text-blue-800 dark:text-blue-200 font-medium">Import your life list to get personalized suggestions</p>
+                <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">Go to Profile &rarr; Import Life List to get started</p>
               </div>
             )}
 
@@ -1691,6 +1775,140 @@ export default function GoalBirdsTab() {
                         </div>
                       )
                     })()}
+                  </div>
+
+                  {/* Difficulty Templates */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Difficulty Goals</h4>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {DIFFICULTY_TEMPLATES.map((tmpl) => (
+                        <button
+                          key={tmpl.id}
+                          onClick={() => setDifficultyTemplateType(tmpl.id)}
+                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                            difficultyTemplateType === tmpl.id
+                              ? 'bg-green-100 dark:bg-green-900/40 border-green-400 dark:border-green-600 text-green-800 dark:text-green-200'
+                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                          data-testid={`difficulty-template-${tmpl.id}`}
+                          title={tmpl.description}
+                        >
+                          {tmpl.emoji} {tmpl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Difficulty preview */}
+                    {difficultyTemplatePreview.length === 0 ? (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
+                        No unseen {DIFFICULTY_TEMPLATES.find(t => t.id === difficultyTemplateType)?.label.toLowerCase() ?? 'species'} found{templateRegion ? ` in ${templateRegion}` : ''}.
+                      </p>
+                    ) : (
+                      <div data-testid="difficulty-template-preview">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {difficultyTemplatePreview.length} unseen species
+                          </span>
+                          <button
+                            onClick={() => {
+                              const tmpl = DIFFICULTY_TEMPLATES.find(t => t.id === difficultyTemplateType)
+                              void handleCreateFromTemplate(difficultyTemplatePreview, tmpl?.label ?? 'Difficulty')
+                            }}
+                            disabled={templateCreating}
+                            className="px-2 py-1 text-[11px] font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 rounded-md transition-colors"
+                            data-testid="difficulty-create-list-btn"
+                          >
+                            {templateCreating ? 'Creating...' : `Create Goal List (${difficultyTemplatePreview.length})`}
+                          </button>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
+                          {difficultyTemplatePreview.slice(0, 50).map((sp) => (
+                            <div
+                              key={sp.speciesCode}
+                              className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
+                              data-testid={`difficulty-preview-${sp.speciesCode}`}
+                            >
+                              <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
+                              <span className={`text-[10px] ml-1 flex-shrink-0 px-1 rounded-full ${getDifficultyColor(sp.difficultyRating)}`}>
+                                {sp.difficultyRating}/10
+                              </span>
+                            </div>
+                          ))}
+                          {difficultyTemplatePreview.length > 50 && (
+                            <p className="text-[10px] text-gray-400 text-center py-1">
+                              +{difficultyTemplatePreview.length - 50} more
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Habitat Templates */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Habitat Goals</h4>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {HABITAT_TEMPLATES.map((tmpl) => (
+                        <button
+                          key={tmpl.id}
+                          onClick={() => setHabitatTemplateType(tmpl.id)}
+                          className={`px-2 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                            habitatTemplateType === tmpl.id
+                              ? 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-400 dark:border-emerald-600 text-emerald-800 dark:text-emerald-200'
+                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                          data-testid={`habitat-template-${tmpl.id}`}
+                          title={tmpl.description}
+                        >
+                          {tmpl.emoji} {tmpl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Habitat preview */}
+                    {habitatTemplatePreview.length === 0 ? (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
+                        No unseen {HABITAT_TEMPLATES.find(t => t.id === habitatTemplateType)?.label.toLowerCase() ?? 'species'} found{templateRegion ? ` in ${templateRegion}` : ''}.
+                      </p>
+                    ) : (
+                      <div data-testid="habitat-template-preview">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {habitatTemplatePreview.length} unseen species
+                          </span>
+                          <button
+                            onClick={() => {
+                              const tmpl = HABITAT_TEMPLATES.find(t => t.id === habitatTemplateType)
+                              void handleCreateFromTemplate(habitatTemplatePreview, tmpl?.label ?? 'Habitat')
+                            }}
+                            disabled={templateCreating}
+                            className="px-2 py-1 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 rounded-md transition-colors"
+                            data-testid="habitat-create-list-btn"
+                          >
+                            {templateCreating ? 'Creating...' : `Create Goal List (${habitatTemplatePreview.length})`}
+                          </button>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
+                          {habitatTemplatePreview.slice(0, 50).map((sp) => (
+                            <div
+                              key={sp.speciesCode}
+                              className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
+                              data-testid={`habitat-preview-${sp.speciesCode}`}
+                            >
+                              <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
+                                {sp.habitatLabels?.slice(0, 2).join(', ') || '—'}
+                              </span>
+                            </div>
+                          ))}
+                          {habitatTemplatePreview.length > 50 && (
+                            <p className="text-[10px] text-gray-400 text-center py-1">
+                              +{habitatTemplatePreview.length - 50} more
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Regional Templates */}

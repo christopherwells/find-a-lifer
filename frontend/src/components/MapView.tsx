@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState, useMemo } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { getDisplayGroup } from '../lib/familyGroups'
@@ -13,6 +13,7 @@ import {
   type SpeciesMeta, type LiferInCell, type GoalBirdInCell,
   type OccurrenceRecord, type WeeklySummary,
 } from '../lib/mapHelpers'
+import { getNotableBirds, type NotableBird } from '../lib/recommendationEngine'
 
 interface MapViewProps {
   darkMode?: boolean
@@ -214,6 +215,49 @@ export default memo(function MapView({
   useEffect(() => { seenSpeciesRef.current = seenSpecies }, [seenSpecies])
   useEffect(() => { selectedSpeciesRef.current = selectedSpecies }, [selectedSpecies])
   useEffect(() => { onDataRangeChangeRef.current = onDataRangeChange }, [onDataRangeChange])
+
+  // Notable birds computed from popup data for the "Notable Birds Here" section
+  const notableBirds: NotableBird[] = useMemo(() => {
+    // Compute from lifers popup (density/probability modes)
+    if (lifersPopup && lifersPopup.lifers.length > 0 && speciesByIdCache) {
+      const cellSpecies = lifersPopup.lifers.map(lifer => {
+        const meta = speciesByIdCache!.get(lifer.species_id)
+        return {
+          species: (meta as unknown as Species) || {
+            species_id: lifer.species_id,
+            speciesCode: lifer.speciesCode,
+            comName: lifer.comName,
+            sciName: lifer.sciName,
+            difficultyRating: lifer.difficultyRating ?? 5,
+            photoUrl: '',
+          } as unknown as Species,
+          frequency: lifer.probability,
+        }
+      }).filter(cs => cs.species.speciesCode) // filter out any bad data
+      return getNotableBirds(cellSpecies, seenSpecies, goalSpeciesCodes)
+    }
+    // Compute from goal birds popup (goal-birds mode)
+    if (goalBirdsPopup && goalBirdsPopup.birds.length > 0 && speciesByIdCache) {
+      const cellSpecies = goalBirdsPopup.birds
+        .filter(bird => !bird.isSeen)
+        .map(bird => {
+          const meta = speciesByIdCache!.get(bird.species_id)
+          return {
+            species: (meta as unknown as Species) || {
+              species_id: bird.species_id,
+              speciesCode: bird.speciesCode,
+              comName: bird.comName,
+              sciName: bird.sciName,
+              difficultyRating: bird.difficultyRating ?? 5,
+              photoUrl: '',
+            } as unknown as Species,
+            frequency: bird.probability,
+          }
+        }).filter(cs => cs.species.speciesCode)
+      return getNotableBirds(cellSpecies, seenSpecies, goalSpeciesCodes)
+    }
+    return []
+  }, [lifersPopup, goalBirdsPopup, seenSpecies, goalSpeciesCodes])
 
   // Compare mode location markers (A = blue, B = orange)
   const compareMarkerARef = useRef<maplibregl.Marker | null>(null)
@@ -1754,6 +1798,34 @@ export default memo(function MapView({
 
           {/* Bird list */}
           <div className="overflow-y-auto flex-1">
+            {/* Notable Birds section */}
+            {notableBirds.length > 0 && (
+              <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
+                <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
+                {notableBirds.map(({ species, tag, frequency }) => (
+                  <div key={species.speciesCode} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1"
+                    onClick={() => {
+                      setPopupSpeciesCard(species)
+                      if (goalBirdsPopup) {
+                        const [lng, lat] = goalBirdsPopup.coordinates
+                        const region = detectSubRegionForCell(goalBirdsPopup.cellId)
+                        setPopupRegionContext(region ? { subRegionId: region.id, cellLng: lng, cellLat: lat } : null)
+                      }
+                    }}
+                  >
+                    {species.photoUrl ? (
+                      <img src={species.photoUrl} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" loading="lazy" />
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 text-lg">{'\u{1F426}'}</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate dark:text-gray-200">{species.comName}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{tag} · {Math.round(frequency * 100)}%</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {goalBirdsPopup.birds.length === 0 ? (
               <div className="px-3 py-4 text-center text-sm text-gray-500">
                 <div className="text-2xl mb-2">🔍</div>
@@ -1979,6 +2051,34 @@ export default memo(function MapView({
           )}
           {/* Lifer list */}
           <div className="overflow-y-auto flex-1">
+            {/* Notable Birds section */}
+            {notableBirds.length > 0 && lifersPopup.lifers.length > 0 && (
+              <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
+                <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
+                {notableBirds.map(({ species, tag, frequency }) => (
+                  <div key={species.speciesCode} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1"
+                    onClick={() => {
+                      setPopupSpeciesCard(species)
+                      if (lifersPopup) {
+                        const [lng, lat] = lifersPopup.coordinates
+                        const region = detectSubRegionForCell(lifersPopup.cellId)
+                        setPopupRegionContext(region ? { subRegionId: region.id, cellLng: lng, cellLat: lat } : null)
+                      }
+                    }}
+                  >
+                    {species.photoUrl ? (
+                      <img src={species.photoUrl} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" loading="lazy" />
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 text-lg">{'\u{1F426}'}</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate dark:text-gray-200">{species.comName}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{tag} · {Math.round(frequency * 100)}%</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {lifersPopup.lifers.length === 0 ? (
               <div className="px-3 py-4 text-center text-sm text-gray-500">
                 {lifersPopup.hasActiveFilter ? (

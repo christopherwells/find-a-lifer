@@ -54,6 +54,20 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [addingSpecies, setAddingSpecies] = useState<{ code: string; name: string } | null>(null)
 
+  // Goal birds filter
+  const [goalBirdsOnly, setGoalBirdsOnly] = useState(false)
+
+  // Derive all goal species codes from all goal lists
+  const allGoalCodes = useMemo(() => {
+    const codes = new Set<string>()
+    for (const list of goalLists) {
+      for (const code of list.speciesCodes) {
+        codes.add(code)
+      }
+    }
+    return codes
+  }, [goalLists])
+
   // Species info card
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
 
@@ -364,14 +378,17 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
           (seenFilter === 'unseen' && !isSpeciesSeen(species.speciesCode)) ||
           (seenFilter === 'lifers' && !isSpeciesSeen(species.speciesCode))
 
-        return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion && matchesRegionFilter && matchesSeen
+        const matchesGoalFilter =
+          !goalBirdsOnly || allGoalCodes.has(species.speciesCode)
+
+        return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion && matchesRegionFilter && matchesSeen && matchesGoalFilter
       })
       if (filtered.length > 0) {
         result[groupName] = filtered
       }
     }
     return result
-  }, [groupOrder, speciesByGroup, selectedFamily, searchTerm, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, regionSpeciesCodes, selectedRegionFilter, seenFilter, isSpeciesSeen])
+  }, [groupOrder, speciesByGroup, selectedFamily, searchTerm, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, regionSpeciesCodes, selectedRegionFilter, seenFilter, isSpeciesSeen, goalBirdsOnly, allGoalCodes])
 
   if (loading) {
     return (
@@ -405,11 +422,12 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   )
 
   // Count active filters for the clear filters button
-  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter, selectedRegionFilter].filter(v => v !== '').length
+  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter, selectedRegionFilter].filter(v => v !== '').length + (goalBirdsOnly ? 1 : 0)
 
   const clearAllFilters = () => {
     onSpeciesFiltersChange?.({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
     setSeenFilter('')
+    setGoalBirdsOnly(false)
   }
 
   return (
@@ -614,6 +632,19 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                 <Tooltip content={TOOLTIPS.difficulty} />
               </div>
             </div>
+            {/* Goal Birds Only toggle */}
+            {allGoalCodes.size > 0 && (
+              <label className="flex items-center gap-1.5 cursor-pointer" data-testid="goal-birds-only-filter">
+                <input
+                  type="checkbox"
+                  checked={goalBirdsOnly}
+                  onChange={(e) => setGoalBirdsOnly(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer"
+                />
+                <span className="text-[11px] text-gray-600 dark:text-gray-300 font-medium">Goal birds only</span>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">({allGoalCodes.size})</span>
+              </label>
+            )}
             {/* Clear filters */}
             {activeFilterCount > 0 && (
               <button
@@ -727,8 +758,11 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                             {species.comName}
                           </span>
                         </button>
-                        {/* Inline status dots */}
+                        {/* Inline status dots + goal badge */}
                         <div className="flex items-center gap-0.5 flex-shrink-0">
+                          {allGoalCodes.has(species.speciesCode) && (
+                            <span className="text-[10px] flex-shrink-0" title="In your goal list" data-testid={`goal-badge-${species.speciesCode}`}>{'\u{1F3AF}'}</span>
+                          )}
                           {species.conservStatus && species.conservStatus !== 'Least Concern' && species.conservStatus !== 'Data Deficient' && (
                             <span className={`w-1.5 h-1.5 rounded-full ${getConservationDotColor(species.conservStatus)}`} title={species.conservStatus} data-testid={`checklist-conservation-badge-${species.speciesCode}`} />
                           )}
