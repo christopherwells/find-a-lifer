@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import type { Species } from './types'
 import Badge from './Badge'
@@ -7,6 +7,8 @@ import { getDisplayGroup } from '../lib/familyGroups'
 import { getSpeciesFrequencyProfile, getSpeciesBestLocations, fetchSpeciesWeeks } from '../lib/dataCache'
 import { SUB_REGIONS, getSpeciesSubRegions } from '../lib/subRegions'
 import type { SubRegion } from '../lib/subRegions'
+import { getAllLists, addSpeciesToList } from '../lib/goalListsDB'
+import type { GoalList } from '../lib/goalListsDB'
 
 interface SpeciesInfoCardProps {
   species: Species
@@ -27,6 +29,52 @@ export default function SpeciesInfoCard({
   const [freqProfile, setFreqProfile] = useState<number[] | null>(null)
   const [bestLocations, setBestLocations] = useState<Array<{ cellId: number; coordinates: [number, number]; name: string; freq: number }> | null>(null)
   const [loadingLocations, setLoadingLocations] = useState(false)
+
+  // Goal list state
+  const [goalLists, setGoalLists] = useState<GoalList[]>([])
+  const [selectedGoalListId, setSelectedGoalListId] = useState<string>('')
+  const [goalAddStatus, setGoalAddStatus] = useState<'idle' | 'added' | 'already' | 'error'>('idle')
+  const [goalAddListName, setGoalAddListName] = useState('')
+
+  // Load goal lists on mount
+  useEffect(() => {
+    let cancelled = false
+    getAllLists().then(lists => {
+      if (!cancelled) {
+        setGoalLists(lists)
+        // Auto-select if exactly one list
+        if (lists.length === 1) setSelectedGoalListId(lists[0].id)
+      }
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  // Check if species is already in any loaded list (for pre-checking)
+  const speciesInLists = new Set(
+    goalLists.filter(l => l.speciesCodes.includes(species.speciesCode)).map(l => l.id)
+  )
+
+  const handleAddToGoalList = useCallback(async (listId: string) => {
+    const list = goalLists.find(l => l.id === listId)
+    if (!list) return
+    try {
+      const added = await addSpeciesToList(listId, species.speciesCode)
+      setGoalAddListName(list.name)
+      if (added) {
+        setGoalAddStatus('added')
+        // Update local state to reflect the addition
+        setGoalLists(prev => prev.map(l =>
+          l.id === listId ? { ...l, speciesCodes: [...l.speciesCodes, species.speciesCode] } : l
+        ))
+      } else {
+        setGoalAddStatus('already')
+      }
+      setTimeout(() => setGoalAddStatus('idle'), 2500)
+    } catch {
+      setGoalAddStatus('error')
+      setTimeout(() => setGoalAddStatus('idle'), 2500)
+    }
+  }, [goalLists, species.speciesCode])
 
   // Region state
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(
@@ -296,6 +344,71 @@ export default function SpeciesInfoCard({
               )}
             </div>
           )}
+
+          {/* Add to Goal List */}
+          <div className="space-y-1.5" data-testid="species-info-goal-list">
+            {goalLists.length === 0 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                Create a goal list in the Goals tab to add species
+              </p>
+            ) : goalAddStatus !== 'idle' ? (
+              <div className={`text-xs text-center py-2 rounded-lg font-medium ${
+                goalAddStatus === 'added'
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  : goalAddStatus === 'already'
+                    ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+              }`} data-testid="species-info-goal-status">
+                {goalAddStatus === 'added' ? `Added to ${goalAddListName}`
+                  : goalAddStatus === 'already' ? `Already in ${goalAddListName}`
+                  : 'Error adding to list'}
+              </div>
+            ) : goalLists.length === 1 ? (
+              <button
+                onClick={() => handleAddToGoalList(goalLists[0].id)}
+                disabled={speciesInLists.has(goalLists[0].id)}
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors w-full justify-center ${
+                  speciesInLists.has(goalLists[0].id)
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                    : 'bg-teal-600 hover:bg-teal-700 text-white'
+                }`}
+                data-testid="species-info-add-goal"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                {speciesInLists.has(goalLists[0].id) ? `In ${goalLists[0].name}` : `Add to ${goalLists[0].name}`}
+              </button>
+            ) : (
+              <div className="flex gap-1.5">
+                <select
+                  value={selectedGoalListId}
+                  onChange={(e) => setSelectedGoalListId(e.target.value)}
+                  className="flex-1 text-xs px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  data-testid="species-info-goal-select"
+                >
+                  <option value="">Select goal list...</option>
+                  {goalLists.map(l => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}{speciesInLists.has(l.id) ? ' (already added)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => selectedGoalListId && handleAddToGoalList(selectedGoalListId)}
+                  disabled={!selectedGoalListId || speciesInLists.has(selectedGoalListId)}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors flex-shrink-0 ${
+                    !selectedGoalListId || speciesInLists.has(selectedGoalListId)
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                      : 'bg-teal-600 hover:bg-teal-700 text-white'
+                  }`}
+                  data-testid="species-info-add-goal-btn"
+                >
+                  {speciesInLists.has(selectedGoalListId) ? 'Added' : '+ Add'}
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* eBird link */}
           <a

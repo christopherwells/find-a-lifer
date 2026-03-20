@@ -61,6 +61,7 @@ export interface LiferInCell {
   difficultyScore?: number
   difficultyRating?: number
   isRestrictedRange?: boolean
+  isSeen?: boolean  // true when species is already on user's life list (used in show-all mode)
 }
 
 // ---------------------------------------------------------------------------
