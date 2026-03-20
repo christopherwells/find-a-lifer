@@ -1988,8 +1988,8 @@ export default memo(function MapView({
         </div>
       )}
 
-      {/* Lifer density click-to-inspect popup */}
-      {(viewMode === 'density' || viewMode === 'probability') && lifersPopup && (
+      {/* Lifer density / range click-to-inspect popup */}
+      {(viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && lifersPopup && (
         <div
           data-testid="lifers-popup"
           className="absolute top-4 right-4 bg-white rounded-lg shadow-xl border border-teal-200 w-72 max-h-96 flex flex-col z-10"
