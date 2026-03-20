@@ -288,10 +288,15 @@ async function getCellStates(resolution?: number): Promise<Map<number, string>> 
   return cellStatesLoading
 }
 
-/** Check if a cell belongs to a sub-region based on its state code */
+/** Check if a cell belongs to a sub-region based on its state code.
+ *  Handles province-level codes (CU-03) matching country-level definitions (CU). */
 function cellInSubRegion(cellId: number, stateCodes: Set<string>, cellStates: Map<number, string>): boolean {
   const sc = cellStates.get(cellId)
-  return sc ? stateCodes.has(sc) : false
+  if (!sc) return false
+  if (stateCodes.has(sc)) return true
+  // Try country prefix (CU-03 → CU)
+  const country = sc.split('-')[0]
+  return stateCodes.has(country)
 }
 
 export async function getSpeciesFrequencyProfile(

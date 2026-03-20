@@ -177,6 +177,20 @@ for (const region of SUB_REGIONS) {
   }
 }
 
+/**
+ * Resolve a state code to its sub-region.
+ * Tries exact match first (e.g., "US-ME"), then country prefix (e.g., "CU-03" → "CU").
+ * This handles eBird state codes like "CU-03", "DO-01", "JM-01" that include province numbers.
+ */
+function resolveStateToRegion(stateCode: string): SubRegion | null {
+  // Exact match (US-ME, CA-BC, MX-OAX, etc.)
+  const exact = STATE_TO_REGION[stateCode]
+  if (exact) return exact
+  // Country prefix match (CU-03 → CU, DO-01 → DO, JM-01 → JM, etc.)
+  const country = stateCode.split('-')[0]
+  return STATE_TO_REGION[country] || null
+}
+
 /** Cell state code mapping: cell_id -> state_code. Loaded from cell_states.json */
 let cellStatesCache: Record<string, string> | null = null
 let cellStatesLoading: Promise<Record<string, string>> | null = null
@@ -204,7 +218,7 @@ export async function loadCellStates(resolution: number): Promise<Record<string,
  * Falls back to null if state code is unknown.
  */
 export function detectSubRegionByState(stateCode: string): SubRegion | null {
-  return STATE_TO_REGION[stateCode] || null
+  return resolveStateToRegion(stateCode)
 }
 
 /**
@@ -214,7 +228,7 @@ export function detectSubRegionForCell(cellId: number | string): SubRegion | nul
   if (!cellStatesCache) return null
   const stateCode = cellStatesCache[String(cellId)]
   if (!stateCode) return null
-  return STATE_TO_REGION[stateCode] || null
+  return resolveStateToRegion(stateCode)
 }
 
 /**

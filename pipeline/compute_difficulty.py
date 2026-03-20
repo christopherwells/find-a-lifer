@@ -371,8 +371,10 @@ def compute_difficulty_scores():
         assigned = 0
         for h3_index in checklists.keys():
             state_code = cell_states.get(h3_index, "")
-            if state_code and state_code in STATE_TO_REGION:
-                region_cells[STATE_TO_REGION[state_code]].add(h3_index)
+            # Try exact match first, then country prefix (CU-03 → CU)
+            resolved = STATE_TO_REGION.get(state_code) or STATE_TO_REGION.get(state_code.split('-')[0]) if state_code else None
+            if resolved:
+                region_cells[resolved].add(h3_index)
                 assigned += 1
             elif h3_index in centroids:
                 # Fallback: use bbox detection

@@ -1311,9 +1311,13 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         if taxon_id in species_exotic_codes:
             invasion = {}
             for region, codes in species_exotic_codes[taxon_id].items():
-                # Pick highest-priority exotic code for this region
-                best_code = max(codes, key=lambda c: EXOTIC_PRIORITY.get(c, 0))
-                invasion[region] = EXOTIC_TO_STATUS.get(best_code, "Native")
+                # If ANY record has empty exotic code, the species is native in this region
+                # (X/P codes from edge-of-range records shouldn't override native status)
+                if "" in codes:
+                    invasion[region] = "Native"
+                else:
+                    best_code = max(codes, key=lambda c: EXOTIC_PRIORITY.get(c, 0))
+                    invasion[region] = EXOTIC_TO_STATUS.get(best_code, "Native")
             if invasion:
                 entry["invasionStatus"] = invasion
                 exotic_matched += 1

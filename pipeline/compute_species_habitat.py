@@ -269,8 +269,10 @@ def main():
     region_cell_sets = {k: set() for k in SUB_REGIONS}
     for cid in cell_centroids:
         state_code = cell_states.get(str(cid), "")
-        if state_code and state_code in STATE_TO_REGION:
-            region_cell_sets[STATE_TO_REGION[state_code]].add(cid)
+        # Try exact match first, then country prefix (CU-03 → CU)
+        resolved = STATE_TO_REGION.get(state_code) or STATE_TO_REGION.get(state_code.split('-')[0]) if state_code else None
+        if resolved:
+            region_cell_sets[resolved].add(cid)
         elif cid in cell_centroids:
             lng, lat = cell_centroids[cid]
             for region_id, (_, _, bbox) in SUB_REGIONS.items():
