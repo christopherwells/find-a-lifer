@@ -8,7 +8,7 @@
 export const REGION_GROUPS: Record<string, string[]> = {
   'Central America': ['BZ', 'GT', 'SV', 'HN', 'NI', 'CR', 'PA'],
   'Greater Antilles': ['CU', 'JM', 'HT', 'DO', 'PR'],
-  'Western Atlantic Islands': ['BS', 'BM'],
+  'Western Atlantic Islands': ['BS', 'BM', 'TC'],
   // 'Lesser Antilles': ['BB', 'TT', 'LC', ...] // add when EBD data is processed
 }
 
