@@ -15,9 +15,10 @@
   animation: slide-up 0.3s ease-out;
 }
 
-/* Fix side panel bottom offset (mobile-only, not on desktop) */
+/* Fix side panel bottom/height offset (mobile-only, not on desktop) */
 @media (min-width: 768px) {
   [data-testid="side-panel"] {
     bottom: auto !important;
+    height: auto !important;
   }
 }

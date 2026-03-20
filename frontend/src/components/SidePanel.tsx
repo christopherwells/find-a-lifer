@@ -45,6 +45,7 @@ interface SidePanelProps {
   onCompareLocationsChange?: (locations: CompareLocations | null) => void
   beginnerMode?: boolean
   onBeginnerModeChange?: (value: boolean) => void
+  onActiveTabChange?: (tabId: string) => void
 }
 
 interface Tab {
@@ -132,15 +133,21 @@ export default memo(function SidePanel({
   onCompareLocationsChange,
   beginnerMode,
   onBeginnerModeChange,
+  onActiveTabChange,
 }: SidePanelProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('explore')
+  const [activeTab, setActiveTabRaw] = useState<TabId>('explore')
+  const setActiveTab = (tab: TabId) => {
+    setActiveTabRaw(tab)
+    onActiveTabChange?.(tab)
+  }
 
   // Auto-switch to Trip Plan tab when a location is selected on the map
   useEffect(() => {
     if (selectedLocation) {
-      setActiveTab('trip') // eslint-disable-line react-hooks/set-state-in-effect -- intentional UX: auto-navigate on map click
+      setActiveTabRaw('trip') // eslint-disable-line react-hooks/set-state-in-effect -- intentional UX: auto-navigate on map click
+      onActiveTabChange?.('trip')
     }
-  }, [selectedLocation])
+  }, [selectedLocation]) // eslint-disable-line react-hooks/exhaustive-deps -- onActiveTabChange is stable
 
   return (
     <>
@@ -148,7 +155,7 @@ export default memo(function SidePanel({
       <nav
         data-testid="mobile-tab-bar"
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 safe-area-bottom"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
       >
         <div className="flex">
           {tabs.map((tab) => (
@@ -181,6 +188,10 @@ export default memo(function SidePanel({
       </nav>
 
       {/* ── Side Panel (slides up on mobile, sidebar on desktop) ── */}
+      {(() => {
+        const fullScreenTabs: TabId[] = ['goals', 'progress', 'profile']
+        const isFullScreenTab = fullScreenTabs.includes(activeTab)
+        return (
       <div
         data-testid="side-panel"
         className={`bg-white dark:bg-gray-900 flex flex-col transition-all duration-300 ease-in-out
@@ -189,9 +200,12 @@ export default memo(function SidePanel({
           border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700
           ${collapsed
             ? 'h-0 md:w-0 overflow-hidden'
-            : 'h-[55vh] md:h-full md:w-[360px]'
+            : 'md:h-full md:w-[360px]'
           }`}
-        style={!collapsed ? { bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))' } : undefined}
+        style={!collapsed ? {
+          bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))',
+          height: isFullScreenTab ? 'calc(100vh - 44px - 52px - env(safe-area-inset-bottom, 0px))' : '55vh',
+        } : undefined}
       >
         {/* Desktop Tab Navigation */}
         <nav
@@ -295,12 +309,13 @@ export default memo(function SidePanel({
           </div>
         )}
       </div>
+        )
+      })()}
 
-      {/* Mobile backdrop when panel is open */}
+      {/* Mobile backdrop when panel is open — pointer-events-none lets map remain interactive */}
       {!collapsed && (
         <div
-          className="md:hidden fixed left-0 right-0 z-30 bg-black/20"
-          onClick={onToggle}
+          className="md:hidden fixed left-0 right-0 z-30 bg-black/20 pointer-events-none"
           style={{
             top: '44px', /* below header */
             bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))', /* above tab bar */

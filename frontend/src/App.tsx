@@ -41,6 +41,7 @@ function App() {
   const [selectedSpeciesMulti, setSelectedSpeciesMulti] = useState<string[]>([])
   const [compareLocations, setCompareLocations] = useState<CompareLocations | null>(null)
   const [showAbout, setShowAbout] = useState(false)
+  const [activeTab, setActiveTab] = useState<string>('explore')
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('hasSeenOnboarding'))
   const [beginnerMode, setBeginnerMode] = useState(() => {
     const stored = localStorage.getItem('beginnerMode')
@@ -107,6 +108,10 @@ function App() {
     setShowOnboarding(true)
   }
 
+  // Tabs that don't need the map — go full-screen on mobile
+  const fullScreenTabs = ['goals', 'progress', 'profile']
+  const isFullScreenTab = fullScreenTabs.includes(activeTab) && !sidePanelCollapsed
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900">
       {/* Top Bar */}
@@ -119,8 +124,8 @@ function App() {
 
       {/* Main Content: Map + Side Panel */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Map Area — pb-[52px] on mobile for bottom tab bar */}
-        <div className="flex-1 relative order-first pb-[52px] md:pb-0">
+        {/* Map Area — pb-[52px] on mobile for bottom tab bar; hidden on mobile for full-screen tabs */}
+        <div className={`flex-1 relative order-first pb-[52px] md:pb-0 ${isFullScreenTab ? 'hidden md:block' : ''}`}>
           <MapView
             darkMode={darkMode}
             currentWeek={currentWeek}
@@ -192,6 +197,7 @@ function App() {
             setBeginnerMode(value)
             localStorage.setItem('beginnerMode', String(value))
           }}
+          onActiveTabChange={setActiveTab}
         />
       </div>
 

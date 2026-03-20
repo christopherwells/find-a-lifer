@@ -782,7 +782,7 @@ export default memo(function MapView({
             // Skip popups for cells with no data this week (uncolored hexes)
             const featureState = map.current?.getFeatureState({ source: 'grid', id: feature.id })
             const hasData = featureState && featureState.value !== undefined && featureState.value !== -1
-            if (!hasData && (viewModeRef.current === 'goal-birds' || viewModeRef.current === 'density' || viewModeRef.current === 'probability')) {
+            if (!hasData && (viewModeRef.current === 'goal-birds' || viewModeRef.current === 'density' || viewModeRef.current === 'probability' || viewModeRef.current === 'species')) {
               return
             }
 
@@ -838,7 +838,7 @@ export default memo(function MapView({
                   })
                 ).catch(err => console.error('Goal Birds popup: error loading cell data', err))
               }
-            } else if (viewModeRef.current === 'density' || viewModeRef.current === 'probability') {
+            } else if (viewModeRef.current === 'density' || viewModeRef.current === 'probability' || viewModeRef.current === 'species') {
               // Density mode: load cell data from API
               const currentSeenSpecies = seenSpeciesRef.current
 
