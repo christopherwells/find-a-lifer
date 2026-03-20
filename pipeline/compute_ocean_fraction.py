@@ -112,14 +112,7 @@ def compute_ocean_for_resolution(res: int, land_union, prepared_land):
 
         # Update covariates
         cov = covariates[cell_id]
-        old_water = cov.get("water", 0.0)
 
-        # Split water into ocean and freshwater
-        # ocean_frac is the fraction of the cell that's ocean (from coastline data)
-        # freshwater = original water - ocean (clamped to 0)
-        # But we need to be careful: EarthEnv 'water' is inland water, not ocean.
-        # The gap in covariates (1 - sum) is partly ocean.
-        # So: ocean stays as computed from coastline, freshwater stays as EarthEnv 'water'
         cov["ocean"] = round(ocean_frac, 4)
         # Keep 'water' as freshwater (it already represents inland water from EarthEnv)
         # The key insight: EarthEnv 'water' = freshwater; ocean was the unmapped gap
