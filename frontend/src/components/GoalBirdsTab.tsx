@@ -11,6 +11,7 @@ import SuggestionSection from './SuggestionSection'
 import { getDisplayGroup } from '../lib/familyGroups'
 import { getRecommendedSections } from '../lib/recommendationEngine'
 import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES } from '../lib/regionGroups'
+import { fetchRegionNames } from '../lib/dataCache'
 import {
   CONSERVATION_TEMPLATES,
   DIFFICULTY_TEMPLATES,
@@ -106,6 +107,12 @@ export default function GoalBirdsTab() {
 
   // Smart recommendation: show only recommended sections by default, rest behind "Show all"
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
+
+  // Region display names
+  const [regionNames, setRegionNames] = useState<Record<string, string>>({})
+  useEffect(() => {
+    fetchRegionNames().then(setRegionNames).catch(() => {})
+  }, [])
 
   // Conservation & regional template state
   const [showTemplateSection, setShowTemplateSection] = useState(false)
@@ -612,10 +619,13 @@ export default function GoalBirdsTab() {
       {/* Header */}
       <div className="space-y-2 pb-2 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Goal Birds</h3>
+          <div>
+            <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Goal Birds</h3>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Track birds you want to see and get personalized suggestions</p>
+          </div>
           <button
             onClick={() => setShowCreateDialog(true)}
-            className="px-2 py-1 bg-[#2C3E7B] text-white text-[11px] font-medium rounded-md hover:bg-[#1f2d5a] transition-colors"
+            className="px-2 py-1 bg-[#2C3E7B] text-white text-[11px] font-medium rounded-md hover:bg-[#1f2d5a] transition-colors flex-shrink-0"
           >
             + New List
           </button>
@@ -841,17 +851,58 @@ export default function GoalBirdsTab() {
       {/* List content or empty state */}
       <div className="flex-1 overflow-y-auto mt-3">
         {goalLists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <div className="text-6xl mb-4">🎯</div>
-            <h4 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-2">No Goal Lists Yet</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Create your first goal list to start tracking birds you want to see.
-            </p>
+          <div className="space-y-4 py-6 px-2">
+            <div className="text-center">
+              <div className="text-5xl mb-3">{'\uD83C\uDFAF'}</div>
+              <h4 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-1">Create Your First Goal List</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Track the birds you most want to see.
+              </p>
+              <button
+                onClick={() => setShowCreateDialog(true)}
+                className="px-5 py-2.5 bg-[#2C3E7B] text-white text-sm font-medium rounded-lg hover:bg-[#1f2d5a] transition-colors"
+              >
+                + Create Empty List
+              </button>
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center mb-3">Or start from a template</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
+                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                >
+                  <span>{'\uD83D\uDEE1\uFE0F'}</span> Conservation
+                </button>
+                <button
+                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
+                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                >
+                  <span>{'\u2B50'}</span> Easy Lifers
+                </button>
+                <button
+                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
+                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                >
+                  <span>{'\uD83C\uDF32'}</span> By Habitat
+                </button>
+                <button
+                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
+                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-colors"
+                >
+                  <span>{'\uD83D\uDDFA\uFE0F'}</span> Regional
+                </button>
+              </div>
+            </div>
+
+            {/* Import button */}
             <button
-              onClick={() => setShowCreateDialog(true)}
-              className="px-4 py-2 bg-[#2C3E7B] text-white text-sm font-medium rounded-lg hover:bg-[#1f2d5a] transition-colors"
+              onClick={() => void handleImportList()}
+              className="w-full px-3 py-2.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+              data-testid="import-list-btn-empty"
             >
-              Create Your First List
+              Import Goal List from JSON
             </button>
           </div>
         ) : activeList ? (
@@ -1772,7 +1823,7 @@ export default function GoalBirdsTab() {
                     >
                       <option value="">All Regions</option>
                       {regionDropdownData.individualCodes.map((code) => (
-                        <option key={code} value={code}>{code}</option>
+                        <option key={code} value={code}>{regionNames[code] || code}</option>
                       ))}
                       {Object.entries(regionDropdownData.groupsByCategory).map(([category, names]) => (
                         <optgroup key={category} label={category}>
