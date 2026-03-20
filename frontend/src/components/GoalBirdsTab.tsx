@@ -126,21 +126,37 @@ export default function GoalBirdsTab() {
   // Species info card state
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
 
-  // Load goal lists from IndexedDB on mount
+  // Refresh counter — incremented when tab becomes visible or species are added externally
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Reload goal lists when tab becomes visible (catches external changes from species cards, Notable Birds, etc.)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setRefreshKey(k => k + 1)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    // Also refresh when this component mounts (tab switch)
+    setRefreshKey(k => k + 1)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
+  // Load goal lists from IndexedDB — refreshes on mount and when refreshKey changes
   useEffect(() => {
     const loadGoalLists = async () => {
       try {
-        setLoading(true)
+        if (goalLists.length === 0) setLoading(true)
         const lists = await goalListsDB.getAllLists()
         setGoalLists(lists)
 
         // Restore previously active list from localStorage, or use first list
-        const savedActiveListId = localStorage.getItem('activeGoalListId')
-        if (lists.length > 0) {
-          // If saved ID exists and is in the list, use it; otherwise use first list
-          const validSavedId = savedActiveListId && lists.some((list) => list.id === savedActiveListId)
-          setActiveListId(validSavedId ? savedActiveListId : lists[0].id)
-          console.log(`Restored active goal list: ${validSavedId ? savedActiveListId : lists[0].id}`)
+        if (!activeListId || !lists.some(l => l.id === activeListId)) {
+          const savedActiveListId = localStorage.getItem('activeGoalListId')
+          if (lists.length > 0) {
+            const validSavedId = savedActiveListId && lists.some((list) => list.id === savedActiveListId)
+            setActiveListId(validSavedId ? savedActiveListId : lists[0].id)
+          }
         }
         setLoading(false)
       } catch (error) {
@@ -150,7 +166,8 @@ export default function GoalBirdsTab() {
     }
 
     loadGoalLists()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey])
 
   // Save active list ID to localStorage and reset filter when switching lists
   useEffect(() => {
