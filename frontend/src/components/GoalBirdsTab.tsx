@@ -1176,9 +1176,22 @@ export default function GoalBirdsTab() {
 
             {/* Empty life list state — encourage import */}
             {seenSpecies.size === 0 && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-center mt-3">
-                <p className="text-blue-800 dark:text-blue-200 font-medium">Import your life list to get personalized suggestions</p>
-                <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">Go to Profile &rarr; Import Life List to get started</p>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center mt-3">
+                <p className="text-blue-800 dark:text-blue-200 font-medium text-sm">Import your life list to get personalized suggestions</p>
+                <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">Go to Profile &rarr; Import Life List to get started</p>
+              </div>
+            )}
+
+            {/* Quick access: Create from Templates */}
+            {!showTemplateSection && (
+              <div className="mt-3">
+                <button
+                  onClick={() => setShowTemplateSection(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                  data-testid="template-quick-access-btn"
+                >
+                  {'\uD83C\uDFAF'} Create from Template (conservation, habitat, regional...)
+                </button>
               </div>
             )}
 

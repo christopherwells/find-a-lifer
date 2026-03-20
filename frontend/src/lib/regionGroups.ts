@@ -55,6 +55,7 @@ export const REGION_BBOX: Record<string, [[number, number], [number, number]]> =
   PR: [[-67.3, 17.9], [-65.2, 18.5]],
   BS: [[-79.5, 20.9], [-72.7, 27.3]],
   BM: [[-65.2, 32.2], [-64.5, 32.5]],
+  TC: [[-72.5, 21.1], [-71.1, 21.9]],
   // Groups
   'Central America':         [[-92.2,  7.2], [-77.2, 18.5]],
   'Greater Antilles':        [[-85.0, 17.5], [-65.2, 23.3]],

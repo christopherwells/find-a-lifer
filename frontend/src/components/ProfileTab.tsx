@@ -169,10 +169,10 @@ export default function ProfileTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100">Profile & Data</h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400">
-        Manage your life list data. Import from eBird, export as CSV, or reset your list.
+      <p className="text-xs text-gray-600 dark:text-gray-400">
+        Manage your life list, import from eBird, export as CSV, or reset.
       </p>
 
       {/* Account Section */}
@@ -248,8 +248,8 @@ export default function ProfileTab() {
       </div>
 
       {/* Stats Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">Your Life List</h4>
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">Your Life List</h4>
         <p className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="total-seen-count">
           {getTotalSeen()} species
         </p>
@@ -267,8 +267,8 @@ export default function ProfileTab() {
       </div>
 
       {/* Partner Life List Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">Partner Life List</h4>
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">Partner Life List</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
           Import a birding partner's life list to plan trips together. The map will show lifers for both of you.
         </p>
@@ -353,8 +353,8 @@ export default function ProfileTab() {
       </div>
 
       {/* Year Lists Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">Year Lists</h4>
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">Year Lists</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
           Import a year list from{' '}
           <a
@@ -476,8 +476,8 @@ export default function ProfileTab() {
       </div>
 
       {/* App Updates Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">App Updates</h4>
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">App Updates</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
           Clear cached data and reload to get the latest version.
         </p>
@@ -491,8 +491,8 @@ export default function ProfileTab() {
       </div>
 
       {/* Preferences Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">Preferences</h4>
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1">Preferences</h4>
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm text-gray-700 dark:text-gray-300">Celebration animations</span>
           <CelebrationToggle />
@@ -500,8 +500,8 @@ export default function ProfileTab() {
       </div>
 
       {/* Reset Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-2">Reset</h4>
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1">Reset</h4>
         <button
           onClick={handleResetOnboarding}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -531,7 +531,7 @@ function AccountSection() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
         <div className="animate-pulse h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
       </div>
     )
@@ -539,7 +539,7 @@ function AccountSection() {
 
   if (user) {
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.displayName || 'Birder'}</p>
@@ -576,7 +576,7 @@ function AccountSection() {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
       <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">
         {mode === 'signin' ? 'Sign In' : 'Create Account'}
       </h4>

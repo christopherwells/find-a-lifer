@@ -11,6 +11,21 @@ import { computeStreak, computeWeeklySummary } from '../lib/streakUtils'
 import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, type LeaderboardEntry } from '../lib/firebaseSync'
 import { getFriends } from '../lib/friendsService'
 
+const GROUP_EMOJI: Record<string, string> = {
+  'Owls': '\u{1F989}',
+  'Hummingbirds': '\u{1F48E}',
+  'Ducks, Geese, and Waterfowl': '\u{1F986}',
+  'Vultures, Hawks, and Allies': '\u{1F985}',
+  'Woodpeckers': '\u{1FAB6}',
+  'Parrots': '\u{1F99C}',
+  'Kingfishers and Motmots': '\u{1F451}',
+  'Toucans, Barbets, and Allies': '\u{1F308}',
+  'Falcons': '\u{1F985}',
+  'Pigeons and Doves': '\u{1F54A}\u{FE0F}',
+  'Gulls, Terns, and Skuas': '\u{1F30A}',
+  'Flamingos, Grebes, and Loons': '\u{1F9A9}',
+}
+
 export default function ProgressTab() {
   const {
     isSpeciesSeen, getTotalSeen, getLifeListEntries,
@@ -147,13 +162,6 @@ export default function ProgressTab() {
   const groupsStarted = Object.values(groupStats).filter(s => s.seen > 0).length
   const groupsCompleted = Object.values(groupStats).filter(s => s.seen === s.total && s.total > 0).length
 
-  // Top 5 groups to target (most unseen species)
-  const topGroupsToTarget = Object.entries(groupStats)
-    .map(([name, stats]) => ({ name, unseen: stats.total - stats.seen, total: stats.total, seen: stats.seen }))
-    .filter(f => f.unseen > 0)
-    .sort((a, b) => b.unseen - a.unseen)
-    .slice(0, 5)
-
   // Completed groups for Trophy Case
   const completedGroups = Object.entries(groupStats)
     .filter(([, s]) => s.seen === s.total && s.total > 0)
@@ -221,13 +229,10 @@ export default function ProgressTab() {
   const nextMilestone = milestones.find(m => !m.reached)
 
   return (
-    <div className="space-y-4" data-testid="progress-tab">
+    <div className="space-y-3" data-testid="progress-tab">
+      {/* 1. Heading + Scope Toggle */}
       <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100">My Progress</h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400">
-        Track your birding progress with stats and visual breakdowns by group.
-      </p>
 
-      {/* Scope Toggle — only show when year lists exist */}
       {yearLists.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -262,7 +267,6 @@ export default function ProgressTab() {
             </div>
           </div>
 
-          {/* Year list selector (when in year scope) */}
           {isYearScope && yearLists.length > 1 && (
             <select
               value={activeYearListId || ''}
@@ -278,7 +282,6 @@ export default function ProgressTab() {
             </select>
           )}
 
-          {/* Pace tracking for current year */}
           {paceProjection && (
             <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-3" data-testid="pace-tracking">
               <p className="text-sm font-medium text-teal-800 dark:text-teal-200">
@@ -293,26 +296,50 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* Quick Stats Cards */}
-      <div className="grid grid-cols-2 gap-3" data-testid="quick-stats">
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="groups-started-count">{groupsStarted}</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Groups Started</p>
+      {/* 2. Overall Progress Card */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
+        <div className="flex items-baseline justify-between">
+          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Overall Progress</h4>
+          <span className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="progress-percentage">
+            {percentComplete.toFixed(1)}%
+          </span>
         </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{groupsCompleted}</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Groups Completed</p>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden" data-testid="progress-bar-container">
+          <div
+            className="bg-[#27AE60] h-full rounded-full transition-all duration-300"
+            style={{ width: `${percentComplete}%` }}
+            data-testid="progress-bar-fill"
+          />
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="progress-species-count">
+          <span className="font-semibold text-[#2C3E7B] dark:text-blue-400">{totalSeen}</span> of{' '}
+          <span className="font-semibold">{totalSpecies}</span> species seen
+        </p>
+      </div>
+
+      {/* 3. Quick Stats — compact single row */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3" data-testid="quick-stats">
+        <div className="flex items-center justify-around">
+          <div className="text-center">
+            <p className="text-xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="groups-started-count">{groupsStarted}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Groups Started</p>
+          </div>
+          <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
+          <div className="text-center">
+            <p className="text-xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{groupsCompleted}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Completed</p>
+          </div>
         </div>
       </div>
 
-      {/* Activity & Streaks */}
+      {/* 4. Activity & Streaks */}
       {streakInfo && (streakInfo.currentStreak > 0 || streakInfo.longestStreak > 0 || (weeklySummary && weeklySummary.newLifers > 0)) && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2" data-testid="activity-section">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="activity-section">
           <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Activity</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {streakInfo.currentStreak > 0 && (
               <div className="text-center">
-                <p className="text-xl font-bold text-orange-500">🔥 {streakInfo.currentStreak}</p>
+                <p className="text-xl font-bold text-orange-500">{'\uD83D\uDD25'} {streakInfo.currentStreak}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Day streak</p>
               </div>
             )}
@@ -334,26 +361,34 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* Trophy Case */}
-      {completedGroups.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2" data-testid="trophy-case">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">🏆 Trophy Case</h4>
-          <div className="flex flex-wrap gap-1.5">
+      {/* 5. Trophy Case — grid layout with emojis */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
+        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
+        {completedGroups.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2">
             {completedGroups.map(([name, stats]) => (
-              <span
+              <div
                 key={name}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-700"
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 shadow-sm"
               >
-                🏆 {name} <span className="text-amber-500">({stats.total})</span>
-              </span>
+                <span className="text-lg flex-shrink-0">{GROUP_EMOJI[name] || '\uD83C\uDFC6'}</span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 truncate">{name}</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">{stats.total} species</p>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+            Complete a group to earn your first trophy!
+          </p>
+        )}
+      </div>
 
-      {/* Almost There */}
+      {/* 6. Almost There */}
       {almostThereGroups.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2" data-testid="almost-there">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="almost-there">
           <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Almost There!</h4>
           <div className="space-y-1.5">
             {almostThereGroups.map((g) => (
@@ -366,72 +401,8 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* Leaderboard */}
-      {user && (leaderboard.length > 0 || friendLeaderboard.length > 0) && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3" data-testid="leaderboard-section">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Leaderboard</h4>
-          {friendLeaderboard.length > 0 && (
-            <>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Friends</p>
-              <div className="space-y-1.5">
-                {friendLeaderboard.map((entry, i) => (
-                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
-                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
-                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
-                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
-                    </span>
-                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {leaderboard.length > 0 && (
-            <>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Global Top 10</p>
-              <div className="space-y-1.5">
-                {leaderboard.map((entry, i) => (
-                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
-                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
-                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
-                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
-                    </span>
-                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Overall Progress Card */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-        <div className="flex items-baseline justify-between">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Overall Progress</h4>
-          <span className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="progress-percentage">
-            {percentComplete.toFixed(1)}%
-          </span>
-        </div>
-
-        {/* Progress bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden" data-testid="progress-bar-container">
-          <div
-            className="bg-[#27AE60] h-full rounded-full transition-all duration-300"
-            style={{ width: `${percentComplete}%` }}
-            data-testid="progress-bar-fill"
-          />
-        </div>
-
-        {/* Species count */}
-        <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="progress-species-count">
-          <span className="font-semibold text-[#2C3E7B] dark:text-blue-400">{totalSeen}</span> of{' '}
-          <span className="font-semibold">{totalSpecies}</span> species seen
-        </p>
-      </div>
-
-      {/* Milestones Section */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3" data-testid="milestones-section">
+      {/* 7. Milestones */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="milestones-section">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Milestones</h4>
         <div className="space-y-2">
           {milestones.map(({ target, reached }) => {
@@ -472,13 +443,51 @@ export default function ProgressTab() {
         </div>
       </div>
 
-      {/* Group Breakdown */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+      {/* 8. Leaderboard */}
+      {user && (leaderboard.length > 0 || friendLeaderboard.length > 0) && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="leaderboard-section">
+          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Leaderboard</h4>
+          {friendLeaderboard.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Friends</p>
+              <div className="space-y-1.5">
+                {friendLeaderboard.map((entry, i) => (
+                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
+                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
+                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
+                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
+                    </span>
+                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {leaderboard.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">Global Top 10</p>
+              <div className="space-y-1.5">
+                {leaderboard.map((entry, i) => (
+                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
+                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
+                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
+                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
+                    </span>
+                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 9. Progress by Group */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Group</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400">
           All {sortedGroups.length} groups by total species count
         </p>
-
         <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="group-breakdown-list">
           {sortedGroups.map(([groupName, stats]) => {
             const groupPercent = stats.total > 0 ? (stats.seen / stats.total) * 100 : 0
@@ -502,13 +511,12 @@ export default function ProgressTab() {
         </div>
       </div>
 
-      {/* Region Breakdown */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+      {/* 10. Progress by Region */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Region</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400">
           All {sortedRegions.length} regions by total species count
         </p>
-
         <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="region-breakdown-list">
           {sortedRegions.map(([regionKey, stats]) => {
             const regionPercent = stats.total > 0 ? (stats.seen / stats.total) * 100 : 0
@@ -532,41 +540,10 @@ export default function ProgressTab() {
         </div>
       </div>
 
-      {/* Top Groups to Target */}
-      {totalSeen > 0 && totalSeen < totalSpecies && topGroupsToTarget.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3" data-testid="top-groups-to-target">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Top Groups to Target</h4>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            These groups have the most species left to find
-          </p>
-          <div className="space-y-2">
-            {topGroupsToTarget.map((group) => {
-              const groupPercent = group.total > 0 ? (group.seen / group.total) * 100 : 0
-              return (
-                <div key={group.name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{group.name}</span>
-                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">
-                      {group.unseen} unseen
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-[#2C3E7B] h-full rounded-full transition-all duration-200"
-                      style={{ width: `${groupPercent}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Completion Message */}
       {totalSeen === totalSpecies && totalSpecies > 0 && (
-        <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4 text-center">
-          <div className="text-3xl mb-2">🎉</div>
+        <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-3 text-center">
+          <div className="text-3xl mb-1">{'\uD83C\uDF89'}</div>
           <h4 className="text-sm font-bold text-green-800 dark:text-green-300 mb-1">Congratulations!</h4>
           <p className="text-xs text-green-700 dark:text-green-400">
             You've seen all {totalSpecies} species!

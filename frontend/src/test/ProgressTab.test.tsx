@@ -143,18 +143,6 @@ describe('ProgressTab', () => {
     expect(screen.getByText('Milestones')).toBeInTheDocument()
   })
 
-  it('shows "Top Groups to Target" when some but not all species seen', async () => {
-    mockGetTotalSeen.mockReturnValue(2)
-    mockIsSpeciesSeen.mockImplementation((code: string) =>
-      ['mallar3', 'baleag'].includes(code)
-    )
-    render(<ProgressTab />)
-    await waitFor(() => {
-      expect(screen.getByTestId('top-groups-to-target')).toBeInTheDocument()
-    })
-    expect(screen.getByText('Top Groups to Target')).toBeInTheDocument()
-  })
-
   it('shows empty state when no species are seen', async () => {
     mockGetTotalSeen.mockReturnValue(0)
     mockIsSpeciesSeen.mockReturnValue(false)
@@ -163,8 +151,6 @@ describe('ProgressTab', () => {
       expect(screen.getByTestId('progress-tab')).toBeInTheDocument()
     })
     expect(screen.getByText(/Get started/)).toBeInTheDocument()
-    // Top Groups to Target should not appear when totalSeen is 0
-    expect(screen.queryByTestId('top-groups-to-target')).not.toBeInTheDocument()
   })
 
   it('shows quick stats cards', async () => {

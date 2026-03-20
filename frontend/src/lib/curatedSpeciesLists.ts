@@ -48,8 +48,20 @@ export const REGIONAL_ICONS: Array<{ region: string; regionKey: string; emoji: s
   {
     region: 'Hawaii',
     regionKey: 'hawaii',
-    emoji: '🌺',
+    emoji: '\u{1F33A}',
     speciesCodes: ['hawgoo', 'apapan', 'iiwi'],
+  },
+  {
+    region: 'Florida',
+    regionKey: 'florida',
+    emoji: '\u{1F3D6}\u{FE0F}',
+    speciesCodes: ['rosspo1', 'snakit', 'limpki', 'redegr'],
+  },
+  {
+    region: 'Texas',
+    regionKey: 'texas',
+    emoji: '\u{2B50}',
+    speciesCodes: ['grnjay', 'grekis', 'altori', 'rinkin1'],
   },
 ]
 
@@ -76,6 +88,15 @@ export const COLORFUL_CHARACTERS: string[] = [
   'bulori',   // Bullock's Oriole — vivid orange and black
   'vigswa',   // Violet-green Swallow — iridescent green and violet
   'cedwax',   // Cedar Waxwing — sleek with red/yellow wax-tips
+  'flctan',   // Flame-colored Tanager — fiery orange-red with striped back
+  'eletro2',  // Elegant Trogon — iridescent green and red, highly sought
+  'kebtou1',  // Keel-billed Toucan — rainbow-colored bill, iconic tropical bird
+  'fibara1',  // Fiery-billed Aracari — vivid red-and-yellow bill, toucan relative
+  'relhon1',  // Red-legged Honeycreeper — electric blue male with red legs
+  'grehon1',  // Green Honeycreeper — brilliant turquoise-green, tropical gem
+  'blucot1',  // Blue Cotinga — stunning deep blue male, Central American canopy
+  'lovcot1',  // Lovely Cotinga — vivid blue with purple throat patch
+  'tubmot1',  // Turquoise-browed Motmot — turquoise and rufous with racket tail
 ]
 
 // Curated Owls & Nightbirds — nocturnal species requiring special effort to find
