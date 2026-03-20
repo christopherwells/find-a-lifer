@@ -17,6 +17,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // Don't precache /data/* files — they're too large and cached at runtime
         navigateFallback: 'index.html',
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /\/data\/species\.json$/,
