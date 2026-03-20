@@ -178,6 +178,7 @@
     <li><a href="#difficulty">Difficulty Scoring</a></li>
     <li><a href="#multi-range">Multi-Species Range Overlay</a></li>
     <li><a href="#sub-regions">Sub-Regions &amp; Regional Species Cards</a></li>
+    <li><a href="#goal-birds">Goal Birds Recommendation Engine</a></li>
     <li><a href="#gamification">Gamification &amp; Social Features</a></li>
     <li><a href="#parameters">Parameter Reference</a></li>
     <li><a href="#references">References</a></li>
@@ -207,6 +208,19 @@
   <div class="pipeline-step active">Spatial Smoothing</div>
   <div class="pipeline-arrow">→</div>
   <div class="pipeline-step">Static JSON Output</div>
+</div>
+<div class="pipeline-flow">
+  <div class="pipeline-step">Label Cells</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">Extract Covariates</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">Ocean Fractions</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">Ship Covariates</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">Difficulty Scores</div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">Habitat Labels</div>
 </div>
 
 <!-- ============================================================ -->
@@ -281,7 +295,7 @@
   <li><strong>Land-obligate species filter</strong> (§7.2): species classified as land birds are removed from ocean cells in the final output.</li>
 </ol>
 
-<p>Environmental covariates are computed from <a href="https://www.earthenv.org/landcover">EarthEnv</a> 1km land cover rasters. Each H3 cell's water fraction determines whether it is treated as ocean (water ≥ 0.9). Note: cells whose centers fall in open water may have water=1.0 even if their edges clip land — a known limitation of center-point covariate extraction.</p>
+<p>Environmental covariates are computed from <a href="https://www.earthenv.org/landcover">EarthEnv</a> 1km land cover rasters. Ocean fractions are computed separately from <a href="https://www.naturalearthdata.com/">Natural Earth</a> 50m land polygons by measuring the fraction of each H3 cell that does not overlap land area. Each H3 cell's ocean fraction determines whether it is treated as ocean (ocean &ge; 0.9).</p>
 
 <!-- ============================================================ -->
 <h2 id="frequency">4. Frequency Estimation</h2>
@@ -481,7 +495,9 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td><code>species-weeks/{code}.json</code></td><td><code>{week: [[cell_id, freq], ...]}</code></td><td>Single-species range maps</td></tr>
 </table>
 
-<p>A shared <code>species.json</code> contains metadata for all species (common name, scientific name, family, taxonomic order, eBird species code).</p>
+<p>A shared <code>species.json</code> contains metadata for all 2,052 species across 13 countries (BM, BS, CA, CR, CU, DO, HT, JM, MX, PA, PR, TC, US) on a grid of 10,526 cells at resolution 4. Fields include: common name, scientific name, family, taxonomic order, eBird species code, conservation status, invasion status per region, difficulty rating, regional difficulty, habitat labels, and photo attribution.</p>
+
+<p><strong>Invasion status</strong> is derived from the EBD <code>EXOTIC CODE</code> column: empty &rarr; Native, <code>N</code> &rarr; Introduced, <code>P</code>/<code>X</code> &rarr; Vagrant/Accidental. Stored per-species as <code>Record&lt;string, string&gt;</code> keyed by region code. A <strong>native override rule</strong> applies: if ANY native checklist exists for a species in a region, the species is classified as Native in that region regardless of any exotic-coded checklists. This prevents misclassification of native species that occasionally appear on exotic lists.</p>
 
 <div class="rationale">
   <strong>Why separate summary and cell files?</strong> The summary file (~2 MB/week) contains just enough to render the heatmap — species count and max frequency per cell. The full cell file (~30-50 MB/week) contains the complete species list with individual frequencies, but is only loaded on demand when the user clicks a cell. This lazy-loading pattern keeps the initial page load fast while still providing full detail when needed.
@@ -634,6 +650,9 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td>9&ndash;10</td><td>Extremely Hard</td><td>Rarest vagrants and extreme specialists</td></tr>
 </table>
 
+<h3>13.3 Per-Sub-Region Difficulty</h3>
+<p>The same rank-based percentile methodology is applied independently within each of the 18 sub-regions (see &sect;15). A species that is common in one region may be extremely rare in another, producing dramatically different scores. Regional difficulty is stored in <code>species.regionalDifficulty</code> as <code>Record&lt;subRegionId, number&gt;</code>. Cell assignment to sub-regions uses state codes from <code>cell_states.json</code>.</p>
+
 <!-- ============================================================ -->
 <h2 id="multi-range">14. Multi-Species Range Overlay</h2>
 
@@ -656,46 +675,108 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Species cards are region-aware. When opened from a map click, the card auto-detects the geographic sub-region and filters all displayed data (seasonality, difficulty, best locations, invasion status) to that region.</p>
 
 <h3>15.1 Sub-Region Definitions</h3>
-<p>16 sub-regions are defined using coordinate bounding boxes. Detection uses the clicked cell's centroid coordinates.</p>
+<p>18 sub-regions are defined by <strong>state/province codes</strong> (not bounding boxes). Cell assignment uses STATE CODE data captured from the EBD during pipeline processing, stored as <code>cell_states_r{N}.json</code> and shipped to the frontend as <code>r{N}/cell_states.json</code>. Each cell maps to a state code, which in turn maps to a sub-region via <code>STATE_TO_REGION</code> lookup.</p>
 
 <table>
-  <tr><th>Group</th><th>Sub-Regions</th></tr>
-  <tr><td>Canada (3-way)</td><td>Western Canada (BC), Central Canada (AB/SK/MB), Eastern Canada (ON east)</td></tr>
-  <tr><td>US (8 regions)</td><td>Northeast, Southeast, Midwest, Southwest, West, Rockies, Alaska, Hawaii</td></tr>
-  <tr><td>Mexico</td><td>Whole country</td></tr>
-  <tr><td>Central America</td><td>Northern (BZ/GT/SV/HN/NI), Southern (CR/PA) &mdash; split at the Nicaraguan Depression biogeographic barrier</td></tr>
-  <tr><td>Caribbean</td><td>Greater Antilles, Western Atlantic Islands (BM/BS)</td></tr>
+  <tr><th>Group</th><th>Sub-Regions</th><th>State/Province Codes</th></tr>
+  <tr><td>Canada (4-way)</td><td>Western Canada</td><td>BC, AB</td></tr>
+  <tr><td></td><td>Central Canada</td><td>SK, MB</td></tr>
+  <tr><td></td><td>Eastern Canada</td><td>ON, QC, NB, NS, NL, PE</td></tr>
+  <tr><td></td><td>Northern Canada</td><td>YT, NT, NU</td></tr>
+  <tr><td>US (8 regions)</td><td>Northeast, Southeast, Midwest, Southwest, West, Rockies, Alaska, Hawaii</td><td>Defined by US state codes (e.g., US-ME, US-CA)</td></tr>
+  <tr><td>Mexico (2-way)</td><td>Northern Mexico</td><td>BCN, BCS, SON, CHH, COA, NLE, TAM, SIN, DUR, ZAC, SLP, AGU, NAY, JAL</td></tr>
+  <tr><td></td><td>Southern Mexico</td><td>COL, MIC, GUA, GRO, OAX, CHP, TAB, VER, PUE, TLA, HID, MEX, MOR, QUE, CAM, ROO, YUC, CMX, DIF</td></tr>
+  <tr><td>Central America (2-way)</td><td>Northern Central America</td><td>BZ, GT, SV, HN, NI (no data yet)</td></tr>
+  <tr><td></td><td>Southern Central America</td><td>CR, PA</td></tr>
+  <tr><td>Caribbean (2)</td><td>Greater Antilles</td><td>CU, JM, HT, DO, PR (prefix matching for province codes, e.g., CU-03 &rarr; CU)</td></tr>
+  <tr><td></td><td>Western Atlantic Islands</td><td>BM, BS, TC</td></tr>
 </table>
 
-<h3>15.2 Regional Difficulty</h3>
-<p>Difficulty ratings are pre-computed per sub-region using the same rank-based percentile approach as global scores, but scoped to cells within each region. This produces dramatically different ratings: a Rusty Blackbird scores 3/10 in Eastern Canada but 10/10 in Mexico. Stored in <code>species.regionalDifficulty</code> as a <code>Record&lt;subRegionId, number&gt;</code>.</p>
+<div class="rationale">
+  <strong>Why state codes instead of bounding boxes?</strong> Bounding boxes cannot accurately represent irregular political boundaries &mdash; Alaska's Aleutian Islands extend west of the date line, Florida wraps around the Gulf coast, and Caribbean island nations are scattered across the sea. State codes from the EBD provide exact assignment because every eBird checklist carries a STATE CODE field. The pipeline captures this per cell, enabling precise sub-region membership. For Caribbean countries where province codes include sub-codes (e.g., CU-03), prefix matching extracts the country code (CU).
+</div>
 
-<h3>15.3 Regional Data Filtering</h3>
+<h3>15.2 Regional Difficulty</h3>
+<p>Difficulty ratings are pre-computed per sub-region using the same rank-based percentile approach as global scores (decile 1&ndash;10), but scoped to cells within each region. This produces dramatically different ratings: a Rusty Blackbird scores 3/10 in Eastern Canada but 10/10 in Mexico. Stored in <code>species.regionalDifficulty</code> as a <code>Record&lt;subRegionId, number&gt;</code>.</p>
+
+<h3>15.3 Regional Habitat Labels</h3>
+<p>Habitat labels are also computed per sub-region. A species may be labeled "Forest" globally but "Wetland" in a specific region where it predominantly uses different habitat. Regional habitat computation uses the same frequency-weighted covariate methodology as the global pipeline, scoped to cells within each sub-region.</p>
+
+<h3>15.4 Regional Data Filtering</h3>
 <p>When a sub-region is selected, the species card filters:</p>
 <ul>
-  <li><strong>Seasonality sparkline</strong> &mdash; only cells within the region's bounding box</li>
+  <li><strong>Seasonality sparkline</strong> &mdash; only cells within the region (via state code matching)</li>
   <li><strong>Best locations</strong> &mdash; filtered to region (with "Show global" toggle)</li>
   <li><strong>Difficulty</strong> &mdash; regional rating from pre-computed data</li>
+  <li><strong>Habitat labels</strong> &mdash; regional habitat profile</li>
   <li><strong>Invasion status</strong> &mdash; only shows status for the region's country codes</li>
 </ul>
-<p>A dropdown on the card shows all regions where the species has occurrence data, allowing manual switching. The dropdown is populated by scanning the species-weeks data for cell centroids in each sub-region.</p>
+<p>A dropdown on the card shows all regions where the species has occurrence data, allowing manual switching. The dropdown is populated by scanning the species-weeks data for cells in each sub-region via cell_states mapping.</p>
 
 <!-- ============================================================ -->
-<h2 id="gamification">16. Gamification &amp; Social Features</h2>
+<h2 id="goal-birds">16. Goal Birds Recommendation Engine</h2>
+
+<p>An app-wide intelligent recommendation system helps users discover species to target. The engine (<code>recommendationEngine.ts</code>) analyzes the user's life list, current week, and species metadata to surface contextual suggestions across multiple parts of the UI.</p>
+
+<h3>16.1 Notable Birds (Map Popups)</h3>
+<p>When a user clicks a cell, the popup highlights notable unseen species in three priority tiers:</p>
+<ol style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Goal Birds</strong> &mdash; species on the user's active goal list that occur in this cell</li>
+  <li><strong>Rare Finds</strong> &mdash; species with difficulty &ge; 7 that the user hasn't seen</li>
+  <li><strong>Easy Wins</strong> &mdash; species with high reporting frequency (&ge; 30%) and difficulty &le; 3</li>
+</ol>
+<p>An "all species" popup mode shows the complete cell species list with checkmarks for already-seen species. Users can add species to their goal list directly from Notable Birds entries and species cards.</p>
+
+<h3>16.2 This Week's Highlights (Explore Tab)</h3>
+<p>The Explore tab surfaces time-sensitive recommendations for the current week:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Peak Season</strong> &mdash; unseen species at their annual frequency maximum this week</li>
+  <li><strong>New Arrivals</strong> &mdash; species whose frequency increased significantly from the previous week (spring/fall migrants arriving in range)</li>
+</ul>
+
+<h3>16.3 Smart Goal Suggestions</h3>
+<p>Auto-generated goal suggestions based on life list analysis. The engine selects the 3&ndash;4 most relevant suggestion sections from:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Family completion</strong> &mdash; families where the user has seen most but not all species</li>
+  <li><strong>Easy lifers</strong> &mdash; common, widespread species the user hasn't yet seen</li>
+  <li><strong>Seasonal opportunities</strong> &mdash; species with narrow seasonal windows currently in peak</li>
+  <li><strong>Colorful characters</strong> &mdash; curated list of 29 visually striking species</li>
+  <li><strong>Regional icons</strong> &mdash; curated specialists from 10 regions (including Florida, Texas, Alaska, Caribbean)</li>
+</ul>
+
+<h3>16.4 Goal Templates</h3>
+<p>Pre-built goal lists for targeted birding challenges:</p>
+<table>
+  <tr><th>Category</th><th>Templates</th></tr>
+  <tr><td>Conservation</td><td>Threatened species (VU/EN/CR), Near Threatened, Data Deficient, Invasive species, Restricted-range (&le; 2 regions)</td></tr>
+  <tr><td>Difficulty</td><td>Easy lifers (rating 1&ndash;2), Hardest birds (rating 9&ndash;10)</td></tr>
+  <tr><td>Habitat</td><td>Forest specialists, Ocean/pelagic, Wetland specialists</td></tr>
+  <tr><td>Regional</td><td>Regional specialty species for each sub-region</td></tr>
+</table>
+
+<div class="rationale">
+  <strong>Why restricted-range &le; 2 regions?</strong> Species occurring in only 1&ndash;2 of the app's 13 country-regions are genuinely range-restricted within the coverage area. This is computed from the <code>invasionStatus</code> keys (which track which regions a species occurs in as native), giving a proxy for range size without requiring additional data.
+</div>
+
+<h3>16.5 Accessibility</h3>
+<p>Goal bird UI components use ARIA attributes throughout: <code>aria-label</code> on interactive elements, <code>aria-expanded</code> on collapsible sections, and <code>role="progressbar"</code> on completion indicators.</p>
+
+<!-- ============================================================ -->
+<h2 id="gamification">17. Gamification &amp; Social Features</h2>
 
 <p>Phase 3 added celebration toasts, milestone tracking, streaks, and shareable milestone cards. Phase 4 added Firebase-backed social features.</p>
 
-<h3>15.1 Celebrations</h3>
+<h3>17.1 Celebrations</h3>
 <p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts. Celebrations can be disabled in Profile &gt; Preferences.</p>
 
-<h3>15.2 Activity Tracking</h3>
+<h3>17.2 Activity Tracking</h3>
 <p>Streak tracking computes consecutive days with manual species additions (excluding bulk imports). Weekly summary shows new lifers and new family groups started. Data derived from IndexedDB <code>dateAdded</code> and <code>source</code> fields on life list entries.</p>
 
-<h3>15.3 Firebase Social</h3>
+<h3>17.3 Firebase Social</h3>
 <p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards (global top 10 + friends) in Progress tab.</p>
 
 <!-- ============================================================ -->
-<h2 id="parameters">17. Parameter Reference</h2>
+<h2 id="parameters">18. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -719,7 +800,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">18. References</h2>
+<h2 id="references">19. References &amp; Data Sources</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
@@ -730,7 +811,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li>Tuanmu, M.-N. and W. Jetz. 2014. A global 1-km consensus land-cover product for biodiversity and ecosystem modelling. <em>Global Ecology and Biogeography</em>, 23(9), 1031-1045. <a href="https://www.earthenv.org/landcover">EarthEnv</a></li>
   <li>GeoNames. Geographical database. <a href="https://www.geonames.org/">geonames.org</a> (CC BY 4.0)</li>
   <li>Wikimedia Commons. Free media repository. <a href="https://commons.wikimedia.org/">commons.wikimedia.org</a> (Various CC licenses)</li>
-  <li>Wikidata. Free structured knowledge base. <a href="https://www.wikidata.org/">wikidata.org</a> (CC0)</li>
+  <li>Wikidata. Free structured knowledge base. <a href="https://www.wikidata.org/">wikidata.org</a> (CC0) &mdash; used for SPARQL queries of IUCN conservation status (P141), NatureServe status (P4319), COSEWIC status (P6949), and species photographs (P18)</li>
 </ul>
 
 <p class="updated">Last updated: March 2026. Pipeline source code: <code>pipeline/process_ebd.py</code></p>
