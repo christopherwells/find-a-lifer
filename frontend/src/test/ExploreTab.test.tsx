@@ -69,11 +69,11 @@ describe('ExploreTab', () => {
 
   it('shows lifer range filter in density mode when data is available', () => {
     render(<ExploreTab viewMode="density" dataRange={[0, 100]} />)
-    expect(screen.getByText('Lifer Range')).toBeInTheDocument()
+    expect(screen.getByText('Minimum Lifers')).toBeInTheDocument()
   })
 
   it('hides lifer range filter when goalBirdsOnly is active', () => {
     render(<ExploreTab viewMode="density" goalBirdsOnlyFilter={true} dataRange={[0, 100]} />)
-    expect(screen.queryByText('Lifer Range')).not.toBeInTheDocument()
+    expect(screen.queryByText('Minimum Lifers')).not.toBeInTheDocument()
   })
 })

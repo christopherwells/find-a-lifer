@@ -50,7 +50,6 @@ describe('TripPlanTab', () => {
     expect(screen.getByTestId('location-mode-btn')).toBeInTheDocument()
     expect(screen.getByTestId('hotspots-mode-btn')).toBeInTheDocument()
     expect(screen.getByTestId('window-mode-btn')).toBeInTheDocument()
-    expect(screen.getByTestId('compare-mode-btn')).toBeInTheDocument()
   })
 
   it('renders Trip Planning header', async () => {
@@ -88,26 +87,6 @@ describe('TripPlanTab', () => {
     expect(screen.getByTestId('species-search-input')).toBeInTheDocument()
   })
 
-  it('switches to Compare mode and shows Location A and Location B sections', async () => {
-    await renderTripPlanTab()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('compare-mode-btn'))
-    })
-    expect(screen.getByText('Location A')).toBeInTheDocument()
-    expect(screen.getByText('Location B')).toBeInTheDocument()
-    expect(screen.getByText('Click on the map to select Location A')).toBeInTheDocument()
-    expect(screen.getByText('Click on the map to select Location B')).toBeInTheDocument()
-  })
-
-  it('Compare mode shows date range sliders', async () => {
-    await renderTripPlanTab()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('compare-mode-btn'))
-    })
-    expect(screen.getByTestId('compare-start-week-slider')).toBeInTheDocument()
-    expect(screen.getByTestId('compare-end-week-slider')).toBeInTheDocument()
-  })
-
   it('Location mode shows location when selectedLocation is provided', async () => {
     await renderTripPlanTab({
       selectedLocation: {
@@ -127,11 +106,10 @@ describe('TripPlanTab', () => {
     // Start in hotspots (default)
     expect(screen.getByTestId('hotspot-week-slider')).toBeInTheDocument()
 
-    // Switch to compare
+    // Switch to location
     await act(async () => {
-      fireEvent.click(screen.getByTestId('compare-mode-btn'))
+      fireEvent.click(screen.getByTestId('location-mode-btn'))
     })
-    expect(screen.getByText('Location A')).toBeInTheDocument()
     expect(screen.queryByTestId('hotspot-week-slider')).not.toBeInTheDocument()
 
     // Switch back to hotspots
@@ -139,7 +117,6 @@ describe('TripPlanTab', () => {
       fireEvent.click(screen.getByTestId('hotspots-mode-btn'))
     })
     expect(screen.getByTestId('hotspot-week-slider')).toBeInTheDocument()
-    expect(screen.queryByText('Location A')).not.toBeInTheDocument()
   })
 
   it('renders without crashing when all optional props are omitted', async () => {
