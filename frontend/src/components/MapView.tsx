@@ -706,10 +706,10 @@ export default memo(function MapView({
       'top-right'
     )
 
-    // Add scale bar
+    // Add scale bar (bottom-right to avoid overlapping legend in bottom-left)
     map.current.addControl(
       new maplibregl.ScaleControl({ maxWidth: isMobile ? 100 : 200 }),
-      'bottom-left'
+      'bottom-right'
     )
 
     // Track zoom level changes to switch H3 resolution
