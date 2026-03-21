@@ -6,8 +6,6 @@ import { buildSpeciesById } from './tripPlanUtils'
 import HotspotsMode from './HotspotsMode'
 import LocationMode from './LocationMode'
 import WindowMode from './WindowMode'
-import CompareMode from './CompareMode'
-import TripReportsSection from './TripReportsSection'
 
 // Stable empty array to avoid creating new references on every render
 const EMPTY_GOAL_LISTS: import('../lib/goalListsDB').GoalList[] = []
@@ -22,7 +20,7 @@ export default function TripPlanTab({
   goalLists = EMPTY_GOAL_LISTS,
   activeGoalListId = null,
 }: TripPlanTabProps) {
-  const [mode, setMode] = useState<'location' | 'hotspots' | 'window' | 'compare'>('hotspots')
+  const [mode, setMode] = useState<'location' | 'hotspots' | 'window'>('hotspots')
 
   // Shared data
   const [speciesData, setSpeciesData] = useState<Species[]>([])
@@ -69,12 +67,10 @@ export default function TripPlanTab({
       })
   }, [])
 
-  // Notify parent: compare locations = null when not in compare mode
+  // Clear compare locations (feature removed)
   useEffect(() => {
-    if (mode !== 'compare') {
-      onCompareLocationsChange?.(null)
-    }
-  }, [mode, onCompareLocationsChange])
+    onCompareLocationsChange?.(null)
+  }, [onCompareLocationsChange])
 
   const handleReset = useCallback(() => {
     onLocationSelect?.(null)
@@ -105,7 +101,7 @@ export default function TripPlanTab({
 
         {/* Mode Toggle */}
         <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 grid grid-cols-4" role="tablist" aria-label="Trip planning mode">
-          {(['location', 'hotspots', 'window', 'compare'] as const).map((m) => (
+          {(['location', 'hotspots', 'window'] as const).map((m) => (
             <button
               key={m}
               role="tab"
@@ -118,7 +114,7 @@ export default function TripPlanTab({
               }`}
               data-testid={`${m}-mode-btn`}
             >
-              {m === 'location' ? 'Location' : m === 'hotspots' ? 'Hotspots' : m === 'window' ? 'Window' : 'Compare'}
+              {m === 'location' ? 'Location' : m === 'hotspots' ? 'Hotspots' : 'Window'}
             </button>
           ))}
         </div>
@@ -167,21 +163,6 @@ export default function TripPlanTab({
         />
       )}
 
-      {mode === 'compare' && (
-        <CompareMode
-          selectedLocation={selectedLocation ?? null}
-          currentWeek={currentWeek}
-          speciesData={speciesData}
-          speciesLoaded={speciesLoaded}
-          seenSpecies={seenSpecies}
-          cellLabels={cellLabels}
-          onCompareLocationsChange={onCompareLocationsChange}
-          selectedRegion={selectedRegion}
-        />
-      )}
-
-      {/* Trip Reports */}
-      <TripReportsSection />
     </div>
   )
 }
