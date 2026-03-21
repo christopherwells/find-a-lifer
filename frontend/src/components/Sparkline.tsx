@@ -85,7 +85,7 @@ export default function Sparkline({ data, currentWeek, className = '' }: Sparkli
       </svg>
 
       {/* Frequency label */}
-      <div className="flex justify-between text-[9px] text-gray-400 mt-0.5 px-0.5">
+      <div className="flex justify-between text-[11px] lg:text-xs text-gray-400 mt-0.5 px-0.5">
         <span>Jan</span>
         <span className="text-red-500 font-medium">
           Wk {currentWeek}: {(markerFreq * 100).toFixed(0)}%

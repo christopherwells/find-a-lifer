@@ -652,6 +652,8 @@ export default memo(function MapView({
           ],
         }
 
+    const isMobile = window.innerWidth < 768
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style,
@@ -659,7 +661,14 @@ export default memo(function MapView({
       zoom: 3.5,
       minZoom: 2,
       maxZoom: 15,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      attributionControl: isMobile ? false : undefined, // Hide on mobile; credits in About page
     })
+
+    // Disable rotation on two-finger touch zoom (keep zoom, remove rotate)
+    map.current.touchZoomRotate.disableRotation()
 
     // Expose map instance for testing
     if (typeof window !== 'undefined') {
@@ -669,8 +678,10 @@ export default memo(function MapView({
     // Preload cell states for sub-region detection
     loadCellStates(4).catch(() => {/* non-critical */})
 
-    // Add navigation controls
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right')
+    // Add navigation controls (desktop only — mobile has pinch-to-zoom)
+    if (!isMobile) {
+      map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    }
 
     // Add GPS locate button
     map.current.addControl(
@@ -682,19 +693,24 @@ export default memo(function MapView({
       'top-right'
     )
 
-    // Add scale bar
-    map.current.addControl(
-      new maplibregl.ScaleControl({ maxWidth: 200 }),
-      'bottom-right'
-    )
+    // Add scale bar (desktop only)
+    if (!isMobile) {
+      map.current.addControl(
+        new maplibregl.ScaleControl({ maxWidth: 200 }),
+        'bottom-right'
+      )
+    }
 
     // Track zoom level changes to switch H3 resolution
+    // Mobile thresholds are lower so smaller hexes persist longer when zooming out
+    const res2Threshold = isMobile ? 2.8 : 3.5
+    const res3Threshold = isMobile ? 4.5 : 5.5
     map.current.on('zoomend', () => {
       if (!map.current) return
       const zoom = map.current.getZoom()
       let newRes = 4  // default
-      if (zoom < 3.5) newRes = 2
-      else if (zoom < 5.5) newRes = 3
+      if (zoom < res2Threshold) newRes = 2
+      else if (zoom < res3Threshold) newRes = 3
       if (newRes !== activeResolutionRef.current) {
         activeResolutionRef.current = newRes
         // Clear cell click cache and close popups when resolution changes (cell IDs differ between resolutions)
@@ -795,25 +811,26 @@ export default memo(function MapView({
           },
         })
 
-        // Add grid cell border layer — subtle white outlines that define hex boundaries
+        // Add grid cell border layer — subtle dark outlines that define hex boundaries
         map.current.addLayer({
           id: 'grid-border',
           type: 'line',
           source: 'grid',
           paint: {
-            'line-color': 'rgba(255, 255, 255, 0.15)',
+            'line-color': darkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)',
             'line-width': [
               'interpolate', ['linear'], ['zoom'],
               4, 0,
-              6, 0.3,
-              8, 0.5,
-              10, 0.8,
+              6, 0.5,
+              8, 1.0,
+              10, 1.5,
             ],
             'line-opacity': [
               'interpolate', ['linear'], ['zoom'],
               4, 0,
-              6, 0.15,
-              8, 0.3,
+              5.5, 0.15,
+              7, 0.35,
+              9, 0.5,
             ],
           },
         })
@@ -917,13 +934,14 @@ export default memo(function MapView({
               if (cached) {
                 processGoalBirds(cached)
               } else {
-                import('../lib/dataCache').then(({ fetchWeekCells, getCellSpecies }) =>
-                  fetchWeekCells(week, activeResolutionRef.current).then(weekCells => {
-                    const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
-                    cellDataCache.set(cacheKey, records)
-                    processGoalBirds(records)
-                  })
-                ).catch(err => console.error('Goal Birds popup: error loading cell data', err))
+                (async () => {
+                  if (!speciesByIdCache) await loadSpeciesMetaCache()
+                  const { fetchWeekCells, getCellSpecies } = await import('../lib/dataCache')
+                  const weekCells = await fetchWeekCells(week, activeResolutionRef.current)
+                  const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
+                  cellDataCache.set(cacheKey, records)
+                  processGoalBirds(records)
+                })().catch(err => console.error('Goal Birds popup: error loading cell data', err))
               }
             } else if (viewModeRef.current === 'density' || viewModeRef.current === 'probability' || viewModeRef.current === 'species') {
               // Density mode: load cell data from API
@@ -980,13 +998,14 @@ export default memo(function MapView({
               if (densityCached) {
                 processLifers(densityCached)
               } else {
-                import('../lib/dataCache').then(({ fetchWeekCells, getCellSpecies }) =>
-                  fetchWeekCells(week, activeResolutionRef.current).then(weekCells => {
-                    const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
-                    cellDataCache.set(densityCacheKey, records)
-                    processLifers(records)
-                  })
-                ).catch(err => console.error('Lifers popup: error loading cell data', err))
+                (async () => {
+                  if (!speciesByIdCache) await loadSpeciesMetaCache()
+                  const { fetchWeekCells, getCellSpecies } = await import('../lib/dataCache')
+                  const weekCells = await fetchWeekCells(week, activeResolutionRef.current)
+                  const records = getCellSpecies(weekCells, cellId, speciesByIdCache || new Map())
+                  cellDataCache.set(densityCacheKey, records)
+                  processLifers(records)
+                })().catch(err => console.error('Lifers popup: error loading cell data', err))
               }
             } else {
               // Other modes: select location for trip planning
@@ -1140,9 +1159,11 @@ export default memo(function MapView({
             ])
       }
       if (map.current?.getLayer('grid-border')) {
-        map.current.setPaintProperty('grid-border', 'line-color', '#999')
-        // When a region filter is active, hide borders for cells not in the neutral set
-        map.current.setPaintProperty('grid-border', 'line-opacity', hasRegionFilter ? 0 : 0.2)
+        map.current.setPaintProperty('grid-border', 'line-color', darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)')
+        map.current.setPaintProperty('grid-border', 'line-opacity', hasRegionFilter ? 0 : [
+          'interpolate', ['linear'], ['zoom'],
+          4, 0, 5.5, 0.15, 7, 0.35, 9, 0.5
+        ])
       }
     }
 
@@ -1160,18 +1181,20 @@ export default memo(function MapView({
             ])
       }
       if (map.current?.getLayer('grid-border')) {
-        // When a region filter is active, hide borders on out-of-region cells
-        // (cells with no feature-state 'value' coalesce to -1)
+        const borderColor = darkMode ? 'rgba(200,200,200,0.3)' : 'rgba(0,0,0,0.25)'
         if (hasRegionFilter) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#666')
+          map.current.setPaintProperty('grid-border', 'line-color', borderColor)
           map.current.setPaintProperty('grid-border', 'line-opacity', [
             'case',
             ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,
-            0.4
+            ['interpolate', ['linear'], ['zoom'], 4, 0, 5.5, 0.15, 7, 0.35, 9, 0.5]
           ] as maplibregl.ExpressionSpecification)
         } else {
-          map.current.setPaintProperty('grid-border', 'line-color', '#666')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+          map.current.setPaintProperty('grid-border', 'line-color', borderColor)
+          map.current.setPaintProperty('grid-border', 'line-opacity', [
+            'interpolate', ['linear'], ['zoom'],
+            4, 0, 5.5, 0.15, 7, 0.35, 9, 0.5
+          ])
         }
       }
     }
@@ -1298,16 +1321,20 @@ export default memo(function MapView({
               ])
             }
             if (map.current?.getLayer('grid-border')) {
+              const bc = darkMode ? 'rgba(200,200,200,0.3)' : 'rgba(0,0,0,0.25)'
               if (hasRegionFilter) {
-                map.current.setPaintProperty('grid-border', 'line-color', '#666')
+                map.current.setPaintProperty('grid-border', 'line-color', bc)
                 map.current.setPaintProperty('grid-border', 'line-opacity', [
                   'case',
                   ['==', ['coalesce', ['feature-state', 'value'], -1], -1], 0,
-                  0.4
+                  ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 0.3, 8, 0.5]
                 ] as maplibregl.ExpressionSpecification)
               } else {
-                map.current.setPaintProperty('grid-border', 'line-color', '#666')
-                map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+                map.current.setPaintProperty('grid-border', 'line-color', bc)
+                map.current.setPaintProperty('grid-border', 'line-opacity', [
+                  'interpolate', ['linear'], ['zoom'],
+                  4, 0, 6, 0.3, 8, 0.5
+                ])
               }
             }
           } catch (error) {
@@ -1382,8 +1409,11 @@ export default memo(function MapView({
             ])
         }
         if (map.current?.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#999')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
+          map.current.setPaintProperty('grid-border', 'line-color', darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)')
+          map.current.setPaintProperty('grid-border', 'line-opacity', [
+            'interpolate', ['linear'], ['zoom'],
+            4, 0, 5.5, 0.15, 7, 0.35, 9, 0.5
+          ])
         }
         console.log('Goal Birds: no goal species defined')
         return
@@ -1452,8 +1482,11 @@ export default memo(function MapView({
             ])
           }
           if (map.current?.getLayer('grid-border')) {
-            map.current.setPaintProperty('grid-border', 'line-color', '#666')
-            map.current.setPaintProperty('grid-border', 'line-opacity', 0.4)
+            map.current.setPaintProperty('grid-border', 'line-color', darkMode ? 'rgba(200,200,200,0.3)' : 'rgba(0,0,0,0.25)')
+            map.current.setPaintProperty('grid-border', 'line-opacity', [
+              'interpolate', ['linear'], ['zoom'],
+              4, 0, 6, 0.3, 8, 0.5
+            ])
           }
         } catch (error) {
           if (!cancelled) console.error('Goal Birds: error loading data', error)
@@ -1483,6 +1516,12 @@ export default memo(function MapView({
 
           let targetIds: Set<number> | null = null
 
+          // Build valid species ID set (excludes dropped species still in weekly data)
+          const validIds = new Set<number>()
+          if (speciesMetaCache) {
+            speciesMetaCache.forEach(s => validIds.add(s.species_id))
+          }
+
           if (useGoalFilter || currentSeenSpecies.size > 0) {
             // Build seen ID set
             const seenIds = new Set<number>()
@@ -1499,13 +1538,11 @@ export default memo(function MapView({
                 if (!seenIds.has(sid)) targetIds!.add(sid)
               })
             } else {
-              // All species not yet seen (lifers)
-              // We pass null to include all species, then filter out seen ones
-              // Actually: build set of all possible species minus seen
+              // All species not yet seen (lifers), excluding dropped species
               targetIds = new Set<number>()
               weekCells.forEach(({ speciesIds }) => {
                 for (const sid of speciesIds) {
-                  if (!seenIds.has(sid)) targetIds!.add(sid)
+                  if (validIds.has(sid) && !seenIds.has(sid)) targetIds!.add(sid)
                 }
               })
             }
@@ -1556,8 +1593,11 @@ export default memo(function MapView({
             ])
         }
         if (map.current?.getLayer('grid-border')) {
-          map.current.setPaintProperty('grid-border', 'line-color', '#999')
-          map.current.setPaintProperty('grid-border', 'line-opacity', 0.3)
+          map.current.setPaintProperty('grid-border', 'line-color', darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)')
+          map.current.setPaintProperty('grid-border', 'line-opacity', [
+            'interpolate', ['linear'], ['zoom'],
+            4, 0, 5.5, 0.15, 7, 0.35, 9, 0.5
+          ])
         }
         console.log('Goal Birds Only filter: no goal species defined')
         return
@@ -1631,15 +1671,19 @@ export default memo(function MapView({
             const weekCells = await fetchWeekCells(currentWeek, activeResolution)
             if (cancelled) return
 
-            // Build seen species ID set
+            // Build seen species ID set + valid species ID set (excludes dropped species)
             const seenIds = new Set<number>()
-            if (speciesMetaCache && seenSpecies.size > 0 && !showTotalRichness) {
+            const validIds = new Set<number>()
+            if (speciesMetaCache) {
               speciesMetaCache.forEach(s => {
-                if (seenSpecies.has(s.speciesCode)) seenIds.add(s.species_id)
+                validIds.add(s.species_id)
+                if (seenSpecies.size > 0 && !showTotalRichness && seenSpecies.has(s.speciesCode)) {
+                  seenIds.add(s.species_id)
+                }
               })
             }
 
-            const liferData = computeLiferSummary(weekCells, seenIds, speciesFilterIdsRef.current)
+            const liferData = computeLiferSummary(weekCells, seenIds, speciesFilterIdsRef.current, validIds)
             liferData.forEach(([cellId, liferCount]) => {
               if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
             })
@@ -1776,7 +1820,7 @@ export default memo(function MapView({
                         className="inline-block w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: MULTI_COLORS[idx] || '#666' }}
                       />
-                      <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate">{meta?.comName || code}</span>
+                      <span className="text-[11px] lg:text-xs text-gray-700 dark:text-gray-300 truncate">{meta?.comName || code}</span>
                     </div>
                   )
                 })}
@@ -1785,7 +1829,7 @@ export default memo(function MapView({
                     className="inline-block w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: '#FFD700' }}
                   />
-                  <span className="text-[10px] text-gray-700 dark:text-gray-300">All species overlap</span>
+                  <span className="text-[11px] lg:text-xs text-gray-700 dark:text-gray-300">All species overlap</span>
                 </div>
               </div>
             </div>
@@ -1826,25 +1870,26 @@ export default memo(function MapView({
 
         if (!showLegend) return null
 
-        const ticks = getLegendTicks(legendMin, legendMax, isPercentage, 5)
+        const tickCount = window.innerWidth < 768 ? 3 : 5
+        const ticks = getLegendTicks(legendMin, legendMax, isPercentage, tickCount)
         return (
           <div
             data-testid="map-legend"
-            className="absolute bottom-2 md:bottom-8 left-3 backdrop-blur-xl bg-white/85 dark:bg-gray-900/85 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 px-3.5 py-2.5"
-            style={{ minWidth: '200px', maxWidth: '240px' }}
+            className="absolute bottom-2 md:bottom-8 left-3 backdrop-blur-xl bg-white/85 dark:bg-gray-900/85 rounded-lg md:rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 px-2 py-1.5 md:px-3.5 md:py-2.5"
+            style={{ minWidth: window.innerWidth < 768 ? '140px' : '200px', maxWidth: window.innerWidth < 768 ? '160px' : '240px' }}
           >
-            <div className="text-[11px] font-bold text-gray-800 dark:text-gray-200 mb-2 tracking-tight">{legendTitle}</div>
+            <div className="text-xs md:text-[11px] font-bold text-gray-800 dark:text-gray-200 mb-1 md:mb-2 tracking-tight">{legendTitle}</div>
             <div
-              className="h-3 rounded-full shadow-inner"
+              className="h-2.5 md:h-3 rounded-full shadow-inner"
               style={{ background: gradient }}
             />
-            <div className="flex justify-between mt-1.5">
+            <div className="flex justify-between mt-1 md:mt-1.5">
               {ticks.map((tick, i) => (
-                <span key={i} className="text-[9px] font-medium text-gray-500 dark:text-gray-400 tabular-nums">{tick}</span>
+                <span key={i} className="text-[11px] lg:text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">{tick}</span>
               ))}
             </div>
             {emptyMessage && (
-              <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5 font-medium">{emptyMessage}</div>
+              <div className="text-[11px] lg:text-xs text-amber-600 dark:text-amber-400 mt-1 md:mt-1.5 font-medium">{emptyMessage}</div>
             )}
           </div>
         )
@@ -1854,8 +1899,8 @@ export default memo(function MapView({
       {viewMode === 'goal-birds' && goalBirdsPopup && (
         <div
           data-testid="goal-birds-popup"
-          className="absolute top-4 right-4 bg-white rounded-lg shadow-xl border border-amber-200 w-72 max-h-96 flex flex-col z-10"
-          style={{ maxHeight: '80%' }}
+          className="fixed inset-0 top-0 bottom-[calc(52px+env(safe-area-inset-bottom,0px))] bg-white dark:bg-gray-900 flex flex-col z-40 animate-sheet-up md:animate-none md:absolute md:inset-auto md:top-4 md:right-4 md:w-72 md:max-h-96 md:z-10 md:rounded-lg md:shadow-xl md:border md:border-amber-200"
+          style={{ maxHeight: window.innerWidth >= 768 ? '80%' : undefined }}
         >
           {/* Popup header */}
           <div className="flex items-center justify-between px-3 py-2 bg-amber-50 border-b border-amber-200 rounded-t-lg">
@@ -1883,7 +1928,7 @@ export default memo(function MapView({
           {goalBirdsPopup.nChecklists != null && goalBirdsPopup.nChecklists < 10 && (
             <div className="px-3 py-1.5 bg-amber-50 border-b border-amber-200 flex items-center gap-1.5">
               <span className="text-amber-500 text-xs">⚠</span>
-              <span className="text-[10px] text-amber-700">
+              <span className="text-[11px] lg:text-xs text-amber-700">
                 Limited data ({goalBirdsPopup.nChecklists} checklist{goalBirdsPopup.nChecklists !== 1 ? 's' : ''}) — frequencies may be unreliable
               </span>
             </div>
@@ -1894,7 +1939,7 @@ export default memo(function MapView({
             {/* Notable Birds section */}
             {notableBirds.length > 0 && (
               <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
-                <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
+                <div className="text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
                 {notableBirds.map(({ species, tag, frequency }) => (
                   <div key={species.speciesCode} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1"
                     onClick={() => {
@@ -1992,8 +2037,8 @@ export default memo(function MapView({
       {(viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && lifersPopup && (
         <div
           data-testid="lifers-popup"
-          className="absolute top-4 right-4 bg-white rounded-lg shadow-xl border border-teal-200 w-72 max-h-96 flex flex-col z-10"
-          style={{ maxHeight: '80%' }}
+          className="fixed inset-0 top-0 bottom-[calc(52px+env(safe-area-inset-bottom,0px))] bg-white dark:bg-gray-900 flex flex-col z-40 animate-sheet-up md:animate-none md:absolute md:inset-auto md:top-4 md:right-4 md:w-72 md:max-h-96 md:z-10 md:rounded-lg md:shadow-xl md:border md:border-teal-200"
+          style={{ maxHeight: window.innerWidth >= 768 ? '80%' : undefined }}
         >
           {/* Popup header */}
           <div className="flex items-center justify-between px-3 py-2 bg-teal-50 dark:bg-teal-900/40 border-b border-teal-200 dark:border-teal-700 rounded-t-lg">
@@ -2070,7 +2115,7 @@ export default memo(function MapView({
           {lifersPopup.estimated && (
             <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-1.5">
               <span className="text-red-500 text-xs">⚠</span>
-              <span className="text-[10px] text-red-700 dark:text-red-400">
+              <span className="text-[11px] lg:text-xs text-red-700 dark:text-red-400">
                 No checklist data — species estimated from neighboring cells
               </span>
             </div>
@@ -2079,7 +2124,7 @@ export default memo(function MapView({
           {!lifersPopup.estimated && lifersPopup.nChecklists != null && lifersPopup.nChecklists < 10 && (
             <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 border-b border-teal-200 dark:border-teal-800 flex items-center gap-1.5">
               <span className="text-amber-500 text-xs">⚠</span>
-              <span className="text-[10px] text-amber-700 dark:text-amber-400">
+              <span className="text-[11px] lg:text-xs text-amber-700 dark:text-amber-400">
                 Limited data ({lifersPopup.nChecklists} checklist{lifersPopup.nChecklists !== 1 ? 's' : ''}) — frequencies may be unreliable
               </span>
             </div>
@@ -2097,7 +2142,7 @@ export default memo(function MapView({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
               </svg>
-              <span className="text-[10px] text-blue-700 dark:text-blue-400">
+              <span className="text-[11px] lg:text-xs text-blue-700 dark:text-blue-400">
                 Filtered — {lifersPopup.filteredTotal} of {lifersPopup.totalSpecies} species match
               </span>
             </div>
@@ -2105,7 +2150,7 @@ export default memo(function MapView({
           {/* Habitat bar */}
           {popupCovariates && (
             <div className="px-3 py-2 border-b border-teal-200 dark:border-teal-800 space-y-1" data-testid="habitat-bar">
-              <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Habitat</p>
+              <p className="text-[11px] lg:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Habitat</p>
               {(() => {
                 const cov = popupCovariates as unknown as Record<string, number>
                 const ocean = cov.ocean || 0
@@ -2165,13 +2210,13 @@ export default memo(function MapView({
                       {categories.map(({ key, val, icon, label }) => {
                         if (val < 0.03) return null
                         return (
-                          <span key={key} className="text-[9px] text-gray-500 dark:text-gray-400">
+                          <span key={key} className="text-[11px] lg:text-xs text-gray-500 dark:text-gray-400">
                             {icon} {label} {(val * 100).toFixed(0)}%
                           </span>
                         )
                       })}
                       {popupCovariates.elev_mean > 0 && (
-                        <span className="text-[9px] text-gray-500 dark:text-gray-400">
+                        <span className="text-[11px] lg:text-xs text-gray-500 dark:text-gray-400">
                           ⛰ {Math.round(popupCovariates.elev_mean)}m
                         </span>
                       )}
@@ -2186,7 +2231,7 @@ export default memo(function MapView({
             {/* Notable Birds section */}
             {notableBirds.length > 0 && lifersPopup.lifers.length > 0 && (
               <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
-                <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
+                <div className="text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
                 {notableBirds.map(({ species, tag, frequency }) => (
                   <div key={species.speciesCode} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1"
                     onClick={() => {
@@ -2210,7 +2255,7 @@ export default memo(function MapView({
                     {/* Add to goal list button */}
                     {popupGoalLists.length > 0 && (
                       popupGoalAddFeedback?.speciesCode === species.speciesCode ? (
-                        <span className={`text-[10px] flex-shrink-0 font-medium ${
+                        <span className={`text-[11px] lg:text-xs flex-shrink-0 font-medium ${
                           popupGoalAddFeedback.status === 'added' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
                         }`}>
                           {popupGoalAddFeedback.status === 'added' ? '✓' : 'In list'}
@@ -2305,7 +2350,7 @@ export default memo(function MapView({
                         return (
                           <div key={family}>
                             <div className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
-                              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{family}</span>
+                              <span className="text-[11px] lg:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{family}</span>
                             </div>
                             {visibleLifers.map((lifer) => (
                               <div
@@ -2345,7 +2390,7 @@ export default memo(function MapView({
                                   )}
                                   {lifer.difficultyRating != null && lifer.difficultyRating >= 5 && (
                                     <span
-                                      className={`inline-flex items-center justify-center min-w-[1.1rem] h-4 px-0.5 rounded text-[9px] font-bold flex-shrink-0 ${
+                                      className={`inline-flex items-center justify-center min-w-[1.1rem] h-4 px-0.5 rounded text-[11px] lg:text-xs font-bold flex-shrink-0 ${
                                         lifer.difficultyRating >= 10 ? 'bg-red-200 dark:bg-red-900/60 text-red-900 dark:text-red-200'
                                         : lifer.difficultyRating >= 9 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
                                         : lifer.difficultyRating >= 8 ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300'

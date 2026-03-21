@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { ExploreTabProps, SpeciesMeta, Species } from './types'
 import { fetchSpecies } from '../lib/dataCache'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useWeekAnimation } from '../lib/useWeekAnimation'
+import { getWeekLabel } from './tripPlanUtils'
 import Tooltip from './Tooltip'
 import { TOOLTIPS } from '../lib/tooltipContent'
 
@@ -50,11 +52,8 @@ export default function ExploreTab({
   const [showHighlights, setShowHighlights] = useState(true)
   const { effectiveSeenSpecies } = useLifeList()
 
-  // Animation state
-  const [isAnimating, setIsAnimating] = useState(false)
-  const [showWrapIndicator, setShowWrapIndicator] = useState(false)
-  const animationIntervalRef = useRef<number | null>(null)
-  const currentWeekRef = useRef(currentWeek)
+  // Week animation
+  const { isAnimating, showWrapIndicator, startAnimation, stopAnimation } = useWeekAnimation(currentWeek, onWeekChange)
 
   // Load full species data for highlights (cached, shared with MapView)
   useEffect(() => {
@@ -158,58 +157,6 @@ export default function ExploreTab({
   // Selected species display name
   const selectedSpeciesMeta = allSpecies.find((s) => s.speciesCode === selectedSpecies)
 
-  // Convert week number to approximate date label
-  const getWeekLabel = (week: number): string => {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const dayOfYear = week * 7 - 3
-    const date = new Date(2024, 0, dayOfYear)
-    const monthIndex = date.getMonth()
-    const day = date.getDate()
-    return `${monthNames[monthIndex]} ${day}`
-  }
-
-  // Keep ref in sync with currentWeek prop
-  useEffect(() => {
-    currentWeekRef.current = currentWeek
-  }, [currentWeek])
-
-  // Animation controls — recursive setTimeout for variable delay at year wrap
-  const startAnimation = () => {
-    if (animationIntervalRef.current !== null) return
-    setIsAnimating(true)
-    const step = () => {
-      const current = currentWeekRef.current
-      const nextWeek = current >= 52 ? 1 : current + 1
-      const isWrapping = current >= 52
-      onWeekChange?.(nextWeek)
-      if (isWrapping) setShowWrapIndicator(true)
-      // Use longer delay at year wrap for visual pause
-      animationIntervalRef.current = window.setTimeout(() => {
-        if (isWrapping) setShowWrapIndicator(false)
-        step()
-      }, isWrapping ? 1500 : 1000)
-    }
-    step()
-  }
-
-  const stopAnimation = () => {
-    if (animationIntervalRef.current !== null) {
-      clearTimeout(animationIntervalRef.current)
-      animationIntervalRef.current = null
-    }
-    setIsAnimating(false)
-    setShowWrapIndicator(false)
-  }
-
-  // Clean up timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (animationIntervalRef.current !== null) {
-        clearTimeout(animationIntervalRef.current)
-      }
-    }
-  }, [])
-
   return (
     <div className="space-y-5">
       {/* View Mode Toggle */}
@@ -240,7 +187,7 @@ export default function ExploreTab({
         </div>
         <div className="flex items-center gap-1 mt-1">
           <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />
-          <span className="text-[10px] text-gray-400 dark:text-gray-500">
+          <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500">
             {viewMode === 'density' ? 'Lifer density per cell' : viewMode === 'probability' ? 'Combined lifer probability' : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Multi-species range overlap' : 'Single species frequency') : 'Goal list species per cell'}
           </span>
         </div>
@@ -249,7 +196,7 @@ export default function ExploreTab({
       {/* Active Goal List Selector */}
       {(viewMode === 'goal-birds' || ((viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && goalBirdsOnlyFilter)) && (
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             Active Goal List
           </label>
           {goalLists.length === 0 ? (
@@ -334,7 +281,7 @@ export default function ExploreTab({
         <div className="mb-0">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400">This Week's Highlights</h3>
-            <button onClick={() => setShowHighlights(false)} className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
+            <button onClick={() => setShowHighlights(false)} className="text-[11px] lg:text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
             {highlights.map(h => (
@@ -350,7 +297,7 @@ export default function ExploreTab({
                   <img src={h.species.photoUrl} alt="" className="w-full h-20 rounded object-cover mb-1" loading="lazy" />
                 )}
                 <div className="text-xs font-medium truncate dark:text-gray-200">{h.species.comName}</div>
-                <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{h.reason}</div>
+                <div className="text-[11px] lg:text-xs text-gray-500 dark:text-gray-400 truncate">{h.reason}</div>
               </div>
             ))}
           </div>
@@ -360,7 +307,7 @@ export default function ExploreTab({
       {/* Species Picker — shown in Species Range view */}
       {viewMode === 'species' && (
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             {compareMode ? 'Compare Species (up to 4)' : 'Select Species'}
           </label>
           {/* Search input */}
@@ -672,7 +619,7 @@ export default function ExploreTab({
               aria-label="Maximum lifer count"
             />
           </div>
-          <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
+          <div className="flex justify-between text-[11px] lg:text-xs text-gray-400 dark:text-gray-500">
             <span>{dataRange[0]}</span>
             <span>min ↑ max ↓</span>
             <span>{dataRange[1]}</span>
@@ -690,7 +637,7 @@ export default function ExploreTab({
       )}
 
       {/* Responsible birding footer */}
-      <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-4 px-2">
+      <p className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 text-center mt-4 px-2">
         Please bird responsibly.{' '}
         <a
           href="https://www.aba.org/aba-code-of-birding-ethics/"

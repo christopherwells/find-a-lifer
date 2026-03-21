@@ -6,7 +6,8 @@ import type { LifeListEntry } from '../contexts/LifeListContext'
 import { ProgressSkeleton } from './Skeleton'
 import { fetchRegionNames } from '../lib/dataCache'
 import { getDisplayGroup } from '../lib/familyGroups'
-import { REGION_GROUPS, GROUPED_CODES } from '../lib/regionGroups'
+import { GROUPED_CODES } from '../lib/regionGroups'
+import { SUB_REGIONS } from '../lib/subRegions'
 import { computeStreak, computeWeeklySummary } from '../lib/streakUtils'
 import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, type LeaderboardEntry } from '../lib/firebaseSync'
 import { getFriends } from '../lib/friendsService'
@@ -160,12 +161,33 @@ export default function ProgressTab() {
 
   // Calculate quick stats
   const groupsStarted = Object.values(groupStats).filter(s => s.seen > 0).length
-  const groupsCompleted = Object.values(groupStats).filter(s => s.seen === s.total && s.total > 0).length
 
-  // Completed groups for Trophy Case
-  const completedGroups = Object.entries(groupStats)
-    .filter(([, s]) => s.seen === s.total && s.total > 0)
-    .sort((a, b) => b[1].total - a[1].total)
+  // Trophy levels: bronze (1/3), silver (2/3), gold (100%)
+  type TrophyLevel = 'gold' | 'silver' | 'bronze' | null
+  const getTrophyLevel = (seen: number, total: number): TrophyLevel => {
+    if (total === 0) return null
+    const ratio = seen / total
+    if (ratio >= 1) return 'gold'
+    if (ratio >= 2 / 3) return 'silver'
+    if (ratio >= 1 / 3) return 'bronze'
+    return null
+  }
+  const TROPHY_STYLES: Record<string, { bg: string; border: string; text: string; subtext: string; label: string }> = {
+    gold: { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-300 dark:border-amber-600', text: 'text-amber-800 dark:text-amber-200', subtext: 'text-amber-600 dark:text-amber-400', label: 'Complete' },
+    silver: { bg: 'bg-gray-50 dark:bg-gray-800/50', border: 'border-gray-300 dark:border-gray-500', text: 'text-gray-700 dark:text-gray-200', subtext: 'text-gray-500 dark:text-gray-400', label: 'Silver' },
+    bronze: { bg: 'bg-orange-50 dark:bg-orange-900/10', border: 'border-orange-200 dark:border-orange-700', text: 'text-orange-800 dark:text-orange-200', subtext: 'text-orange-600 dark:text-orange-400', label: 'Bronze' },
+  }
+
+  // All groups with trophy levels, sorted: gold first, then silver, bronze, by completion %
+  const trophyGroups = Object.entries(groupStats)
+    .map(([name, stats]) => ({ name, ...stats, level: getTrophyLevel(stats.seen, stats.total) }))
+    .filter(g => g.level !== null)
+    .sort((a, b) => {
+      const order = { gold: 0, silver: 1, bronze: 2 }
+      const levelDiff = order[a.level!] - order[b.level!]
+      if (levelDiff !== 0) return levelDiff
+      return (b.seen / b.total) - (a.seen / a.total)
+    })
 
   // Almost-there groups (1-3 remaining)
   const almostThereGroups = Object.entries(groupStats)
@@ -173,37 +195,44 @@ export default function ProgressTab() {
     .filter(g => g.remaining > 0 && g.remaining <= 3)
     .sort((a, b) => a.remaining - b.remaining)
 
-  // Build reverse lookup: region code → group name
-  const codeToGroup: Record<string, string> = {}
-  for (const [groupName, codes] of Object.entries(REGION_GROUPS)) {
-    for (const code of codes) {
-      codeToGroup[code] = groupName
+  // Build sub-region ID → display name lookup
+  const subRegionIdToName: Record<string, string> = {}
+  SUB_REGIONS.forEach(sr => {
+    // Central America sub-regions roll up to single 'Central America' group
+    if (sr.id === 'ca-c-north' || sr.id === 'ca-c-south') {
+      subRegionIdToName[sr.id] = 'Central America'
+    } else {
+      subRegionIdToName[sr.id] = sr.name
     }
-  }
+  })
 
-  // Calculate region breakdown
+  // Calculate region breakdown using regionalDifficulty for sub-region presence
   const regionStats: { [key: string]: { total: number; seen: number } } = {}
   allSpecies.forEach((species) => {
-    if (!species.regions) return
     const seen = isSeen(species.speciesCode)
-    // Track which groups have already been counted for this species
-    const countedGroups = new Set<string>()
-    for (const regionCode of species.regions) {
-      let key: string
-      if (GROUPED_CODES.has(regionCode)) {
-        // Roll up into group
-        key = codeToGroup[regionCode]
-        if (countedGroups.has(key)) continue
-        countedGroups.add(key)
-      } else {
-        key = regionCode
+    const countedRegions = new Set<string>()
+
+    // Use regionalDifficulty keys as sub-region presence indicators
+    if (species.regionalDifficulty) {
+      for (const subRegionId of Object.keys(species.regionalDifficulty)) {
+        const displayName = subRegionIdToName[subRegionId]
+        if (!displayName || countedRegions.has(displayName)) continue
+        countedRegions.add(displayName)
+        if (!regionStats[displayName]) regionStats[displayName] = { total: 0, seen: 0 }
+        regionStats[displayName].total++
+        if (seen) regionStats[displayName].seen++
       }
-      if (!regionStats[key]) {
-        regionStats[key] = { total: 0, seen: 0 }
-      }
-      regionStats[key].total++
-      if (seen) {
-        regionStats[key].seen++
+    }
+
+    // Also include non-grouped country codes from regions (e.g., GL, PM)
+    if (species.regions) {
+      for (const regionCode of species.regions) {
+        if (GROUPED_CODES.has(regionCode)) continue // Handled by regionalDifficulty
+        if (countedRegions.has(regionCode)) continue
+        countedRegions.add(regionCode)
+        if (!regionStats[regionCode]) regionStats[regionCode] = { total: 0, seen: 0 }
+        regionStats[regionCode].total++
+        if (seen) regionStats[regionCode].seen++
       }
     }
   })
@@ -211,10 +240,10 @@ export default function ProgressTab() {
   // Sort regions by total species count descending
   const sortedRegions = Object.entries(regionStats).sort((a, b) => b[1].total - a[1].total)
 
-  // Get display name for a region key (group name or region code)
+  // Get display name for a region key (sub-region name or country code)
   const getRegionDisplayName = (key: string): string => {
-    // If it's a group name (exists in REGION_GROUPS), use it directly
-    if (REGION_GROUPS[key]) return key
+    // Sub-region names are already display-ready
+    if (subRegionIdToName[key] || Object.values(subRegionIdToName).includes(key)) return key
     // Otherwise look up from regionNames
     return regionNames[key] || key
   }
@@ -326,8 +355,8 @@ export default function ProgressTab() {
           </div>
           <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
           <div className="text-center">
-            <p className="text-xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{groupsCompleted}</p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Completed</p>
+            <p className="text-xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{trophyGroups.length}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Trophies</p>
           </div>
         </div>
       </div>
@@ -361,27 +390,33 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* 5. Trophy Case — grid layout with emojis */}
+      {/* 5. Trophy Case — bronze/silver/gold levels */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
-        {completedGroups.length > 0 ? (
+        {trophyGroups.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
-            {completedGroups.map(([name, stats]) => (
-              <div
-                key={name}
-                className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 shadow-sm"
-              >
-                <span className="text-lg flex-shrink-0">{GROUP_EMOJI[name] || '\uD83C\uDFC6'}</span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 truncate">{name}</p>
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400">{stats.total} species</p>
+            {trophyGroups.map((g) => {
+              const style = TROPHY_STYLES[g.level!]
+              const medal = g.level === 'gold' ? '\uD83E\uDD47' : g.level === 'silver' ? '\uD83E\uDD48' : '\uD83E\uDD49'
+              return (
+                <div
+                  key={g.name}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg ${style.bg} border ${style.border} shadow-sm`}
+                >
+                  <span className="text-lg flex-shrink-0">{GROUP_EMOJI[g.name] || medal}</span>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-semibold ${style.text} truncate`}>{g.name}</p>
+                    <p className={`text-[11px] lg:text-xs ${style.subtext}`}>
+                      {g.seen}/{g.total} {medal} {style.label}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-            Complete a group to earn your first trophy!
+            See 1/3 of a species group to earn your first bronze trophy!
           </p>
         )}
       </div>

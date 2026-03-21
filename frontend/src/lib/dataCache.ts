@@ -384,11 +384,13 @@ export async function getSpeciesBestLocations(
 export function computeLiferSummary(
   weekCells: Map<number, CellSpeciesData>,
   seenSpeciesIds: Set<number>,
-  includeOnly?: Set<number> | null
+  includeOnly?: Set<number> | null,
+  validSpeciesIds?: Set<number> | null
 ): [number, number, number][] {
   const result: [number, number, number][] = []
   weekCells.forEach(({ speciesIds }, cellId) => {
     const liferCount = speciesIds.filter(sid =>
+      (!validSpeciesIds || validSpeciesIds.has(sid)) &&
       !seenSpeciesIds.has(sid) && (!includeOnly || includeOnly.has(sid))
     ).length
     if (liferCount > 0) {
@@ -439,15 +441,18 @@ export function getCellSpecies(
   const cellData = weekCells.get(cellId)
   if (!cellData) return []
   const { speciesIds, freqs } = cellData
-  const records = speciesIds.map((sid, i) => {
+  const records: { species_id: number; speciesCode: string; comName: string; probability: number }[] = []
+  for (let i = 0; i < speciesIds.length; i++) {
+    const sid = speciesIds[i]
     const sp = speciesById.get(sid)
-    return {
+    if (!sp) continue // Skip species not in species.json (dropped exotics/vagrants)
+    records.push({
       species_id: sid,
-      speciesCode: sp?.speciesCode || '',
-      comName: sp?.comName || 'Unknown',
+      speciesCode: sp.speciesCode,
+      comName: sp.comName,
       probability: freqs ? freqs[i] / 255 : 1.0,
-    }
-  })
+    })
+  }
   records.sort((a, b) => {
     const ta = speciesById.get(a.species_id)?.taxonOrder ?? 99999
     const tb = speciesById.get(b.species_id)?.taxonOrder ?? 99999

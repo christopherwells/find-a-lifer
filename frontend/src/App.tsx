@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import TopBar from './components/TopBar'
 import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
+import MapControls from './components/MapControls'
 import AboutPage from './components/AboutPage'
 import OnboardingOverlay from './components/OnboardingOverlay'
 import Toast from './components/Toast'
 import { useLifeList } from './contexts/LifeListContext'
+import { useToast } from './contexts/ToastContext'
 import { goalListsDB, type GoalList } from './lib/goalListsDB'
 import type { SelectedLocation, SpeciesFilters, CompareLocations } from './components/types'
 import './App.css'
@@ -41,7 +43,7 @@ function App() {
   const [selectedSpeciesMulti, setSelectedSpeciesMulti] = useState<string[]>([])
   const [compareLocations, setCompareLocations] = useState<CompareLocations | null>(null)
   const [showAbout, setShowAbout] = useState(false)
-  const [activeTab, setActiveTab] = useState<string>('explore')
+  const [, setActiveTab] = useState<string>('explore')
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('hasSeenOnboarding'))
   const [beginnerMode, setBeginnerMode] = useState(() => {
     const stored = localStorage.getItem('beginnerMode')
@@ -51,6 +53,7 @@ function App() {
     return count < 3
   })
   const { effectiveSeenSpecies } = useLifeList()
+  const { showToast } = useToast()
 
   // Session counting for progressive disclosure
   useEffect(() => {
@@ -108,12 +111,49 @@ function App() {
     setShowOnboarding(true)
   }
 
-  // Tabs that don't need the map — go full-screen on mobile
-  const fullScreenTabs = ['goals', 'progress', 'profile']
-  const isFullScreenTab = fullScreenTabs.includes(activeTab) && !sidePanelCollapsed
+  // Shared view mode change handler — resets filters appropriately
+  const handleViewModeChange = useCallback((mode: MapViewMode) => {
+    setViewMode(mode)
+    if (mode !== 'density' && mode !== 'probability' && mode !== 'species') setGoalBirdsOnlyFilter(false)
+    if (mode !== 'species') {
+      setSelectedSpecies(null)
+      setSelectedSpeciesMulti([])
+    }
+  }, [])
+
+  const handleActiveGoalListIdChange = useCallback((id: string | null) => {
+    setActiveGoalListId(id)
+    if (id) localStorage.setItem('activeGoalListId', id)
+    else localStorage.removeItem('activeGoalListId')
+  }, [])
+
+  const handleBeginnerModeChange = useCallback((value: boolean) => {
+    setBeginnerMode(value)
+    localStorage.setItem('beginnerMode', String(value))
+  }, [])
+
+  const handleImportComplete = useCallback((newCount: number) => {
+    // Switch to map view (collapse panel on mobile)
+    setSidePanelCollapsed(true)
+    // Show import summary toast
+    showToast({
+      type: 'import-summary',
+      message: `Added ${newCount} new species to your life list`,
+      detail: 'Explore the map to find your next lifer!',
+      duration: 5000,
+    })
+  }, [showToast])
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900">
+      {/* Skip to content link for keyboard/screen reader users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium"
+      >
+        Skip to main content
+      </a>
+
       {/* Top Bar */}
       <TopBar
         darkMode={darkMode}
@@ -124,8 +164,8 @@ function App() {
 
       {/* Main Content: Map + Side Panel */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Map Area — pb-[52px] on mobile for bottom tab bar; hidden on mobile for full-screen tabs */}
-        <div className={`flex-1 relative order-first pb-[52px] md:pb-0 ${isFullScreenTab ? 'hidden md:block' : ''}`}>
+        {/* Map Area — always visible; pb-[52px] on mobile for bottom tab bar */}
+        <div id="main-content" className="flex-1 relative order-first pb-[52px] md:pb-0">
           <MapView
             darkMode={darkMode}
             currentWeek={currentWeek}
@@ -145,6 +185,33 @@ function App() {
             speciesFilters={speciesFilters}
             compareLocations={compareLocations}
           />
+          {/* Floating map controls — mobile only (desktop uses ExploreTab in panel) */}
+          <MapControls
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            beginnerMode={beginnerMode}
+            onBeginnerModeChange={handleBeginnerModeChange}
+            currentWeek={currentWeek}
+            onWeekChange={setCurrentWeek}
+            heatmapOpacity={heatmapOpacity}
+            onHeatmapOpacityChange={setHeatmapOpacity}
+            goalBirdsOnlyFilter={goalBirdsOnlyFilter}
+            onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
+            showTotalRichness={showTotalRichness}
+            onShowTotalRichnessChange={setShowTotalRichness}
+            goalLists={goalLists}
+            activeGoalListId={activeGoalListId}
+            onActiveGoalListIdChange={handleActiveGoalListIdChange}
+            goalSpeciesCodes={goalSpeciesCodes}
+            selectedSpecies={selectedSpecies}
+            onSelectedSpeciesChange={setSelectedSpecies}
+            selectedSpeciesMulti={selectedSpeciesMulti}
+            onSelectedSpeciesMultiChange={setSelectedSpeciesMulti}
+            liferCountRange={liferCountRange}
+            onLiferCountRangeChange={setLiferCountRange}
+            dataRange={dataRange}
+            seenSpecies={effectiveSeenSpecies}
+          />
         </div>
 
         {/* Side Panel */}
@@ -154,16 +221,7 @@ function App() {
           currentWeek={currentWeek}
           onWeekChange={setCurrentWeek}
           viewMode={viewMode}
-          onViewModeChange={(mode) => {
-            setViewMode(mode)
-            // Reset goal birds only filter when switching away from density, probability, and species
-            if (mode !== 'density' && mode !== 'probability' && mode !== 'species') setGoalBirdsOnlyFilter(false)
-            // Reset selected species when switching away from species view
-            if (mode !== 'species') {
-              setSelectedSpecies(null)
-              setSelectedSpeciesMulti([])
-            }
-          }}
+          onViewModeChange={handleViewModeChange}
           goalBirdsOnlyFilter={goalBirdsOnlyFilter}
           onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
           selectedLocation={selectedLocation}
@@ -175,11 +233,8 @@ function App() {
           goalSpeciesCodes={goalSpeciesCodes}
           goalLists={goalLists}
           activeGoalListId={activeGoalListId}
-          onActiveGoalListIdChange={(id) => {
-            setActiveGoalListId(id)
-            if (id) localStorage.setItem('activeGoalListId', id)
-            else localStorage.removeItem('activeGoalListId')
-          }}
+          onActiveGoalListIdChange={handleActiveGoalListIdChange}
+          onGoalListsChange={setGoalLists}
           selectedRegion={selectedRegion}
           onSelectedRegionChange={setSelectedRegion}
           heatmapOpacity={heatmapOpacity}
@@ -193,18 +248,20 @@ function App() {
           onSpeciesFiltersChange={setSpeciesFilters}
           onCompareLocationsChange={setCompareLocations}
           beginnerMode={beginnerMode}
-          onBeginnerModeChange={(value) => {
-            setBeginnerMode(value)
-            localStorage.setItem('beginnerMode', String(value))
-          }}
+          onBeginnerModeChange={handleBeginnerModeChange}
           onActiveTabChange={setActiveTab}
+          onImportComplete={handleImportComplete}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode((prev) => !prev)}
+          onShowAbout={() => setShowAbout(true)}
+          onShowOnboarding={handleShowOnboarding}
         />
       </div>
 
       {/* Modals */}
       {showAbout && <AboutPage onClose={() => setShowAbout(false)} />}
       {showOnboarding && (
-        <OnboardingOverlay onComplete={handleOnboardingComplete} />
+        <OnboardingOverlay onComplete={handleOnboardingComplete} onImportComplete={handleImportComplete} />
       )}
 
       {/* Global Toast */}

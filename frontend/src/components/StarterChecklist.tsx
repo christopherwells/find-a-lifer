@@ -130,7 +130,7 @@ export default function StarterChecklist({ onDismiss }: StarterChecklistProps) {
         {groupedSpecies.map(([group, species]) => (
           <div key={group}>
             <div className="px-3 py-0.5 bg-blue-100/70 dark:bg-blue-800/30 border-b border-blue-200/50 dark:border-blue-700/50 sticky top-0">
-              <span className="text-[10px] font-bold text-blue-800/70 dark:text-blue-300/70 uppercase tracking-wider">{group}</span>
+              <span className="text-[11px] lg:text-xs font-bold text-blue-800/70 dark:text-blue-300/70 uppercase tracking-wider">{group}</span>
             </div>
             {species.map((sp) => (
               <label

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { Species } from './types'
 import Badge from './Badge'
@@ -26,6 +26,22 @@ export default function SpeciesInfoCard({
   onCellClick,
   regionContext,
 }: SpeciesInfoCardProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Focus close button on open and handle Escape key
+  useEffect(() => {
+    // Focus the close button when the card opens
+    closeButtonRef.current?.focus()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   const [freqProfile, setFreqProfile] = useState<number[] | null>(null)
   const [bestLocations, setBestLocations] = useState<Array<{ cellId: number; coordinates: [number, number]; name: string; freq: number }> | null>(null)
   const [loadingLocations, setLoadingLocations] = useState(false)
@@ -168,28 +184,27 @@ export default function SpeciesInfoCard({
     : ''
 
   // Compute invasion status badge (region-filtered)
+  // Priority: Native > Introduced > Vagrant/Accidental
+  // If native anywhere in scope, species is considered native (no badge shown).
   const invasionBadge = (() => {
     const invasionData = species.invasionStatus || {}
     let entries = Object.entries(invasionData)
 
     // If a region is selected, filter to only country codes that match the sub-region's state codes
     if (selectedRegion) {
-      // Invasion status uses country codes (e.g., "US", "MX"), state codes are "US-ME", "MX-OAX"
-      // A country code matches if any state code in the sub-region starts with it
       const countryCodes = new Set(selectedRegion.stateCodes.map(sc => sc.split('-')[0]))
       entries = entries.filter(([code]) => countryCodes.has(code))
     }
 
-    const nonNativeEntries = entries.filter(([, s]) => s !== 'Native')
-    if (nonNativeEntries.length === 0) return null
+    if (entries.length === 0) return null
 
-    const isNativeAnywhere = entries.some(([, s]) => s === 'Native')
-    const hasIntroduced = nonNativeEntries.some(([, s]) => s === 'Introduced')
-    const primaryStatus = hasIntroduced ? 'Introduced' : nonNativeEntries[0][1]
-    const regionsForStatus = nonNativeEntries.filter(([, s]) => s === primaryStatus)
-    const label = isNativeAnywhere
-      ? `${primaryStatus} (${regionsForStatus.map(([r]) => r).join(', ')})`
-      : primaryStatus
+    // Native wins: if native in any region in scope, no invasion badge
+    if (entries.some(([, s]) => s === 'Native')) return null
+
+    // Not native anywhere in scope — show highest-priority non-native status
+    // Introduced > Vagrant/Accidental
+    const hasIntroduced = entries.some(([, s]) => s === 'Introduced')
+    const label = hasIntroduced ? 'Introduced' : 'Vagrant/Accidental'
     return <Badge variant="invasion" value={label} size="pill" />
   })()
 
@@ -203,6 +218,9 @@ export default function SpeciesInfoCard({
         className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         data-testid="species-info-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={species.comName}
       >
         {/* Photo area */}
         <div className="relative bg-gray-100 dark:bg-gray-800 h-44 flex-shrink-0 flex items-center justify-center overflow-hidden">
@@ -222,6 +240,7 @@ export default function SpeciesInfoCard({
           )}
           {/* Close button */}
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             className="absolute top-2 right-2 bg-white dark:bg-gray-800 bg-opacity-90 dark:bg-opacity-90 rounded-full p-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white shadow transition-colors"
             data-testid="species-info-card-close"
@@ -276,7 +295,7 @@ export default function SpeciesInfoCard({
           {/* Habitat badges */}
           {species.habitatLabels && species.habitatLabels.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Habitat</p>
+              <p className="text-[11px] lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Habitat</p>
               <div className="flex flex-wrap gap-1.5" data-testid="species-info-habitat">
                 {species.habitatLabels.map((label) => (
                   <Badge key={label} variant="habitat" value={label} size="pill" />
@@ -298,7 +317,7 @@ export default function SpeciesInfoCard({
           {/* Sparkline — 52-week frequency chart */}
           {freqProfile && (
             <div className="space-y-1">
-              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <p className="text-[11px] lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 Seasonality{selectedRegion ? ` — ${selectedRegion.name}` : ''}
               </p>
               <Sparkline data={freqProfile} currentWeek={week} />
@@ -308,7 +327,7 @@ export default function SpeciesInfoCard({
           {/* Best locations for current week */}
           {(bestLocations || loadingLocations) && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <p className="text-[11px] lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 Best Locations (Week {week}){selectedRegion && !showGlobalLocations ? ` — ${selectedRegion.name}` : ''}
               </p>
               {loadingLocations ? (
@@ -336,7 +355,7 @@ export default function SpeciesInfoCard({
               {selectedRegionId && (
                 <button
                   onClick={() => setShowGlobalLocations(prev => !prev)}
-                  className="text-[10px] text-[#2C3E7B] dark:text-blue-400 hover:underline"
+                  className="text-[11px] lg:text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline"
                   data-testid="species-info-toggle-global"
                 >
                   {showGlobalLocations ? 'Show regional' : 'Show global'}
@@ -412,7 +431,7 @@ export default function SpeciesInfoCard({
 
           {/* eBird link */}
           <a
-            href={species.ebirdUrl}
+            href={`https://ebird.org/species/${species.speciesCode}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3 py-2 bg-[#2C3E7B] hover:bg-[#1f2d5a] text-white text-sm font-medium rounded-lg transition-colors w-full justify-center"

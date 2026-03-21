@@ -10,8 +10,7 @@ import SpeciesInfoCard from './SpeciesInfoCard'
 import SuggestionSection from './SuggestionSection'
 import { getDisplayGroup } from '../lib/familyGroups'
 import { getRecommendedSections } from '../lib/recommendationEngine'
-import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES } from '../lib/regionGroups'
-import { fetchRegionNames } from '../lib/dataCache'
+import RegionSelector from './RegionSelector'
 import {
   CONSERVATION_TEMPLATES,
   DIFFICULTY_TEMPLATES,
@@ -57,7 +56,7 @@ function getConservStatusDot(status: string): React.ReactNode {
   return <span className={`inline-block w-2 h-2 rounded-full ${color} flex-shrink-0`} title={title} />
 }
 
-export default function GoalBirdsTab() {
+export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?: (lists: GoalList[]) => void } = {}) {
   const { isSpeciesSeen, seenSpecies } = useLifeList()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -72,7 +71,7 @@ export default function GoalBirdsTab() {
   const [deletingListId, setDeletingListId] = useState<string | null>(null)
 
   // Species search/add state
-  const { species: allSpecies } = useSpecies()
+  const { species: allSpecies, loading: speciesLoading } = useSpecies()
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [createListError, setCreateListError] = useState('')
@@ -107,12 +106,6 @@ export default function GoalBirdsTab() {
 
   // Smart recommendation: show only recommended sections by default, rest behind "Show all"
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
-
-  // Region display names
-  const [regionNames, setRegionNames] = useState<Record<string, string>>({})
-  useEffect(() => {
-    fetchRegionNames().then(setRegionNames).catch(() => {})
-  }, [])
 
   // Conservation & regional template state
   const [showTemplateSection, setShowTemplateSection] = useState(false)
@@ -169,6 +162,12 @@ export default function GoalBirdsTab() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey])
 
+  // Sync goal lists back to parent (App.tsx) so MapView gets updated goalSpeciesCodes
+  useEffect(() => {
+    if (!loading) onGoalListsChange?.(goalLists)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goalLists, loading])
+
   // Save active list ID to localStorage and reset filter when switching lists
   useEffect(() => {
     if (activeListId) {
@@ -181,22 +180,6 @@ export default function GoalBirdsTab() {
     setListFilterTerm('')
   }, [activeListId])
 
-  // Region dropdown data — derived from species metadata (same pattern as SpeciesTab)
-  const regionDropdownData = useMemo(() => {
-    const allCodes = Array.from(new Set(allSpecies.flatMap(s => s.regions ?? [])))
-    const individualCodes = allCodes
-      .filter(c => !GROUPED_CODES.has(c))
-      .sort()
-    const activeGroups = Object.entries(REGION_GROUPS)
-      .filter(([, codes]) => codes.some(c => allCodes.includes(c)))
-      .map(([name]) => name)
-    const groupsByCategory = activeGroups.reduce<Record<string, string[]>>((acc, name) => {
-      const cat = REGION_GROUP_CATEGORIES[name] ?? 'Other'
-      ;(acc[cat] ??= []).push(name)
-      return acc
-    }, {})
-    return { individualCodes, groupsByCategory }
-  }, [allSpecies])
 
   // Smart recommendation: compute which suggestion sections to highlight
   const recommendedSectionIds = useMemo(() => {
@@ -480,7 +463,7 @@ export default function GoalBirdsTab() {
         setActiveListId(newList.id)
         showToast({ type: 'success', message: `Imported "${name}" with ${data.speciesCodes.length} species` })
       } catch {
-        showToast({ type: 'muted', message: 'Failed to import: invalid JSON file' })
+        showToast({ type: 'muted', message: 'This doesn\u0027t look like a goal list file. Try exporting one first.' })
       }
     }
     input.click()
@@ -728,7 +711,7 @@ export default function GoalBirdsTab() {
                     <button
                       onClick={() => handleExportList(activeList)}
                       className="min-h-[44px] min-w-[44px] flex items-center justify-center text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
-                      title="Export list as JSON"
+                      title="Export goal list"
                       aria-label="Export goal list"
                       data-testid="export-list-btn"
                     >
@@ -757,7 +740,7 @@ export default function GoalBirdsTab() {
                 className="w-full mt-1 px-3 py-2.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
                 data-testid="import-list-btn"
               >
-                Import Goal List from JSON
+                Import Goal List
               </button>
               </>
             )}
@@ -919,7 +902,7 @@ export default function GoalBirdsTab() {
               className="w-full px-3 py-2.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
               data-testid="import-list-btn-empty"
             >
-              Import Goal List from JSON
+              Import Goal List
             </button>
           </div>
         ) : activeList ? (
@@ -1033,16 +1016,18 @@ export default function GoalBirdsTab() {
                   )}
                 </div>
 
-                {/* Progress Summary */}
+                {/* Progress Summary — reflects active filter when searching */}
                 {(() => {
-                  const total = activeList.speciesCodes.length
-                  const seenCount = activeList.speciesCodes.filter((code) => isSpeciesSeen(code)).length
+                  const isFiltered = !!listFilterTerm.trim()
+                  const displayCodes = isFiltered ? filteredListCodes : activeList.speciesCodes
+                  const total = displayCodes.length
+                  const seenCount = displayCodes.filter((code) => isSpeciesSeen(code)).length
                   const progressPct = total > 0 ? Math.round((seenCount / total) * 100) : 0
                   return (
                     <div className="space-y-1" data-testid="goal-list-progress-summary">
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide" data-testid="goal-list-count">
-                          {listFilterTerm.trim()
+                          {isFiltered
                             ? `${filteredListCodes.length} of ${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''}`
                             : `${activeList.speciesCodes.length} bird${activeList.speciesCodes.length !== 1 ? 's' : ''} in list`}
                         </div>
@@ -1135,7 +1120,7 @@ export default function GoalBirdsTab() {
                             )}
                             {/* Habitat tags */}
                             {species?.habitatLabels?.slice(0, 2).map(label => (
-                              <span key={label} className="text-[10px] px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-500 dark:text-gray-400">
+                              <span key={label} className="text-[11px] lg:text-xs px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-500 dark:text-gray-400">
                                 {label}
                               </span>
                             ))}
@@ -1763,7 +1748,7 @@ export default function GoalBirdsTab() {
                           <div key={familyName} data-testid={`almost-complete-family-${familyName.replace(/\s+/g, '-').toLowerCase()}`}>
                             <div className="flex items-center justify-between px-1 mb-1">
                               <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide truncate">{familyName}</span>
-                              <span className="text-[10px] text-indigo-600 font-medium whitespace-nowrap ml-2">{data.seen}/{data.total} ({pct}%)</span>
+                              <span className="text-[11px] lg:text-xs text-indigo-600 font-medium whitespace-nowrap ml-2">{data.seen}/{data.total} ({pct}%)</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden mx-1 mb-1" style={{ width: 'calc(100% - 8px)' }}>
                               <div className="bg-indigo-500 h-1 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
@@ -1845,24 +1830,13 @@ export default function GoalBirdsTab() {
                   {/* Region selector (shared by both template types) */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Region (optional for conservation, required for regional)</label>
-                    <select
+                    <RegionSelector
                       value={templateRegion}
-                      onChange={(e) => setTemplateRegion(e.target.value)}
+                      onChange={setTemplateRegion}
                       className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-500 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                      data-testid="template-region-select"
-                    >
-                      <option value="">All Regions</option>
-                      {regionDropdownData.individualCodes.map((code) => (
-                        <option key={code} value={code}>{regionNames[code] || code}</option>
-                      ))}
-                      {Object.entries(regionDropdownData.groupsByCategory).map(([category, names]) => (
-                        <optgroup key={category} label={category}>
-                          {names.map((name) => (
-                            <option key={name} value={name}>{name}</option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                      testId="template-region-select"
+                      placeholder="All Regions"
+                    />
                   </div>
 
                   {/* Conservation Templates */}
@@ -1899,7 +1873,7 @@ export default function GoalBirdsTab() {
                       if (conservTemplatePreview.length === 0) {
                         return (
                           <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                            No unseen {selectedTemplate?.label.toLowerCase() ?? 'species'} found{templateRegion ? ` in ${templateRegion}` : ''}.
+                            {speciesLoading ? 'Loading species data...' : `No unseen ${selectedTemplate?.label.toLowerCase() ?? 'species'} found${templateRegion ? ` in ${templateRegion}` : ''}.`}
                           </p>
                         )
                       }
@@ -1926,13 +1900,13 @@ export default function GoalBirdsTab() {
                                 data-testid={`conservation-preview-${sp.speciesCode}`}
                               >
                                 <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
+                                <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
                                   {sp.conservStatus || '—'}
                                 </span>
                               </div>
                             ))}
                             {conservTemplatePreview.length > 50 && (
-                              <p className="text-[10px] text-gray-400 text-center py-1">
+                              <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
                                 +{conservTemplatePreview.length - 50} more
                               </p>
                             )}
@@ -1966,7 +1940,7 @@ export default function GoalBirdsTab() {
                     {/* Difficulty preview */}
                     {difficultyTemplatePreview.length === 0 ? (
                       <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                        No unseen {DIFFICULTY_TEMPLATES.find(t => t.id === difficultyTemplateType)?.label.toLowerCase() ?? 'species'} found{templateRegion ? ` in ${templateRegion}` : ''}.
+                        {speciesLoading ? 'Loading species data...' : `No unseen ${DIFFICULTY_TEMPLATES.find(t => t.id === difficultyTemplateType)?.label.toLowerCase() ?? 'species'} found${templateRegion ? ` in ${templateRegion}` : ''}.`}
                       </p>
                     ) : (
                       <div data-testid="difficulty-template-preview">
@@ -1994,13 +1968,13 @@ export default function GoalBirdsTab() {
                               data-testid={`difficulty-preview-${sp.speciesCode}`}
                             >
                               <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                              <span className={`text-[10px] ml-1 flex-shrink-0 px-1 rounded-full ${getDifficultyColor(sp.difficultyRating)}`}>
+                              <span className={`text-[11px] lg:text-xs ml-1 flex-shrink-0 px-1 rounded-full ${getDifficultyColor(sp.difficultyRating)}`}>
                                 {sp.difficultyRating}/10
                               </span>
                             </div>
                           ))}
                           {difficultyTemplatePreview.length > 50 && (
-                            <p className="text-[10px] text-gray-400 text-center py-1">
+                            <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
                               +{difficultyTemplatePreview.length - 50} more
                             </p>
                           )}
@@ -2033,7 +2007,7 @@ export default function GoalBirdsTab() {
                     {/* Habitat preview */}
                     {habitatTemplatePreview.length === 0 ? (
                       <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                        No unseen {HABITAT_TEMPLATES.find(t => t.id === habitatTemplateType)?.label.toLowerCase() ?? 'species'} found{templateRegion ? ` in ${templateRegion}` : ''}.
+                        {speciesLoading ? 'Loading species data...' : `No unseen ${HABITAT_TEMPLATES.find(t => t.id === habitatTemplateType)?.label.toLowerCase() ?? 'species'} found${templateRegion ? ` in ${templateRegion}` : ''}.`}
                       </p>
                     ) : (
                       <div data-testid="habitat-template-preview">
@@ -2061,13 +2035,13 @@ export default function GoalBirdsTab() {
                               data-testid={`habitat-preview-${sp.speciesCode}`}
                             >
                               <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                              <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
+                              <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
                                 {sp.habitatLabels?.slice(0, 2).join(', ') || '—'}
                               </span>
                             </div>
                           ))}
                           {habitatTemplatePreview.length > 50 && (
-                            <p className="text-[10px] text-gray-400 text-center py-1">
+                            <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
                               +{habitatTemplatePreview.length - 50} more
                             </p>
                           )}
@@ -2104,7 +2078,7 @@ export default function GoalBirdsTab() {
                       </p>
                     ) : regionalTemplatePreview.length === 0 ? (
                       <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                        No unseen regional specialties found in {templateRegion}.
+                        {speciesLoading ? 'Loading species data...' : `No unseen regional specialties found in ${templateRegion}.`}
                       </p>
                     ) : (
                       <div data-testid="regional-template-preview">
@@ -2132,13 +2106,13 @@ export default function GoalBirdsTab() {
                               data-testid={`regional-preview-${sp.speciesCode}`}
                             >
                               <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                              <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
+                              <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
                                 {(sp.regions ?? []).length} regions
                               </span>
                             </div>
                           ))}
                           {regionalTemplatePreview.length > 50 && (
-                            <p className="text-[10px] text-gray-400 text-center py-1">
+                            <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
                               +{regionalTemplatePreview.length - 50} more
                             </p>
                           )}

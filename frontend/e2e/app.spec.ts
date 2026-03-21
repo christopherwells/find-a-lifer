@@ -12,7 +12,8 @@ async function gotoReady(page: Page) {
     localStorage.setItem('sessionCount', '10')
   })
   await page.reload()
-  await expect(page.getByTestId('top-bar')).toBeVisible({ timeout: 10000 })
+  // tab-navigation is visible on all viewports (top-bar hidden on mobile)
+  await expect(page.getByTestId('tab-navigation')).toBeVisible({ timeout: 10000 })
 }
 
 test.describe('Find-A-Lifer App', () => {
@@ -20,9 +21,8 @@ test.describe('Find-A-Lifer App', () => {
     await gotoReady(page)
   })
 
-  test('loads the app and shows the top bar', async ({ page }) => {
-    await expect(page.getByTestId('top-bar')).toBeVisible()
-    await expect(page.getByTestId('top-bar').getByRole('heading', { name: 'Find-A-Lifer' })).toBeVisible()
+  test('loads the app and shows the tab navigation', async ({ page }) => {
+    await expect(page.getByTestId('tab-navigation')).toBeVisible()
   })
 
   test('shows the side panel with tabs', async ({ page }) => {
@@ -367,7 +367,7 @@ test.describe('Regression: Empty hex visibility', () => {
 
     // Reload to pick up imported life list
     await page.reload()
-    await expect(page.getByTestId('top-bar')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('tab-navigation')).toBeVisible({ timeout: 10000 })
     return count
   }
 
@@ -450,7 +450,7 @@ test.describe('Regression: Empty hex visibility', () => {
     console.log(`Imported ${count} of 1790 species`)
 
     await page.reload()
-    await expect(page.getByTestId('top-bar')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('tab-navigation')).toBeVisible({ timeout: 10000 })
     await page.waitForTimeout(5000)
 
     const result = await countColoredCells(page)
@@ -507,7 +507,7 @@ test.describe('Regression: Empty hex visibility', () => {
 
     console.log(`Imported real life list: ${result} species`)
     await page.reload()
-    await expect(page.getByTestId('top-bar')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('tab-navigation')).toBeVisible({ timeout: 10000 })
     await page.waitForTimeout(6000)
 
     // Check: every colored cell should have at least 1 lifer
@@ -575,7 +575,7 @@ test.describe('Onboarding Flow', () => {
     // Skip button is always visible on all slides
     await page.getByTestId('onboarding-skip').click()
     await expect(page.getByTestId('onboarding-overlay')).not.toBeVisible({ timeout: 3000 })
-    await expect(page.getByTestId('top-bar')).toBeVisible()
+    await expect(page.getByTestId('tab-navigation')).toBeVisible()
   })
 })
 

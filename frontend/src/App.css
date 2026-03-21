@@ -15,6 +15,15 @@
   animation: slide-up 0.3s ease-out;
 }
 
+/* Sheet slide-up animation for mobile tab sheets */
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); opacity: 0.8; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-sheet-up {
+  animation: sheet-slide-up 0.3s ease-out;
+}
+
 /* Fix side panel bottom/height offset (mobile-only, not on desktop) */
 @media (min-width: 768px) {
   [data-testid="side-panel"] {

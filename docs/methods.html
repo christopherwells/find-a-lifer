@@ -179,6 +179,7 @@
     <li><a href="#multi-range">Multi-Species Range Overlay</a></li>
     <li><a href="#sub-regions">Sub-Regions &amp; Regional Species Cards</a></li>
     <li><a href="#goal-birds">Goal Birds Recommendation Engine</a></li>
+    <li><a href="#trip-planning">Trip Planning</a></li>
     <li><a href="#gamification">Gamification &amp; Social Features</a></li>
     <li><a href="#parameters">Parameter Reference</a></li>
     <li><a href="#references">References</a></li>
@@ -468,6 +469,17 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <strong>Why family exemption?</strong> Many waterbirds (Herring Gull, Common Loon, scoters) are commonly reported from harbors and lakeshores — cells with low water covariates. Their average water score drops below 0.3 despite being perfectly legitimate ocean species. The family-level exemption ensures all waterbird families pass through regardless of their covariate statistics. For non-waterbird species, the avg_water &lt; 0.3 threshold catches true land birds like passerines, raptors, and owls.
 </div>
 
+<h3>7.3 Species Minimum Record Threshold</h3>
+<p>Species with fewer than <strong>10 total records</strong> across all data are excluded from output. This prevents noisy frequency estimates from very rare vagrants or data-entry errors that lack sufficient observations for meaningful spatial or temporal patterns.</p>
+
+<p>A <strong>force-keep list</strong> preserves genuine island endemics and range-restricted species regardless of record count. These include species like Clarion Wren, Cozumel Thrasher, and Guadalupe Junco &mdash; genuinely rare endemics whose low observation counts reflect true rarity within the coverage area rather than data quality issues.</p>
+
+<p>This threshold dropped 146 species from the output. These species are saved separately for future reintegration as the app's geographic coverage area expands and more eBird data becomes available for currently under-sampled regions.</p>
+
+<div class="rationale">
+  <strong>Why 10 records?</strong> A species observed only 3&ndash;5 times across all cells and weeks produces extremely noisy frequency estimates that mislead trip planners. The threshold of 10 records provides a minimal statistical basis for spatial patterns while remaining low enough to retain legitimately uncommon species. The force-keep list ensures that genuine endemics with inherently low observation counts are never lost.
+</div>
+
 <!-- ============================================================ -->
 <h2 id="output">8. Output Format</h2>
 
@@ -495,9 +507,11 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td><code>species-weeks/{code}.json</code></td><td><code>{week: [[cell_id, freq], ...]}</code></td><td>Single-species range maps</td></tr>
 </table>
 
-<p>A shared <code>species.json</code> contains metadata for all 2,052 species across 13 countries (BM, BS, CA, CR, CU, DO, HT, JM, MX, PA, PR, TC, US) on a grid of 10,526 cells at resolution 4. Fields include: common name, scientific name, family, taxonomic order, eBird species code, conservation status, invasion status per region, difficulty rating, regional difficulty, habitat labels, and photo attribution.</p>
+<p>A shared <code>species.json</code> contains metadata for all 2,307 species across 31 regions (AG, AW, BB, BM, BQ, BS, BZ, CA, CR, CU, DM, DO, GD, HT, JM, KN, LC, MF, MQ, MX, NI, PA, PM, PR, SX, TC, TT, US, VC, VG, VI) on a grid of 10,607 cells at resolution 4. Fields include: common name, scientific name, family, taxonomic order, eBird species code, conservation status, invasion status per region, difficulty rating, regional difficulty, habitat labels, and photo attribution.</p>
 
 <p><strong>Invasion status</strong> is derived from the EBD <code>EXOTIC CODE</code> column: empty &rarr; Native, <code>N</code> &rarr; Introduced, <code>P</code>/<code>X</code> &rarr; Vagrant/Accidental. Stored per-species as <code>Record&lt;string, string&gt;</code> keyed by region code. A <strong>native override rule</strong> applies: if ANY native checklist exists for a species in a region, the species is classified as Native in that region regardless of any exotic-coded checklists. This prevents misclassification of native species that occasionally appear on exotic lists.</p>
+
+<p><strong>Display priority</strong> for invasion badges: Native &gt; Introduced &gt; Vagrant/Accidental. If a species is native in <em>any</em> region within the current scope (global or filtered region), no invasion badge is shown &mdash; native status takes precedence. This respects the historical timeframe the bird has been present. When a region filter is active, only invasion entries for that region's country codes are considered.</p>
 
 <div class="rationale">
   <strong>Why separate summary and cell files?</strong> The summary file (~2 MB/week) contains just enough to render the heatmap — species count and max frequency per cell. The full cell file (~30-50 MB/week) contains the complete species list with individual frequencies, but is only loaded on demand when the user clicks a cell. This lazy-loading pattern keeps the initial page load fast while still providing full detail when needed.
@@ -675,7 +689,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Species cards are region-aware. When opened from a map click, the card auto-detects the geographic sub-region and filters all displayed data (seasonality, difficulty, best locations, invasion status) to that region.</p>
 
 <h3>15.1 Sub-Region Definitions</h3>
-<p>18 sub-regions are defined by <strong>state/province codes</strong> (not bounding boxes). Cell assignment uses STATE CODE data captured from the EBD during pipeline processing, stored as <code>cell_states_r{N}.json</code> and shipped to the frontend as <code>r{N}/cell_states.json</code>. Each cell maps to a state code, which in turn maps to a sub-region via <code>STATE_TO_REGION</code> lookup.</p>
+<p>19 sub-regions are defined by <strong>state/province codes</strong> (not bounding boxes). Cell assignment uses STATE CODE data captured from the EBD during pipeline processing, stored as <code>cell_states_r{N}.json</code> and shipped to the frontend as <code>r{N}/cell_states.json</code>. Each cell maps to a state code, which in turn maps to a sub-region via <code>STATE_TO_REGION</code> lookup.</p>
 
 <table>
   <tr><th>Group</th><th>Sub-Regions</th><th>State/Province Codes</th></tr>
@@ -686,9 +700,10 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td>US (8 regions)</td><td>Northeast, Southeast, Midwest, Southwest, West, Rockies, Alaska, Hawaii</td><td>Defined by US state codes (e.g., US-ME, US-CA)</td></tr>
   <tr><td>Mexico (2-way)</td><td>Northern Mexico</td><td>BCN, BCS, SON, CHH, COA, NLE, TAM, SIN, DUR, ZAC, SLP, AGU, NAY, JAL</td></tr>
   <tr><td></td><td>Southern Mexico</td><td>COL, MIC, GUA, GRO, OAX, CHP, TAB, VER, PUE, TLA, HID, MEX, MOR, QUE, CAM, ROO, YUC, CMX, DIF</td></tr>
-  <tr><td>Central America (2-way)</td><td>Northern Central America</td><td>BZ, GT, SV, HN, NI (no data yet)</td></tr>
+  <tr><td>Central America (2-way)</td><td>Northern Central America</td><td>BZ, GT, SV, HN, NI</td></tr>
   <tr><td></td><td>Southern Central America</td><td>CR, PA</td></tr>
-  <tr><td>Caribbean (2)</td><td>Greater Antilles</td><td>CU, JM, HT, DO, PR (prefix matching for province codes, e.g., CU-03 &rarr; CU)</td></tr>
+  <tr><td>Caribbean (3)</td><td>Greater Antilles</td><td>CU, JM, HT, DO, PR (prefix matching for province codes, e.g., CU-03 &rarr; CU)</td></tr>
+  <tr><td></td><td>Lesser Antilles</td><td>TT, BB, KN, VI, VG, AW, MF, MQ, BQ, SX, AG, DM, GD, LC, VC (15 territories)</td></tr>
   <tr><td></td><td>Western Atlantic Islands</td><td>BM, BS, TC</td></tr>
 </table>
 
@@ -713,6 +728,17 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </ul>
 <p>A dropdown on the card shows all regions where the species has occurrence data, allowing manual switching. The dropdown is populated by scanning the species-weeks data for cells in each sub-region via cell_states mapping.</p>
 
+<h3>15.5 Region Filter Integration</h3>
+<p>Sub-regions are fully integrated into the species filter dropdown across all tabs. The region filter system (<code>regionGroups.ts</code>) defines 19 sub-regions plus 3 multi-country groups:</p>
+<ul>
+  <li><strong>US sub-regions (8):</strong> Northeastern, Southeastern, Midwestern, Southwestern, Western US, US Rockies, Alaska, Hawaii &mdash; shown under "United States" optgroup</li>
+  <li><strong>Canada sub-regions (4):</strong> Western, Central, Eastern, Northern Canada &mdash; shown under "Canada" optgroup</li>
+  <li><strong>Mexico sub-regions (2):</strong> Northern, Southern Mexico &mdash; shown under "Mexico" optgroup</li>
+  <li><strong>Multi-country groups:</strong> Central America (7 countries), Greater Antilles (5), Lesser Antilles (15 territories), Western Atlantic Islands (3) &mdash; shown under "Central America" and "Caribbean" optgroups</li>
+</ul>
+<p>Two-tier filtering: selecting a sub-region like "Northeastern US" expands to the country code <code>['US']</code> for species-level filtering (matching species.json regions), while the sub-region's bounding box provides cell-level masking on the map. This means the species list shows all US species but the heatmap only highlights cells within the Northeastern US bounding box.</p>
+<p>The Progress tab uses <code>species.regionalDifficulty</code> keys as sub-region presence indicators to compute per-sub-region species counts, avoiding the ambiguity of mapping a single country code (US) to multiple sub-regions.</p>
+
 <!-- ============================================================ -->
 <h2 id="goal-birds">16. Goal Birds Recommendation Engine</h2>
 
@@ -727,12 +753,15 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </ol>
 <p>An "all species" popup mode shows the complete cell species list with checkmarks for already-seen species. Users can add species to their goal list directly from Notable Birds entries and species cards.</p>
 
-<h3>16.2 This Week's Highlights (Explore Tab)</h3>
-<p>The Explore tab surfaces time-sensitive recommendations for the current week:</p>
+<h3>16.2 This Week's Highlights</h3>
+<p>Time-sensitive recommendations surface in two places: the Explore tab (desktop) and the floating MapControls overlay (mobile). Four categories of highlights are computed:</p>
 <ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Best Chance (Goal)</strong> &mdash; goal list species near their annual peak week</li>
+  <li><strong>New Arrivals</strong> &mdash; species arriving soon (peak 1&ndash;3 weeks away) with moderate-to-high difficulty</li>
   <li><strong>Peak Season</strong> &mdash; unseen species at their annual frequency maximum this week</li>
-  <li><strong>New Arrivals</strong> &mdash; species whose frequency increased significantly from the previous week (spring/fall migrants arriving in range)</li>
+  <li><strong>Rare Visitors</strong> &mdash; difficult species (rating &ge; 7) at or near peak</li>
 </ul>
+<p>On desktop, the full-frequency version (<code>getWeeklyHighlights()</code>) uses week cell data for precise frequency comparisons. On mobile, a lightweight version (<code>getWeeklyHighlightsLite()</code>) uses only the <code>peakWeek</code> field from species metadata, avoiding expensive data fetches while still surfacing actionable highlights. The mobile highlights card appears as a collapsible "This Week" section below the week slider in MapControls.</p>
 
 <h3>16.3 Smart Goal Suggestions</h3>
 <p>Auto-generated goal suggestions based on life list analysis. The engine selects the 3&ndash;4 most relevant suggestion sections from:</p>
@@ -755,28 +784,57 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <div class="rationale">
-  <strong>Why restricted-range &le; 2 regions?</strong> Species occurring in only 1&ndash;2 of the app's 13 country-regions are genuinely range-restricted within the coverage area. This is computed from the <code>invasionStatus</code> keys (which track which regions a species occurs in as native), giving a proxy for range size without requiring additional data.
+  <strong>Why restricted-range &le; 2 regions?</strong> Species occurring in only 1&ndash;2 of the app's 31 regions are genuinely range-restricted within the coverage area. This is computed from the <code>invasionStatus</code> keys (which track which regions a species occurs in as native), giving a proxy for range size without requiring additional data.
 </div>
 
 <h3>16.5 Accessibility</h3>
 <p>Goal bird UI components use ARIA attributes throughout: <code>aria-label</code> on interactive elements, <code>aria-expanded</code> on collapsible sections, and <code>role="progressbar"</code> on completion indicators.</p>
 
 <!-- ============================================================ -->
-<h2 id="gamification">17. Gamification &amp; Social Features</h2>
+<h2 id="trip-planning">17. Trip Planning</h2>
+
+<p>The Trip Plan tab provides four modes for planning birding trips using the pre-computed species occurrence data. All modes operate on the user's life list and selected week to surface the most productive locations and timing. When a <strong>region filter</strong> is active, all four modes restrict their species lists to the selected region's country codes, ensuring results are geographically relevant.</p>
+
+<h3>17.1 Hotspots</h3>
+<p>Ranks grid cells by <strong>lifer density</strong> for the selected week. Uses <code>computeLiferSummary()</code> to count unseen species per cell, producing a ranked list of the most productive locations for finding new life birds. Results show cell name, lifer count, and top unseen species. Clicking a result centers the map on that cell.</p>
+
+<h3>17.2 Window of Opportunity</h3>
+<p>Two sub-modes for finding optimal timing:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Single species</strong> &mdash; given one species, finds the peak frequency weeks and best locations across the year. Uses species-weeks frequency profiles to identify when and where the species is most detectable.</li>
+  <li><strong>Goal list</strong> &mdash; given the user's goal list, finds week + location combinations that maximize goal species coverage. Scans all weeks and cells to surface trips where multiple goal species overlap in time and space.</li>
+</ul>
+
+<h3>17.3 Compare Locations</h3>
+<p>Side-by-side comparison of two grid cells for the selected week. Shows three sections:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Overlap species</strong> &mdash; species present in both cells, with frequency data from each</li>
+  <li><strong>Unique to A</strong> &mdash; species found only in the first cell</li>
+  <li><strong>Unique to B</strong> &mdash; species found only in the second cell</li>
+</ul>
+<p>Helps users decide between two potential trip destinations by comparing what each offers.</p>
+
+<h3>17.4 Location Analysis</h3>
+<p>Detailed species breakdown for a single cell during a date range. Shows all species expected in the cell across the selected weeks with reporting frequencies, grouped by family. Useful for building a target list before visiting a specific location.</p>
+
+<!-- ============================================================ -->
+<h2 id="gamification">18. Gamification &amp; Social Features</h2>
 
 <p>Phase 3 added celebration toasts, milestone tracking, streaks, and shareable milestone cards. Phase 4 added Firebase-backed social features.</p>
 
-<h3>17.1 Celebrations</h3>
+<h3>18.1 Celebrations &amp; Trophies</h3>
 <p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts. Celebrations can be disabled in Profile &gt; Preferences.</p>
 
-<h3>17.2 Activity Tracking</h3>
+<p><strong>Trophy levels</strong> are awarded per display group based on completion percentage: Bronze (&ge;1/3 of species seen), Silver (&ge;2/3), Gold (100%). The Stats tab includes a trophy case showing all earned trophies sorted by level (gold first), with medal indicators and progress fractions.</p>
+
+<h3>18.2 Activity Tracking</h3>
 <p>Streak tracking computes consecutive days with manual species additions (excluding bulk imports). Weekly summary shows new lifers and new family groups started. Data derived from IndexedDB <code>dateAdded</code> and <code>source</code> fields on life list entries.</p>
 
-<h3>17.3 Firebase Social</h3>
+<h3>18.3 Firebase Social</h3>
 <p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards (global top 10 + friends) in Progress tab.</p>
 
 <!-- ============================================================ -->
-<h2 id="parameters">18. Parameter Reference</h2>
+<h2 id="parameters">19. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -800,7 +858,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">19. References &amp; Data Sources</h2>
+<h2 id="references">20. References &amp; Data Sources</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>

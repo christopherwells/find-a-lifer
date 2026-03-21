@@ -85,7 +85,7 @@ export default function SuggestionSection({
                       {sp.comName}
                     </span>
                     {tagText && colorTheme.tag && (
-                      <span className={`text-[10px] ${colorTheme.tag} px-1 rounded-full font-medium whitespace-nowrap flex-shrink-0`}>
+                      <span className={`text-[11px] lg:text-xs ${colorTheme.tag} px-1 rounded-full font-medium whitespace-nowrap flex-shrink-0`}>
                         {tagText}
                       </span>
                     )}

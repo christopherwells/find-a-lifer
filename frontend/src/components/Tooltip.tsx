@@ -15,7 +15,7 @@ interface TooltipProps {
 export default function Tooltip({ content, className = '' }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
-  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerRef = useRef<HTMLSpanElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const hoverTimeoutRef = useRef<number | null>(null)
 
@@ -109,13 +109,14 @@ export default function Tooltip({ content, className = '' }: TooltipProps) {
 
   return (
     <>
-      <button
+      <span
         ref={triggerRef}
-        type="button"
+        role="button"
+        tabIndex={0}
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full
+        className={`inline-flex items-center justify-center w-4 h-4 text-[11px] lg:text-xs font-bold rounded-full
           text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300
           bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600
           transition-colors cursor-help flex-shrink-0 ${className}`}
@@ -123,7 +124,7 @@ export default function Tooltip({ content, className = '' }: TooltipProps) {
         data-testid="tooltip-trigger"
       >
         i
-      </button>
+      </span>
       {isOpen &&
         createPortal(
           <div

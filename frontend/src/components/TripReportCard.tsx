@@ -63,7 +63,7 @@ export default function TripReportCard({ report, isOwner, onDelete, speciesNames
       )}
 
       {report.isPublic && (
-        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+        <span className="inline-block text-[11px] lg:text-xs px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
           Public
         </span>
       )}

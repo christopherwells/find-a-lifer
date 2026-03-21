@@ -11,7 +11,8 @@ import { getConservationDotColor, getRestrictedRangeDotColor } from '../lib/badg
 import { fetchRegionNames } from '../lib/dataCache'
 import { FamilyGroupSkeleton } from './Skeleton'
 import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
-import { REGION_GROUPS, REGION_GROUP_CATEGORIES, GROUPED_CODES, expandRegionFilter } from '../lib/regionGroups'
+import { expandRegionFilter } from '../lib/regionGroups'
+import RegionSelector from './RegionSelector'
 import Tooltip from './Tooltip'
 import { TOOLTIPS } from '../lib/tooltipContent'
 
@@ -40,7 +41,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
   const setSelectedInvasionStatus = (v: string) => updateFilters({ invasionStatus: v })
   const setSelectedDifficulty = (v: string) => updateFilters({ difficulty: v })
   const [seenFilter, setSeenFilter] = useState<'' | 'seen' | 'unseen' | 'lifers'>('') // '' means "All"
-  const [regionNameMap, setRegionNameMap] = useState<Record<string, string>>({})
+  const [, setRegionNameMap] = useState<Record<string, string>>({})
   const [showFilters, setShowFilters] = useState(false)
   const { isSpeciesSeen, getTotalSeen } = useLifeList()
   const { showToast } = useToast()
@@ -437,7 +438,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
         {/* Title row */}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
-          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+          <span className="text-[11px] text-gray-500 dark:text-gray-400" aria-live="polite">
             <span className="font-semibold text-[#2C3E7B] dark:text-blue-400">{seenSpecies}</span>/{totalSpecies}
             {filteredSpeciesCount !== totalSpecies && (
               <span className="text-gray-400 dark:text-gray-500 ml-1">({filteredSpeciesCount} shown)</span>
@@ -448,7 +449,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
         {/* Region filter indicator */}
         {regionName && (
           <div className="bg-blue-50 dark:bg-blue-900/30 rounded px-2 py-1" data-testid="region-filter-indicator">
-            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+            <p className="text-[11px] lg:text-xs text-blue-600 dark:text-blue-400 font-medium">
               Filtered to {regionName}
             </p>
           </div>
@@ -483,7 +484,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                     data-testid={`suggestion-${species.speciesCode}`}
                   >
                     <div className="text-xs font-medium text-[#2C3E50] dark:text-gray-200">{species.comName}</div>
-                    <div className="text-[10px] text-gray-400 italic">{species.sciName} · {species.familyComName}</div>
+                    <div className="text-[11px] lg:text-xs text-gray-400 italic">{species.sciName} · {species.familyComName}</div>
                   </button>
                 ))}
               </div>
@@ -497,12 +498,14 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                 : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400'
             }`}
             data-testid="filter-toggle-btn"
+            aria-label={`${showFilters ? 'Hide' : 'Show'} filters${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
+            aria-expanded={showFilters}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
             </svg>
             {activeFilterCount > 0 && (
-              <span className="bg-[#2C3E7B] text-white rounded-full w-4 h-4 text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+              <span className="bg-[#2C3E7B] text-white rounded-full w-4 h-4 text-[11px] lg:text-xs font-bold flex items-center justify-center">{activeFilterCount}</span>
             )}
           </button>
         </div>
@@ -512,45 +515,13 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
           <div className="space-y-1.5 pt-1">
             {/* Primary filters: Region + Seen */}
             <div className="flex gap-1.5">
-              {(() => {
-                const allCodes = Array.from(new Set(allSpecies.flatMap(s => s.regions ?? [])))
-                // Codes that are NOT subsumed into a group appear individually
-                const individualCodes = allCodes
-                  .filter(c => !GROUPED_CODES.has(c))
-                  .sort((a, b) => (regionNameMap[a] ?? a).localeCompare(regionNameMap[b] ?? b))
-                // Groups that have at least one code present in data, organized by category
-                const activeGroups = Object.entries(REGION_GROUPS)
-                  .filter(([, codes]) => codes.some(c => allCodes.includes(c)))
-                  .map(([name]) => name)
-                // Group names keyed by their optgroup category label
-                const groupsByCategory = activeGroups.reduce<Record<string, string[]>>((acc, name) => {
-                  const cat = REGION_GROUP_CATEGORIES[name] ?? 'Other'
-                  ;(acc[cat] ??= []).push(name)
-                  return acc
-                }, {})
-                const hasOptions = individualCodes.length > 0 || activeGroups.length > 0
-                return hasOptions ? (
-                  <select
-                    id="region-filter"
-                    value={selectedRegionFilter}
-                    onChange={(e) => setSelectedRegionFilter(e.target.value)}
-                    className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                    data-testid="region-filter"
-                  >
-                    <option value="">All Regions</option>
-                    {individualCodes.map((code) => (
-                      <option key={code} value={code}>{regionNameMap[code] ?? code}</option>
-                    ))}
-                    {Object.entries(groupsByCategory).map(([category, names]) => (
-                      <optgroup key={category} label={category}>
-                        {names.map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                ) : null
-              })()}
+              <RegionSelector
+                value={selectedRegionFilter}
+                onChange={setSelectedRegionFilter}
+                className="flex-1 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                testId="region-filter"
+                placeholder="All Regions"
+              />
               <select
                 id="seen-filter"
                 value={seenFilter}
@@ -579,8 +550,8 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
               ))}
             </select>
             {/* Secondary filters row */}
-            <div className="flex gap-1.5">
-              <div className="flex-1 flex items-center gap-0.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+              <div className="flex items-center gap-0.5">
                 <select
                   id="conservation-filter"
                   value={selectedConservStatus}
@@ -599,7 +570,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                 </select>
                 <Tooltip content="IUCN Red List classification of extinction risk." />
               </div>
-              <div className="flex-1 flex items-center gap-0.5">
+              <div className="flex items-center gap-0.5">
                 <select
                   id="invasion-filter"
                   value={selectedInvasionStatus}
@@ -614,7 +585,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                 </select>
                 <Tooltip content="Whether a species is native, introduced, or vagrant in a region." />
               </div>
-              <div className="flex-1 flex items-center gap-0.5">
+              <div className="flex items-center gap-0.5">
                 <select
                   id="difficulty-filter"
                   value={selectedDifficulty}
@@ -642,7 +613,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                   className="h-3.5 w-3.5 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer"
                 />
                 <span className="text-[11px] text-gray-600 dark:text-gray-300 font-medium">Goal birds only</span>
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">({allGoalCodes.size})</span>
+                <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500">({allGoalCodes.size})</span>
               </label>
             )}
             {/* Clear filters */}
@@ -653,7 +624,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                 data-testid="clear-filters-btn"
               >
                 Clear all filters
-                <span className="bg-red-100 text-red-600 rounded-full px-1 text-[10px] font-semibold">{activeFilterCount}</span>
+                <span className="bg-red-100 text-red-600 rounded-full px-1 text-[11px] lg:text-xs font-semibold">{activeFilterCount}</span>
               </button>
             )}
           </div>
@@ -719,9 +690,9 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{groupName}</span>
+                    <span className="text-[11px] lg:text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{groupName}</span>
                   </div>
-                  <span className="text-[10px] text-gray-400">{groupSpecies.length}</span>
+                  <span className="text-[11px] lg:text-xs text-gray-400">{groupSpecies.length}</span>
                 </div>
 
                 {/* Species in group — compact single-line items */}
@@ -761,7 +732,7 @@ export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSp
                         {/* Inline status dots + goal badge */}
                         <div className="flex items-center gap-0.5 flex-shrink-0">
                           {allGoalCodes.has(species.speciesCode) && (
-                            <span className="text-[10px] flex-shrink-0" title="In your goal list" data-testid={`goal-badge-${species.speciesCode}`}>{'\u{1F3AF}'}</span>
+                            <span className="inline-flex items-center px-1 py-px rounded text-[9px] font-semibold leading-tight bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 flex-shrink-0" title="In your goal list" data-testid={`goal-badge-${species.speciesCode}`}>Goal</span>
                           )}
                           {species.conservStatus && species.conservStatus !== 'Least Concern' && species.conservStatus !== 'Data Deficient' && (
                             <span className={`w-1.5 h-1.5 rounded-full ${getConservationDotColor(species.conservStatus)}`} title={species.conservStatus} data-testid={`checklist-conservation-badge-${species.speciesCode}`} />

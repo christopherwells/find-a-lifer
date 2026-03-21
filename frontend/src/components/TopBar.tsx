@@ -26,7 +26,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
   return (
     <header
       data-testid="top-bar"
-      className={`h-11 flex items-center justify-between px-4 z-50 shadow-md relative ${
+      className={`h-11 hidden md:flex items-center justify-between px-4 z-50 shadow-md relative ${
         darkMode
           ? 'bg-[#1A1A2E] text-white'
           : 'bg-gradient-to-r from-[#2C3E7B] to-[#1a2a5e] text-white'
@@ -46,7 +46,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
           <h1 className="text-[15px] font-bold tracking-tight">
             Find-A-Lifer
           </h1>
-          <span className="text-[10px] text-blue-200/60 font-semibold tracking-wide">BETA</span>
+          <span className="text-[11px] lg:text-xs text-blue-200/60 font-semibold tracking-wide">BETA</span>
         </div>
       </div>
 

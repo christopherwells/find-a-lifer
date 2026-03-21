@@ -6,6 +6,7 @@ import StarterChecklist from './StarterChecklist'
 
 interface OnboardingOverlayProps {
   onComplete: () => void
+  onImportComplete?: (newCount: number) => void
 }
 
 type OverlayMode = 'slides' | 'quickstart' | 'import'
@@ -28,7 +29,7 @@ const slides = [
   },
 ]
 
-export default function OnboardingOverlay({ onComplete }: OnboardingOverlayProps) {
+export default function OnboardingOverlay({ onComplete, onImportComplete }: OnboardingOverlayProps) {
   const [mode, setMode] = useState<OverlayMode>('slides')
   const [currentSlide, setCurrentSlide] = useState(0)
   const touchStartRef = useRef<number | null>(null)
@@ -83,6 +84,7 @@ export default function OnboardingOverlay({ onComplete }: OnboardingOverlayProps
     try {
       const result = await processCSVFile(file, importSpeciesList)
       setImportResult(result)
+      if (result.newCount > 0 && onImportComplete) onImportComplete(result.newCount)
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Import failed')
     } finally {

@@ -113,6 +113,8 @@ export interface TripLifer {
   familyComName: string
   probability: number
   difficultyLabel: string
+  conservStatus?: string
+  difficultyRating?: number
 }
 
 export interface HotspotLocation {

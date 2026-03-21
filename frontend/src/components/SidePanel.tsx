@@ -31,6 +31,7 @@ interface SidePanelProps {
   goalLists?: GoalList[]
   activeGoalListId?: string | null
   onActiveGoalListIdChange?: (id: string | null) => void
+  onGoalListsChange?: (lists: GoalList[]) => void
   selectedRegion?: string | null
   onSelectedRegionChange?: (regionId: string | null) => void
   heatmapOpacity?: number
@@ -46,6 +47,11 @@ interface SidePanelProps {
   beginnerMode?: boolean
   onBeginnerModeChange?: (value: boolean) => void
   onActiveTabChange?: (tabId: string) => void
+  onImportComplete?: (newCount: number) => void
+  darkMode?: boolean
+  onToggleDarkMode?: () => void
+  onShowAbout?: () => void
+  onShowOnboarding?: () => void
 }
 
 interface Tab {
@@ -96,8 +102,8 @@ const tabs: Tab[] = [
   { id: 'species', label: 'Species', icon: <BirdIcon /> },
   { id: 'goals', label: 'Goals', icon: <GoalIcon /> },
   { id: 'trip', label: 'Plan', icon: <PinIcon /> },
-  { id: 'progress', label: 'Stats', icon: <StatsIcon /> },
   { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
+  { id: 'progress', label: 'Stats', icon: <StatsIcon /> },
 ]
 
 export default memo(function SidePanel({
@@ -119,6 +125,7 @@ export default memo(function SidePanel({
   goalLists = [],
   activeGoalListId = null,
   onActiveGoalListIdChange,
+  onGoalListsChange,
   selectedRegion = null,
   onSelectedRegionChange,
   heatmapOpacity = 0.8,
@@ -134,6 +141,11 @@ export default memo(function SidePanel({
   beginnerMode,
   onBeginnerModeChange,
   onActiveTabChange,
+  onImportComplete,
+  darkMode,
+  onToggleDarkMode,
+  onShowAbout,
+  onShowOnboarding,
 }: SidePanelProps) {
   const [activeTab, setActiveTabRaw] = useState<TabId>('explore')
   const setActiveTab = (tab: TabId) => {
@@ -146,8 +158,10 @@ export default memo(function SidePanel({
     if (selectedLocation) {
       setActiveTabRaw('trip') // eslint-disable-line react-hooks/set-state-in-effect -- intentional UX: auto-navigate on map click
       onActiveTabChange?.('trip')
+      // Open the sheet if it was collapsed (e.g. user was on the map)
+      if (collapsed) onToggle()
     }
-  }, [selectedLocation]) // eslint-disable-line react-hooks/exhaustive-deps -- onActiveTabChange is stable
+  }, [selectedLocation]) // eslint-disable-line react-hooks/exhaustive-deps -- onActiveTabChange/onToggle/collapsed are stable
 
   return (
     <>
@@ -156,65 +170,82 @@ export default memo(function SidePanel({
         data-testid="mobile-tab-bar"
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 safe-area-bottom"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }}
+        aria-label="Main navigation"
       >
-        <div className="flex">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (activeTab === tab.id && !collapsed) {
-                  // Clicking active tab again collapses the panel
-                  onToggle()
-                } else {
-                  setActiveTab(tab.id)
-                  // If panel is collapsed, expand it
-                  if (collapsed) onToggle()
-                }
-              }}
-              className={`flex-1 flex flex-col items-center py-2 transition-colors ${
-                activeTab === tab.id && !collapsed
-                  ? 'text-[#2C3E7B] dark:text-blue-400'
-                  : 'text-gray-400 dark:text-gray-500'
-              }`}
-              title={tab.label}
-            >
-              <span className={`transition-transform ${activeTab === tab.id && !collapsed ? 'scale-110' : ''}`}>
-                {tab.icon}
-              </span>
-              <span className="text-[10px] mt-0.5 font-medium leading-none">{tab.label}</span>
-            </button>
-          ))}
+        <div className="flex" role="tablist" aria-label="App sections">
+          {tabs.map((tab) => {
+            // Explore tab is highlighted when user is on the map (panel collapsed)
+            // Other tabs are highlighted when their sheet is open
+            const isHighlighted = tab.id === 'explore'
+              ? collapsed
+              : (activeTab === tab.id && !collapsed)
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={isHighlighted}
+                aria-controls="tab-content"
+                onClick={() => {
+                  if (tab.id === 'explore') {
+                    // Explore = back to map (collapse any open sheet)
+                    setActiveTab('explore')
+                    if (!collapsed) onToggle()
+                  } else if (activeTab === tab.id && !collapsed) {
+                    // Clicking active non-explore tab again = collapse sheet
+                    onToggle()
+                  } else {
+                    setActiveTab(tab.id)
+                    if (collapsed) onToggle()
+                  }
+                }}
+                className={`flex-1 flex flex-col items-center py-2 transition-colors ${
+                  isHighlighted
+                    ? 'text-[#2C3E7B] dark:text-blue-400'
+                    : 'text-gray-400 dark:text-gray-500'
+                }`}
+                title={tab.label}
+              >
+                <span className={`transition-transform ${isHighlighted ? 'scale-110' : ''}`}>
+                  {tab.icon}
+                </span>
+                <span className="text-[11px] mt-0.5 font-medium leading-none">{tab.label}</span>
+              </button>
+            )
+          })}
         </div>
       </nav>
 
       {/* ── Side Panel (slides up on mobile, sidebar on desktop) ── */}
       {(() => {
-        const fullScreenTabs: TabId[] = ['goals', 'progress', 'profile']
-        const isFullScreenTab = fullScreenTabs.includes(activeTab)
         return (
       <div
         data-testid="side-panel"
         className={`bg-white dark:bg-gray-900 flex flex-col transition-all duration-300 ease-in-out
-          ${/* Mobile: fixed bottom sheet above tab bar */''}
+          ${/* Mobile: fixed full-screen sheet above tab bar */''}
           fixed md:relative bottom-0 left-0 right-0 z-40 md:z-auto
           border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700
           ${collapsed
             ? 'h-0 md:w-0 overflow-hidden'
-            : 'md:h-full md:w-[360px]'
+            : 'md:h-full md:w-[420px] animate-sheet-up md:animate-none'
           }`}
         style={!collapsed ? {
           bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))',
-          height: isFullScreenTab ? 'calc(100vh - 44px - 52px - env(safe-area-inset-bottom, 0px))' : '55vh',
+          height: 'calc(100vh - 52px - env(safe-area-inset-bottom, 0px))',
         } : undefined}
       >
         {/* Desktop Tab Navigation */}
         <nav
           data-testid="tab-navigation"
           className="hidden md:flex bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700"
+          aria-label="Main navigation"
         >
+          <div className="flex flex-1" role="tablist" aria-label="App sections">
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls="tab-content"
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-2.5 px-1 flex flex-col items-center transition-all relative ${
                 activeTab === tab.id
@@ -224,7 +255,7 @@ export default memo(function SidePanel({
               title={tab.label}
             >
               <span className="mb-0.5">{tab.icon}</span>
-              <span className={`text-[10px] font-medium ${
+              <span className={`text-[11px] lg:text-xs font-medium ${
                 activeTab === tab.id ? 'font-semibold' : ''
               }`}>{tab.label}</span>
               {activeTab === tab.id && (
@@ -232,10 +263,12 @@ export default memo(function SidePanel({
               )}
             </button>
           ))}
+          </div>
           <button
             onClick={onToggle}
             className="px-2 flex items-center justify-center text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 active:text-gray-700"
             title="Collapse panel"
+            aria-label="Collapse panel"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
@@ -243,54 +276,43 @@ export default memo(function SidePanel({
           </button>
         </nav>
 
-        {/* Mobile Panel Header — drag handle + active tab title */}
-        <div className="md:hidden flex items-center justify-center py-2 border-b border-gray-100 dark:border-gray-800">
-          <button
-            onClick={onToggle}
-            className="flex flex-col items-center gap-1 px-8 py-1"
-            title="Collapse panel"
-          >
-            <span className="w-8 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
-            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              {tabs.find(t => t.id === activeTab)?.label}
-            </span>
-          </button>
-        </div>
-
         {/* Tab Content */}
         {!collapsed && (
-          <div className="flex-1 overflow-y-auto p-4 dark:text-gray-200">
+          <div id="tab-content" role="tabpanel" aria-label={`${activeTab} tab`} className="flex-1 overflow-y-auto p-4 dark:text-gray-200">
+            {/* ExploreTab renders on desktop only; on mobile, MapControls handles explore */}
             {activeTab === 'explore' && (
-              <ExploreTab
-                currentWeek={currentWeek}
-                onWeekChange={onWeekChange}
-                viewMode={viewMode}
-                onViewModeChange={onViewModeChange}
-                goalBirdsOnlyFilter={goalBirdsOnlyFilter}
-                onGoalBirdsOnlyFilterChange={onGoalBirdsOnlyFilterChange}
-                selectedSpecies={selectedSpecies}
-                onSelectedSpeciesChange={onSelectedSpeciesChange}
-                selectedSpeciesMulti={selectedSpeciesMulti}
-                onSelectedSpeciesMultiChange={onSelectedSpeciesMultiChange}
-                goalSpeciesCodes={goalSpeciesCodes}
-                goalLists={goalLists}
-                activeGoalListId={activeGoalListId}
-                onActiveGoalListIdChange={onActiveGoalListIdChange}
-                selectedRegion={selectedRegion}
-                onSelectedRegionChange={onSelectedRegionChange}
-                heatmapOpacity={heatmapOpacity}
-                onHeatmapOpacityChange={onHeatmapOpacityChange}
-                liferCountRange={liferCountRange}
-                onLiferCountRangeChange={onLiferCountRangeChange}
-                dataRange={dataRange}
-                showTotalRichness={showTotalRichness}
-                onShowTotalRichnessChange={onShowTotalRichnessChange}
-                beginnerMode={beginnerMode}
-                onBeginnerModeChange={onBeginnerModeChange}
-              />
+              <div className="hidden md:block">
+                <ExploreTab
+                  currentWeek={currentWeek}
+                  onWeekChange={onWeekChange}
+                  viewMode={viewMode}
+                  onViewModeChange={onViewModeChange}
+                  goalBirdsOnlyFilter={goalBirdsOnlyFilter}
+                  onGoalBirdsOnlyFilterChange={onGoalBirdsOnlyFilterChange}
+                  selectedSpecies={selectedSpecies}
+                  onSelectedSpeciesChange={onSelectedSpeciesChange}
+                  selectedSpeciesMulti={selectedSpeciesMulti}
+                  onSelectedSpeciesMultiChange={onSelectedSpeciesMultiChange}
+                  goalSpeciesCodes={goalSpeciesCodes}
+                  goalLists={goalLists}
+                  activeGoalListId={activeGoalListId}
+                  onActiveGoalListIdChange={onActiveGoalListIdChange}
+                  selectedRegion={selectedRegion}
+                  onSelectedRegionChange={onSelectedRegionChange}
+                  heatmapOpacity={heatmapOpacity}
+                  onHeatmapOpacityChange={onHeatmapOpacityChange}
+                  liferCountRange={liferCountRange}
+                  onLiferCountRangeChange={onLiferCountRangeChange}
+                  dataRange={dataRange}
+                  showTotalRichness={showTotalRichness}
+                  onShowTotalRichnessChange={onShowTotalRichnessChange}
+                  beginnerMode={beginnerMode}
+                  onBeginnerModeChange={onBeginnerModeChange}
+                />
+              </div>
             )}
             {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} speciesFilters={speciesFilters} onSpeciesFiltersChange={onSpeciesFiltersChange} />}
-            {activeTab === 'goals' && <GoalBirdsTab />}
+            {activeTab === 'goals' && <GoalBirdsTab onGoalListsChange={onGoalListsChange} />}
             {activeTab === 'trip' && (
               <TripPlanTab
                 selectedLocation={selectedLocation}
@@ -305,7 +327,7 @@ export default memo(function SidePanel({
               />
             )}
             {activeTab === 'progress' && <ProgressTab />}
-            {activeTab === 'profile' && <ProfileTab />}
+            {activeTab === 'profile' && <ProfileTab onImportComplete={onImportComplete} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onShowAbout={onShowAbout} onShowOnboarding={onShowOnboarding} />}
           </div>
         )}
       </div>
@@ -317,7 +339,7 @@ export default memo(function SidePanel({
         <div
           className="md:hidden fixed left-0 right-0 z-30 bg-black/20 pointer-events-none"
           style={{
-            top: '44px', /* below header */
+            top: '0', /* full screen on mobile (TopBar hidden) */
             bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))', /* above tab bar */
           }}
         />

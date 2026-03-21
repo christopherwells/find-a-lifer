@@ -138,7 +138,11 @@ const WESTERN_ATLANTIC: SubRegion = {
   stateCodes: ['BM', 'BS', 'TC'],
 }
 
-// Note: Lesser Antilles not defined yet (no data)
+const LESSER_ANTILLES: SubRegion = {
+  id: 'caribbean-lesser',
+  name: 'Lesser Antilles',
+  stateCodes: ['TT', 'BB', 'KN', 'VI', 'VG', 'AW', 'MF', 'MQ', 'BQ', 'SX', 'AG', 'DM', 'GD', 'LC', 'VC'],
+}
 
 // ── All sub-regions ──────────────────────────────────────────
 
@@ -146,6 +150,7 @@ export const SUB_REGIONS: SubRegion[] = [
   // Caribbean
   WESTERN_ATLANTIC,
   GREATER_ANTILLES,
+  LESSER_ANTILLES,
   // Alaska/Hawaii
   US_ALASKA,
   US_HAWAII,

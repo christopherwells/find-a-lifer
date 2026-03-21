@@ -20,6 +20,22 @@ describe('expandRegionFilter', () => {
     expect(expandRegionFilter('US')).toEqual(['US'])
   })
 
+  it('expands US sub-regions to country code US', () => {
+    expect(expandRegionFilter('Northeastern US')).toEqual(['US'])
+    expect(expandRegionFilter('Southeastern US')).toEqual(['US'])
+    expect(expandRegionFilter('Alaska')).toEqual(['US'])
+  })
+
+  it('expands Canada sub-regions to country code CA', () => {
+    expect(expandRegionFilter('Western Canada')).toEqual(['CA'])
+    expect(expandRegionFilter('Eastern Canada')).toEqual(['CA'])
+  })
+
+  it('expands Mexico sub-regions to country code MX', () => {
+    expect(expandRegionFilter('Northern Mexico')).toEqual(['MX'])
+    expect(expandRegionFilter('Southern Mexico')).toEqual(['MX'])
+  })
+
   it('passes through empty string', () => {
     expect(expandRegionFilter('')).toEqual([''])
   })
@@ -46,10 +62,10 @@ describe('GROUPED_CODES', () => {
     expect(GROUPED_CODES.has('Western Atlantic Islands')).toBe(false)
   })
 
-  it('does NOT contain standalone country codes like US or CA', () => {
-    expect(GROUPED_CODES.has('US')).toBe(false)
-    expect(GROUPED_CODES.has('CA')).toBe(false)
-    expect(GROUPED_CODES.has('MX')).toBe(false)
+  it('contains country codes subsumed into sub-regions (US, CA, MX)', () => {
+    expect(GROUPED_CODES.has('US')).toBe(true)
+    expect(GROUPED_CODES.has('CA')).toBe(true)
+    expect(GROUPED_CODES.has('MX')).toBe(true)
   })
 })
 
@@ -95,5 +111,8 @@ describe('REGION_GROUP_CATEGORIES', () => {
     expect(REGION_GROUP_CATEGORIES['Central America']).toBe('Central America')
     expect(REGION_GROUP_CATEGORIES['Greater Antilles']).toBe('Caribbean')
     expect(REGION_GROUP_CATEGORIES['Western Atlantic Islands']).toBe('Caribbean')
+    expect(REGION_GROUP_CATEGORIES['Northeastern US']).toBe('United States')
+    expect(REGION_GROUP_CATEGORIES['Western Canada']).toBe('Canada')
+    expect(REGION_GROUP_CATEGORIES['Northern Mexico']).toBe('Mexico')
   })
 })

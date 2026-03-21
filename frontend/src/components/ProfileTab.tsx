@@ -11,6 +11,7 @@ async function handleImport(
   setImporting: (v: boolean) => void,
   setResult: (v: CSVImportResult | null) => void,
   setError?: (v: string | null) => void,
+  onComplete?: (newCount: number) => void,
 ) {
   const file = await openFilePicker()
   if (!file) return
@@ -20,6 +21,7 @@ async function handleImport(
   try {
     const result = await processCSVFile(file, importFn)
     setResult(result)
+    if (result.newCount > 0 && onComplete) onComplete(result.newCount)
   } catch (error) {
     if (setError) setError(error instanceof Error ? error.message : 'Import failed')
     else console.error('Import error:', error)
@@ -46,7 +48,15 @@ async function clearAppCaches(): Promise<boolean> {
   }
 }
 
-export default function ProfileTab() {
+interface ProfileTabProps {
+  onImportComplete?: (newCount: number) => void
+  darkMode?: boolean
+  onToggleDarkMode?: () => void
+  onShowAbout?: () => void
+  onShowOnboarding?: () => void
+}
+
+export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMode, onShowAbout, onShowOnboarding }: ProfileTabProps = {}) {
   const {
     importSpeciesList, clearAllSpecies, getTotalSeen, isSpeciesSeen,
     importPartnerList, clearPartnerList, hasPartnerList, partnerSeenSpecies,
@@ -54,6 +64,7 @@ export default function ProfileTab() {
     yearLists, importYearList, deleteYearList, listScope, setListScope,
     setActiveYearListId,
   } = useLifeList()
+  const { showToast } = useToast()
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<CSVImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
@@ -77,7 +88,7 @@ export default function ProfileTab() {
 
   const handleImportClick = () => {
     if (importing) return
-    handleImport(importSpeciesList, setImporting, setImportResult, setImportError)
+    handleImport(importSpeciesList, setImporting, setImportResult, setImportError, onImportComplete)
   }
 
   const handleExport = async () => {
@@ -119,6 +130,7 @@ export default function ProfileTab() {
       try {
         await clearAllSpecies()
         setImportResult(null)
+        showToast({ type: 'muted', message: 'Life list cleared' })
       } catch (error) {
         console.error('Error clearing life list:', error)
       }
@@ -493,11 +505,56 @@ export default function ProfileTab() {
       {/* Preferences Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1">Preferences</h4>
+        {onToggleDarkMode && (
+          <label className="flex items-center justify-between cursor-pointer md:hidden">
+            <span className="text-sm text-gray-700 dark:text-gray-300">Dark mode</span>
+            <button
+              onClick={onToggleDarkMode}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                darkMode ? 'bg-[#2C3E7B]' : 'bg-gray-200 dark:bg-gray-600'
+              }`}
+              role="switch"
+              aria-checked={darkMode}
+            >
+              <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                darkMode ? 'translate-x-4.5' : 'translate-x-1'
+              }`} />
+            </button>
+          </label>
+        )}
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm text-gray-700 dark:text-gray-300">Celebration animations</span>
           <CelebrationToggle />
         </label>
       </div>
+
+      {/* Mobile-only: Tutorial & About (hidden on desktop where TopBar has these) */}
+      {(onShowOnboarding || onShowAbout) && (
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2 md:hidden">
+          {onShowOnboarding && (
+            <button
+              onClick={onShowOnboarding}
+              className="w-full flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-[#2C3E7B] dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              Tutorial
+            </button>
+          )}
+          {onShowAbout && (
+            <button
+              onClick={onShowAbout}
+              className="w-full flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-[#2C3E7B] dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              About Find-A-Lifer
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Reset Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">

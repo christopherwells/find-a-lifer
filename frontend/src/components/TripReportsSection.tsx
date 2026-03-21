@@ -96,43 +96,58 @@ export default function TripReportsSection() {
         />
       )}
 
-      {loading && (
-        <div className="text-xs text-gray-500 dark:text-gray-400">Loading reports...</div>
-      )}
-
-      {myReports.length > 0 && (
+      {loading ? (
         <div className="space-y-2">
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Your Reports</p>
-          {myReports.map(report => (
-            <TripReportCard
-              key={report.id}
-              report={report}
-              isOwner={true}
-              onDelete={() => handleDelete(report.id)}
-              speciesNames={speciesNameMap}
-            />
+          {[0, 1].map(i => (
+            <div key={i} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="bg-gray-200 dark:bg-gray-700 rounded" style={{ width: '40%', height: '0.75rem' }} />
+                <div className="bg-gray-200 dark:bg-gray-700 rounded" style={{ width: '20%', height: '0.625rem' }} />
+              </div>
+              <div className="bg-gray-200 dark:bg-gray-700 rounded" style={{ width: '70%', height: '0.625rem' }} />
+            </div>
           ))}
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center pt-1">Loading trip reports...</p>
         </div>
-      )}
-
-      {friendReports.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Friends' Reports</p>
-          {friendReports.map(report => (
-            <TripReportCard
-              key={report.id}
-              report={report}
-              isOwner={false}
-              speciesNames={speciesNameMap}
-            />
-          ))}
+      ) : myReports.length === 0 && friendReports.length === 0 && !showForm ? (
+        <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">No trip reports yet</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Trip reports will appear here after your birding trips</p>
         </div>
-      )}
+      ) : (
+        <>
+          {myReports.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Your Reports</p>
+              {myReports.map(report => (
+                <TripReportCard
+                  key={report.id}
+                  report={report}
+                  isOwner={true}
+                  onDelete={() => handleDelete(report.id)}
+                  speciesNames={speciesNameMap}
+                />
+              ))}
+            </div>
+          )}
 
-      {!loading && myReports.length === 0 && friendReports.length === 0 && !showForm && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          No trip reports yet. Document your birding trips!
-        </p>
+          {friendReports.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Friends' Reports</p>
+              {friendReports.map(report => (
+                <TripReportCard
+                  key={report.id}
+                  report={report}
+                  isOwner={false}
+                  speciesNames={speciesNameMap}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

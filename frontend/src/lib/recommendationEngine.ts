@@ -169,6 +169,105 @@ export function getWeeklyHighlights(
   return deduped.slice(0, maxResults)
 }
 
+// ── Lightweight Weekly Highlights (peakWeek-based) ──────────────────────
+
+/**
+ * Lightweight weekly highlights using peakWeek data from Species.
+ * Designed for MapControls overlay where full frequency data isn't available.
+ * Uses peakWeek proximity + difficulty + goal membership to pick highlights.
+ *
+ * @param allSpecies - full species list
+ * @param currentWeek - current week number (1-52)
+ * @param seenCodes - user's life list
+ * @param goalCodes - species in any active goal list
+ * @param maxResults - max highlights to return (default 4)
+ */
+export function getWeeklyHighlightsLite(
+  allSpecies: Species[],
+  currentWeek: number,
+  seenCodes: Set<string>,
+  goalCodes: Set<string>,
+  maxResults = 4
+): WeeklyHighlight[] {
+  const highlights: WeeklyHighlight[] = []
+
+  for (const sp of allSpecies) {
+    if (seenCodes.has(sp.speciesCode)) continue
+    if (!sp.peakWeek || sp.peakWeek < 1) continue
+
+    const distFromPeak = Math.min(
+      Math.abs(sp.peakWeek - currentWeek),
+      52 - Math.abs(sp.peakWeek - currentWeek)
+    )
+    const weeksUntilPeak = ((sp.peakWeek - currentWeek + 52) % 52)
+
+    // Best chance: goal bird near its peak (highest priority)
+    if (goalCodes.has(sp.speciesCode) && distFromPeak <= 2) {
+      highlights.push({
+        species: sp,
+        category: 'best-chance',
+        reason: distFromPeak === 0
+          ? 'Goal bird at peak this week'
+          : `Goal bird — peak in ${distFromPeak} week${distFromPeak > 1 ? 's' : ''}`,
+        frequency: 0,
+      })
+      continue
+    }
+
+    // New arrival: moderately difficult species arriving soon (peak 1-3 weeks away)
+    if (weeksUntilPeak >= 1 && weeksUntilPeak <= 3 && sp.difficultyRating >= 4) {
+      highlights.push({
+        species: sp,
+        category: 'new-arrival',
+        reason: `Arriving — peaks in ${weeksUntilPeak} week${weeksUntilPeak > 1 ? 's' : ''}`,
+        frequency: 0,
+      })
+      continue
+    }
+
+    // Peak season: easy-to-moderate species peaking this exact week
+    if (sp.peakWeek === currentWeek && sp.difficultyRating <= 5) {
+      highlights.push({
+        species: sp,
+        category: 'peak-season',
+        reason: 'Peak season this week',
+        frequency: 0,
+      })
+      continue
+    }
+
+    // Rare visitor: difficult species at or near peak
+    if (sp.difficultyRating >= 7 && distFromPeak <= 1) {
+      highlights.push({
+        species: sp,
+        category: 'rare-visitor',
+        reason: 'Rare — at peak now',
+        frequency: 0,
+      })
+    }
+  }
+
+  // Sort by category priority, then by difficulty (rarer first within category)
+  const categoryOrder = { 'best-chance': 0, 'new-arrival': 1, 'peak-season': 2, 'rare-visitor': 3 }
+  highlights.sort((a, b) => {
+    const catDiff = (categoryOrder[a.category] ?? 99) - (categoryOrder[b.category] ?? 99)
+    if (catDiff !== 0) return catDiff
+    return b.species.difficultyRating - a.species.difficultyRating
+  })
+
+  // Deduplicate by species code
+  const seen = new Set<string>()
+  const deduped: WeeklyHighlight[] = []
+  for (const h of highlights) {
+    if (!seen.has(h.species.speciesCode)) {
+      seen.add(h.species.speciesCode)
+      deduped.push(h)
+    }
+  }
+
+  return deduped.slice(0, maxResults)
+}
+
 // ── Smart Goal Suggestions ───────────────────────────────────────────────
 
 /**
