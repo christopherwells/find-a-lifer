@@ -857,18 +857,60 @@ export default memo(function MapView({
           },
         })
 
-        // Add hover effect
+        // Hover highlight layer — brighter fill on hovered cell
+        map.current.addLayer({
+          id: 'grid-hover',
+          type: 'fill',
+          source: 'grid',
+          paint: {
+            'fill-color': darkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
+            'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0],
+          },
+        })
+
+        // Clicked cell ring — bright outline on selected cell
+        map.current.addLayer({
+          id: 'grid-selected-ring',
+          type: 'line',
+          source: 'grid',
+          paint: {
+            'line-color': darkMode ? '#FBBF24' : '#2C3E7B',
+            'line-width': 2.5,
+            'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
+          },
+        })
+
+        // Track hovered cell for highlight
+        let hoveredCellId: string | number | null = null
+
         map.current.on('mouseenter', 'grid-fill', () => {
-          if (map.current) {
-            map.current.getCanvas().style.cursor = 'pointer'
+          if (map.current) map.current.getCanvas().style.cursor = 'pointer'
+        })
+
+        map.current.on('mousemove', 'grid-fill', (e) => {
+          if (!map.current || !e.features?.length) return
+          const id = e.features[0].id
+          if (hoveredCellId !== null && hoveredCellId !== id) {
+            map.current.setFeatureState({ source: 'grid', id: hoveredCellId }, { hover: false })
+          }
+          hoveredCellId = id ?? null
+          if (hoveredCellId !== null) {
+            map.current.setFeatureState({ source: 'grid', id: hoveredCellId }, { hover: true })
           }
         })
 
         map.current.on('mouseleave', 'grid-fill', () => {
           if (map.current) {
             map.current.getCanvas().style.cursor = ''
+            if (hoveredCellId !== null) {
+              map.current.setFeatureState({ source: 'grid', id: hoveredCellId }, { hover: false })
+              hoveredCellId = null
+            }
           }
         })
+
+        // Track selected cell for ring highlight
+        let selectedCellFeatureId: string | number | null = null
 
         // Add click handler for trip planning location selection and Goal Birds inspect
         map.current.on('click', 'grid-fill', (e) => {
@@ -876,6 +918,17 @@ export default memo(function MapView({
             const feature = e.features[0]
             const cellId = feature.properties?.cell_id
             if (!cellId) return
+
+            // Update selected cell ring
+            if (map.current) {
+              if (selectedCellFeatureId !== null) {
+                map.current.setFeatureState({ source: 'grid', id: selectedCellFeatureId }, { selected: false })
+              }
+              selectedCellFeatureId = feature.id ?? null
+              if (selectedCellFeatureId !== null) {
+                map.current.setFeatureState({ source: 'grid', id: selectedCellFeatureId }, { selected: true })
+              }
+            }
 
             const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat]
             const cellLabel = feature.properties?.label as string | undefined
@@ -1712,8 +1765,8 @@ export default memo(function MapView({
           showLegend = true
         } else if (viewMode === 'probability') {
           legendTitle = seenSpecies.size > 0
-            ? (goalBirdsOnlyFilter ? 'P(Goal Lifer)' : 'P(Any Lifer)')
-            : 'P(Lifer)'
+            ? (goalBirdsOnlyFilter ? 'Goal Lifer Chance' : 'Lifer Chance')
+            : 'Lifer Chance'
           isPercentage = true
           showLegend = true
           emptyMessage = goalBirdsOnlyFilter && goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
