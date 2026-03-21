@@ -70,8 +70,6 @@ export interface ExploreTabProps {
   dataRange?: [number, number]
   showTotalRichness?: boolean
   onShowTotalRichnessChange?: (value: boolean) => void
-  beginnerMode?: boolean
-  onBeginnerModeChange?: (value: boolean) => void
 }
 
 export interface SpeciesFilters {

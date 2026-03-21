@@ -9,8 +9,6 @@ import { getWeeklyHighlightsLite } from '../lib/recommendationEngine'
 interface MapControlsProps {
   viewMode: MapViewMode
   onViewModeChange?: (mode: MapViewMode) => void
-  beginnerMode: boolean
-  onBeginnerModeChange?: (value: boolean) => void
   currentWeek: number
   onWeekChange?: (week: number) => void
   heatmapOpacity: number
@@ -79,8 +77,6 @@ const MULTI_COLORS = ['#4A90D9', '#E74C3C', '#27AE60', '#8E44AD']
 export default function MapControls({
   viewMode,
   onViewModeChange,
-  beginnerMode,
-  onBeginnerModeChange,
   currentWeek,
   onWeekChange,
   heatmapOpacity,
@@ -150,9 +146,7 @@ export default function MapControls({
 
   const selectedSpeciesMeta = allSpecies.find((s) => s.speciesCode === selectedSpecies)
 
-  const visibleModes = beginnerMode
-    ? VIEW_MODES.filter((m) => m.mode === 'density')
-    : VIEW_MODES
+  const visibleModes = VIEW_MODES
 
   const needsGoalListSelector =
     viewMode === 'goal-birds' ||
@@ -160,7 +154,7 @@ export default function MapControls({
 
   const showGoalBirdsToggle = viewMode === 'density' || viewMode === 'probability' || viewMode === 'species'
   const showTotalRichnessToggle = viewMode === 'density'
-  const showLiferRange = !beginnerMode && viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0
+  const showLiferRange = viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0
 
   return (
     <div
@@ -431,15 +425,6 @@ export default function MapControls({
               </div>
             )}
 
-            {/* Beginner mode exit */}
-            {beginnerMode && (
-              <button
-                onClick={() => onBeginnerModeChange?.(false)}
-                className="w-full text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium text-center py-1"
-              >
-                Show all controls permanently
-              </button>
-            )}
           </div>
         )}
 

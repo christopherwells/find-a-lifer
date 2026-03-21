@@ -47,13 +47,7 @@ function App() {
   const [showAbout, setShowAbout] = useState(false)
   const [, setActiveTab] = useState<string>('explore')
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('hasSeenOnboarding'))
-  const [beginnerMode, setBeginnerMode] = useState(() => {
-    const stored = localStorage.getItem('beginnerMode')
-    if (stored !== null) return stored === 'true'
-    // Default to beginner mode for first 3 sessions (count +1 for current session)
-    const count = parseInt(localStorage.getItem('sessionCount') || '0', 10) + 1
-    return count < 3
-  })
+  // Beginner mode removed — all controls shown from start (driver.js tour replaces progressive disclosure)
   const { effectiveSeenSpecies } = useLifeList()
   const { showToast } = useToast()
 
@@ -131,11 +125,6 @@ function App() {
     else localStorage.removeItem('activeGoalListId')
   }, [])
 
-  const handleBeginnerModeChange = useCallback((value: boolean) => {
-    setBeginnerMode(value)
-    localStorage.setItem('beginnerMode', String(value))
-  }, [])
-
   const handleImportComplete = useCallback((newCount: number) => {
     trackEvent('import_life_list', { species_count: newCount })
     // Switch to map view (collapse panel on mobile)
@@ -196,8 +185,6 @@ function App() {
           <MapControls
             viewMode={viewMode}
             onViewModeChange={handleViewModeChange}
-            beginnerMode={beginnerMode}
-            onBeginnerModeChange={handleBeginnerModeChange}
             currentWeek={currentWeek}
             onWeekChange={setCurrentWeek}
             heatmapOpacity={heatmapOpacity}
@@ -255,8 +242,6 @@ function App() {
           speciesFilters={speciesFilters}
           onSpeciesFiltersChange={setSpeciesFilters}
           onCompareLocationsChange={setCompareLocations}
-          beginnerMode={beginnerMode}
-          onBeginnerModeChange={handleBeginnerModeChange}
           onActiveTabChange={setActiveTab}
           onImportComplete={handleImportComplete}
           darkMode={darkMode}

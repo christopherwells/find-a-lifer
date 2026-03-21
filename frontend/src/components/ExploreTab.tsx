@@ -36,8 +36,6 @@ export default function ExploreTab({
   dataRange = [0, 0],
   showTotalRichness = false,
   onShowTotalRichnessChange,
-  beginnerMode = false,
-  onBeginnerModeChange,
 }: ExploreTabProps) {
   // Species picker state for Species Range view
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
@@ -162,15 +160,12 @@ export default function ExploreTab({
       {/* View Mode Toggle */}
       <div>
         <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex gap-1">
-          {(beginnerMode
-            ? [{ mode: 'density' as const, label: 'Richness' }]
-            : [
-                { mode: 'density' as const, label: 'Richness' },
-                { mode: 'probability' as const, label: 'Frequency' },
-                { mode: 'species' as const, label: 'Range' },
-                { mode: 'goal-birds' as const, label: 'Goals' },
-              ]
-          ).map(({ mode, label }) => (
+          {[
+            { mode: 'density' as const, label: 'Richness' },
+            { mode: 'probability' as const, label: 'Frequency' },
+            { mode: 'species' as const, label: 'Range' },
+            { mode: 'goal-birds' as const, label: 'Goals' },
+          ].map(({ mode, label }) => (
             <button
               key={mode}
               data-testid={`view-mode-${mode}`}
@@ -512,50 +507,7 @@ export default function ExploreTab({
       </div>
 
       {/* Advanced Controls — hidden in beginner mode behind details/summary */}
-      {beginnerMode ? (
-        <details className="group" data-testid="advanced-controls-details">
-          <summary className="flex items-center justify-between cursor-pointer text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 py-2">
-            <span>Advanced Controls</span>
-            <svg className="h-4 w-4 transition-transform group-open:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </summary>
-          <div className="space-y-4 pt-2">
-            {/* Opacity Slider */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label htmlFor="opacity-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                  Opacity <Tooltip content={TOOLTIPS.opacity} />
-                </label>
-                <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-                  {Math.round(heatmapOpacity * 100)}%
-                </span>
-              </div>
-              <input
-                id="opacity-slider"
-                type="range"
-                min="0"
-                max="100"
-                value={Math.round(heatmapOpacity * 100)}
-                onChange={(e) => onHeatmapOpacityChange?.(parseInt(e.target.value, 10) / 100)}
-                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
-                data-testid="opacity-slider"
-                aria-label="Adjust heatmap opacity"
-              />
-            </div>
-            {/* Exit beginner mode */}
-            <button
-              onClick={() => onBeginnerModeChange?.(false)}
-              className="w-full text-[11px] text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium text-center"
-              data-testid="exit-beginner-mode"
-            >
-              Show all controls permanently
-            </button>
-          </div>
-        </details>
-      ) : (
-        <>
-          {/* Opacity Slider */}
+      {/* Opacity Slider */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label htmlFor="opacity-slider" className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
@@ -577,11 +529,8 @@ export default function ExploreTab({
               aria-label="Adjust heatmap opacity"
             />
           </div>
-        </>
-      )}
-
-      {/* Lifer Count Range Filter — hidden in beginner mode */}
-      {!beginnerMode && viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0 && (
+      {/* Lifer Count Range Filter */}
+      {viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">

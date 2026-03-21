@@ -46,8 +46,6 @@ interface SidePanelProps {
   speciesFilters?: SpeciesFilters
   onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
   onCompareLocationsChange?: (locations: CompareLocations | null) => void
-  beginnerMode?: boolean
-  onBeginnerModeChange?: (value: boolean) => void
   onActiveTabChange?: (tabId: string) => void
   onImportComplete?: (newCount: number) => void
   darkMode?: boolean
@@ -140,8 +138,6 @@ export default memo(function SidePanel({
   speciesFilters,
   onSpeciesFiltersChange,
   onCompareLocationsChange,
-  beginnerMode,
-  onBeginnerModeChange,
   onActiveTabChange,
   onImportComplete,
   darkMode,
@@ -310,8 +306,6 @@ export default memo(function SidePanel({
                   dataRange={dataRange}
                   showTotalRichness={showTotalRichness}
                   onShowTotalRichnessChange={onShowTotalRichnessChange}
-                  beginnerMode={beginnerMode}
-                  onBeginnerModeChange={onBeginnerModeChange}
                 />
               </div>
             )}
