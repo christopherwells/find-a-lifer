@@ -1,6 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { YearList } from '../components/types'
 
 export interface LifeListEntry {
   speciesCode: string
@@ -54,15 +53,6 @@ interface LifeListContextValue {
   getTotalSeen: () => number
   getLifeListEntries: () => Promise<LifeListEntry[]>
   effectiveSeenSpecies: Set<string>
-  // Year lists
-  yearLists: YearList[]
-  activeYearListId: string | null
-  setActiveYearListId: (id: string | null) => void
-  importYearList: (year: number, speciesCodes: string[]) => Promise<YearList>
-  deleteYearList: (id: string) => Promise<void>
-  yearSeenSpecies: Set<string>
-  listScope: 'lifetime' | 'year'
-  setListScope: (scope: 'lifetime' | 'year') => void
 }
 
 const LifeListContext = createContext<LifeListContextValue | undefined>(undefined)
@@ -107,9 +97,6 @@ async function getDB(): Promise<IDBPDatabase<LifeListDB>> {
 
 export function LifeListProvider({ children }: { children: ReactNode }) {
   const [seenSpecies, setSeenSpecies] = useState<Set<string>>(new Set())
-  const [yearLists, setYearLists] = useState<YearList[]>([])
-  const [activeYearListId, setActiveYearListId] = useState<string | null>(null)
-  const [listScope, setListScope] = useState<'lifetime' | 'year'>('lifetime')
   const [loading, setLoading] = useState(true)
 
   // Load life list from IndexedDB on mount
@@ -122,18 +109,8 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
         const allEntries = await db.getAll(STORE_NAME)
         const codes = new Set(allEntries.map(entry => entry.speciesCode))
         setSeenSpecies(codes)
-
-        // Load year lists
-        const yearListEntries = await db.getAll('yearLists')
-        const loadedYearLists: YearList[] = yearListEntries.map(entry => ({
-          id: entry.id,
-          year: entry.year,
-          speciesCodes: entry.speciesCodes,
-          importedAt: entry.importedAt,
-        }))
-        setYearLists(loadedYearLists)
       } catch (error) {
-        console.error('Error loading life lists from IndexedDB:', error)
+        console.error('Error loading life list from IndexedDB:', error)
       } finally {
         setLoading(false)
       }
@@ -243,57 +220,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     return db.getAll(STORE_NAME)
   }
 
-  // ── Year list methods ─────────────────────────────────────────────────
-
-  const importYearList = useCallback(async (year: number, speciesCodes: string[]): Promise<YearList> => {
-    try {
-      const db = await getDB()
-      const newList: YearList = {
-        id: crypto.randomUUID(),
-        year,
-        speciesCodes,
-        importedAt: new Date().toISOString(),
-      }
-      await db.put('yearLists', { id: newList.id, year: newList.year, speciesCodes: newList.speciesCodes, importedAt: newList.importedAt })
-      setYearLists(prev => [...prev, newList])
-      setActiveYearListId(newList.id)
-      return newList
-    } catch (error) {
-      console.error('Error importing year list:', error)
-      throw error
-    }
-  }, [])
-
-  const deleteYearList = useCallback(async (id: string) => {
-    try {
-      const db = await getDB()
-      await db.delete('yearLists', id)
-      setYearLists(prev => prev.filter(l => l.id !== id))
-      if (activeYearListId === id) {
-        setActiveYearListId(null)
-        setListScope('lifetime')
-      }
-    } catch (error) {
-      console.error('Error deleting year list:', error)
-      throw error
-    }
-  }, [activeYearListId])
-
-  // Year seen species — derived from active year list
-  const yearSeenSpecies = useMemo(() => {
-    if (!activeYearListId) return new Set<string>()
-    const activeList = yearLists.find(l => l.id === activeYearListId)
-    return activeList ? new Set(activeList.speciesCodes) : new Set<string>()
-  }, [activeYearListId, yearLists])
-
-  // ── Effective seen species (respects year scope) ─────────────────────
-
-  const effectiveSeenSpecies = useMemo(() => {
-    return listScope === 'year' && yearSeenSpecies.size > 0
-      ? yearSeenSpecies
-      : seenSpecies
-  }, [seenSpecies, listScope, yearSeenSpecies])
-
   const value: LifeListContextValue = {
     seenSpecies,
     isSpeciesSeen,
@@ -304,16 +230,7 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     importSpeciesList,
     getTotalSeen,
     getLifeListEntries,
-    effectiveSeenSpecies,
-    // Year lists
-    yearLists,
-    activeYearListId,
-    setActiveYearListId,
-    importYearList,
-    deleteYearList,
-    yearSeenSpecies,
-    listScope,
-    setListScope,
+    effectiveSeenSpecies: seenSpecies,
   }
 
   // Don't render children until life list is loaded

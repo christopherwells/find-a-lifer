@@ -59,8 +59,6 @@ interface ProfileTabProps {
 export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMode, onShowAbout, onShowOnboarding }: ProfileTabProps = {}) {
   const {
     importSpeciesList, clearAllSpecies, getTotalSeen, isSpeciesSeen,
-    yearLists, importYearList, deleteYearList, listScope, setListScope,
-    setActiveYearListId,
   } = useLifeList()
   const { showToast } = useToast()
   const [importing, setImporting] = useState(false)
@@ -68,9 +66,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
   const [importError, setImportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const [yearImporting, setYearImporting] = useState(false)
-  const [yearImportYear, setYearImportYear] = useState(() => new Date().getFullYear())
-  const [yearImportResult, setYearImportResult] = useState<CSVImportResult | null>(null)
   const handleCheckForUpdates = useCallback(async () => {
     setUpdating(true)
     const success = await clearAppCaches()
@@ -139,25 +134,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
     localStorage.removeItem('sessionCount')
     localStorage.removeItem('beginnerMode')
     window.location.reload()
-  }
-
-  const handleYearImportClick = () => {
-    if (yearImporting) return
-    const yearImportFn = async (speciesCodes: string[]) => {
-      await importYearList(yearImportYear, speciesCodes)
-      return { newCount: speciesCodes.length, existingCount: 0 }
-    }
-    handleImport(yearImportFn, setYearImporting, setYearImportResult)
-  }
-
-  const handleDeleteYearList = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this year list?')) {
-      try {
-        await deleteYearList(id)
-      } catch (error) {
-        console.error('Error deleting year list:', error)
-      }
-    }
   }
 
   return (
@@ -255,129 +231,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
           >
             {exporting ? 'Exporting...' : 'Export Life List as CSV'}
           </button>
-        )}
-      </div>
-
-      {/* Year Lists Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">Year Lists</h4>
-        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-          Import a year list from{' '}
-          <a
-            href="https://ebird.org/lifelist"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#2C3E7B] dark:text-blue-400 underline"
-          >
-            eBird
-          </a>
-          {' '}to track your yearly progress and see year-specific lifers on the map.
-        </p>
-
-        {/* Year selector + import button */}
-        <div className="flex gap-2 items-end mb-3">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Year</label>
-            <input
-              type="number"
-              min={2000}
-              max={new Date().getFullYear()}
-              value={yearImportYear}
-              onChange={(e) => setYearImportYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-[#2C3E7B] dark:focus:ring-blue-500 focus:border-transparent"
-              data-testid="year-list-year-input"
-            />
-          </div>
-          <button
-            onClick={handleYearImportClick}
-            disabled={yearImporting}
-            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-              yearImporting
-                ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500'
-                : 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800'
-            }`}
-            data-testid="year-list-import-btn"
-          >
-            {yearImporting ? 'Importing...' : 'Import Year List'}
-          </button>
-        </div>
-
-        {/* Year import result */}
-        {yearImportResult && !yearImporting && (
-          <div className="mb-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
-            <p className="text-sm text-green-700 dark:text-green-400">
-              <span className="font-medium">Year list imported!</span>
-            </p>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              {yearImportResult.matched} of {yearImportResult.total} species matched.
-            </p>
-          </div>
-        )}
-
-        {/* Existing year lists */}
-        {yearLists.length > 0 && (
-          <div className="space-y-2">
-            {yearLists
-              .sort((a, b) => b.year - a.year)
-              .map((yl) => (
-              <div
-                key={yl.id}
-                className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2"
-                data-testid={`year-list-${yl.year}`}
-              >
-                <div>
-                  <p className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">{yl.year}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {yl.speciesCodes.length} species · imported {new Date(yl.importedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setActiveYearListId(yl.id)
-                      setListScope('year')
-                    }}
-                    className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                      listScope === 'year' && yearLists.find(l => l.id === yl.id)
-                        ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400'
-                    }`}
-                    data-testid={`year-list-activate-${yl.year}`}
-                  >
-                    Use
-                  </button>
-                  <button
-                    onClick={() => handleDeleteYearList(yl.id)}
-                    className="px-2 py-1 text-xs font-medium text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
-                    data-testid={`year-list-delete-${yl.year}`}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Scope toggle */}
-            <div className="mt-2">
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Map shows lifers for:</label>
-              <div className="grid grid-cols-2 gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5" data-testid="list-scope-toggle">
-                {(['lifetime', 'year'] as const).map((scope) => (
-                  <button
-                    key={scope}
-                    onClick={() => setListScope(scope)}
-                    className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                      listScope === scope
-                        ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    data-testid={`list-scope-${scope}`}
-                  >
-                    {scope === 'lifetime' ? 'Lifetime' : 'Year'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
         )}
       </div>
 
