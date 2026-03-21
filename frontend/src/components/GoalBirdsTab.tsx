@@ -1,39 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
-import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { useSpecies } from '../hooks/useSpecies'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import type { Species } from './types'
 import { FamilyGroupSkeleton } from './Skeleton'
 import SpeciesInfoCard from './SpeciesInfoCard'
-import SuggestionSection from './SuggestionSection'
 import { getDisplayGroup } from '../lib/familyGroups'
-import { getRecommendedSections } from '../lib/recommendationEngine'
-import RegionSelector from './RegionSelector'
-import {
-  CONSERVATION_TEMPLATES,
-  DIFFICULTY_TEMPLATES,
-  HABITAT_TEMPLATES,
-  REGIONAL_TEMPLATES,
-  computeConservationTemplate,
-  computeDifficultyTemplate,
-  computeHabitatTemplate,
-  computeRegionalTemplate,
-  type ConservationTemplateType,
-  type DifficultyTemplateType,
-  type HabitatTemplateType,
-  type RegionalTemplateType,
-} from '../lib/goalTemplates'
-import { shareGoalList, getSharedWithMe, type SharedGoalList } from '../lib/sharedGoalListsService'
-import { getFriends, type Friend } from '../lib/friendsService'
-import {
-  REGIONAL_ICONS,
-  COLORFUL_CHARACTERS,
-  OWLS_NIGHTBIRDS,
-  RAPTORS,
-  LBJS,
-} from '../lib/curatedSpeciesLists'
 
 /** Returns Tailwind classes for difficulty rating pill. */
 function getDifficultyColor(rating: number): string {
@@ -58,7 +31,6 @@ function getConservStatusDot(status: string): React.ReactNode {
 
 export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?: (lists: GoalList[]) => void } = {}) {
   const { isSpeciesSeen, seenSpecies } = useLifeList()
-  const { user } = useAuth()
   const { showToast } = useToast()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [activeListId, setActiveListId] = useState<string | null>(null)
@@ -76,45 +48,15 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [createListError, setCreateListError] = useState('')
 
-  // Shared goal lists
-  const [sharedLists, setSharedLists] = useState<SharedGoalList[]>([])
-  const [friends, setFriends] = useState<Friend[]>([])
-  const [sharingListId, setSharingListId] = useState<string | null>(null)
-  const [selectedFriendsForShare, setSelectedFriendsForShare] = useState<Set<string>>(new Set())
-
-  // Load shared goal lists
-  useEffect(() => {
-    if (!user) return
-    Promise.all([
-      getSharedWithMe(user.uid),
-      getFriends(user.uid),
-    ]).then(([shared, friendsList]) => {
-      setSharedLists(shared)
-      setFriends(friendsList)
-    }).catch(err => console.error('Failed to load shared lists:', err))
-  }, [user])
-
   // List picker for one-tap add with multiple goal lists
   const [listPickerSpecies, setListPickerSpecies] = useState<Species | null>(null)
 
   // Filter within current list
   const [listFilterTerm, setListFilterTerm] = useState('')
 
-  // Suggestions section expand/collapse state — single Set replaces 11 booleans
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+  // Suggestions section expand/collapse state
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['easyWins', 'seasonal', 'almostComplete']))
   const toggleSection = (id: string) => setExpandedSections(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })
-
-  // Smart recommendation: show only recommended sections by default, rest behind "Show all"
-  const [showAllSuggestions, setShowAllSuggestions] = useState(false)
-
-  // Conservation & regional template state
-  const [showTemplateSection, setShowTemplateSection] = useState(false)
-  const [templateRegion, setTemplateRegion] = useState<string>('')
-  const [conservTemplateType, setConservTemplateType] = useState<ConservationTemplateType>('threatened')
-  const [difficultyTemplateType, setDifficultyTemplateType] = useState<DifficultyTemplateType>('easy-lifers')
-  const [habitatTemplateType, setHabitatTemplateType] = useState<HabitatTemplateType>('forest-specialists')
-  const [regionalTemplateType, setRegionalTemplateType] = useState<RegionalTemplateType>('regional-specialties')
-  const [templateCreating, setTemplateCreating] = useState(false)
 
   // Species info card state
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
@@ -122,7 +64,7 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
   // Refresh counter — incremented when tab becomes visible or species are added externally
   const [refreshKey, setRefreshKey] = useState(0)
 
-  // Reload goal lists when tab becomes visible (catches external changes from species cards, Notable Birds, etc.)
+  // Reload goal lists when tab becomes visible (catches external changes from species cards, etc.)
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -179,107 +121,6 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
     // Reset the within-list filter when switching lists
     setListFilterTerm('')
   }, [activeListId])
-
-
-  // Smart recommendation: compute which suggestion sections to highlight
-  const recommendedSectionIds = useMemo(() => {
-    const familyProgress = new Map<string, { total: number; seen: number }>()
-    for (const sp of allSpecies) {
-      const group = getDisplayGroup(sp.familyComName ?? '')
-      if (!group) continue
-      const entry = familyProgress.get(group) || { total: 0, seen: 0 }
-      entry.total++
-      if (isSpeciesSeen(sp.speciesCode)) entry.seen++
-      familyProgress.set(group, entry)
-    }
-    const sections = getRecommendedSections(seenSpecies.size, familyProgress)
-    // Map recommendation engine section IDs to our UI section IDs
-    const idMap: Record<string, string> = {
-      'easy-wins': 'easyWins',
-      'almost-complete': 'almostComplete',
-      'rarest': 'rarest',
-      'hardest': 'hardest',
-      'migrants': 'migrants',
-      'seasonal': 'seasonal',
-      'colorful': 'colorful',
-      'owls': 'owls',
-      'raptors': 'raptors',
-      'lbjs': 'lbjs',
-      'regional-icons': 'regionalIcons',
-    }
-    return new Set(sections.map(s => idMap[s] ?? s))
-  }, [allSpecies, seenSpecies.size, isSpeciesSeen])
-
-  // Auto-expand recommended sections on first load
-  useEffect(() => {
-    if (recommendedSectionIds.size > 0) {
-      setExpandedSections(prev => {
-        const next = new Set(prev)
-        for (const id of recommendedSectionIds) next.add(id)
-        return next
-      })
-    }
-  }, [recommendedSectionIds])
-
-  // Computed conservation template preview
-  const conservTemplatePreview = useMemo(() => {
-    if (!showTemplateSection || allSpecies.length === 0) return []
-    const selectedTemplate = CONSERVATION_TEMPLATES.find(t => t.id === conservTemplateType)
-    if (selectedTemplate?.requiresRegion && !templateRegion) return []
-    return computeConservationTemplate(conservTemplateType, allSpecies, templateRegion, seenSpecies)
-  }, [showTemplateSection, allSpecies, conservTemplateType, templateRegion, seenSpecies])
-
-  // Computed difficulty template preview
-  const difficultyTemplatePreview = useMemo(() => {
-    if (!showTemplateSection || allSpecies.length === 0) return []
-    return computeDifficultyTemplate(difficultyTemplateType, allSpecies, templateRegion, seenSpecies)
-  }, [showTemplateSection, allSpecies, difficultyTemplateType, templateRegion, seenSpecies])
-
-  // Computed habitat template preview
-  const habitatTemplatePreview = useMemo(() => {
-    if (!showTemplateSection || allSpecies.length === 0) return []
-    return computeHabitatTemplate(habitatTemplateType, allSpecies, templateRegion, seenSpecies)
-  }, [showTemplateSection, allSpecies, habitatTemplateType, templateRegion, seenSpecies])
-
-  // Computed regional template preview
-  const regionalTemplatePreview = useMemo(() => {
-    if (!showTemplateSection || allSpecies.length === 0 || !templateRegion) return []
-    return computeRegionalTemplate(regionalTemplateType, allSpecies, templateRegion, seenSpecies)
-  }, [showTemplateSection, allSpecies, regionalTemplateType, templateRegion, seenSpecies])
-
-  // Create a goal list from template results
-  const handleCreateFromTemplate = async (species: Species[], templateLabel: string) => {
-    if (species.length === 0) return
-    setTemplateCreating(true)
-    try {
-      const regionSuffix = templateRegion ? ` — ${templateRegion}` : ''
-      let name = `${templateLabel}${regionSuffix}`
-
-      // Avoid duplicate names
-      const existingNames = new Set(goalLists.map(l => l.name.toLowerCase()))
-      let counter = 2
-      while (existingNames.has(name.toLowerCase())) {
-        name = `${templateLabel}${regionSuffix} (${counter})`
-        counter++
-      }
-
-      const newList: GoalList = {
-        id: crypto.randomUUID(),
-        name,
-        speciesCodes: species.map(s => s.speciesCode),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      await goalListsDB.saveList(newList)
-      setGoalLists(prev => [...prev, newList])
-      setActiveListId(newList.id)
-      showToast({ type: 'success', message: `Created "${name}" with ${species.length} species` })
-    } catch (error) {
-      console.error('Failed to create template goal list:', error)
-    } finally {
-      setTemplateCreating(false)
-    }
-  }
 
   const handleCreateList = async () => {
     if (!newListName.trim()) {
@@ -599,10 +440,42 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
     })
   })()
 
-  /** Returns true if the section should be rendered (recommended OR "Show all" is on). */
-  const isSectionVisible = (sectionId: string): boolean => {
-    return showAllSuggestions || recommendedSectionIds.has(sectionId)
-  }
+  // ── Suggestion data for 3 kept sections ──
+
+  const easyWinsSuggestions = useMemo(() => {
+    if (!activeList || allSpecies.length === 0) return []
+    return allSpecies
+      .filter((sp) => sp.difficultyScore < 0.25 && !isSpeciesSeen(sp.speciesCode))
+      .slice()
+      .sort((a, b) => a.difficultyScore - b.difficultyScore)
+      .slice(0, 20)
+  }, [allSpecies, activeList, isSpeciesSeen])
+
+  const seasonalSuggestions = useMemo(() => {
+    if (!activeList || allSpecies.length === 0) return []
+    return allSpecies
+      .filter((sp) => (sp.seasonalityScore ?? 0) >= 0.5 && !isSpeciesSeen(sp.speciesCode))
+      .slice()
+      .sort((a, b) => (b.seasonalityScore ?? 0) - (a.seasonalityScore ?? 0))
+      .slice(0, 20)
+  }, [allSpecies, activeList, isSpeciesSeen])
+
+  const almostComplete = useMemo(() => {
+    if (!activeList || allSpecies.length === 0) return []
+    const familyMap = new Map<string, { total: number; seen: number; unseen: Species[] }>()
+    for (const sp of allSpecies) {
+      const family = getDisplayGroup(sp.familyComName ?? '')
+      if (!family) continue
+      if (!familyMap.has(family)) familyMap.set(family, { total: 0, seen: 0, unseen: [] })
+      const entry = familyMap.get(family)!
+      entry.total++
+      if (isSpeciesSeen(sp.speciesCode)) entry.seen++
+      else entry.unseen.push(sp)
+    }
+    return Array.from(familyMap.entries())
+      .filter(([, data]) => data.total >= 2 && data.seen / data.total >= 0.8 && data.unseen.length > 0)
+      .sort((a, b) => (b[1].seen / b[1].total) - (a[1].seen / a[1].total))
+  }, [allSpecies, activeList, isSpeciesSeen])
 
   if (loading) {
     return (
@@ -864,36 +737,6 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
               >
                 + Create Empty List
               </button>
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center mb-3">Or start from a template</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
-                >
-                  <span>{'\uD83D\uDEE1\uFE0F'}</span> Conservation
-                </button>
-                <button
-                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                >
-                  <span>{'\u2B50'}</span> Easy Lifers
-                </button>
-                <button
-                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
-                >
-                  <span>{'\uD83C\uDF32'}</span> By Habitat
-                </button>
-                <button
-                  onClick={() => { setShowTemplateSection(true); setShowCreateDialog(false) }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-colors"
-                >
-                  <span>{'\uD83D\uDDFA\uFE0F'}</span> Regional
-                </button>
-              </div>
             </div>
 
             {/* Import button */}
@@ -1184,61 +1027,9 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
               </div>
             )}
 
-            {/* Quick access: Create from Templates */}
-            {!showTemplateSection && (
-              <div className="mt-3">
-                <button
-                  onClick={() => setShowTemplateSection(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-medium text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
-                  data-testid="template-quick-access-btn"
-                >
-                  {'\uD83C\uDFAF'} Create from Template (conservation, habitat, regional...)
-                </button>
-              </div>
-            )}
-
-            {/* Rarest in North America Suggestions */}
-            {isSectionVisible('rarest') && (() => {
+            {/* ── Easy Wins ── */}
+            {easyWinsSuggestions.length > 0 && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
-              const rarestSuggestions = allSpecies
-                .filter((sp) => sp.isRestrictedRange && !isSpeciesSeen(sp.speciesCode))
-                .slice(0, 20)
-
-              return (
-                <SuggestionSection
-                  id="rarest"
-                  emoji="📍"
-                  title="Rarest in North America"
-                  species={rarestSuggestions}
-                  activeListCodes={activeListCodes}
-                  isExpanded={expandedSections.has('rarest')}
-                  onToggle={() => toggleSection('rarest')}
-                  onAddSpecies={handleAddSpecies}
-                  onSpeciesClick={(sp) => setSelectedSpeciesCard(sp)}
-                  colorTheme={{
-                    bg: 'bg-amber-50',
-                    border: 'border-amber-200',
-                    hover: 'hover:bg-amber-100',
-                    icon: 'text-amber-600',
-                    title: 'text-amber-800',
-                    badge: 'bg-amber-200 text-amber-800',
-                    tag: 'bg-amber-100 text-amber-700',
-                  }}
-                  tagText="📍 Rare"
-                />
-              )
-            })()}
-
-            {/* Easy Wins Suggestions */}
-            {isSectionVisible('easyWins') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              const easyWinsSuggestions = allSpecies
-                .filter((sp) => sp.difficultyScore < 0.25 && !isSpeciesSeen(sp.speciesCode))
-                .slice()
-                .sort((a, b) => a.difficultyScore - b.difficultyScore)
-                .slice(0, 20)
-
-              if (easyWinsSuggestions.length === 0) return null
 
               const getEasyBadgeStyle = (score: number) => {
                 if (score < 0.10) return { bg: 'bg-green-100', text: 'text-green-800', label: 'Very Easy' }
@@ -1305,230 +1096,9 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
               )
             })()}
 
-            {/* Hardest to Find Suggestions */}
-            {isSectionVisible('hardest') && (() => {
+            {/* ── Seasonal Specialties ── */}
+            {seasonalSuggestions.length > 0 && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
-              const hardestSuggestions = allSpecies
-                .filter((sp) => sp.difficultyScore >= 0.75 && !isSpeciesSeen(sp.speciesCode))
-                .slice()
-                .sort((a, b) => b.difficultyScore - a.difficultyScore)
-                .slice(0, 20)
-
-              if (hardestSuggestions.length === 0) return null
-
-              const getDifficultyBadgeStyle = (score: number) => {
-                if (score >= 0.90) return { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Extremely Hard' }
-                if (score >= 0.75) return { bg: 'bg-red-100', text: 'text-red-800', label: 'Very Hard' }
-                return { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Hard' }
-              }
-
-              return (
-                <div className="mt-4" data-testid="hardest-suggestions-section">
-                  <button
-                    onClick={() => toggleSection('hardest')}
-                    className="w-full flex items-center justify-between py-2.5 px-3 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
-                    data-testid="hardest-suggestions-toggle"
-                    aria-expanded={expandedSections.has('hardest')}
-                    aria-controls="section-hardest"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-600 font-bold text-sm">🔭</span>
-                      <span className="text-sm font-semibold text-purple-800">Hardest to Find</span>
-                      <span className="text-xs bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-medium">{hardestSuggestions.length}</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-purple-600 transition-transform ${expandedSections.has('hardest') ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-
-                  {expandedSections.has('hardest') && (
-                    <div className="mt-1 space-y-1" id="section-hardest" role="region" aria-label="Hardest to Find" data-testid="hardest-suggestions-list">
-                      {hardestSuggestions.map((sp) => {
-                        const alreadyInList = activeListCodes.has(sp.speciesCode)
-                        const badgeStyle = getDifficultyBadgeStyle(sp.difficultyScore)
-                        return (
-                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`hardest-suggestion-${sp.speciesCode}`}>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
-                                <span className={`text-xs ${badgeStyle.bg} ${badgeStyle.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`} data-testid={`hardest-difficulty-badge-${sp.speciesCode}`}>🔭 {badgeStyle.label}</span>
-                                {alreadyInList && (
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0" data-testid={`hardest-in-list-badge-${sp.speciesCode}`}>✓ In list</span>
-                                )}
-                              </div>
-                            </div>
-                            {alreadyInList ? (
-                              <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`hardest-already-added-${sp.speciesCode}`}>✓</div>
-                            ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`hardest-add-btn-${sp.speciesCode}`}>+</button>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* Long-Distance Migrants Suggestions */}
-            {isSectionVisible('migrants') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              const migrantSuggestions = allSpecies
-                .filter((sp) => (sp.rangeShiftScore ?? 0) >= 0.5 && !isSpeciesSeen(sp.speciesCode))
-                .slice()
-                .sort((a, b) => (b.rangeShiftScore ?? 0) - (a.rangeShiftScore ?? 0))
-                .slice(0, 20)
-
-              if (migrantSuggestions.length === 0) return null
-
-              const getMigrantBadgeStyle = (score: number) => {
-                if (score >= 0.875) return { bg: 'bg-sky-100', text: 'text-sky-800', label: 'Epic Migration' }
-                if (score >= 0.75) return { bg: 'bg-sky-100', text: 'text-sky-700', label: 'Long Range' }
-                return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Migratory' }
-              }
-
-              return (
-                <div className="mt-4" data-testid="migrants-suggestions-section">
-                  <button
-                    onClick={() => toggleSection('migrants')}
-                    className="w-full flex items-center justify-between py-2.5 px-3 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors"
-                    data-testid="migrants-suggestions-toggle"
-                    aria-expanded={expandedSections.has('migrants')}
-                    aria-controls="section-migrants"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sky-600 font-bold text-sm">🦅</span>
-                      <span className="text-sm font-semibold text-sky-800">Long-Distance Migrants</span>
-                      <span className="text-xs bg-sky-200 text-sky-800 px-1.5 py-0.5 rounded-full font-medium">{migrantSuggestions.length}</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-sky-600 transition-transform ${expandedSections.has('migrants') ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-
-                  {expandedSections.has('migrants') && (
-                    <div className="mt-1 space-y-1" id="section-migrants" role="region" aria-label="Long-Distance Migrants" data-testid="migrants-suggestions-list">
-                      {migrantSuggestions.map((sp) => {
-                        const alreadyInList = activeListCodes.has(sp.speciesCode)
-                        const badgeStyle = getMigrantBadgeStyle(sp.rangeShiftScore ?? 0)
-                        return (
-                          <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`migrants-suggestion-${sp.speciesCode}`}>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
-                                <span className={`text-xs ${badgeStyle.bg} ${badgeStyle.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`} data-testid={`migrants-shift-badge-${sp.speciesCode}`}>🦅 {badgeStyle.label}</span>
-                                {alreadyInList && (
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0" data-testid={`migrants-in-list-badge-${sp.speciesCode}`}>✓ In list</span>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-500 truncate mt-0.5">{sp.sciName}</p>
-                            </div>
-                            {alreadyInList ? (
-                              <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`migrants-already-added-${sp.speciesCode}`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                            ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`migrants-add-btn-${sp.speciesCode}`}>+</button>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* Regional Icons Suggestions */}
-            {isSectionVisible('regionalIcons') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              interface RegionalIconEntry { speciesCode: string; comName: string; sciName: string; region: string; regionKey: string; emoji: string }
-              const regionalIconEntries: RegionalIconEntry[] = []
-              for (const regionGroup of REGIONAL_ICONS) {
-                for (const code of regionGroup.speciesCodes) {
-                  const sp = allSpecies.find((s) => s.speciesCode === code)
-                  if (sp && !isSpeciesSeen(sp.speciesCode)) {
-                    regionalIconEntries.push({ speciesCode: sp.speciesCode, comName: sp.comName, sciName: sp.sciName, region: regionGroup.region, regionKey: regionGroup.regionKey, emoji: regionGroup.emoji })
-                  }
-                }
-              }
-              if (regionalIconEntries.length === 0) return null
-              const groupedByRegion: { [region: string]: RegionalIconEntry[] } = {}
-              for (const entry of regionalIconEntries) { (groupedByRegion[entry.region] ??= []).push(entry) }
-              const regionsToShow = REGIONAL_ICONS.filter((rg) => groupedByRegion[rg.region]?.length > 0)
-
-              return (
-                <div className="mt-4" data-testid="regional-icons-suggestions-section">
-                  <button onClick={() => toggleSection('regionalIcons')} className="w-full flex items-center justify-between py-2.5 px-3 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors" data-testid="regional-icons-suggestions-toggle" aria-expanded={expandedSections.has('regionalIcons')} aria-controls="section-regionalIcons">
-                    <div className="flex items-center gap-2">
-                      <span className="text-teal-600 font-bold text-sm">🗺️</span>
-                      <span className="text-sm font-semibold text-teal-800">Regional Icons</span>
-                      <span className="text-xs bg-teal-200 text-teal-800 px-1.5 py-0.5 rounded-full font-medium">{regionalIconEntries.length}</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-teal-600 transition-transform ${expandedSections.has('regionalIcons') ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-
-                  {expandedSections.has('regionalIcons') && (
-                    <div className="mt-1 space-y-3" id="section-regionalIcons" role="region" aria-label="Regional Icons" data-testid="regional-icons-suggestions-list">
-                      {regionsToShow.map((regionGroup) => {
-                        const entries = groupedByRegion[regionGroup.region] || []
-                        return (
-                          <div key={regionGroup.regionKey} data-testid={`regional-icons-group-${regionGroup.regionKey}`}>
-                            <div className="flex items-center gap-1.5 px-1 mb-1">
-                              <span className="text-sm">{regionGroup.emoji}</span>
-                              <span className="text-xs font-semibold text-teal-700 uppercase tracking-wide">{regionGroup.region}</span>
-                            </div>
-                            <div className="space-y-1">
-                              {entries.map((entry) => {
-                                const alreadyInList = activeListCodes.has(entry.speciesCode)
-                                const sp = allSpecies.find((s) => s.speciesCode === entry.speciesCode)
-                                if (!sp) return null
-                                return (
-                                  <div key={entry.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`regional-icons-suggestion-${entry.speciesCode}`}>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{entry.comName}</span>
-                                        <span className="text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0" data-testid={`regional-icons-region-badge-${entry.speciesCode}`}>{regionGroup.emoji} {regionGroup.region}</span>
-                                        {alreadyInList && (<span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0" data-testid={`regional-icons-in-list-badge-${entry.speciesCode}`}>✓ In list</span>)}
-                                      </div>
-                                    </div>
-                                    {alreadyInList ? (
-                                      <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`regional-icons-already-added-${entry.speciesCode}`}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                                      </div>
-                                    ) : (
-                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${entry.comName} to goal list`} aria-label={`Add ${entry.comName} to goal list`} data-testid={`regional-icons-add-btn-${entry.speciesCode}`}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                                      </button>
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* Seasonal Specialties Suggestions */}
-            {isSectionVisible('seasonal') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              const seasonalSuggestions = allSpecies
-                .filter((sp) => (sp.seasonalityScore ?? 0) >= 0.5 && !isSpeciesSeen(sp.speciesCode))
-                .slice()
-                .sort((a, b) => (b.seasonalityScore ?? 0) - (a.seasonalityScore ?? 0))
-                .slice(0, 20)
-
-              if (seasonalSuggestions.length === 0) return null
 
               const getSeasonLabel = (peakWeek: number): string => {
                 if (peakWeek === 0) return 'Year-round'
@@ -1587,144 +1157,9 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
               )
             })()}
 
-            {/* Colorful Characters Suggestions */}
-            {isSectionVisible('colorful') && (() => {
+            {/* ── Almost Complete Families ── */}
+            {almostComplete.length > 0 && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
-              const colorfulSuggestions = COLORFUL_CHARACTERS
-                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
-                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
-
-              return (
-                <SuggestionSection
-                  id="colorful"
-                  emoji="🎨"
-                  title="Colorful Characters"
-                  species={colorfulSuggestions}
-                  activeListCodes={activeListCodes}
-                  isExpanded={expandedSections.has('colorful')}
-                  onToggle={() => toggleSection('colorful')}
-                  onAddSpecies={handleAddSpecies}
-                  onSpeciesClick={(sp) => setSelectedSpeciesCard(sp)}
-                  colorTheme={{
-                    bg: 'bg-fuchsia-50',
-                    border: 'border-fuchsia-200',
-                    hover: 'hover:bg-fuchsia-100',
-                    icon: 'text-fuchsia-600',
-                    title: 'text-fuchsia-800',
-                    badge: 'bg-fuchsia-200 text-fuchsia-800',
-                  }}
-                />
-              )
-            })()}
-
-            {/* Owls & Nightbirds Suggestions */}
-            {isSectionVisible('owls') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              const owlsNightbirdsSuggestions = OWLS_NIGHTBIRDS
-                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
-                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
-
-              return (
-                <SuggestionSection
-                  id="owls"
-                  emoji="🦉"
-                  title="Owls & Nightbirds"
-                  species={owlsNightbirdsSuggestions}
-                  activeListCodes={activeListCodes}
-                  isExpanded={expandedSections.has('owls')}
-                  onToggle={() => toggleSection('owls')}
-                  onAddSpecies={handleAddSpecies}
-                  onSpeciesClick={(sp) => setSelectedSpeciesCard(sp)}
-                  colorTheme={{
-                    bg: 'bg-indigo-50',
-                    border: 'border-indigo-200',
-                    hover: 'hover:bg-indigo-100',
-                    icon: 'text-indigo-600',
-                    title: 'text-indigo-800',
-                    badge: 'bg-indigo-200 text-indigo-800',
-                  }}
-                />
-              )
-            })()}
-
-            {/* Raptors Suggestions */}
-            {isSectionVisible('raptors') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              const raptorsSuggestions = RAPTORS
-                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
-                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
-
-              return (
-                <SuggestionSection
-                  id="raptors"
-                  emoji="🦅"
-                  title="Raptors"
-                  species={raptorsSuggestions}
-                  activeListCodes={activeListCodes}
-                  isExpanded={expandedSections.has('raptors')}
-                  onToggle={() => toggleSection('raptors')}
-                  onAddSpecies={handleAddSpecies}
-                  onSpeciesClick={(sp) => setSelectedSpeciesCard(sp)}
-                  colorTheme={{
-                    bg: 'bg-amber-50',
-                    border: 'border-amber-200',
-                    hover: 'hover:bg-amber-100',
-                    icon: 'text-amber-600',
-                    title: 'text-amber-800',
-                    badge: 'bg-amber-200 text-amber-800',
-                  }}
-                />
-              )
-            })()}
-
-            {/* LBJs Suggestions */}
-            {isSectionVisible('lbjs') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              const lbjsSuggestions = LBJS
-                .map((code) => allSpecies.find((sp) => sp.speciesCode === code))
-                .filter((sp): sp is Species => sp !== undefined && !isSpeciesSeen(sp.speciesCode))
-
-              return (
-                <SuggestionSection
-                  id="lbjs"
-                  emoji="🐦"
-                  title="LBJs (Little Brown Jobs)"
-                  species={lbjsSuggestions}
-                  activeListCodes={activeListCodes}
-                  isExpanded={expandedSections.has('lbjs')}
-                  onToggle={() => toggleSection('lbjs')}
-                  onAddSpecies={handleAddSpecies}
-                  onSpeciesClick={(sp) => setSelectedSpeciesCard(sp)}
-                  colorTheme={{
-                    bg: 'bg-stone-50',
-                    border: 'border-stone-200',
-                    hover: 'hover:bg-stone-100',
-                    icon: 'text-stone-600',
-                    title: 'text-stone-800',
-                    badge: 'bg-stone-200 text-stone-800',
-                  }}
-                />
-              )
-            })()}
-
-            {/* Almost Complete Families Suggestions */}
-            {isSectionVisible('almostComplete') && (() => {
-              const activeListCodes = new Set(activeList.speciesCodes)
-              const familyMap = new Map<string, { total: number; seen: number; unseen: Species[] }>()
-              for (const sp of allSpecies) {
-                const family = getDisplayGroup(sp.familyComName ?? '')
-                if (!family) continue
-                if (!familyMap.has(family)) familyMap.set(family, { total: 0, seen: 0, unseen: [] })
-                const entry = familyMap.get(family)!
-                entry.total++
-                if (isSpeciesSeen(sp.speciesCode)) entry.seen++
-                else entry.unseen.push(sp)
-              }
-              const almostComplete = Array.from(familyMap.entries())
-                .filter(([, data]) => data.total >= 2 && data.seen / data.total >= 0.8 && data.unseen.length > 0)
-                .sort((a, b) => (b[1].seen / b[1].total) - (a[1].seen / a[1].total))
-
-              if (almostComplete.length === 0) return null
               const totalUnseen = almostComplete.reduce((sum, [, data]) => sum + data.unseen.length, 0)
 
               return (
@@ -1786,343 +1221,6 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
                 </div>
               )
             })()}
-
-            {/* Show all suggestions toggle */}
-            {!showAllSuggestions && recommendedSectionIds.size > 0 && (
-              <div className="mt-4">
-                <button
-                  onClick={() => setShowAllSuggestions(true)}
-                  className="w-full py-2.5 px-3 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  aria-expanded={false}
-                  aria-controls="section-all-suggestions"
-                  data-testid="show-all-suggestions-btn"
-                >
-                  Show all suggestions
-                </button>
-              </div>
-            )}
-
-            {/* ── Goal List Templates ── */}
-            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
-              <button
-                onClick={() => setShowTemplateSection(prev => !prev)}
-                className="w-full flex items-center justify-between py-2.5 px-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
-                data-testid="template-section-toggle"
-                aria-expanded={showTemplateSection}
-                aria-controls="section-templates"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-violet-600 font-bold text-sm">🎯</span>
-                  <span className="text-sm font-semibold text-violet-800 dark:text-violet-200">Goal List Templates</span>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={`h-4 w-4 text-violet-600 transition-transform ${showTemplateSection ? 'rotate-180' : ''}`}
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-
-              {showTemplateSection && (
-                <div className="mt-3 space-y-4" id="section-templates" role="region" aria-label="Goal List Templates">
-                  {/* Region selector (shared by both template types) */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Region (optional for conservation, required for regional)</label>
-                    <RegionSelector
-                      value={templateRegion}
-                      onChange={setTemplateRegion}
-                      className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-500 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                      testId="template-region-select"
-                      placeholder="All Regions"
-                    />
-                  </div>
-
-                  {/* Conservation Templates */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Conservation Goals</h4>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {CONSERVATION_TEMPLATES.map((tmpl) => (
-                        <button
-                          key={tmpl.id}
-                          onClick={() => setConservTemplateType(tmpl.id)}
-                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
-                            conservTemplateType === tmpl.id
-                              ? 'bg-violet-100 dark:bg-violet-900/40 border-violet-400 dark:border-violet-600 text-violet-800 dark:text-violet-200'
-                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
-                          data-testid={`conservation-template-${tmpl.id}`}
-                          title={tmpl.description}
-                        >
-                          {tmpl.emoji} {tmpl.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Conservation preview */}
-                    {(() => {
-                      const selectedTemplate = CONSERVATION_TEMPLATES.find(t => t.id === conservTemplateType)
-                      if (selectedTemplate?.requiresRegion && !templateRegion) {
-                        return (
-                          <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                            Select a region above to see {selectedTemplate.label.toLowerCase()}.
-                          </p>
-                        )
-                      }
-                      if (conservTemplatePreview.length === 0) {
-                        return (
-                          <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                            {speciesLoading ? 'Loading species data...' : `No unseen ${selectedTemplate?.label.toLowerCase() ?? 'species'} found${templateRegion ? ` in ${templateRegion}` : ''}.`}
-                          </p>
-                        )
-                      }
-                      return (
-                        <div data-testid="conservation-template-preview">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {conservTemplatePreview.length} unseen species
-                            </span>
-                            <button
-                              onClick={() => void handleCreateFromTemplate(conservTemplatePreview, selectedTemplate?.label ?? 'Conservation')}
-                              disabled={templateCreating}
-                              className="px-2.5 py-2 text-[11px] font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 rounded-md transition-colors"
-                              data-testid="conservation-create-list-btn"
-                            >
-                              {templateCreating ? 'Creating...' : `Create Goal List (${conservTemplatePreview.length})`}
-                            </button>
-                          </div>
-                          <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
-                            {conservTemplatePreview.slice(0, 50).map((sp) => (
-                              <div
-                                key={sp.speciesCode}
-                                className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
-                                data-testid={`conservation-preview-${sp.speciesCode}`}
-                              >
-                                <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                                <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
-                                  {sp.conservStatus || '—'}
-                                </span>
-                              </div>
-                            ))}
-                            {conservTemplatePreview.length > 50 && (
-                              <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
-                                +{conservTemplatePreview.length - 50} more
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
-
-                  {/* Difficulty Templates */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Difficulty Goals</h4>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {DIFFICULTY_TEMPLATES.map((tmpl) => (
-                        <button
-                          key={tmpl.id}
-                          onClick={() => setDifficultyTemplateType(tmpl.id)}
-                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
-                            difficultyTemplateType === tmpl.id
-                              ? 'bg-green-100 dark:bg-green-900/40 border-green-400 dark:border-green-600 text-green-800 dark:text-green-200'
-                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
-                          data-testid={`difficulty-template-${tmpl.id}`}
-                          title={tmpl.description}
-                        >
-                          {tmpl.emoji} {tmpl.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Difficulty preview */}
-                    {difficultyTemplatePreview.length === 0 ? (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                        {speciesLoading ? 'Loading species data...' : `No unseen ${DIFFICULTY_TEMPLATES.find(t => t.id === difficultyTemplateType)?.label.toLowerCase() ?? 'species'} found${templateRegion ? ` in ${templateRegion}` : ''}.`}
-                      </p>
-                    ) : (
-                      <div data-testid="difficulty-template-preview">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {difficultyTemplatePreview.length} unseen species
-                          </span>
-                          <button
-                            onClick={() => {
-                              const tmpl = DIFFICULTY_TEMPLATES.find(t => t.id === difficultyTemplateType)
-                              void handleCreateFromTemplate(difficultyTemplatePreview, tmpl?.label ?? 'Difficulty')
-                            }}
-                            disabled={templateCreating}
-                            className="px-2.5 py-2 text-[11px] font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 rounded-md transition-colors"
-                            data-testid="difficulty-create-list-btn"
-                          >
-                            {templateCreating ? 'Creating...' : `Create Goal List (${difficultyTemplatePreview.length})`}
-                          </button>
-                        </div>
-                        <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
-                          {difficultyTemplatePreview.slice(0, 50).map((sp) => (
-                            <div
-                              key={sp.speciesCode}
-                              className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
-                              data-testid={`difficulty-preview-${sp.speciesCode}`}
-                            >
-                              <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                              <span className={`text-[11px] lg:text-xs ml-1 flex-shrink-0 px-1 rounded-full ${getDifficultyColor(sp.difficultyRating)}`}>
-                                {sp.difficultyRating}/10
-                              </span>
-                            </div>
-                          ))}
-                          {difficultyTemplatePreview.length > 50 && (
-                            <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
-                              +{difficultyTemplatePreview.length - 50} more
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Habitat Templates */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Habitat Goals</h4>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {HABITAT_TEMPLATES.map((tmpl) => (
-                        <button
-                          key={tmpl.id}
-                          onClick={() => setHabitatTemplateType(tmpl.id)}
-                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
-                            habitatTemplateType === tmpl.id
-                              ? 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-400 dark:border-emerald-600 text-emerald-800 dark:text-emerald-200'
-                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
-                          data-testid={`habitat-template-${tmpl.id}`}
-                          title={tmpl.description}
-                        >
-                          {tmpl.emoji} {tmpl.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Habitat preview */}
-                    {habitatTemplatePreview.length === 0 ? (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                        {speciesLoading ? 'Loading species data...' : `No unseen ${HABITAT_TEMPLATES.find(t => t.id === habitatTemplateType)?.label.toLowerCase() ?? 'species'} found${templateRegion ? ` in ${templateRegion}` : ''}.`}
-                      </p>
-                    ) : (
-                      <div data-testid="habitat-template-preview">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {habitatTemplatePreview.length} unseen species
-                          </span>
-                          <button
-                            onClick={() => {
-                              const tmpl = HABITAT_TEMPLATES.find(t => t.id === habitatTemplateType)
-                              void handleCreateFromTemplate(habitatTemplatePreview, tmpl?.label ?? 'Habitat')
-                            }}
-                            disabled={templateCreating}
-                            className="px-2.5 py-2 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 rounded-md transition-colors"
-                            data-testid="habitat-create-list-btn"
-                          >
-                            {templateCreating ? 'Creating...' : `Create Goal List (${habitatTemplatePreview.length})`}
-                          </button>
-                        </div>
-                        <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
-                          {habitatTemplatePreview.slice(0, 50).map((sp) => (
-                            <div
-                              key={sp.speciesCode}
-                              className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
-                              data-testid={`habitat-preview-${sp.speciesCode}`}
-                            >
-                              <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                              <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
-                                {sp.habitatLabels?.slice(0, 2).join(', ') || '—'}
-                              </span>
-                            </div>
-                          ))}
-                          {habitatTemplatePreview.length > 50 && (
-                            <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
-                              +{habitatTemplatePreview.length - 50} more
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Regional Templates */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Regional Goals</h4>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {REGIONAL_TEMPLATES.map((tmpl) => (
-                        <button
-                          key={tmpl.id}
-                          onClick={() => setRegionalTemplateType(tmpl.id)}
-                          className={`px-2.5 py-2 text-[11px] font-medium rounded-md border transition-colors ${
-                            regionalTemplateType === tmpl.id
-                              ? 'bg-teal-100 dark:bg-teal-900/40 border-teal-400 dark:border-teal-600 text-teal-800 dark:text-teal-200'
-                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
-                          data-testid={`regional-template-${tmpl.id}`}
-                          title={tmpl.description}
-                        >
-                          {tmpl.emoji} {tmpl.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Regional preview */}
-                    {!templateRegion ? (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                        Select a region above to see regional specialties.
-                      </p>
-                    ) : regionalTemplatePreview.length === 0 ? (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
-                        {speciesLoading ? 'Loading species data...' : `No unseen regional specialties found in ${templateRegion}.`}
-                      </p>
-                    ) : (
-                      <div data-testid="regional-template-preview">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {regionalTemplatePreview.length} regional species
-                          </span>
-                          <button
-                            onClick={() => {
-                              const tmpl = REGIONAL_TEMPLATES.find(t => t.id === regionalTemplateType)
-                              void handleCreateFromTemplate(regionalTemplatePreview, tmpl?.label ?? 'Regional')
-                            }}
-                            disabled={templateCreating}
-                            className="px-2.5 py-2 text-[11px] font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 rounded-md transition-colors"
-                            data-testid="regional-create-list-btn"
-                          >
-                            {templateCreating ? 'Creating...' : `Create Goal List (${regionalTemplatePreview.length})`}
-                          </button>
-                        </div>
-                        <div className="max-h-40 overflow-y-auto space-y-0.5 rounded-md border border-gray-100 dark:border-gray-700 p-1">
-                          {regionalTemplatePreview.slice(0, 50).map((sp) => (
-                            <div
-                              key={sp.speciesCode}
-                              className="flex items-center justify-between px-1.5 py-0.5 text-xs rounded hover:bg-gray-50 dark:hover:bg-gray-800"
-                              data-testid={`regional-preview-${sp.speciesCode}`}
-                            >
-                              <span className="text-gray-700 dark:text-gray-300 truncate">{sp.comName}</span>
-                              <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 ml-1 flex-shrink-0">
-                                {(sp.regions ?? []).length} regions
-                              </span>
-                            </div>
-                          ))}
-                          {regionalTemplatePreview.length > 50 && (
-                            <p className="text-[11px] lg:text-xs text-gray-400 text-center py-1">
-                              +{regionalTemplatePreview.length - 50} more
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         ) : null}
       </div>
@@ -2177,88 +1275,6 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
             >
               Cancel
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Shared With Me */}
-      {user && sharedLists.length > 0 && (
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2" data-testid="shared-goals-section">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Shared With You</h4>
-          {sharedLists.map(list => (
-            <div key={list.id} className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-200">{list.name}</p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400">by {list.ownerName} · {list.speciesCodes.length} species</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    const now = new Date().toISOString()
-                    await goalListsDB.saveList({ id: crypto.randomUUID(), name: `${list.name} (shared)`, speciesCodes: list.speciesCodes, createdAt: now, updatedAt: now })
-                    const updated = await goalListsDB.getAllLists()
-                    setGoalLists(updated)
-                  }}
-                  className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-700"
-                >
-                  Add to My Goals
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Share Goal List Dialog */}
-      {sharingListId && user && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setSharingListId(null)}>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 m-4 max-w-sm w-full space-y-3" onClick={e => e.stopPropagation()}>
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Share Goal List</h4>
-            {friends.length === 0 ? (
-              <p className="text-xs text-gray-500">Add friends first to share goal lists.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {friends.map(f => (
-                  <label key={f.uid} className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedFriendsForShare.has(f.uid)}
-                      onChange={() => {
-                        setSelectedFriendsForShare(prev => {
-                          const next = new Set(prev)
-                          if (next.has(f.uid)) next.delete(f.uid)
-                          else next.add(f.uid)
-                          return next
-                        })
-                      }}
-                      className="h-3.5 w-3.5 rounded"
-                    />
-                    <span className="text-gray-700 dark:text-gray-300">{f.displayName}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  const list = goalLists.find(l => l.id === sharingListId)
-                  if (!list || selectedFriendsForShare.size === 0) return
-                  await shareGoalList(user.uid, user.displayName || 'Birder', list.name, list.speciesCodes, Array.from(selectedFriendsForShare))
-                  setSharingListId(null)
-                  setSelectedFriendsForShare(new Set())
-                }}
-                disabled={selectedFriendsForShare.size === 0}
-                className="flex-1 px-3 py-1.5 bg-[#2C3E7B] text-white text-xs rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50"
-              >
-                Share
-              </button>
-              <button
-                onClick={() => { setSharingListId(null); setSelectedFriendsForShare(new Set()) }}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-xs rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}

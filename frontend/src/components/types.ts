@@ -132,13 +132,6 @@ export interface WeekOpportunity {
   }>
 }
 
-export interface YearList {
-  id: string
-  year: number
-  speciesCodes: string[]
-  importedAt: string
-}
-
 export interface CellCovariates {
   needleleaf: number        // coniferous forest
   evergreen_broadleaf: number  // tropical/subtropical forest
