@@ -877,6 +877,21 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <strong>Why an orchestrator?</strong> Before <code>run_all.py</code>, the seven pipeline steps had to be run manually in order. Skipping or misordering a step (e.g., running <code>compute_difficulty.py</code> before <code>ship_covariates.py</code>) produced subtle data inconsistencies that were difficult to diagnose. The orchestrator with validation gates makes the pipeline a single command with fail-fast behavior.
 </div>
 
+<h3>19.3 Species-Habitat Affinity Spike</h3>
+<p>A feasibility spike tested whether <strong>per-species habitat profiles</strong> could improve gap-filling over the current cell-to-cell covariate similarity approach. The hypothesis: if a species prefers deciduous forest, cells with deciduous forest should receive higher smoothing weight regardless of proximity to detection cells.</p>
+
+<p>For each species, a weighted-average habitat profile was computed from all detection cells (weighted by detection count). Non-detection cells were then scored by two methods:</p>
+<ol style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Cell-to-cell similarity</strong> (current): Gaussian similarity to the nearest detection cell's covariates</li>
+  <li><strong>Cell-to-profile similarity</strong> (proposed): Gaussian similarity to the species' habitat profile</li>
+</ol>
+
+<p><strong>Results across 19 species</strong> (2,400&ndash;6,800 detection cells each): the profile-based approach added <strong>0% improvement</strong> over cell-to-cell similarity, which won 78% of comparisons on average. For widespread species, every non-detection cell already has a nearby detection cell with similar habitat, making the averaged profile too generic to add value.</p>
+
+<div class="rationale">
+  <strong>Conclusion:</strong> The current cell-to-cell covariate similarity is sufficient for the ensemble smoothing. The real data quality improvements will come from the stixel rebuild (fixing ocean cell bleeding, currently affecting 1,121 species at res&nbsp;4) and quantile normalization (fixing the color scale). Full encounter rate modeling with random forests (using covariates as predictive features rather than similarity weights) remains a viable Sprint&nbsp;5+ research direction.
+</div>
+
 <!-- ============================================================ -->
 <h2 id="frontend-performance">20. Frontend Performance</h2>
 
