@@ -43,7 +43,7 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
   const [deletingListId, setDeletingListId] = useState<string | null>(null)
 
   // Species search/add state
-  const { species: allSpecies, loading: speciesLoading } = useSpecies()
+  const { species: allSpecies } = useSpecies()
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [createListError, setCreateListError] = useState('')
