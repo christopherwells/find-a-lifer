@@ -7,6 +7,7 @@ import Badge from './Badge'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { detectSubRegionForCell, loadCellStates } from '../lib/subRegions'
 import { trackEvent } from '../lib/analytics'
+import { useToast } from '../contexts/ToastContext'
 import type { Species, CellCovariates } from './types'
 import {
   safeMin, safeMax, computeCentroid,
@@ -157,6 +158,7 @@ export default memo(function MapView({
   speciesFilters,
   compareLocations = null,
 }: MapViewProps) {
+  const { showToast } = useToast()
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary>([])
@@ -886,6 +888,8 @@ export default memo(function MapView({
             const featureState = map.current?.getFeatureState({ source: 'grid', id: feature.id })
             const hasData = featureState && featureState.value !== undefined && featureState.value !== -1
             if (!hasData && (viewModeRef.current === 'goal-birds' || viewModeRef.current === 'density' || viewModeRef.current === 'probability' || viewModeRef.current === 'species')) {
+              const name = cellLabel || 'this area'
+              showToast({ type: 'muted', message: `No bird data for ${name} this week`, duration: 3500 })
               return
             }
 

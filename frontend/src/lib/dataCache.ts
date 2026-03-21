@@ -9,6 +9,33 @@ import type { Species, GoalWindowResult, CellCovariates } from '../components/ty
 /** Base URL for data files — respects Vite's base path for GitHub Pages */
 const DATA_BASE = `${import.meta.env.BASE_URL}data`
 
+/** Simple LRU cache wrapping Map. Evicts least-recently-used entries when maxSize is exceeded. */
+class LRUMap<K, V> extends Map<K, V> {
+  private maxSize: number
+  constructor(maxSize: number) {
+    super()
+    this.maxSize = maxSize
+  }
+  get(key: K): V | undefined {
+    if (!super.has(key)) return undefined
+    // Move to end (most recently used)
+    const value = super.get(key)!
+    super.delete(key)
+    super.set(key, value)
+    return value
+  }
+  set(key: K, value: V): this {
+    if (super.has(key)) super.delete(key)
+    super.set(key, value)
+    // Evict oldest if over capacity
+    if (super.size > this.maxSize) {
+      const oldest = super.keys().next().value!
+      super.delete(oldest)
+    }
+    return this
+  }
+}
+
 let speciesPromise: Promise<Species[]> | null = null
 let regionNamesPromise: Promise<Record<string, string>> | null = null
 
@@ -27,16 +54,16 @@ export interface CellSpeciesData {
 }
 
 // Cache week cells data: "res-week" -> Map<cellId, CellSpeciesData>
-const weekCellsCache = new Map<string, Promise<Map<number, CellSpeciesData>>>()
+const weekCellsCache = new LRUMap<string, Promise<Map<number, CellSpeciesData>>>(20)
 
 // Cache week summaries: "res-week" -> summary
-const weekSummaryCache = new Map<string, Promise<[number, number, number, number?][]>>()
+const weekSummaryCache = new LRUMap<string, Promise<[number, number, number, number?][]>>(20)
 
 // Cache species-weeks files: "res-speciesCode" -> data
-const speciesWeeksCache = new Map<string, Promise<Record<string, [number, number][]>>>()
+const speciesWeeksCache = new LRUMap<string, Promise<Record<string, [number, number][]>>>(100)
 
 // Cache cell covariates: "res" -> Map<cellId, CellCovariates>
-const covariatesCache = new Map<string, Promise<Map<number, CellCovariates>>>()
+const covariatesCache = new LRUMap<string, Promise<Map<number, CellCovariates>>>(5)
 
 // Resolution metadata cache
 let resolutionsPromise: Promise<{ resolutions: number[]; default: number; zoomThresholds: Record<string, [number, number]> }> | null = null

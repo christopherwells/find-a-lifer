@@ -1,11 +1,12 @@
-import { memo, useState, useEffect } from 'react'
+import { memo, useState, useEffect, lazy, Suspense } from 'react'
 import type { GoalList } from '../lib/goalListsDB'
 import ExploreTab from './ExploreTab'
 import SpeciesTab from './SpeciesTab'
-import GoalBirdsTab from './GoalBirdsTab'
-import TripPlanTab from './TripPlanTab'
-import ProgressTab from './ProgressTab'
-import ProfileTab from './ProfileTab'
+
+const GoalBirdsTab = lazy(() => import('./GoalBirdsTab'))
+const TripPlanTab = lazy(() => import('./TripPlanTab'))
+const ProgressTab = lazy(() => import('./ProgressTab'))
+const ProfileTab = lazy(() => import('./ProfileTab'))
 
 import type { MapViewMode, SpeciesFilters, CompareLocations } from './types'
 import { trackEvent } from '../lib/analytics'
@@ -200,7 +201,7 @@ export default memo(function SidePanel({
                     if (collapsed) onToggle()
                   }
                 }}
-                className={`flex-1 flex flex-col items-center py-2 transition-colors ${
+                className={`flex-1 flex flex-col items-center justify-center min-h-[44px] py-1.5 transition-colors ${
                   isHighlighted
                     ? 'text-[#2C3E7B] dark:text-blue-400'
                     : 'text-gray-400 dark:text-gray-500'
@@ -315,22 +316,24 @@ export default memo(function SidePanel({
               </div>
             )}
             {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} speciesFilters={speciesFilters} onSpeciesFiltersChange={onSpeciesFiltersChange} />}
-            {activeTab === 'goals' && <GoalBirdsTab onGoalListsChange={onGoalListsChange} />}
-            {activeTab === 'trip' && (
-              <TripPlanTab
-                selectedLocation={selectedLocation}
-                currentWeek={currentWeek}
-                onWeekChange={onWeekChange}
-                onLocationSelect={onSelectedLocationChange}
-                selectedRegion={selectedRegion}
-                onCompareLocationsChange={onCompareLocationsChange}
-                goalLists={goalLists}
-                activeGoalListId={activeGoalListId}
-                goalSpeciesCodes={goalSpeciesCodes}
-              />
-            )}
-            {activeTab === 'progress' && <ProgressTab />}
-            {activeTab === 'profile' && <ProfileTab onImportComplete={onImportComplete} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onShowAbout={onShowAbout} onShowOnboarding={onShowOnboarding} />}
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" /></div>}>
+              {activeTab === 'goals' && <GoalBirdsTab onGoalListsChange={onGoalListsChange} />}
+              {activeTab === 'trip' && (
+                <TripPlanTab
+                  selectedLocation={selectedLocation}
+                  currentWeek={currentWeek}
+                  onWeekChange={onWeekChange}
+                  onLocationSelect={onSelectedLocationChange}
+                  selectedRegion={selectedRegion}
+                  onCompareLocationsChange={onCompareLocationsChange}
+                  goalLists={goalLists}
+                  activeGoalListId={activeGoalListId}
+                  goalSpeciesCodes={goalSpeciesCodes}
+                />
+              )}
+              {activeTab === 'progress' && <ProgressTab />}
+              {activeTab === 'profile' && <ProfileTab onImportComplete={onImportComplete} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onShowAbout={onShowAbout} onShowOnboarding={onShowOnboarding} />}
+            </Suspense>
           </div>
         )}
       </div>

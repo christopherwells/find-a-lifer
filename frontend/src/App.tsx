@@ -3,6 +3,7 @@ import TopBar from './components/TopBar'
 import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
 import MapControls from './components/MapControls'
+import ErrorBoundary from './components/ErrorBoundary'
 import AboutPage from './components/AboutPage'
 import OnboardingOverlay from './components/OnboardingOverlay'
 import Toast from './components/Toast'
@@ -170,6 +171,7 @@ function App() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Map Area — always visible; pb-[52px] on mobile for bottom tab bar */}
         <div id="main-content" className="flex-1 relative order-first pb-[52px] md:pb-0">
+          <ErrorBoundary section="map">
           <MapView
             darkMode={darkMode}
             currentWeek={currentWeek}
@@ -189,6 +191,7 @@ function App() {
             speciesFilters={speciesFilters}
             compareLocations={compareLocations}
           />
+          </ErrorBoundary>
           {/* Floating map controls — mobile only (desktop uses ExploreTab in panel) */}
           <MapControls
             viewMode={viewMode}
@@ -219,6 +222,7 @@ function App() {
         </div>
 
         {/* Side Panel */}
+        <ErrorBoundary section="tab">
         <SidePanel
           collapsed={sidePanelCollapsed}
           onToggle={() => setSidePanelCollapsed((prev) => !prev)}
@@ -260,6 +264,7 @@ function App() {
           onShowAbout={() => setShowAbout(true)}
           onShowOnboarding={handleShowOnboarding}
         />
+        </ErrorBoundary>
       </div>
 
       {/* Modals */}

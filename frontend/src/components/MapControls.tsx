@@ -175,7 +175,7 @@ export default function MapControls({
               <button
                 key={mode}
                 onClick={() => onViewModeChange?.(mode)}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-md transition-all ${
                   viewMode === mode
                     ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
@@ -190,7 +190,7 @@ export default function MapControls({
           </div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`ml-1 p-1.5 rounded-lg transition-colors ${
+            className={`ml-1 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors ${
               expanded
                 ? 'bg-[#2C3E7B] text-white'
                 : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
