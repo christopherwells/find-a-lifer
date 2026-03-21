@@ -181,6 +181,11 @@
     <li><a href="#goal-birds">Goal Birds Recommendation Engine</a></li>
     <li><a href="#trip-planning">Trip Planning</a></li>
     <li><a href="#gamification">Gamification &amp; Social Features</a></li>
+    <li><a href="#pipeline-orchestrator">Pipeline Orchestrator</a></li>
+    <li><a href="#frontend-performance">Frontend Performance</a></li>
+    <li><a href="#pwa">PWA &amp; Installability</a></li>
+    <li><a href="#analytics">Firebase Analytics</a></li>
+    <li><a href="#firestore-security">Firestore Security Rules</a></li>
     <li><a href="#parameters">Parameter Reference</a></li>
     <li><a href="#references">References</a></li>
   </ol>
@@ -507,7 +512,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td><code>species-weeks/{code}.json</code></td><td><code>{week: [[cell_id, freq], ...]}</code></td><td>Single-species range maps</td></tr>
 </table>
 
-<p>A shared <code>species.json</code> contains metadata for all 2,307 species across 31 regions (AG, AW, BB, BM, BQ, BS, BZ, CA, CR, CU, DM, DO, GD, HT, JM, KN, LC, MF, MQ, MX, NI, PA, PM, PR, SX, TC, TT, US, VC, VG, VI) on a grid of 10,607 cells at resolution 4. Fields include: common name, scientific name, family, taxonomic order, eBird species code, conservation status, invasion status per region, difficulty rating, regional difficulty, habitat labels, and photo attribution.</p>
+<p>A shared <code>species.json</code> contains metadata for all 2,052+ species across 13 countries and 31 eBird regions (AG, AW, BB, BM, BQ, BS, BZ, CA, CR, CU, DM, DO, GD, HT, JM, KN, LC, MF, MQ, MX, NI, PA, PM, PR, SX, TC, TT, US, VC, VG, VI) on a grid of 10,607 cells at resolution 4. Fields include: common name, scientific name, family, taxonomic order, eBird species code, conservation status, invasion status per region, difficulty rating, regional difficulty, habitat labels, and photo attribution.</p>
 
 <p><strong>Invasion status</strong> is derived from the EBD <code>EXOTIC CODE</code> column: empty &rarr; Native, <code>N</code> &rarr; Introduced, <code>P</code>/<code>X</code> &rarr; Vagrant/Accidental. Stored per-species as <code>Record&lt;string, string&gt;</code> keyed by region code. A <strong>native override rule</strong> applies: if ANY native checklist exists for a species in a region, the species is classified as Native in that region regardless of any exotic-coded checklists. This prevents misclassification of native species that occasionally appear on exotic lists.</p>
 
@@ -834,7 +839,110 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards (global top 10 + friends) in Progress tab.</p>
 
 <!-- ============================================================ -->
-<h2 id="parameters">19. Parameter Reference</h2>
+<h2 id="pipeline-orchestrator">19. Pipeline Orchestrator</h2>
+
+<p>The full data pipeline involves seven sequential steps that must run in order, with each step depending on the outputs of the previous one. To eliminate manual orchestration errors, a dedicated orchestrator script (<code>pipeline/run_all.py</code>) chains all steps with validation gates between each stage.</p>
+
+<h3>19.1 Step Sequence</h3>
+<div class="pipeline-flow">
+  <div class="pipeline-step active">process_ebd.py</div>
+  <div class="pipeline-arrow">&rarr;</div>
+  <div class="pipeline-step active">label_cells.py</div>
+  <div class="pipeline-arrow">&rarr;</div>
+  <div class="pipeline-step active">extract_covariates.py</div>
+  <div class="pipeline-arrow">&rarr;</div>
+  <div class="pipeline-step active">compute_ocean_fraction.py</div>
+  <div class="pipeline-arrow">&rarr;</div>
+  <div class="pipeline-step active">ship_covariates.py</div>
+  <div class="pipeline-arrow">&rarr;</div>
+  <div class="pipeline-step active">compute_difficulty.py</div>
+  <div class="pipeline-arrow">&rarr;</div>
+  <div class="pipeline-step active">compute_species_habitat.py</div>
+</div>
+
+<p>After each step completes, a <strong>validation gate</strong> checks that expected output files exist and are non-empty. For example, after <code>process_ebd.py</code>, the gate verifies that <code>species.json</code>, all <code>grid.geojson</code> files, week data directories, and archive files are present. After <code>label_cells.py</code>, it spot-checks that grid features contain the <code>label</code> property. If any validation fails, the pipeline halts immediately with a clear error message rather than allowing downstream steps to operate on missing or stale data.</p>
+
+<h3>19.2 CLI Options</h3>
+<table>
+  <tr><th>Flag</th><th>Effect</th></tr>
+  <tr><td><code>--rebuild</code></td><td>Passes <code>--rebuild</code> to <code>process_ebd.py</code> to regenerate output from archived intermediate counts (no new EBD files needed)</td></tr>
+  <tr><td><code>--skip-ebd</code></td><td>Skips step 1 entirely &mdash; useful when EBD processing is already done and only post-processing steps need re-running</td></tr>
+  <tr><td><code>--no-stixel</code></td><td>Passes <code>--no-stixel</code> to <code>process_ebd.py</code> to skip the ensemble smoothing pass (faster iteration during development)</td></tr>
+  <tr><td><code>--dry-run</code></td><td>Prints the ordered step list with commands without executing anything &mdash; useful for verifying what will run before committing</td></tr>
+</table>
+
+<p>Each step is timed individually, and the orchestrator reports a summary with per-step durations and pass/fail status at the end of a run.</p>
+
+<div class="rationale">
+  <strong>Why an orchestrator?</strong> Before <code>run_all.py</code>, the seven pipeline steps had to be run manually in order. Skipping or misordering a step (e.g., running <code>compute_difficulty.py</code> before <code>ship_covariates.py</code>) produced subtle data inconsistencies that were difficult to diagnose. The orchestrator with validation gates makes the pipeline a single command with fail-fast behavior.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="frontend-performance">20. Frontend Performance</h2>
+
+<p>Several performance and resilience patterns keep the app responsive on mobile devices and prevent unbounded resource consumption.</p>
+
+<h3>20.1 Error Boundaries</h3>
+<p>Three React error boundaries isolate failures to their respective domains:</p>
+<ol style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>App root boundary</strong> &mdash; catches top-level rendering failures and displays a recovery UI</li>
+  <li><strong>Map boundary</strong> &mdash; isolates MapLibre GL crashes (WebGL context loss, tile errors) so the side panel remains functional</li>
+  <li><strong>Tab boundary</strong> &mdash; wraps individual tab content so a failure in one tab (e.g., Goals) does not take down the entire side panel</li>
+</ol>
+
+<h3>20.2 Code Splitting</h3>
+<p>Heavier tab components are loaded on demand via <code>React.lazy()</code> with <code>Suspense</code> fallbacks. The lazily loaded tabs are:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>Goal Birds tab</li>
+  <li>Trip Plan tab</li>
+  <li>Stats / Progress tab</li>
+  <li>Profile tab</li>
+</ul>
+<p>The Explore and Species tabs are included in the main bundle since they are the default entry points. This reduces the initial JavaScript payload and speeds up first paint on slower connections.</p>
+
+<h3>20.3 LRU Cache Eviction</h3>
+<p>The data cache (<code>dataCache.ts</code>) uses an LRU (Least Recently Used) eviction strategy to prevent unbounded memory growth as users browse across weeks and resolutions. Week summary and cell data are evicted when the cache exceeds a configured entry limit, keeping the most recently accessed data in memory while freeing older entries. This is particularly important on mobile devices with constrained memory budgets.</p>
+
+<h3>20.4 No-Data Cell Feedback</h3>
+<p>When a user clicks a cell that has no species data for the selected week, a toast notification explains the situation rather than showing an empty or confusing popup. This provides clear feedback instead of silent failure.</p>
+
+<h3>20.5 Touch Targets</h3>
+<p>All mobile map controls (zoom buttons, view mode selector, week slider) use a minimum <strong>44&times;44px</strong> touch target, following WCAG 2.5.5 (Enhanced) guidelines. This ensures usability on touchscreens without requiring precise taps.</p>
+
+<!-- ============================================================ -->
+<h2 id="pwa">21. PWA &amp; Installability</h2>
+
+<p>Find-A-Lifer is a progressive web app installable on Android, iOS, and desktop. The service worker (via <code>vite-plugin-pwa</code> with Workbox) pre-caches the app shell and lazily caches data files for offline use.</p>
+
+<p>App icons are generated as <strong>PNG files at multiple sizes</strong> (192&times;192, 512&times;512) for the web manifest, ensuring compatibility with Android home screen shortcuts, iOS "Add to Home Screen," and desktop PWA install prompts. Maskable icon variants are included for Android adaptive icon rendering.</p>
+
+<!-- ============================================================ -->
+<h2 id="analytics">22. Firebase Analytics</h2>
+
+<p>Anonymous usage analytics are collected via Firebase Analytics to understand how the app is used in practice. Key tracked interactions include:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>App opens and session starts</li>
+  <li>Tab switches (Explore, Species, Goals, Trip Plan, Stats, Profile)</li>
+  <li>Cell clicks on the map</li>
+  <li>Life list imports (CSV upload, manual additions)</li>
+  <li>View mode changes (Richness, Frequency, Range, Goals)</li>
+  <li>Week slider interactions</li>
+</ul>
+<p>No personally identifiable information is collected. Analytics data helps prioritize features and identify under-used or confusing workflows.</p>
+
+<!-- ============================================================ -->
+<h2 id="firestore-security">23. Firestore Security Rules</h2>
+
+<p>Cloud Firestore security rules enforce authentication-based access control for all social features. Each user's profile, friend connections, trip reports, and shared goal lists are scoped to their Firebase Auth UID. Rules ensure:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>Users can only read and write their own profile data</li>
+  <li>Friend connections require mutual consent (both users must accept)</li>
+  <li>Shared goal lists are readable by participants but only editable by the owner</li>
+  <li>Leaderboard entries are read-only for non-owners, preventing score manipulation</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="parameters">24. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -858,7 +966,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">20. References &amp; Data Sources</h2>
+<h2 id="references">25. References &amp; Data Sources</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
