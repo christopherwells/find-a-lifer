@@ -8,7 +8,7 @@ import { fetchRegionNames } from '../lib/dataCache'
 import { getDisplayGroup } from '../lib/familyGroups'
 import { GROUPED_CODES } from '../lib/regionGroups'
 import { SUB_REGIONS } from '../lib/subRegions'
-import { computeStreak, computeWeeklySummary } from '../lib/streakUtils'
+import { computeWeeklySummary } from '../lib/streakUtils'
 import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, type LeaderboardEntry } from '../lib/firebaseSync'
 import { getFriends } from '../lib/friendsService'
 
@@ -38,7 +38,6 @@ export default function ProgressTab() {
   const [regionNames, setRegionNames] = useState<Record<string, string>>({})
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [friendLeaderboard, setFriendLeaderboard] = useState<LeaderboardEntry[]>([])
-  const [streakInfo, setStreakInfo] = useState<{ currentStreak: number; longestStreak: number; lastActiveDate: string | null } | null>(null)
   const [weeklySummary, setWeeklySummary] = useState<{ newLifers: number; newFamiliesStarted: number } | null>(null)
 
   // Load region names on mount
@@ -48,12 +47,11 @@ export default function ProgressTab() {
       .catch(err => console.error('ProgressTab: failed to load region names', err))
   }, [])
 
-  // Load streak & weekly summary data
+  // Load weekly summary data
   useEffect(() => {
     const loadActivity = async () => {
       try {
         const entries: LifeListEntry[] = await getLifeListEntries()
-        setStreakInfo(computeStreak(entries))
 
         // Build species→family map for weekly summary
         if (allSpecies.length > 0) {
@@ -106,10 +104,10 @@ export default function ProgressTab() {
       speciesCount: seenSpecies.size,
       groupsCompleted: completed,
       groupsStarted: started,
-      currentStreak: streakInfo?.currentStreak ?? 0,
-      longestStreak: streakInfo?.longestStreak ?? 0,
+      currentStreak: 0,
+      longestStreak: 0,
     }).catch(err => console.error('Failed to sync stats:', err))
-  }, [user, loading, seenSpecies, allSpecies, streakInfo])
+  }, [user, loading, seenSpecies, allSpecies])
 
   if (loading) {
     return <ProgressSkeleton />
@@ -361,32 +359,16 @@ export default function ProgressTab() {
         </div>
       </div>
 
-      {/* 4. Activity & Streaks */}
-      {streakInfo && (streakInfo.currentStreak > 0 || streakInfo.longestStreak > 0 || (weeklySummary && weeklySummary.newLifers > 0)) && (
+      {/* 4. Activity */}
+      {weeklySummary && weeklySummary.newLifers > 0 && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="activity-section">
           <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Activity</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {streakInfo.currentStreak > 0 && (
-              <div className="text-center">
-                <p className="text-xl font-bold text-orange-500">{'\uD83D\uDD25'} {streakInfo.currentStreak}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Day streak</p>
-              </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
+            This week: <span className="font-medium text-[#2C3E7B] dark:text-blue-400">+{weeklySummary.newLifers} lifers</span>
+            {weeklySummary.newFamiliesStarted > 0 && (
+              <>, <span className="font-medium text-[#27AE60] dark:text-green-400">{weeklySummary.newFamiliesStarted} new {weeklySummary.newFamiliesStarted === 1 ? 'group' : 'groups'}</span></>
             )}
-            {streakInfo.longestStreak > 0 && (
-              <div className="text-center">
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{streakInfo.longestStreak}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Best streak</p>
-              </div>
-            )}
-          </div>
-          {weeklySummary && weeklySummary.newLifers > 0 && (
-            <p className="text-xs text-gray-600 dark:text-gray-400 text-center pt-1 border-t border-gray-100 dark:border-gray-700">
-              This week: <span className="font-medium text-[#2C3E7B] dark:text-blue-400">+{weeklySummary.newLifers} lifers</span>
-              {weeklySummary.newFamiliesStarted > 0 && (
-                <>, <span className="font-medium text-[#27AE60] dark:text-green-400">{weeklySummary.newFamiliesStarted} new {weeklySummary.newFamiliesStarted === 1 ? 'group' : 'groups'}</span></>
-              )}
-            </p>
-          )}
+          </p>
         </div>
       )}
 
