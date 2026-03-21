@@ -126,16 +126,59 @@ export function buildHeatExpression(): maplibregl.ExpressionSpecification {
   ] as maplibregl.ExpressionSpecification
 }
 
-/** MapLibre expression for amber/gold intensity using feature-state 'value' (0-1) */
+/** MapLibre expression for amber/gold lightness ramp using feature-state 'value' (0-1).
+ *  Light gold (#FFF3C4) → deep amber (#B7791F) instead of opacity-only variation. */
 export function buildAmberExpression(): maplibregl.ExpressionSpecification {
   return [
     'interpolate',
     ['linear'],
     ['coalesce', ['feature-state', 'value'], -1],
-    -1, 'rgba(0, 0, 0, 0)',               // Default: no data (transparent)
-    0, 'rgba(212, 160, 23, 0.1)',          // Low intensity
-    1, 'rgba(212, 160, 23, 0.85)',         // High intensity
+    -1,    'rgba(0, 0, 0, 0)',               // No data: transparent
+    0.001, '#FFF3C4',                        // Lowest: light gold
+    0.25,  '#FBBF24',                        // Low: bright amber
+    0.5,   '#D97706',                        // Mid: amber
+    0.75,  '#B45309',                        // High: deep amber
+    1.0,   '#92400E',                        // Highest: dark amber-brown
   ] as maplibregl.ExpressionSpecification
+}
+
+/**
+ * Quantile normalization: maps raw values to their percentile rank (0-1).
+ * Ensures cells are spread evenly across the color gradient instead of
+ * clustering at one end due to outlier-dominated linear scaling.
+ *
+ * Returns: { normalized: Map<key, 0-1 value>, boundaries: number[] }
+ * boundaries has `numTicks` entries showing the raw values at each quantile tick.
+ */
+export function quantileNormalize(
+  values: Map<number, number>,
+  numTicks: number = 5
+): { normalized: Map<number, number>; boundaries: number[] } {
+  const entries = Array.from(values.entries()).filter(([, v]) => v > 0)
+  if (entries.length === 0) {
+    return { normalized: new Map(), boundaries: Array(numTicks).fill(0) }
+  }
+
+  // Sort by value to compute ranks
+  entries.sort((a, b) => a[1] - b[1])
+
+  const normalized = new Map<number, number>()
+  const n = entries.length
+
+  for (let i = 0; i < n; i++) {
+    // Rank-based percentile: 0 to 1
+    const rank = n === 1 ? 1 : i / (n - 1)
+    normalized.set(entries[i][0], Math.max(0.001, rank)) // Ensure min > 0 for color mapping
+  }
+
+  // Compute boundary values at each tick position for legend
+  const boundaries: number[] = []
+  for (let t = 0; t < numTicks; t++) {
+    const idx = Math.round((t / (numTicks - 1)) * (n - 1))
+    boundaries.push(entries[idx][1])
+  }
+
+  return { normalized, boundaries }
 }
 
 /** Generate legend tick labels for the heatmap gradient */
@@ -152,4 +195,12 @@ export function getLegendTicks(min: number, max: number, isPercentage: boolean, 
     }
   }
   return ticks
+}
+
+/** Format quantile boundary values as legend tick labels */
+export function getQuantileTicks(boundaries: number[], isPercentage: boolean): string[] {
+  return boundaries.map(v => {
+    if (isPercentage) return `${Math.round(v * 100)}%`
+    return Math.round(v).toString()
+  })
 }

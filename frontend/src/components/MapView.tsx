@@ -11,7 +11,7 @@ import { useToast } from '../contexts/ToastContext'
 import type { Species, CellCovariates } from './types'
 import {
   safeMin, safeMax, computeCentroid,
-  buildHeatExpression, buildAmberExpression, getLegendTicks,
+  buildHeatExpression, buildAmberExpression, getLegendTicks, quantileNormalize, getQuantileTicks,
   type SpeciesMeta, type LiferInCell, type GoalBirdInCell,
   type OccurrenceRecord, type WeeklySummary,
 } from '../lib/mapHelpers'
@@ -199,6 +199,7 @@ export default memo(function MapView({
   // Legend data range values (for numeric labels)
   const [legendMin, setLegendMin] = useState(0)
   const [legendMax, setLegendMax] = useState(0)
+  const [quantileBounds, setQuantileBounds] = useState<number[] | null>(null)
   // Track which cells have feature-state set (for efficient clearing)
   const featureStateCellIds = useRef<Set<number>>(new Set())
   // Map cell_id -> smoothed value (1=neighbor, 2=fallback) from grid GeoJSON
@@ -1390,7 +1391,10 @@ export default memo(function MapView({
             return
           }
 
-          applyFeatureStates(maskedProbs)
+          const rangeTickCount = window.innerWidth < 768 ? 3 : 5
+          const { normalized: normalizedRange, boundaries: rangeBounds } = quantileNormalize(maskedProbs, rangeTickCount)
+          setQuantileBounds(rangeBounds)
+          applyFeatureStates(normalizedRange)
           setHeatOverlay()
         } catch (error) {
           if (!cancelled) console.error('Species Range: error loading data', error)
@@ -1470,10 +1474,9 @@ export default memo(function MapView({
             return
           }
 
-          const normalizedCounts = new Map<number, number>()
-          maskedCounts.forEach((count, cellId) => {
-            if (count > 0) normalizedCounts.set(cellId, count / maskedMax)
-          })
+          const goalTickCount = window.innerWidth < 768 ? 3 : 5
+          const { normalized: normalizedCounts, boundaries: goalBounds } = quantileNormalize(maskedCounts, goalTickCount)
+          setQuantileBounds(goalBounds)
           applyFeatureStates(normalizedCounts)
 
           if (map.current?.getLayer('grid-fill')) {
@@ -1576,7 +1579,10 @@ export default memo(function MapView({
           setLegendMax(probabilities.length > 0 ? safeMax(probabilities) : 1)
 
           if (maskedProbs.size === 0) { setNeutralOverlay(); return }
-          applyFeatureStates(maskedProbs)
+          const probTickCount = window.innerWidth < 768 ? 3 : 5
+          const { normalized: normalizedProbs, boundaries: probBounds } = quantileNormalize(maskedProbs, probTickCount)
+          setQuantileBounds(probBounds)
+          applyFeatureStates(normalizedProbs)
           setHeatOverlay()
         } catch (error) {
           if (!cancelled) console.error('Combined probability: error', error)
@@ -1644,10 +1650,9 @@ export default memo(function MapView({
           setLegendMax(maskedMax)
 
           if (maskedMax === 0) { setNeutralOverlay(); return }
-          const normalizedCounts = new Map<number, number>()
-          maskedCounts.forEach((count, cellId) => {
-            if (count > 0) normalizedCounts.set(cellId, count / maskedMax)
-          })
+          const gdTickCount = window.innerWidth < 768 ? 3 : 5
+          const { normalized: normalizedCounts, boundaries: gdBounds } = quantileNormalize(maskedCounts, gdTickCount)
+          setQuantileBounds(gdBounds)
           applyFeatureStates(normalizedCounts)
           setHeatOverlay()
         } catch (error) {
@@ -1748,12 +1753,9 @@ export default memo(function MapView({
         setLegendMin(filteredMin)
         setLegendMax(filteredMax)
 
-        const normalizedCounts = new Map<number, number>()
-        if (filteredMax > 0) {
-          maskedCounts.forEach((liferCount, cellId) => {
-            normalizedCounts.set(cellId, liferCount / filteredMax)
-          })
-        }
+        const tickCount = window.innerWidth < 768 ? 3 : 5
+        const { normalized: normalizedCounts, boundaries } = quantileNormalize(maskedCounts, tickCount)
+        setQuantileBounds(boundaries)
         applyFeatureStates(normalizedCounts)
         if (normalizedCounts.size > 0) {
           setHeatOverlay()
@@ -1850,7 +1852,7 @@ export default memo(function MapView({
 
         if (viewMode === 'goal-birds') {
           legendTitle = 'Goal Birds Density'
-          gradient = 'linear-gradient(to right, rgba(212,160,23,0.1), rgba(212,160,23,0.4), rgba(218,165,32,0.7), rgba(255,193,7,0.9), rgba(255,215,0,1))'
+          gradient = 'linear-gradient(to right, #FFF3C4, #FBBF24, #D97706, #B45309, #92400E)'
           showLegend = true
           emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
         } else if (viewMode === 'density' && !goalBirdsOnlyFilter) {
@@ -1876,7 +1878,10 @@ export default memo(function MapView({
         if (!showLegend) return null
 
         const tickCount = window.innerWidth < 768 ? 3 : 5
-        const ticks = getLegendTicks(legendMin, legendMax, isPercentage, tickCount)
+        // Use quantile boundary ticks when available, otherwise linear
+        const ticks = quantileBounds && quantileBounds.length === tickCount
+          ? getQuantileTicks(quantileBounds, isPercentage)
+          : getLegendTicks(legendMin, legendMax, isPercentage, tickCount)
         return (
           <div
             data-testid="map-legend"
