@@ -1157,7 +1157,7 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
               )
             })()}
 
-            {/* ── Almost Complete Families ── */}
+            {/* ── Almost Complete Groups ── */}
             {almostComplete.length > 0 && (() => {
               const activeListCodes = new Set(activeList.speciesCodes)
               const totalUnseen = almostComplete.reduce((sum, [, data]) => sum + data.unseen.length, 0)
@@ -1167,7 +1167,7 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
                   <button onClick={() => toggleSection('almostComplete')} className="w-full flex items-center justify-between py-2.5 px-3 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors" data-testid="almost-complete-families-toggle" aria-expanded={expandedSections.has('almostComplete')} aria-controls="section-almostComplete">
                     <div className="flex items-center gap-2">
                       <span className="text-indigo-600 font-bold text-sm">🏆</span>
-                      <span className="text-sm font-semibold text-indigo-800">Almost Complete Families</span>
+                      <span className="text-sm font-semibold text-indigo-800">Almost Complete Groups</span>
                       <span className="text-xs bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded-full font-medium">{totalUnseen}</span>
                     </div>
                     <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-indigo-600 transition-transform ${expandedSections.has('almostComplete') ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
@@ -1176,7 +1176,7 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
                   </button>
 
                   {expandedSections.has('almostComplete') && (
-                    <div className="mt-1 space-y-3" id="section-almostComplete" role="region" aria-label="Almost Complete Families" data-testid="almost-complete-families-list">
+                    <div className="mt-1 space-y-3" id="section-almostComplete" role="region" aria-label="Almost Complete Groups" data-testid="almost-complete-families-list">
                       {almostComplete.map(([familyName, data]) => {
                         const pct = Math.round((data.seen / data.total) * 100)
                         return (
