@@ -142,26 +142,24 @@ test.describe('Pat — Learner (no life list, laptop)', () => {
     expect(countText).toMatch(/0 of \d+ species seen/)
   })
 
-  test('Trip Plan shows 4 modes and switching modes changes content', async ({ page }) => {
+  test('Trip Plan shows 3 modes and switching modes changes content', async ({ page }) => {
     await gotoReady(page)
     await getTabNav(page).getByRole('tab', { name: 'Plan' }).click()
     await expect(page.getByText('Trip Planning')).toBeVisible({ timeout: 10000 })
 
-    // OUTCOME: Each mode button is present
-    for (const mode of ['hotspots', 'location', 'window', 'compare']) {
+    // OUTCOME: 3 mode buttons present (Compare was cut)
+    for (const mode of ['hotspots', 'location', 'window']) {
       await expect(page.getByTestId(`${mode}-mode-btn`)).toBeVisible()
     }
+    await expect(page.getByTestId('compare-mode-btn')).not.toBeVisible()
 
-    // OUTCOME: Clicking Compare mode shows Location A/B comparison UI
-    await page.getByTestId('compare-mode-btn').click()
-    await expect(page.getByText(/Location A/i).first()).toBeVisible({ timeout: 5000 })
-
-    // OUTCOME: Clicking Window mode switches to a different view
+    // OUTCOME: Clicking Window mode switches to species search view
     await page.getByTestId('window-mode-btn').click()
-    // Window mode has species search functionality
     await page.waitForTimeout(500)
-    // Verify we're no longer seeing "Location A" (mode actually changed)
-    await expect(page.getByText(/Location A/i)).not.toBeVisible({ timeout: 3000 })
+
+    // OUTCOME: Clicking Hotspots switches back to hotspot view
+    await page.getByTestId('hotspots-mode-btn').click()
+    await expect(page.getByTestId('hotspot-week-slider')).toBeVisible({ timeout: 5000 })
   })
 
   test('family filter narrows species list to one group', async ({ page }) => {

@@ -190,20 +190,21 @@ test.describe('Casey — Power Lister (700+ species)', () => {
     expect(groupsCompleted).toBeGreaterThanOrEqual(0) // At least renders a number
   })
 
-  test('Trip Plan tab loads with all 4 mode buttons', async ({ page }) => {
+  test('Trip Plan tab loads with 3 mode buttons (Compare cut)', async ({ page }) => {
     await gotoReady(page)
 
     await getTabNav(page).getByRole('tab', { name: 'Plan' }).click()
     await expect(page.getByText('Trip Planning')).toBeVisible({ timeout: 10000 })
 
-    // OUTCOME: All 4 mode buttons are present and clickable
-    for (const mode of ['hotspots', 'location', 'window', 'compare']) {
+    // OUTCOME: 3 mode buttons present (Compare was cut)
+    for (const mode of ['hotspots', 'location', 'window']) {
       const btn = page.getByTestId(`${mode}-mode-btn`)
       await expect(btn).toBeVisible()
     }
+    await expect(page.getByTestId('compare-mode-btn')).not.toBeVisible()
 
     // Clicking a mode actually changes content
-    await page.getByTestId('compare-mode-btn').click()
-    await expect(page.getByText(/Location A|Compare/i).first()).toBeVisible({ timeout: 5000 })
+    await page.getByTestId('window-mode-btn').click()
+    await expect(page.getByText(/Select Target Species|Window/i).first()).toBeVisible({ timeout: 5000 })
   })
 })

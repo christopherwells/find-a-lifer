@@ -237,25 +237,22 @@ test.describe('Phase 2 Features', () => {
     await gotoReady(page)
   })
 
-  test('Profile modal shows Year Lists section', async ({ page }) => {
+  test('Cut features are absent from Profile modal', async ({ page }) => {
     await page.getByTestId('topbar-menu-button').click()
     await page.getByTestId('topbar-account-button').click()
-    await expect(page.getByText('Year Lists')).toBeVisible()
-    await expect(page.getByText('Import Year List')).toBeVisible()
+    await page.waitForTimeout(1000)
+    // Year Lists and Partner List were cut — verify they're gone
+    await expect(page.getByText('Year Lists')).not.toBeVisible()
+    await expect(page.getByText('Partner Life List')).not.toBeVisible()
   })
 
-  test('Profile modal shows Partner Life List section', async ({ page }) => {
-    await page.getByTestId('topbar-menu-button').click()
-    await page.getByTestId('topbar-account-button').click()
-    await expect(page.getByText('Partner Life List')).toBeVisible()
-  })
-
-  test('Trip Plan tab shows all mode buttons', async ({ page }) => {
+  test('Trip Plan tab shows 3 mode buttons (Compare was cut)', async ({ page }) => {
     await page.getByTestId('tab-navigation').getByRole('button', { name: 'Plan' }).click()
     await expect(page.getByTestId('hotspots-mode-btn')).toBeVisible()
     await expect(page.getByTestId('window-mode-btn')).toBeVisible()
-    await expect(page.getByTestId('compare-mode-btn')).toBeVisible()
     await expect(page.getByTestId('location-mode-btn')).toBeVisible()
+    // Compare mode was cut
+    await expect(page.getByTestId('compare-mode-btn')).not.toBeVisible()
   })
 
   test('Trip Plan Window mode shows species search', async ({ page }) => {
@@ -263,13 +260,6 @@ test.describe('Phase 2 Features', () => {
     await page.getByTestId('window-mode-btn').click()
     await expect(page.getByText('Select Target Species')).toBeVisible()
     await expect(page.getByTestId('species-search-input')).toBeVisible()
-  })
-
-  test('Trip Plan Compare mode shows Location A and B', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Plan' }).click()
-    await page.getByTestId('compare-mode-btn').click()
-    await expect(page.getByText('Location A', { exact: true })).toBeVisible()
-    await expect(page.getByText('Location B', { exact: true })).toBeVisible()
   })
 
   test('Progress tab renders stats', async ({ page }) => {
