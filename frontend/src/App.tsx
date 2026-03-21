@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import TopBar from './components/TopBar'
 import SidePanel, { type MapViewMode } from './components/SidePanel'
 import MapView from './components/MapView'
@@ -11,8 +11,11 @@ import { useLifeList } from './contexts/LifeListContext'
 import { useToast } from './contexts/ToastContext'
 import { goalListsDB, type GoalList } from './lib/goalListsDB'
 import { trackEvent } from './lib/analytics'
+import { openFilePicker, processCSVFile } from './lib/csvImport'
 import type { SelectedLocation, SpeciesFilters, CompareLocations } from './components/types'
 import './App.css'
+
+const ProfileTab = lazy(() => import('./components/ProfileTab'))
 
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -45,10 +48,11 @@ function App() {
   const [selectedSpeciesMulti, setSelectedSpeciesMulti] = useState<string[]>([])
   const [compareLocations, setCompareLocations] = useState<CompareLocations | null>(null)
   const [showAbout, setShowAbout] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const [, setActiveTab] = useState<string>('explore')
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('hasSeenOnboarding'))
   // Beginner mode removed — all controls shown from start (driver.js tour replaces progressive disclosure)
-  const { effectiveSeenSpecies } = useLifeList()
+  const { effectiveSeenSpecies, importSpeciesList } = useLifeList()
   const { showToast } = useToast()
 
   // Session counting for progressive disclosure
@@ -138,6 +142,21 @@ function App() {
     })
   }, [showToast])
 
+  const handleImportClick = useCallback(async () => {
+    const file = await openFilePicker()
+    if (!file) return
+    try {
+      const result = await processCSVFile(file, importSpeciesList)
+      if (result.newCount > 0) handleImportComplete(result.newCount)
+      else if (result.matched > 0) {
+        showToast({ type: 'muted', message: `All ${result.matched} species already in your list`, duration: 3000 })
+      }
+    } catch (error) {
+      console.error('Import error:', error)
+      showToast({ type: 'muted', message: error instanceof Error ? error.message : 'Import failed', duration: 4000 })
+    }
+  }, [importSpeciesList, handleImportComplete, showToast])
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900">
       {/* Skip to content link for keyboard/screen reader users */}
@@ -154,6 +173,8 @@ function App() {
         onToggleDarkMode={() => setDarkMode((prev) => !prev)}
         onShowAbout={() => setShowAbout(true)}
         onShowOnboarding={handleShowOnboarding}
+        onImportClick={handleImportClick}
+        onShowProfile={() => setShowProfile(true)}
       />
 
       {/* Main Content: Map + Side Panel */}
@@ -243,17 +264,37 @@ function App() {
           onSpeciesFiltersChange={setSpeciesFilters}
           onCompareLocationsChange={setCompareLocations}
           onActiveTabChange={setActiveTab}
-          onImportComplete={handleImportComplete}
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode((prev) => !prev)}
-          onShowAbout={() => setShowAbout(true)}
-          onShowOnboarding={handleShowOnboarding}
         />
         </ErrorBoundary>
       </div>
 
       {/* Modals */}
       {showAbout && <AboutPage onClose={() => setShowAbout(false)} />}
+      {showProfile && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center pt-12 md:pt-20">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowProfile(false)} />
+          <div className="relative w-full max-w-md max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-5 mx-4">
+            <button
+              onClick={() => setShowProfile(false)}
+              className="absolute top-3 right-3 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" /></div>}>
+              <ProfileTab
+                onImportComplete={(n) => { setShowProfile(false); handleImportComplete(n) }}
+                darkMode={darkMode}
+                onToggleDarkMode={() => setDarkMode((prev) => !prev)}
+                onShowAbout={() => { setShowProfile(false); setShowAbout(true) }}
+                onShowOnboarding={() => { setShowProfile(false); handleShowOnboarding() }}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
       {showOnboarding && (
         <OnboardingOverlay onComplete={handleOnboardingComplete} onImportComplete={handleImportComplete} />
       )}

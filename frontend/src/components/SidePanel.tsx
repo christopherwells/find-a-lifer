@@ -6,13 +6,12 @@ import SpeciesTab from './SpeciesTab'
 const GoalBirdsTab = lazy(() => import('./GoalBirdsTab'))
 const TripPlanTab = lazy(() => import('./TripPlanTab'))
 const ProgressTab = lazy(() => import('./ProgressTab'))
-const ProfileTab = lazy(() => import('./ProfileTab'))
 
 import type { MapViewMode, SpeciesFilters, CompareLocations } from './types'
 import { trackEvent } from '../lib/analytics'
 export type { MapViewMode, SelectedLocation } from './types'
 
-type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress' | 'profile'
+type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress'
 
 interface SidePanelProps {
   collapsed: boolean
@@ -47,11 +46,6 @@ interface SidePanelProps {
   onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
   onCompareLocationsChange?: (locations: CompareLocations | null) => void
   onActiveTabChange?: (tabId: string) => void
-  onImportComplete?: (newCount: number) => void
-  darkMode?: boolean
-  onToggleDarkMode?: () => void
-  onShowAbout?: () => void
-  onShowOnboarding?: () => void
 }
 
 interface Tab {
@@ -91,18 +85,11 @@ const StatsIcon = () => (
     <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
   </svg>
 )
-const ProfileIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-  </svg>
-)
-
 const tabs: Tab[] = [
   { id: 'explore', label: 'Explore', icon: <MapIcon /> },
   { id: 'species', label: 'Species', icon: <BirdIcon /> },
   { id: 'goals', label: 'Goals', icon: <GoalIcon /> },
   { id: 'trip', label: 'Plan', icon: <PinIcon /> },
-  { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
   { id: 'progress', label: 'Stats', icon: <StatsIcon /> },
 ]
 
@@ -139,11 +126,6 @@ export default memo(function SidePanel({
   onSpeciesFiltersChange,
   onCompareLocationsChange,
   onActiveTabChange,
-  onImportComplete,
-  darkMode,
-  onToggleDarkMode,
-  onShowAbout,
-  onShowOnboarding,
 }: SidePanelProps) {
   const [activeTab, setActiveTabRaw] = useState<TabId>('explore')
   const setActiveTab = (tab: TabId) => {
@@ -326,7 +308,6 @@ export default memo(function SidePanel({
                 />
               )}
               {activeTab === 'progress' && <ProgressTab />}
-              {activeTab === 'profile' && <ProfileTab onImportComplete={onImportComplete} darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} onShowAbout={onShowAbout} onShowOnboarding={onShowOnboarding} />}
             </Suspense>
           </div>
         )}
