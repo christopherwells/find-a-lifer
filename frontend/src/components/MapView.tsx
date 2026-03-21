@@ -653,11 +653,25 @@ export default memo(function MapView({
 
     const isMobile = window.innerWidth < 768
 
+    // Restore last map position from localStorage, or default to US center
+    const savedPosition = (() => {
+      try {
+        const saved = localStorage.getItem('mapPosition')
+        if (saved) {
+          const { center, zoom } = JSON.parse(saved)
+          if (Array.isArray(center) && center.length === 2 && typeof zoom === 'number') {
+            return { center: center as [number, number], zoom }
+          }
+        }
+      } catch { /* ignore */ }
+      return { center: [-98.5, 39.8] as [number, number], zoom: 3.5 }
+    })()
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style,
-      center: [-98.5, 39.8], // Center of continental US
-      zoom: 3.5,
+      center: savedPosition.center,
+      zoom: savedPosition.zoom,
       minZoom: 2,
       maxZoom: 15,
       dragRotate: false,
@@ -702,6 +716,17 @@ export default memo(function MapView({
     // Mobile thresholds are lower so smaller hexes persist longer when zooming out
     const res2Threshold = isMobile ? 2.8 : 3.5
     const res3Threshold = isMobile ? 4.5 : 5.5
+    // Save map position to localStorage on moveend
+    map.current.on('moveend', () => {
+      if (!map.current) return
+      const center = map.current.getCenter()
+      const zoom = map.current.getZoom()
+      localStorage.setItem('mapPosition', JSON.stringify({
+        center: [center.lng, center.lat],
+        zoom: Math.round(zoom * 10) / 10,
+      }))
+    })
+
     map.current.on('zoomend', () => {
       if (!map.current) return
       const zoom = map.current.getZoom()
