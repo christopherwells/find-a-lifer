@@ -33,7 +33,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/data\/(r\d+\/)?grid\.geojson$/,
+            urlPattern: /\/data\/r\d+\/grid\.geojson$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'grid-cache',
@@ -58,7 +58,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/data\/(r\d+\/)?weeks\//,
+            urlPattern: /\/data\/r\d+\/weeks\//,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'week-data-cache',
@@ -71,7 +71,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/data\/(r\d+\/)?species-weeks\//,
+            urlPattern: /\/data\/r\d+\/species-weeks\//,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'species-weeks-cache',

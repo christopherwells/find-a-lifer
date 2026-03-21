@@ -1,5 +1,10 @@
 /* App-specific styles - most styling done via Tailwind utility classes */
 
+/* Prevent pull-to-refresh on mobile */
+html, body {
+  overscroll-behavior: none;
+}
+
 /* Ensure MapLibre GL renders properly */
 .maplibregl-map {
   width: 100%;

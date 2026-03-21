@@ -8,6 +8,7 @@ import ProgressTab from './ProgressTab'
 import ProfileTab from './ProfileTab'
 
 import type { MapViewMode, SpeciesFilters, CompareLocations } from './types'
+import { trackEvent } from '../lib/analytics'
 export type { MapViewMode, SelectedLocation } from './types'
 
 type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress' | 'profile'
@@ -149,6 +150,7 @@ export default memo(function SidePanel({
 }: SidePanelProps) {
   const [activeTab, setActiveTabRaw] = useState<TabId>('explore')
   const setActiveTab = (tab: TabId) => {
+    trackEvent('tab_switch', { tab })
     setActiveTabRaw(tab)
     onActiveTabChange?.(tab)
   }
@@ -243,6 +245,7 @@ export default memo(function SidePanel({
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              id={`tab-${tab.id}`}
               role="tab"
               aria-selected={activeTab === tab.id}
               aria-controls="tab-content"
@@ -278,7 +281,7 @@ export default memo(function SidePanel({
 
         {/* Tab Content */}
         {!collapsed && (
-          <div id="tab-content" role="tabpanel" aria-label={`${activeTab} tab`} className="flex-1 overflow-y-auto p-4 dark:text-gray-200">
+          <div id="tab-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`} className="flex-1 overflow-y-auto p-4 dark:text-gray-200">
             {/* ExploreTab renders on desktop only; on mobile, MapControls handles explore */}
             {activeTab === 'explore' && (
               <div className="hidden md:block">

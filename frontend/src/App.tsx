@@ -9,6 +9,7 @@ import Toast from './components/Toast'
 import { useLifeList } from './contexts/LifeListContext'
 import { useToast } from './contexts/ToastContext'
 import { goalListsDB, type GoalList } from './lib/goalListsDB'
+import { trackEvent } from './lib/analytics'
 import type { SelectedLocation, SpeciesFilters, CompareLocations } from './components/types'
 import './App.css'
 
@@ -59,6 +60,7 @@ function App() {
   useEffect(() => {
     const count = parseInt(localStorage.getItem('sessionCount') || '0', 10) + 1
     localStorage.setItem('sessionCount', String(count))
+    trackEvent('app_open', { session_count: count })
   }, [])
 
   // Persist dark mode and toggle class on document root
@@ -114,6 +116,7 @@ function App() {
   // Shared view mode change handler — resets filters appropriately
   const handleViewModeChange = useCallback((mode: MapViewMode) => {
     setViewMode(mode)
+    trackEvent('view_mode_change', { mode })
     if (mode !== 'density' && mode !== 'probability' && mode !== 'species') setGoalBirdsOnlyFilter(false)
     if (mode !== 'species') {
       setSelectedSpecies(null)
@@ -133,6 +136,7 @@ function App() {
   }, [])
 
   const handleImportComplete = useCallback((newCount: number) => {
+    trackEvent('import_life_list', { species_count: newCount })
     // Switch to map view (collapse panel on mobile)
     setSidePanelCollapsed(true)
     // Show import summary toast

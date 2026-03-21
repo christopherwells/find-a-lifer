@@ -6,6 +6,7 @@ import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
 import Badge from './Badge'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { detectSubRegionForCell, loadCellStates } from '../lib/subRegions'
+import { trackEvent } from '../lib/analytics'
 import type { Species, CellCovariates } from './types'
 import {
   safeMin, safeMax, computeCentroid,
@@ -693,13 +694,11 @@ export default memo(function MapView({
       'top-right'
     )
 
-    // Add scale bar (desktop only)
-    if (!isMobile) {
-      map.current.addControl(
-        new maplibregl.ScaleControl({ maxWidth: 200 }),
-        'bottom-right'
-      )
-    }
+    // Add scale bar
+    map.current.addControl(
+      new maplibregl.ScaleControl({ maxWidth: isMobile ? 100 : 200 }),
+      'bottom-left'
+    )
 
     // Track zoom level changes to switch H3 resolution
     // Mobile thresholds are lower so smaller hexes persist longer when zooming out
@@ -889,6 +888,8 @@ export default memo(function MapView({
             if (!hasData && (viewModeRef.current === 'goal-birds' || viewModeRef.current === 'density' || viewModeRef.current === 'probability' || viewModeRef.current === 'species')) {
               return
             }
+
+            trackEvent('cell_click', { view_mode: viewModeRef.current })
 
             if (viewModeRef.current === 'goal-birds') {
               // Goal Birds mode: load cell data from API

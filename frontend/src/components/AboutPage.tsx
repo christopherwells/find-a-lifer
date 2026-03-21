@@ -51,6 +51,15 @@ export default function AboutPage({ onClose }: AboutPageProps) {
             </p>
           </section>
 
+          {/* Coverage */}
+          <section>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">Coverage</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              Find-A-Lifer covers <strong className="text-gray-700 dark:text-gray-300">13 countries</strong> across North America and the Caribbean, with data on over{' '}
+              <strong className="text-gray-700 dark:text-gray-300">2,052 species</strong>. The data is updated from the eBird Basic Dataset and processed into 52 weekly snapshots across three resolution levels of hexagonal map cells.
+            </p>
+          </section>
+
           {/* How the data works */}
           <section>
             <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">How the Data Works</h3>
@@ -94,6 +103,17 @@ export default function AboutPage({ onClose }: AboutPageProps) {
               >
                 ABA Code of Birding Ethics
               </a>
+            </div>
+          </section>
+
+          {/* Data Citation */}
+          <section>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">Data Citation</h3>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic">
+                eBird Basic Dataset. Version: EBD_relDec-2024. Cornell Lab of Ornithology, Ithaca, New York.{' '}
+                <a href="https://ebird.org" target="_blank" rel="noopener noreferrer" className="text-[#2C3E7B] dark:text-blue-400 underline">ebird.org</a>
+              </p>
             </div>
           </section>
 

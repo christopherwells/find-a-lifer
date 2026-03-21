@@ -89,12 +89,21 @@ YEAR_MAX = 2025
 
 # Friendly names for region codes used in EBD filenames
 REGION_NAMES = {
-    "BM": "Bermuda", "BS": "Bahamas", "CA": "Canada",
+    "AW": "Aruba", "BB": "Barbados", "BM": "Bermuda",
+    "BS": "Bahamas", "BZ": "Belize", "CA": "Canada",
     "CR": "Costa Rica", "CU": "Cuba", "DO": "Dominican Republic",
     "GL": "Greenland", "GT": "Guatemala", "HN": "Honduras",
-    "HT": "Haiti", "JM": "Jamaica", "MX": "Mexico",
-    "NI": "Nicaragua", "PA": "Panama", "PM": "Saint Pierre and Miquelon",
-    "PR": "Puerto Rico", "SV": "El Salvador", "US": "United States",
+    "HT": "Haiti", "JM": "Jamaica", "KN": "Saint Kitts and Nevis",
+    "MX": "Mexico", "NI": "Nicaragua", "PA": "Panama",
+    "PM": "Saint Pierre and Miquelon", "PR": "Puerto Rico",
+    "SV": "El Salvador", "TC": "Turks and Caicos",
+    "TT": "Trinidad and Tobago", "US": "United States",
+    "VG": "British Virgin Islands", "VI": "US Virgin Islands",
+    "MF": "Saint Martin", "MQ": "Martinique",
+    "BQ": "Bonaire, Sint Eustatius and Saba",
+    "SX": "Sint Maarten", "AG": "Antigua and Barbuda",
+    "DM": "Dominica", "GD": "Grenada", "LC": "Saint Lucia",
+    "VC": "Saint Vincent and the Grenadines",
 }
 
 
@@ -1450,26 +1459,6 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
         if res - 1 in prev_res_data and res > RESOLUTIONS[0]:
             del prev_res_data[res - 1]
 
-    # Backward-compatible copies at root level (res 4 = default)
-    import shutil
-    r4_dir = OUTPUT_DIR / "r4"
-    if r4_dir.exists():
-        shutil.copy2(r4_dir / "grid.geojson", OUTPUT_DIR / "grid.geojson")
-        root_weeks = OUTPUT_DIR / "weeks"
-        root_weeks.mkdir(exist_ok=True)
-        for f in (r4_dir / "weeks").glob("*.json"):
-            shutil.copy2(f, root_weeks / f.name)
-        root_sw = OUTPUT_DIR / "species-weeks"
-        root_sw.mkdir(exist_ok=True)
-        for old in root_sw.glob("*.json"):
-            try:
-                old.unlink()
-            except PermissionError:
-                pass
-        for f in (r4_dir / "species-weeks").glob("*.json"):
-            shutil.copy2(f, root_sw / f.name)
-        print("\n  Copied r4 data to root level for backward compatibility")
-
     # Ship cell_states to frontend for sub-region detection
     for res in RESOLUTIONS:
         cs_file = ARCHIVE_DIR / f"cell_states_r{res}.json"
@@ -1525,7 +1514,14 @@ def main():
                         help="Delete existing archive before processing (for reprocessing with new filters)")
     parser.add_argument("--bbox", type=str, default=None,
                         help="Bounding box filter: 'lat_min,lon_min,lat_max,lon_max' (e.g. '42.5,-71,46,-66.5' for ME/NH/MA)")
+    parser.add_argument("--no-stixel", action="store_true",
+                        help="Skip stixel ensemble smoothing (much faster, uses direct observations only)")
     args = parser.parse_args()
+
+    if args.no_stixel:
+        for res in ENSEMBLE_ENABLED:
+            ENSEMBLE_ENABLED[res] = False
+        print("  Stixel ensemble DISABLED (--no-stixel)")
 
     t0 = time.time()
     print("=" * 60)
