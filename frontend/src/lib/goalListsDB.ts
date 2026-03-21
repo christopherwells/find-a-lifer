@@ -9,7 +9,7 @@ export interface GoalList {
 }
 
 const DB_NAME = 'find-a-lifer-db'
-const DB_VERSION = 3 // v2: goalLists store, v3: partnerList + yearLists stores
+const DB_VERSION = 3 // v2: goalLists store, v3: yearLists store (+ partnerList store kept for DB compat)
 const STORE_NAME = 'goalLists'
 
 // Cached database connection (avoids reopening on every operation)
@@ -51,7 +51,7 @@ function openDB(): Promise<IDBDatabase> {
         objectStore.createIndex('name', 'name', { unique: false })
         objectStore.createIndex('createdAt', 'createdAt', { unique: false })
       }
-      // Create partnerList object store if it doesn't exist (added in v3)
+      // Create partnerList object store if it doesn't exist (added in v3, kept for DB compat)
       if (!db.objectStoreNames.contains('partnerList')) {
         db.createObjectStore('partnerList', { keyPath: 'speciesCode' })
       }

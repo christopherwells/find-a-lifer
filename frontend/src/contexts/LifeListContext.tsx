@@ -9,8 +9,6 @@ export interface LifeListEntry {
   source: 'manual' | 'import'
 }
 
-export type ListMode = 'me' | 'partner' | 'both'
-
 interface LifeListDB extends DBSchema {
   lifeList: {
     key: string
@@ -55,13 +53,6 @@ interface LifeListContextValue {
   importSpeciesList: (speciesCodes: string[], comNames: string[]) => Promise<{newCount: number, existingCount: number}>
   getTotalSeen: () => number
   getLifeListEntries: () => Promise<LifeListEntry[]>
-  // Partner list
-  partnerSeenSpecies: Set<string>
-  importPartnerList: (speciesCodes: string[], comNames: string[]) => Promise<{newCount: number, existingCount: number}>
-  clearPartnerList: () => Promise<void>
-  hasPartnerList: boolean
-  activeListMode: ListMode
-  setActiveListMode: (mode: ListMode) => void
   effectiveSeenSpecies: Set<string>
   // Year lists
   yearLists: YearList[]
@@ -77,9 +68,8 @@ interface LifeListContextValue {
 const LifeListContext = createContext<LifeListContextValue | undefined>(undefined)
 
 const DB_NAME = 'find-a-lifer-db'
-const DB_VERSION = 3 // v3: added partnerList + yearLists stores
+const DB_VERSION = 3 // v3: yearLists store (+ partnerList store kept for DB compat)
 const STORE_NAME = 'lifeList'
-const PARTNER_STORE = 'partnerList'
 
 let dbInstance: IDBPDatabase<LifeListDB> | null = null
 
@@ -101,8 +91,9 @@ async function getDB(): Promise<IDBPDatabase<LifeListDB>> {
         goalStore.createIndex('createdAt', 'createdAt', { unique: false })
       }
       // Create the partnerList object store if it doesn't exist (added in v3)
-      if (!db.objectStoreNames.contains(PARTNER_STORE)) {
-        db.createObjectStore(PARTNER_STORE, { keyPath: 'speciesCode' })
+      // NOTE: Store kept for backward compatibility with existing databases
+      if (!db.objectStoreNames.contains('partnerList')) {
+        db.createObjectStore('partnerList', { keyPath: 'speciesCode' })
       }
       // Create the yearLists object store if it doesn't exist (added in v3)
       if (!db.objectStoreNames.contains('yearLists')) {
@@ -116,14 +107,12 @@ async function getDB(): Promise<IDBPDatabase<LifeListDB>> {
 
 export function LifeListProvider({ children }: { children: ReactNode }) {
   const [seenSpecies, setSeenSpecies] = useState<Set<string>>(new Set())
-  const [partnerSeenSpecies, setPartnerSeenSpecies] = useState<Set<string>>(new Set())
-  const [activeListMode, setActiveListMode] = useState<ListMode>('me')
   const [yearLists, setYearLists] = useState<YearList[]>([])
   const [activeYearListId, setActiveYearListId] = useState<string | null>(null)
   const [listScope, setListScope] = useState<'lifetime' | 'year'>('lifetime')
   const [loading, setLoading] = useState(true)
 
-  // Load life list + partner list from IndexedDB on mount
+  // Load life list from IndexedDB on mount
   useEffect(() => {
     const loadLists = async () => {
       try {
@@ -133,11 +122,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
         const allEntries = await db.getAll(STORE_NAME)
         const codes = new Set(allEntries.map(entry => entry.speciesCode))
         setSeenSpecies(codes)
-
-        // Load partner list
-        const partnerEntries = await db.getAll(PARTNER_STORE)
-        const partnerCodes = new Set(partnerEntries.map(entry => entry.speciesCode))
-        setPartnerSeenSpecies(partnerCodes)
 
         // Load year lists
         const yearListEntries = await db.getAll('yearLists')
@@ -213,48 +197,37 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function importToStore(
-    storeName: typeof STORE_NAME | typeof PARTNER_STORE,
-    speciesCodes: string[],
-    comNames: string[],
-    currentSet: Set<string>,
-    setter: (s: Set<string>) => void,
-  ): Promise<{newCount: number, existingCount: number}> {
-    const db = await getDB()
-    const existingCodes = new Set(currentSet)
-
-    const tx = db.transaction(storeName, 'readwrite')
-    for (let i = 0; i < speciesCodes.length; i++) {
-      const entry: LifeListEntry = {
-        speciesCode: speciesCodes[i],
-        comName: comNames[i],
-        dateAdded: Date.now(),
-        source: 'import'
-      }
-      await tx.store.put(entry)
-    }
-    await tx.done
-
-    const allEntries = await db.getAll(storeName)
-    const codes = new Set(allEntries.map(entry => entry.speciesCode))
-    setter(codes)
-
-    let newCount = 0
-    let existingCount = 0
-    for (const code of speciesCodes) {
-      if (existingCodes.has(code)) {
-        existingCount++
-      } else {
-        newCount++
-      }
-    }
-    return { newCount, existingCount }
-  }
-
   const importSpeciesList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
     try {
-      const result = await importToStore(STORE_NAME, speciesCodes, comNames, seenSpecies, setSeenSpecies)
-      return result
+      const db = await getDB()
+      const existingCodes = new Set(seenSpecies)
+
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      for (let i = 0; i < speciesCodes.length; i++) {
+        const entry: LifeListEntry = {
+          speciesCode: speciesCodes[i],
+          comName: comNames[i],
+          dateAdded: Date.now(),
+          source: 'import'
+        }
+        await tx.store.put(entry)
+      }
+      await tx.done
+
+      const allEntries = await db.getAll(STORE_NAME)
+      const codes = new Set(allEntries.map(entry => entry.speciesCode))
+      setSeenSpecies(codes)
+
+      let newCount = 0
+      let existingCount = 0
+      for (const code of speciesCodes) {
+        if (existingCodes.has(code)) {
+          existingCount++
+        } else {
+          newCount++
+        }
+      }
+      return { newCount, existingCount }
     } catch (error) {
       console.error('Error importing species list:', error)
       throw error
@@ -269,32 +242,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     const db = await getDB()
     return db.getAll(STORE_NAME)
   }
-
-  // ── Partner list methods ──────────────────────────────────────────────
-
-  const importPartnerList = async (speciesCodes: string[], comNames: string[]): Promise<{newCount: number, existingCount: number}> => {
-    try {
-      const result = await importToStore(PARTNER_STORE, speciesCodes, comNames, partnerSeenSpecies, setPartnerSeenSpecies)
-      return result
-    } catch (error) {
-      console.error('Error importing partner list:', error)
-      throw error
-    }
-  }
-
-  const clearPartnerList = async () => {
-    try {
-      const db = await getDB()
-      await db.clear(PARTNER_STORE)
-      setPartnerSeenSpecies(new Set())
-      setActiveListMode('me')
-    } catch (error) {
-      console.error('Error clearing partner list:', error)
-      throw error
-    }
-  }
-
-  const hasPartnerList = partnerSeenSpecies.size > 0
 
   // ── Year list methods ─────────────────────────────────────────────────
 
@@ -339,23 +286,13 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     return activeList ? new Set(activeList.speciesCodes) : new Set<string>()
   }, [activeYearListId, yearLists])
 
-  // ── Effective seen species (computed from mode + scope) ───────────────
+  // ── Effective seen species (respects year scope) ─────────────────────
 
   const effectiveSeenSpecies = useMemo(() => {
-    // If in year scope, use year list instead of lifetime
-    const baseSeen = listScope === 'year' && yearSeenSpecies.size > 0
+    return listScope === 'year' && yearSeenSpecies.size > 0
       ? yearSeenSpecies
       : seenSpecies
-
-    switch (activeListMode) {
-      case 'me':
-        return baseSeen
-      case 'partner':
-        return partnerSeenSpecies
-      case 'both':
-        return new Set([...baseSeen, ...partnerSeenSpecies])
-    }
-  }, [activeListMode, seenSpecies, partnerSeenSpecies, listScope, yearSeenSpecies])
+  }, [seenSpecies, listScope, yearSeenSpecies])
 
   const value: LifeListContextValue = {
     seenSpecies,
@@ -367,13 +304,6 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     importSpeciesList,
     getTotalSeen,
     getLifeListEntries,
-    // Partner list
-    partnerSeenSpecies,
-    importPartnerList,
-    clearPartnerList,
-    hasPartnerList,
-    activeListMode,
-    setActiveListMode,
     effectiveSeenSpecies,
     // Year lists
     yearLists,

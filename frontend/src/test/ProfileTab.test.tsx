@@ -15,13 +15,7 @@ vi.mock('../contexts/LifeListContext', () => ({
     clearAllSpecies: mockClearAllSpecies,
     getTotalSeen: mockGetTotalSeen,
     seenSpecies: new Set<string>(),
-    // Partner list
-    partnerSeenSpecies: new Set<string>(),
-    importPartnerList: vi.fn(),
-    clearPartnerList: vi.fn(),
-    hasPartnerList: false,
-    activeListMode: 'me' as const,
-    setActiveListMode: vi.fn(),
+    effectiveSeenSpecies: new Set<string>(),
     // Year lists
     yearLists: [],
     importYearList: vi.fn(),
@@ -109,7 +103,6 @@ describe('ProfileTab', () => {
     render(<ProfileTab />)
     expect(screen.getByText('Import eBird Life List')).toBeInTheDocument()
     expect(screen.getByText('Your Life List')).toBeInTheDocument()
-    expect(screen.getByText('Partner Life List')).toBeInTheDocument()
     expect(screen.getByText('Year Lists')).toBeInTheDocument()
     expect(screen.getByText('App Updates')).toBeInTheDocument()
     expect(screen.getByText('Reset')).toBeInTheDocument()

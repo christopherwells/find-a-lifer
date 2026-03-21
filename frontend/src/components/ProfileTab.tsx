@@ -59,8 +59,6 @@ interface ProfileTabProps {
 export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMode, onShowAbout, onShowOnboarding }: ProfileTabProps = {}) {
   const {
     importSpeciesList, clearAllSpecies, getTotalSeen, isSpeciesSeen,
-    importPartnerList, clearPartnerList, hasPartnerList, partnerSeenSpecies,
-    activeListMode, setActiveListMode,
     yearLists, importYearList, deleteYearList, listScope, setListScope,
     setActiveYearListId,
   } = useLifeList()
@@ -70,8 +68,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
   const [importError, setImportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const [partnerImporting, setPartnerImporting] = useState(false)
-  const [partnerImportResult, setPartnerImportResult] = useState<CSVImportResult | null>(null)
   const [yearImporting, setYearImporting] = useState(false)
   const [yearImportYear, setYearImportYear] = useState(() => new Date().getFullYear())
   const [yearImportResult, setYearImportResult] = useState<CSVImportResult | null>(null)
@@ -143,22 +139,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
     localStorage.removeItem('sessionCount')
     localStorage.removeItem('beginnerMode')
     window.location.reload()
-  }
-
-  const handlePartnerImportClick = () => {
-    if (partnerImporting) return
-    handleImport(importPartnerList, setPartnerImporting, setPartnerImportResult)
-  }
-
-  const handleClearPartner = async () => {
-    if (window.confirm('Are you sure you want to remove the partner life list?')) {
-      try {
-        await clearPartnerList()
-        setPartnerImportResult(null)
-      } catch (error) {
-        console.error('Error clearing partner list:', error)
-      }
-    }
   }
 
   const handleYearImportClick = () => {
@@ -275,92 +255,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
           >
             {exporting ? 'Exporting...' : 'Export Life List as CSV'}
           </button>
-        )}
-      </div>
-
-      {/* Partner Life List Section */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">Partner Life List</h4>
-        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-          Import a birding partner's life list to plan trips together. The map will show lifers for both of you.
-        </p>
-
-        {hasPartnerList ? (
-          <div className="space-y-3">
-            <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-3">
-              <p className="text-sm font-medium text-violet-800 dark:text-violet-200">
-                {partnerSeenSpecies.size} species loaded
-              </p>
-              <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">
-                Partner life list is active
-              </p>
-            </div>
-
-            {/* Show lifers for toggle */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Show lifers for:</label>
-              <div className="grid grid-cols-3 gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5" data-testid="list-mode-toggle">
-                {(['me', 'partner', 'both'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setActiveListMode(mode)}
-                    className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                      activeListMode === mode
-                        ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    data-testid={`list-mode-${mode}`}
-                  >
-                    {mode === 'me' ? 'Me' : mode === 'partner' ? 'Partner' : 'Both'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handlePartnerImportClick}
-                disabled={partnerImporting}
-                className="flex-1 px-3 py-1.5 text-xs font-medium border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/30 disabled:opacity-50 transition-colors"
-                data-testid="partner-reimport-btn"
-              >
-                {partnerImporting ? 'Importing...' : 'Re-import'}
-              </button>
-              <button
-                onClick={handleClearPartner}
-                className="flex-1 px-3 py-1.5 text-xs font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                data-testid="partner-clear-btn"
-              >
-                Remove Partner List
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <button
-              onClick={handlePartnerImportClick}
-              disabled={partnerImporting}
-              className={`w-full px-4 py-2 text-center rounded-lg transition-colors ${
-                partnerImporting
-                  ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500'
-                  : 'bg-violet-600 text-white hover:bg-violet-700 active:bg-violet-800'
-              }`}
-              data-testid="partner-import-btn"
-            >
-              {partnerImporting ? 'Importing...' : 'Import Partner\'s eBird CSV'}
-            </button>
-          </div>
-        )}
-
-        {partnerImportResult && !partnerImporting && (
-          <div className="mt-2 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
-            <p className="text-sm text-green-700 dark:text-green-400">
-              <span className="font-medium">Partner import complete!</span>
-            </p>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              {partnerImportResult.matched} of {partnerImportResult.total} species matched.
-            </p>
-          </div>
         )}
       </div>
 
