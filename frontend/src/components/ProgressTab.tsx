@@ -483,7 +483,7 @@ export default function ProgressTab() {
       {totalSeen === 0 && (
         <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-3">
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            <span className="font-medium">Get started:</span> Visit the Species tab to mark birds you've seen, or import your eBird life list from the Profile tab.
+            <span className="font-medium">Get started:</span> Visit the Species tab to mark birds you've seen, or import your eBird life list from the menu (<strong>⋮</strong>).
           </p>
         </div>
       )}

@@ -152,7 +152,7 @@ export default function LifersPopup({
       {/* Import prompt when no life list (only show when no filter is active) */}
       {seenSpecies.size === 0 && popup.lifers.length > 0 && !popup.hasActiveFilter && (
         <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-teal-200 dark:border-teal-800 text-center">
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">Import your life list in <strong>Profile</strong> to see which are lifers</p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">Import your life list from the menu (<strong>⋮</strong>) to see which are lifers</p>
         </div>
       )}
       {/* Filter active indicator */}
@@ -312,7 +312,7 @@ export default function LifersPopup({
               )
             ) : seenSpecies.size === 0 ? (
               <>
-                <p>Import your life list in the <strong>Profile</strong> tab to see which are lifers.</p>
+                <p>Import your life list from the menu (<strong>⋮</strong>) to see which are lifers.</p>
                 {popup.totalSpecies > 0 && (
                   <p className="text-xs text-gray-400 mt-1">{popup.totalSpecies} species recorded here this week.</p>
                 )}
