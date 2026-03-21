@@ -1,7 +1,7 @@
 {
   "name": "Find-A-Lifer",
   "short_name": "Find-A-Lifer",
-  "description": "Find birds you've never seen across 13 countries and 2,052+ species",
+  "description": "Find birds you've never seen across 13 countries and 2,300+ species",
   "start_url": "/find-a-lifer/",
   "scope": "/find-a-lifer/",
   "display": "standalone",

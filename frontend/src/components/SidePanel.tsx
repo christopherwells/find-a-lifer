@@ -211,7 +211,7 @@ export default memo(function SidePanel({
           }`}
         style={!collapsed ? {
           bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))',
-          height: 'calc(100vh - 52px - env(safe-area-inset-bottom, 0px))',
+          height: 'calc(100vh - 52px - 44px - env(safe-area-inset-bottom, 0px))',
         } : undefined}
       >
         {/* Desktop Tab Navigation */}

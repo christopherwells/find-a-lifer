@@ -56,7 +56,7 @@ export default function AboutPage({ onClose }: AboutPageProps) {
             <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1.5">Coverage</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
               Find-A-Lifer covers <strong className="text-gray-700 dark:text-gray-300">13 countries</strong> across North America and the Caribbean, with data on over{' '}
-              <strong className="text-gray-700 dark:text-gray-300">2,052 species</strong>. The data is updated from the eBird Basic Dataset and processed into 52 weekly snapshots across three resolution levels of hexagonal map cells.
+              <strong className="text-gray-700 dark:text-gray-300">2,300+ species</strong>. The data is updated from the eBird Basic Dataset and processed into 52 weekly snapshots across three resolution levels of hexagonal map cells.
             </p>
           </section>
 

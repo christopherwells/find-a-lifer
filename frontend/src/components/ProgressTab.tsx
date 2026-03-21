@@ -162,10 +162,11 @@ export default function ProgressTab() {
       return (b.seen / b.total) - (a.seen / a.total)
     })
 
-  // Almost-there groups (1-3 remaining)
+  // Almost-there groups (1-3 remaining, must have ≥5 species and ≥1 already seen
+  // to exclude nonsensical groups like Cassowaries and Emu in North America)
   const almostThereGroups = Object.entries(groupStats)
     .map(([name, stats]) => ({ name, remaining: stats.total - stats.seen, seen: stats.seen, total: stats.total }))
-    .filter(g => g.remaining > 0 && g.remaining <= 3)
+    .filter(g => g.remaining > 0 && g.remaining <= 3 && g.total >= 5 && g.seen > 0)
     .sort((a, b) => a.remaining - b.remaining)
 
   // Build sub-region ID → display name lookup
