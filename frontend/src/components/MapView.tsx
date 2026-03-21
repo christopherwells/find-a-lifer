@@ -15,6 +15,18 @@ import {
   type OccurrenceRecord, type WeeklySummary,
 } from '../lib/mapHelpers'
 import { getNotableBirds, type NotableBird } from '../lib/recommendationEngine'
+import {
+  computeSingleSpeciesRange,
+  computeMultiSpeciesRange,
+  buildMultiSpeciesBitmaskColors,
+  computeGoalBirdsDensity,
+  buildProbabilityTargetIds,
+  computeProbabilityOverlay,
+  computeDensityFromLiferSummary,
+  computeDensityFromSummary,
+  applyLiferCountRangeFilter,
+  regionMask as regionMaskFn,
+} from '../lib/overlayRenderers'
 import { getAllLists, addSpeciesToList } from '../lib/goalListsDB'
 import type { GoalList } from '../lib/goalListsDB'
 import GoalBirdsPopupComponent from './GoalBirdsPopup'
@@ -1077,22 +1089,13 @@ export default memo(function MapView({
     if (!map.current || !gridReady) return
     if (weeklySummary.length === 0 && weeklyData.length === 0) return
 
-    // Helper: filter a cell-value map to the selected region's bounding box.
-    // Call this BEFORE computing legend min/max and normalization so the scale
+    // Region mask: filter cell values to the selected region's bounding box.
+    // Call BEFORE computing legend min/max and normalization so the scale
     // reflects only the region of interest.
-    const regionMask = (values: Map<number, number>): Map<number, number> => {
-      const regionFilter = speciesFilters?.region
-      if (!regionFilter || !REGION_BBOX[regionFilter]) return values
-      const [[west, south], [east, north]] = REGION_BBOX[regionFilter]
-      const masked = new Map<number, number>()
-      values.forEach((value, cellId) => {
-        const center = cellCentersRef.current.get(cellId)
-        if (center && center[0] >= west && center[0] <= east && center[1] >= south && center[1] <= north) {
-          masked.set(cellId, value)
-        }
-      })
-      return masked
-    }
+    const regionFilter = speciesFilters?.region
+    const regionBbox = (regionFilter && REGION_BBOX[regionFilter]) ? REGION_BBOX[regionFilter] : null
+    const regionMask = (values: Map<number, number>): Map<number, number> =>
+      regionMaskFn(values, regionBbox, cellCentersRef.current)
 
     // Helper: apply feature states to ALL grid cells.
     // Cells in cellValues get their value; ALL other cells get value=-1 (hidden).
@@ -1218,18 +1221,9 @@ export default memo(function MapView({
             const weekCells = await fetchWeekCells(currentWeek, activeResolution)
             if (cancelled) return
 
-            // Compute bitmask per cell: bit i = species i is present
-            const cellBitmasks = new Map<number, number>()
-            for (let i = 0; i < speciesMetas.length; i++) {
-              const records = getSpeciesCells(weekCells, speciesMetas[i].species_id)
-              const bit = 1 << i
-              for (const r of records) {
-                if (r.probability > 0) {
-                  const prev = cellBitmasks.get(r.cell_id) || 0
-                  cellBitmasks.set(r.cell_id, prev | bit)
-                }
-              }
-            }
+            const { values: cellBitmasks } = computeMultiSpeciesRange(
+              weekCells, speciesMetas.map(s => s.species_id), getSpeciesCells
+            )
             if (cancelled) return
 
             const masked = regionMask(cellBitmasks)
@@ -1249,42 +1243,7 @@ export default memo(function MapView({
             setLegendMax((1 << speciesMetas.length) - 1)
 
             // Build match expression mapping bitmask -> color
-            const MULTI_COLORS = ['#4A90D9', '#E74C3C', '#27AE60', '#8E44AD']
-            const numSpecies = speciesMetas.length
-            const maxBitmask = (1 << numSpecies) - 1
-
-            // Pre-compute blend colors for each possible bitmask
-            const bitmaskColors: [number, string][] = []
-            for (let bm = 1; bm <= maxBitmask; bm++) {
-              if (bm === maxBitmask) {
-                // All species present: gold
-                bitmaskColors.push([bm, '#FFD700'])
-              } else {
-                // Count set bits and blend component colors
-                const presentIndices: number[] = []
-                for (let i = 0; i < numSpecies; i++) {
-                  if (bm & (1 << i)) presentIndices.push(i)
-                }
-                if (presentIndices.length === 1) {
-                  bitmaskColors.push([bm, MULTI_COLORS[presentIndices[0]]])
-                } else {
-                  // Blend: average RGB of present species
-                  const hexToRgb = (hex: string) => {
-                    const n = parseInt(hex.slice(1), 16)
-                    return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
-                  }
-                  const rgbToHex = (r: number, g: number, b: number) =>
-                    '#' + [r, g, b].map(c => Math.round(c).toString(16).padStart(2, '0')).join('')
-                  let rSum = 0, gSum = 0, bSum = 0
-                  for (const idx of presentIndices) {
-                    const [r, g, b] = hexToRgb(MULTI_COLORS[idx])
-                    rSum += r; gSum += g; bSum += b
-                  }
-                  const n = presentIndices.length
-                  bitmaskColors.push([bm, rgbToHex(rSum / n, gSum / n, bSum / n)])
-                }
-              }
-            }
+            const bitmaskColors = buildMultiSpeciesBitmaskColors(speciesMetas.length)
 
             // Build MapLibre match expression
             const matchArgs: (string | number | maplibregl.ExpressionSpecification)[] = []
@@ -1354,13 +1313,9 @@ export default memo(function MapView({
           const { fetchWeekCells, getSpeciesCells } = await import('../lib/dataCache')
           const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
-          const records = getSpeciesCells(weekCells, speciesMeta.species_id)
-          if (cancelled) return
 
-          const cellProbabilities = new Map<number, number>()
-          records.forEach((r) => {
-            if (r.probability > 0) cellProbabilities.set(r.cell_id, r.probability)
-          })
+          const { values: cellProbabilities } = computeSingleSpeciesRange(weekCells, speciesMeta.species_id, getSpeciesCells)
+          if (cancelled) return
 
           const maskedProbs = regionMask(cellProbabilities)
           console.log(`Species Range: ${selectedSpecies} found in ${cellProbabilities.size} cells (${maskedProbs.size} in region)`)
@@ -1427,22 +1382,9 @@ export default memo(function MapView({
           const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
           const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
-          const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
-          if (cancelled) return
 
-          // Count goal species per cell
-          const cellCounts = new Map<number, number>()
-          let maxCount = 0
-          Object.values(batchData).forEach((records) => {
-            records.forEach((r) => {
-              if (r.probability > 0) {
-                const prev = cellCounts.get(r.cell_id) || 0
-                const next = prev + 1
-                cellCounts.set(r.cell_id, next)
-                if (next > maxCount) maxCount = next
-              }
-            })
-          })
+          const { values: cellCounts } = computeGoalBirdsDensity(weekCells, goalSpeciesIdSet, getSpeciesBatch)
+          if (cancelled) return
 
           const maskedCounts = regionMask(cellCounts)
           const maskedVals = Array.from(maskedCounts.values()).filter(c => c > 0)
@@ -1501,58 +1443,14 @@ export default memo(function MapView({
           const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
 
-          // Build target species set: goal list species not yet seen, or all lifers
-          const goalSpeciesIdSet = goalSpeciesIdSetRef.current
-          const useGoalFilter = goalBirdsOnlyFilter && goalSpeciesCodes.size > 0
+          // Build target species set using extracted helper
+          const targetIds = buildProbabilityTargetIds(
+            weekCells, speciesMetaCache, currentSeenSpecies,
+            goalBirdsOnlyFilter, goalSpeciesIdSetRef.current, goalSpeciesCodes,
+            speciesFilterIdsRef.current
+          )
 
-          let targetIds: Set<number> | null = null
-
-          // Build valid species ID set (excludes dropped species still in weekly data)
-          const validIds = new Set<number>()
-          if (speciesMetaCache) {
-            speciesMetaCache.forEach(s => validIds.add(s.species_id))
-          }
-
-          if (useGoalFilter || currentSeenSpecies.size > 0) {
-            // Build seen ID set
-            const seenIds = new Set<number>()
-            if (speciesMetaCache && currentSeenSpecies.size > 0) {
-              speciesMetaCache.forEach(s => {
-                if (currentSeenSpecies.has(s.speciesCode)) seenIds.add(s.species_id)
-              })
-            }
-
-            if (useGoalFilter) {
-              // Goal list species that haven't been seen yet
-              targetIds = new Set<number>()
-              goalSpeciesIdSet.forEach(sid => {
-                if (!seenIds.has(sid)) targetIds!.add(sid)
-              })
-            } else {
-              // All species not yet seen (lifers), excluding dropped species
-              targetIds = new Set<number>()
-              weekCells.forEach(({ speciesIds }) => {
-                for (const sid of speciesIds) {
-                  if (validIds.has(sid) && !seenIds.has(sid)) targetIds!.add(sid)
-                }
-              })
-            }
-          }
-          // If no life list and no goal filter, targetIds stays null → all species
-
-          // Apply species tab filters (conservation, invasion, difficulty)
-          const filterIds = speciesFilterIdsRef.current
-          if (filterIds) {
-            if (targetIds) {
-              // Intersect: keep only species in both target and filter sets
-              targetIds.forEach(sid => { if (!filterIds.has(sid)) targetIds!.delete(sid) })
-            } else {
-              // No existing target — use filter as the target
-              targetIds = new Set(filterIds)
-            }
-          }
-
-          const cellProbabilities = computeCombinedProbability(weekCells, targetIds)
+          const { values: cellProbabilities } = computeProbabilityOverlay(weekCells, targetIds, computeCombinedProbability)
           if (cancelled) return
 
           const maskedProbs = regionMask(cellProbabilities)
@@ -1609,21 +1507,9 @@ export default memo(function MapView({
           const { fetchWeekCells, getSpeciesBatch } = await import('../lib/dataCache')
           const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
-          const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
-          if (cancelled) return
 
-          const cellCounts = new Map<number, number>()
-          let maxCount = 0
-          Object.values(batchData).forEach((records) => {
-            records.forEach((r) => {
-              if (r.probability > 0) {
-                const prev = cellCounts.get(r.cell_id) || 0
-                const next = prev + 1
-                cellCounts.set(r.cell_id, next)
-                if (next > maxCount) maxCount = next
-              }
-            })
-          })
+          const { values: cellCounts } = computeGoalBirdsDensity(weekCells, goalSpeciesIdSet, getSpeciesBatch)
+          if (cancelled) return
 
           const maskedCounts = regionMask(cellCounts)
           const maskedVals = Array.from(maskedCounts.values()).filter(c => c > 0)
@@ -1649,7 +1535,7 @@ export default memo(function MapView({
       // If user has a life list, use the lifer-summary endpoint to subtract seen species
       // Otherwise, use the pre-computed summary (total species per cell)
       const loadDensity = async () => {
-        const cellLiferCounts = new Map<number, number>()
+        let cellLiferCounts: Map<number, number>
 
         const hasSpeciesFilter = speciesFilterIdsRef.current !== null
         if ((seenSpecies.size > 0 && !showTotalRichness) || hasSpeciesFilter) {
@@ -1664,34 +1550,22 @@ export default memo(function MapView({
             const weekCells = await fetchWeekCells(currentWeek, activeResolution)
             if (cancelled) return
 
-            // Build seen species ID set + valid species ID set (excludes dropped species)
-            const seenIds = new Set<number>()
-            const validIds = new Set<number>()
-            if (speciesMetaCache) {
-              speciesMetaCache.forEach(s => {
-                validIds.add(s.species_id)
-                if (seenSpecies.size > 0 && !showTotalRichness && seenSpecies.has(s.speciesCode)) {
-                  seenIds.add(s.species_id)
-                }
-              })
-            }
-
-            const liferData = computeLiferSummary(weekCells, seenIds, speciesFilterIdsRef.current, validIds)
-            liferData.forEach(([cellId, liferCount]) => {
-              if (liferCount > 0) cellLiferCounts.set(cellId, liferCount)
-            })
-            console.log(`Density lifer: seenIds=${seenIds.size}, liferCells=${cellLiferCounts.size}/${weekCells.size}`)
+            const result = computeDensityFromLiferSummary(
+              weekCells, speciesMetaCache, seenSpecies, showTotalRichness,
+              speciesFilterIdsRef.current, computeLiferSummary
+            )
+            cellLiferCounts = result.values
+            console.log(`Density lifer: liferCells=${cellLiferCounts.size}/${weekCells.size}`)
           } catch (error) {
             if (!cancelled) console.error('Lifer summary: error loading data', error)
             // Do NOT fall back to weeklySummary — that shows total species
             // (not lifers), causing cells with 0 lifers to appear colored.
             // Better to show nothing than misleading data.
+            return
           }
         } else {
           // No life list or showTotalRichness — use pre-computed summary (total species per cell)
-          weeklySummary.forEach(([cellId, speciesCount]) => {
-            if (speciesCount > 0) cellLiferCounts.set(cellId, speciesCount)
-          })
+          cellLiferCounts = computeDensityFromSummary(weeklySummary).values
         }
 
         if (cancelled) return
@@ -1714,16 +1588,7 @@ export default memo(function MapView({
         }
 
         // Apply lifer count range filter
-        const [filterMin, filterMax] = liferCountRange
-        const filteredCounts = new Map<number, number>()
-        regionCellCounts.forEach((liferCount, cellId) => {
-          if (liferCount >= filterMin && liferCount <= filterMax) {
-            filteredCounts.set(cellId, liferCount)
-          }
-        })
-
-        // maskedCounts is already region-masked since we started from regionCellCounts
-        const maskedCounts = filteredCounts
+        const maskedCounts = applyLiferCountRangeFilter(regionCellCounts, liferCountRange[0], liferCountRange[1])
 
         let filteredMax = 0
         let filteredMin = Infinity
