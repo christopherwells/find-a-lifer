@@ -534,52 +534,36 @@ export default function ExploreTab({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
-              Lifer Range <Tooltip content={TOOLTIPS.liferRange} />
+              Minimum Lifers <Tooltip content={TOOLTIPS.liferRange} />
             </label>
             <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 tabular-nums">
-              {liferCountRange[0]}–{Math.min(liferCountRange[1], dataRange[1])}
+              {liferCountRange[0]}+
             </span>
           </div>
-          <div className="space-y-1">
-            <input
-              type="range"
-              min={dataRange[0]}
-              max={dataRange[1]}
-              value={liferCountRange[0]}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10)
-                onLiferCountRangeChange?.([Math.min(val, liferCountRange[1]), liferCountRange[1]])
-              }}
-              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
-              data-testid="lifer-range-min-slider"
-              aria-label="Minimum lifer count"
-            />
-            <input
-              type="range"
-              min={dataRange[0]}
-              max={dataRange[1]}
-              value={Math.min(liferCountRange[1], dataRange[1])}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10)
-                onLiferCountRangeChange?.([liferCountRange[0], Math.max(val, liferCountRange[0])])
-              }}
-              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
-              data-testid="lifer-range-max-slider"
-              aria-label="Maximum lifer count"
-            />
-          </div>
+          <input
+            type="range"
+            min={dataRange[0]}
+            max={dataRange[1]}
+            value={liferCountRange[0]}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10)
+              onLiferCountRangeChange?.([val, 9999])
+            }}
+            className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            data-testid="lifer-range-min-slider"
+            aria-label="Minimum lifer count"
+          />
           <div className="flex justify-between text-[11px] lg:text-xs text-gray-400 dark:text-gray-500">
             <span>{dataRange[0]}</span>
-            <span>min ↑ max ↓</span>
             <span>{dataRange[1]}</span>
           </div>
-          {(liferCountRange[0] > dataRange[0] || liferCountRange[1] < dataRange[1]) && (
+          {liferCountRange[0] > dataRange[0] && (
             <button
-              onClick={() => onLiferCountRangeChange?.([dataRange[0], dataRange[1]])}
+              onClick={() => onLiferCountRangeChange?.([dataRange[0], 9999])}
               className="w-full text-[11px] text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
               data-testid="reset-lifer-range"
             >
-              Reset range
+              Reset minimum
             </button>
           )}
         </div>

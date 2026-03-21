@@ -383,13 +383,13 @@ export default function MapControls({
               </div>
             )}
 
-            {/* Lifer Range */}
+            {/* Minimum Lifers */}
             {showLiferRange && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">Lifer Range</label>
+                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">Min Lifers</label>
                   <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 tabular-nums">
-                    {liferCountRange[0]}–{Math.min(liferCountRange[1], dataRange[1])}
+                    {liferCountRange[0]}+
                   </span>
                 </div>
                 <input
@@ -399,27 +399,16 @@ export default function MapControls({
                   value={liferCountRange[0]}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10)
-                    onLiferCountRangeChange?.([Math.min(val, liferCountRange[1]), liferCountRange[1]])
+                    onLiferCountRangeChange?.([val, 9999])
                   }}
                   className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
                 />
-                <input
-                  type="range"
-                  min={dataRange[0]}
-                  max={dataRange[1]}
-                  value={Math.min(liferCountRange[1], dataRange[1])}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10)
-                    onLiferCountRangeChange?.([liferCountRange[0], Math.max(val, liferCountRange[0])])
-                  }}
-                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
-                />
-                {(liferCountRange[0] > dataRange[0] || liferCountRange[1] < dataRange[1]) && (
+                {liferCountRange[0] > dataRange[0] && (
                   <button
-                    onClick={() => onLiferCountRangeChange?.([dataRange[0], dataRange[1]])}
+                    onClick={() => onLiferCountRangeChange?.([dataRange[0], 9999])}
                     className="text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
                   >
-                    Reset range
+                    Reset
                   </button>
                 )}
               </div>
