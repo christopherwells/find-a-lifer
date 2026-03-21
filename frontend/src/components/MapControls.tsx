@@ -354,7 +354,7 @@ export default function MapControls({
                 }`}
                 aria-pressed={showTotalRichness}
               >
-                Show All Species
+                Include Seen Species
                 <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
                   showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
                 }`}>

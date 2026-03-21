@@ -343,7 +343,7 @@ export default function SpeciesInfoCard({
                     >
                       <span className="text-gray-700 dark:text-gray-300 truncate flex-1 mr-2">{loc.name}</span>
                       <span className="text-[#2C3E7B] dark:text-blue-400 font-medium flex-shrink-0">
-                        {(loc.freq * 100).toFixed(0)}%
+                        {(loc.freq * 100).toFixed(0)}% of trips
                       </span>
                     </button>
                   ))}

@@ -267,7 +267,7 @@ export default function LifersPopup({
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate dark:text-gray-200">{species.comName}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{tag} · {Math.round(frequency * 100)}%</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{tag} · Found on {Math.round(frequency * 100)}% of birding trips</div>
                 </div>
                 {/* Add to goal list button */}
                 {popupGoalLists.length > 0 && (

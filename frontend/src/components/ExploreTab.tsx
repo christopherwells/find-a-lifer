@@ -188,7 +188,7 @@ export default function ExploreTab({
         <div className="flex items-center gap-1 mt-1">
           <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />
           <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500">
-            {viewMode === 'density' ? 'Lifer density per cell' : viewMode === 'probability' ? 'Combined lifer probability' : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Multi-species range overlap' : 'Single species frequency') : 'Goal list species per cell'}
+            {viewMode === 'density' ? 'New birds in each area' : viewMode === 'probability' ? 'Chance of finding a lifer' : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Where multiple species overlap' : 'Where this species is found') : 'Goal birds in each area'}
           </span>
         </div>
       </div>
@@ -261,7 +261,7 @@ export default function ExploreTab({
           }`}
           aria-pressed={showTotalRichness}
         >
-          <span className="flex items-center gap-1">Show All Species <Tooltip content={TOOLTIPS.totalRichness} /></span>
+          <span className="flex items-center gap-1">Include Seen Species <Tooltip content={TOOLTIPS.totalRichness} /></span>
           <span
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
               showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
