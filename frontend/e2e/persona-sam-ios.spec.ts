@@ -77,10 +77,6 @@ test.describe('Sam — iOS User (phone)', () => {
     const pctText = await percent.textContent()
     expect(pctText).toMatch(/\d+\.?\d*%/)
 
-    // Profile → shows import section
-    await tabNav.getByRole('tab', { name: 'Profile' }).click()
-    await expect(page.getByText('Import eBird Life List')).toBeVisible({ timeout: 10000 })
-
     // Explore → shows map
     await tabNav.getByRole('tab', { name: 'Explore' }).click()
     await expect(page.getByTestId('map-container')).toBeVisible()
@@ -104,19 +100,9 @@ test.describe('Sam — iOS User (phone)', () => {
     await gotoReady(page)
     const viewport = page.viewportSize()
 
-    let darkToggle
-    if (viewport && viewport.width < 768) {
-      // Mobile: dark mode toggle is in Profile tab (hidden from TopBar)
-      await getTabNav(page).getByRole('tab', { name: 'Profile' }).click()
-      await expect(page.getByText('Import eBird Life List')).toBeVisible({ timeout: 10000 })
-      // The dark mode switch is inside the label containing "Dark mode" text
-      darkToggle = page.locator('label:has-text("Dark mode") button[role="switch"]')
-      await expect(darkToggle).toBeVisible({ timeout: 5000 })
-    } else {
-      // Desktop: dark mode toggle is in TopBar
-      darkToggle = page.getByTestId('topbar-dark-mode')
-      await expect(darkToggle).toBeVisible({ timeout: 5000 })
-    }
+    // Dark mode toggle is in TopBar (desktop)
+    const darkToggle = page.getByTestId('topbar-dark-mode')
+    await expect(darkToggle).toBeVisible({ timeout: 5000 })
 
     // Verify initial state — not dark
     const initialDark = await page.evaluate(() => document.documentElement.classList.contains('dark'))

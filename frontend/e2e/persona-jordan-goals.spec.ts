@@ -155,11 +155,12 @@ test.describe('Jordan — Goal-Oriented Birder (300 species)', () => {
     expect(parseInt(match![1])).toBe(count)
   })
 
-  test('Profile tab shows species count matching import', async ({ page }) => {
+  test('Profile modal shows species count matching import', async ({ page }) => {
     await gotoReady(page)
     const count = await importMediumLifeList(page)
 
-    await getTabNav(page).getByRole('tab', { name: 'Profile' }).click()
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     await expect(page.getByText('Import eBird Life List')).toBeVisible({ timeout: 10000 })
 
     // OUTCOME: Profile shows the imported species count

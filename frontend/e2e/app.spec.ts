@@ -58,8 +58,9 @@ test.describe('Find-A-Lifer App', () => {
     await expect(page.getByTestId('progress-tab')).toBeVisible({ timeout: 10000 })
   })
 
-  test('can switch to Profile tab', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+  test('can open Profile modal from kebab menu', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     await expect(page.getByText('Profile & Data')).toBeVisible()
   })
 
@@ -167,8 +168,9 @@ test.describe('Regression: Core Feature Interactions', () => {
     await expect(page.getByText('Progress by Region')).toBeVisible()
   })
 
-  test('Profile tab shows all sections', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+  test('Profile modal shows all sections', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     await expect(page.getByText('Profile & Data')).toBeVisible()
     await expect(page.getByText('Import eBird Life List')).toBeVisible()
     // Export only visible when species > 0, so check life list stats instead
@@ -189,11 +191,13 @@ test.describe('Regression: Core Feature Interactions', () => {
     await expect(page.getByTestId('opacity-slider')).toBeVisible({ timeout: 5000 })
   })
 
-  test('TopBar kebab menu has Tutorial and About options', async ({ page }) => {
+  test('TopBar kebab menu has Import, Account, Tutorial, and About options', async ({ page }) => {
     const kebab = page.getByTestId('topbar-menu-button')
     await expect(kebab).toBeVisible()
     await kebab.click()
-    await expect(page.getByTestId('topbar-help-button')).toBeVisible({ timeout: 3000 })
+    await expect(page.getByTestId('topbar-import-button')).toBeVisible({ timeout: 3000 })
+    await expect(page.getByTestId('topbar-account-button')).toBeVisible()
+    await expect(page.getByTestId('topbar-help-button')).toBeVisible()
     await expect(page.getByTestId('topbar-about-button')).toBeVisible()
   })
 
@@ -233,14 +237,16 @@ test.describe('Phase 2 Features', () => {
     await gotoReady(page)
   })
 
-  test('Profile tab shows Year Lists section', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+  test('Profile modal shows Year Lists section', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     await expect(page.getByText('Year Lists')).toBeVisible()
     await expect(page.getByText('Import Year List')).toBeVisible()
   })
 
-  test('Profile tab shows Partner Life List section', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+  test('Profile modal shows Partner Life List section', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     await expect(page.getByText('Partner Life List')).toBeVisible()
   })
 
@@ -283,21 +289,24 @@ test.describe('Phase 3+4 Features', () => {
     await gotoReady(page)
   })
 
-  test('Profile tab shows Account section with sign-in form', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+  test('Profile modal shows Account section with sign-in form', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     await expect(page.getByPlaceholder('Email')).toBeVisible({ timeout: 5000 })
     await expect(page.getByPlaceholder('Password')).toBeVisible()
   })
 
-  test('Profile tab shows Preferences section with celebrations toggle', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+  test('Profile modal shows Preferences section with celebrations toggle', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     await expect(page.getByText('Preferences')).toBeVisible()
     await expect(page.getByText('Celebration animations')).toBeVisible()
     await expect(page.getByTestId('celebrations-toggle')).toBeVisible()
   })
 
   test('celebrations toggle switches state', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     const toggle = page.getByTestId('celebrations-toggle')
     await expect(toggle).toBeVisible()
     // Toggle off
@@ -322,8 +331,9 @@ test.describe('Phase 3+4 Features', () => {
     await expect(page.getByTestId('group-breakdown-list')).toBeVisible()
   })
 
-  test('Profile tab account section can switch to create account', async ({ page }) => {
-    await page.getByTestId('tab-navigation').getByRole('button', { name: 'Profile' }).click()
+  test('Profile modal account section can switch to create account', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.getByTestId('topbar-account-button').click()
     // Wait for sign-in form to load
     await expect(page.getByPlaceholder('Email')).toBeVisible({ timeout: 5000 })
     // Click "Create one" link

@@ -125,7 +125,7 @@ test.describe('Alex — Complete Beginner (no life list)', () => {
     await expect(page.getByText('Turdus migratorius')).toBeVisible({ timeout: 5000 })
   })
 
-  test('all 6 tabs are navigable and load unique content', async ({ page }) => {
+  test('all 5 tabs are navigable and load unique content', async ({ page }) => {
     await gotoReady(page)
     const tabNav = getTabNav(page)
 
@@ -135,7 +135,6 @@ test.describe('Alex — Complete Beginner (no life list)', () => {
       { name: 'Goals', content: 'Goal Birds' },
       { name: 'Plan', content: 'Trip Planning' },
       { name: 'Stats', content: 'Overall Progress' },
-      { name: 'Profile', content: 'Import eBird Life List' },
       { name: 'Explore', content: undefined }, // Map tab — check map-container
     ]
 
