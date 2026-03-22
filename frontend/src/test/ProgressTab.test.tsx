@@ -113,12 +113,11 @@ describe('ProgressTab', () => {
     expect(screen.getByTestId('progress-percentage')).toHaveTextContent('40.0%')
   })
 
-  it('shows "Progress by Group" section', async () => {
+  it('shows Trophy Case section', async () => {
     render(<ProgressTab />)
     await waitFor(() => {
-      expect(screen.getByText('Progress by Group')).toBeInTheDocument()
+      expect(screen.getByTestId('trophy-case')).toBeInTheDocument()
     })
-    expect(screen.getByTestId('group-breakdown-list')).toBeInTheDocument()
   })
 
   it('shows "Progress by Region" section', async () => {

@@ -13,18 +13,46 @@ import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, type Leaderboa
 import { getFriends } from '../lib/friendsService'
 
 const GROUP_EMOJI: Record<string, string> = {
-  'Owls': '\u{1F989}',
-  'Hummingbirds': '\u{1F48E}',
   'Ducks, Geese, and Waterfowl': '\u{1F986}',
-  'Vultures, Hawks, and Allies': '\u{1F985}',
-  'Woodpeckers': '\u{1FAB6}',
-  'Parrots': '\u{1F99C}',
-  'Kingfishers and Motmots': '\u{1F451}',
-  'Toucans, Barbets, and Allies': '\u{1F308}',
-  'Falcons': '\u{1F985}',
-  'Pigeons and Doves': '\u{1F54A}\u{FE0F}',
-  'Gulls, Terns, and Skuas': '\u{1F30A}',
   'Flamingos, Grebes, and Loons': '\u{1F9A9}',
+  'Gulls, Terns, and Skuas': '\u{1F30A}',
+  'Auks': '\u{1F427}',
+  'Tubenoses': '\u{1F30A}',
+  'Pelicans, Cormorants, and Allies': '\u{1F41F}',
+  'Herons and Allies': '\u{1F9A2}',
+  'Shorebirds': '\u{1F3D6}\u{FE0F}',
+  'Rails, Cranes, and Allies': '\u{1F9A4}',
+  'Game Birds': '\u{1F983}',
+  'Pigeons and Doves': '\u{1F54A}\u{FE0F}',
+  'Cuckoos and Allies': '\u{1F426}',
+  'Hummingbirds': '\u{1F48E}',
+  'Nightjars and Allies': '\u{1F319}',
+  'Vultures, Hawks, and Allies': '\u{1F985}',
+  'Falcons': '\u{1F985}',
+  'Owls': '\u{1F989}',
+  'Trogons': '\u{1F308}',
+  'Kingfishers, Motmots, and Allies': '\u{1F451}',
+  'Toucans, Barbets, and Allies': '\u{1F99C}',
+  'Woodpeckers': '\u{1FAB5}',
+  'Parrots': '\u{1F99C}',
+  'Antbirds and Allies': '\u{1F41C}',
+  'Ovenbirds and Woodcreepers': '\u{1F3E0}',
+  'Flycatchers': '\u{1FAB0}',
+  'Cotingas, Manakins, and Allies': '\u{1F483}',
+  'Shrikes and Vireos': '\u{1F3AD}',
+  'Crows and Jays': '\u{1F5A4}',
+  'Swifts and Swallows': '\u{2708}\u{FE0F}',
+  'Chickadees, Nuthatches, and Allies': '\u{1F330}',
+  'Wrens and Gnatcatchers': '\u{1F3B5}',
+  'Waxwings, Dippers, and Allies': '\u{2744}\u{FE0F}',
+  'Warblers': '\u{1F33F}',
+  'Pipits and Larks': '\u{1F3B6}',
+  'Sparrows and Allies': '\u{1F33E}',
+  'Finches and Allies': '\u{1F33B}',
+  'Tanagers and Allies': '\u{1F33A}',
+  'Thrushes, Mockingbirds, and Allies': '\u{1F3A4}',
+  'Cardinals and Allies': '\u{2764}\u{FE0F}',
+  'Blackbirds and Orioles': '\u{1F34A}',
 }
 
 export default function ProgressTab() {
@@ -129,35 +157,30 @@ export default function ProgressTab() {
     }
   })
 
-  // Sort groups by total species count (descending)
-  const sortedGroups = Object.entries(groupStats).sort((a, b) => b[1].total - a[1].total)
-
   // Calculate quick stats
   const groupsStarted = Object.values(groupStats).filter(s => s.seen > 0).length
 
-  // Trophy levels: bronze (1/3), silver (2/3), gold (100%)
-  type TrophyLevel = 'gold' | 'silver' | 'bronze' | null
+  // Trophy tiers: copper (>=33%), silver (>=67%), gold (100%)
+  type TrophyLevel = 'gold' | 'silver' | 'copper' | null
   const getTrophyLevel = (seen: number, total: number): TrophyLevel => {
-    if (total === 0) return null
+    if (total === 0 || seen === 0) return null
     const ratio = seen / total
     if (ratio >= 1) return 'gold'
     if (ratio >= 2 / 3) return 'silver'
-    if (ratio >= 1 / 3) return 'bronze'
+    if (ratio >= 1 / 3) return 'copper'
     return null
   }
-  const TROPHY_STYLES: Record<string, { bg: string; border: string; text: string; subtext: string; label: string }> = {
-    gold: { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-300 dark:border-amber-600', text: 'text-amber-800 dark:text-amber-200', subtext: 'text-amber-600 dark:text-amber-400', label: 'Complete' },
-    silver: { bg: 'bg-gray-50 dark:bg-gray-800/50', border: 'border-gray-300 dark:border-gray-500', text: 'text-gray-700 dark:text-gray-200', subtext: 'text-gray-500 dark:text-gray-400', label: 'Silver' },
-    bronze: { bg: 'bg-orange-50 dark:bg-orange-900/10', border: 'border-orange-200 dark:border-orange-700', text: 'text-orange-800 dark:text-orange-200', subtext: 'text-orange-600 dark:text-orange-400', label: 'Bronze' },
-  }
 
-  // All groups with trophy levels, sorted: gold first, then silver, bronze, by completion %
-  const trophyGroups = Object.entries(groupStats)
+  // All groups with earned trophies (seen > 0), sorted: gold first, then silver, copper, then by completion %
+  // Groups with seen > 0 but below copper threshold still show as "started" cards
+  const earnedGroups = Object.entries(groupStats)
+    .filter(([, stats]) => stats.seen > 0)
     .map(([name, stats]) => ({ name, ...stats, level: getTrophyLevel(stats.seen, stats.total) }))
-    .filter(g => g.level !== null)
     .sort((a, b) => {
-      const order = { gold: 0, silver: 1, bronze: 2 }
-      const levelDiff = order[a.level!] - order[b.level!]
+      const order = { gold: 0, silver: 1, copper: 2, none: 3 }
+      const aOrder = a.level ? order[a.level] : order.none
+      const bOrder = b.level ? order[b.level] : order.none
+      const levelDiff = aOrder - bOrder
       if (levelDiff !== 0) return levelDiff
       return (b.seen / b.total) - (a.seen / a.total)
     })
@@ -265,7 +288,7 @@ export default function ProgressTab() {
           </div>
           <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
           <div className="text-center">
-            <p className="text-xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{trophyGroups.length}</p>
+            <p className="text-xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{earnedGroups.filter(g => g.level !== null).length}</p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400">Trophies</p>
           </div>
         </div>
@@ -284,33 +307,43 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* 5. Trophy Case — bronze/silver/gold levels */}
+      {/* 5. Trophy Case — unified copper/silver/gold display */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
-        {trophyGroups.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2">
-            {trophyGroups.map((g) => {
-              const style = TROPHY_STYLES[g.level!]
-              const medal = g.level === 'gold' ? '\uD83E\uDD47' : g.level === 'silver' ? '\uD83E\uDD48' : '\uD83E\uDD49'
+        {earnedGroups.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2">
+            {earnedGroups.map((g) => {
+              const tierClass = g.level === 'gold'
+                ? 'trophy-gold bg-yellow-400 text-yellow-900'
+                : g.level === 'silver'
+                ? 'trophy-silver bg-gray-300 text-gray-800 dark:bg-gray-400 dark:text-gray-900'
+                : g.level === 'copper'
+                ? 'trophy-copper bg-amber-800 text-amber-100'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              const animClass = g.level === 'gold'
+                ? 'trophy-sheen trophy-glow trophy-sparkle'
+                : g.level === 'silver'
+                ? 'trophy-sheen trophy-glow'
+                : g.level
+                ? 'trophy-sheen'
+                : ''
+              const emoji = GROUP_EMOJI[g.name] || '\u{1F3C6}'
               return (
                 <div
                   key={g.name}
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg ${style.bg} border ${style.border} shadow-sm`}
+                  className={`relative flex flex-col items-center p-2 rounded-lg shadow-sm overflow-hidden ${tierClass} ${animClass}`}
+                  data-testid={`trophy-${g.name.replace(/\s+/g, '-').toLowerCase()}`}
                 >
-                  <span className="text-lg flex-shrink-0">{GROUP_EMOJI[g.name] || medal}</span>
-                  <div className="min-w-0">
-                    <p className={`text-xs font-semibold ${style.text} truncate`}>{g.name}</p>
-                    <p className={`text-[11px] lg:text-xs ${style.subtext}`}>
-                      {g.seen}/{g.total} {medal} {style.label}
-                    </p>
-                  </div>
+                  <span className="text-2xl">{emoji}</span>
+                  <p className="text-[10px] font-semibold text-center leading-tight mt-1 line-clamp-2">{g.name}</p>
+                  <p className="text-[10px] font-medium mt-0.5">{g.seen}/{g.total}</p>
                 </div>
               )
             })}
           </div>
         ) : (
           <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-            See 1/3 of a species group to earn your first bronze trophy!
+            Start seeing species in a group to earn your first trophy!
           </p>
         )}
       </div>
@@ -411,36 +444,7 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* 9. Progress by Group */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Group</h4>
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          All {sortedGroups.length} groups by total species count
-        </p>
-        <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="group-breakdown-list">
-          {sortedGroups.map(([groupName, stats]) => {
-            const groupPercent = stats.total > 0 ? (stats.seen / stats.total) * 100 : 0
-            return (
-              <div key={groupName} className="space-y-1" data-testid={`group-${groupName.replace(/\s+/g, '-').toLowerCase()}`}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{groupName}</span>
-                  <span className="text-gray-500 dark:text-gray-400">
-                    {stats.seen}/{stats.total}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-[#2C3E7B] h-full rounded-full transition-all duration-200"
-                    style={{ width: `${groupPercent}%` }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* 10. Progress by Region */}
+      {/* 9. Progress by Region */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Region</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400">

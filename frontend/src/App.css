@@ -36,3 +36,108 @@ html, body {
     height: auto !important;
   }
 }
+
+/* Trophy Case animations */
+
+/* Sheen: diagonal light sweep — all trophies with a tier */
+@keyframes trophy-sheen {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.trophy-sheen {
+  background-size: 200% 100%;
+  animation: trophy-sheen 3s linear infinite;
+}
+.trophy-copper.trophy-sheen {
+  background-image: linear-gradient(
+    110deg,
+    rgb(146 64 14) 0%,
+    rgb(146 64 14) 40%,
+    rgb(180 90 30) 50%,
+    rgb(146 64 14) 60%,
+    rgb(146 64 14) 100%
+  );
+}
+.trophy-silver.trophy-sheen {
+  background-image: linear-gradient(
+    110deg,
+    rgb(209 213 219) 0%,
+    rgb(209 213 219) 40%,
+    rgb(240 240 245) 50%,
+    rgb(209 213 219) 60%,
+    rgb(209 213 219) 100%
+  );
+}
+.trophy-gold.trophy-sheen {
+  background-image: linear-gradient(
+    110deg,
+    rgb(250 204 21) 0%,
+    rgb(250 204 21) 40%,
+    rgb(255 235 120) 50%,
+    rgb(250 204 21) 60%,
+    rgb(250 204 21) 100%
+  );
+}
+
+/* Dark mode sheen adjustments */
+@media (prefers-color-scheme: dark) {
+  .dark .trophy-silver.trophy-sheen {
+    background-image: linear-gradient(
+      110deg,
+      rgb(156 163 175) 0%,
+      rgb(156 163 175) 40%,
+      rgb(200 200 210) 50%,
+      rgb(156 163 175) 60%,
+      rgb(156 163 175) 100%
+    );
+  }
+}
+
+/* Glow: subtle pulse for silver + gold */
+@keyframes trophy-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255,255,255,0.1); }
+  50% { box-shadow: 0 0 12px rgba(255,255,255,0.3); }
+}
+.trophy-glow {
+  animation: trophy-sheen 3s linear infinite, trophy-glow 2s ease-in-out infinite;
+}
+.trophy-silver.trophy-glow {
+  animation: trophy-sheen 3s linear infinite, trophy-glow 2s ease-in-out infinite;
+}
+.trophy-gold.trophy-glow {
+  animation: trophy-sheen 3s linear infinite, trophy-glow 2s ease-in-out infinite;
+}
+
+/* Sparkle: small white dots that appear/disappear — gold only */
+@keyframes trophy-sparkle-1 {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+@keyframes trophy-sparkle-2 {
+  0%, 100% { opacity: 0; }
+  35% { opacity: 1; }
+}
+@keyframes trophy-sparkle-3 {
+  0%, 100% { opacity: 0; }
+  65% { opacity: 1; }
+}
+.trophy-sparkle::before,
+.trophy-sparkle::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: white;
+  pointer-events: none;
+}
+.trophy-sparkle::before {
+  top: 15%;
+  right: 18%;
+  animation: trophy-sparkle-1 1.8s ease-in-out infinite;
+}
+.trophy-sparkle::after {
+  bottom: 25%;
+  left: 12%;
+  animation: trophy-sparkle-2 2.2s ease-in-out infinite;
+}

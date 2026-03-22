@@ -165,7 +165,7 @@ test.describe('Regression: Core Feature Interactions', () => {
     await expect(page.getByText('My Progress')).toBeVisible()
     await expect(page.getByTestId('quick-stats')).toBeVisible()
     await expect(page.getByText('Overall Progress')).toBeVisible()
-    await expect(page.getByText('Progress by Group')).toBeVisible()
+    await expect(page.getByTestId('trophy-case')).toBeVisible()
     await expect(page.getByText('Progress by Region')).toBeVisible()
   })
 
@@ -314,10 +314,10 @@ test.describe('Phase 3+4 Features', () => {
     await expect(page.getByTestId('milestones-section')).toBeVisible()
   })
 
-  test('Progress tab shows group breakdown', async ({ page }) => {
+  test('Progress tab shows trophy case', async ({ page }) => {
     await page.getByTestId('tab-navigation').getByRole('button', { name: 'Stats' }).click()
     await expect(page.getByTestId('progress-tab')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByTestId('group-breakdown-list')).toBeVisible()
+    await expect(page.getByTestId('trophy-case')).toBeVisible()
   })
 
   test('Profile modal account section can switch to create account', async ({ page }) => {
