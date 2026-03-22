@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
+  sendPasswordResetEmail,
   updateProfile,
   type User,
 } from 'firebase/auth'
@@ -17,6 +18,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, displayName: string) => Promise<void>
   signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
   clearError: () => void
 }
 
@@ -104,8 +106,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth)
   }, [])
 
+  const resetPassword = useCallback(async (email: string) => {
+    setError(null)
+    try {
+      await sendPasswordResetEmail(auth, email)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send reset email'
+      setError(msg.replace('Firebase: ', '').replace(/\(auth\/.*\)/, '').trim())
+      throw err
+    }
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, signIn, signUp, signOut, clearError }}>
+    <AuthContext.Provider value={{ user, loading, error, signIn, signUp, signOut, resetPassword, clearError }}>
       {children}
     </AuthContext.Provider>
   )

@@ -203,12 +203,13 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
 }
 
 function AccountSection() {
-  const { user, loading, error, signIn, signUp, signOut, clearError } = useAuth()
+  const { user, loading, error, signIn, signUp, signOut, resetPassword, clearError } = useAuth()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   if (loading) {
     return (
@@ -308,6 +309,27 @@ function AccountSection() {
           {submitting ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
         </button>
       </form>
+
+      {mode === 'signin' && (
+        <div className="text-center">
+          {resetSent ? (
+            <p className="text-xs text-green-600 dark:text-green-400">Reset email sent! Check your inbox.</p>
+          ) : (
+            <button
+              onClick={async () => {
+                if (!email.trim()) { clearError(); return }
+                try {
+                  await resetPassword(email.trim())
+                  setResetSent(true)
+                } catch { /* error shown via context */ }
+              }}
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-[#2C3E7B] dark:hover:text-blue-400 underline"
+            >
+              Forgot password?
+            </button>
+          )}
+        </div>
+      )}
 
       <p className="text-xs text-center text-gray-500 dark:text-gray-400">
         {mode === 'signin' ? (
