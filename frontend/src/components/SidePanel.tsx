@@ -178,9 +178,10 @@ export default memo(function SidePanel({
             : 'md:h-full animate-sheet-up md:animate-none'
           }`}
         style={!collapsed ? {
+          top: '44px',
           bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))',
-          height: 'calc(100vh - 52px - 44px - env(safe-area-inset-bottom, 0px))',
-          ...(window.innerWidth >= 768 ? { width: `${sidebarWidth}px`, bottom: 'auto', height: 'auto' } : {}),
+          height: 'auto',
+          ...(window.innerWidth >= 768 ? { top: 'auto', width: `${sidebarWidth}px`, bottom: 'auto', height: 'auto' } : {}),
         } : undefined}
       >
         {/* Resize handle (desktop only) */}

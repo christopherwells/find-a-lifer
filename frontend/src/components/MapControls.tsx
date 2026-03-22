@@ -185,24 +185,30 @@ export default function MapControls({
           </button>
         </div>
 
-        {/* Lifer metric dropdown — visible in Lifers mode */}
+        {/* Lifer metric toggle — compact segmented buttons */}
         {(viewMode === 'density' || viewMode === 'probability') && (
-          <div className="px-2 pb-1">
-            <select
-              value={liferMetric}
-              onChange={e => {
-                const metric = e.target.value as 'count' | 'chance' | 'expected'
-                setLiferMetric(metric)
-                // Switch underlying viewMode to match metric
-                if (metric === 'chance') setViewMode('probability')
-                else if (viewMode === 'probability') setViewMode('density')
-              }}
-              className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-            >
-              <option value="expected">Expected Lifers — how many new species you'd likely see</option>
-              <option value="count">Lifer Count — total possible new species</option>
-              <option value="chance">Lifer Chance — probability of seeing at least one</option>
-            </select>
+          <div className="flex gap-0.5 px-2 pb-1 bg-gray-100 dark:bg-gray-800 rounded-md mx-2">
+            {([
+              { key: 'expected' as const, label: 'Expected' },
+              { key: 'count' as const, label: 'Count' },
+              { key: 'chance' as const, label: 'Chance' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setLiferMetric(key)
+                  if (key === 'chance') setViewMode('probability')
+                  else if (viewMode === 'probability') setViewMode('density')
+                }}
+                className={`flex-1 py-1 text-xs font-medium rounded transition-all ${
+                  liferMetric === key
+                    ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         )}
 
