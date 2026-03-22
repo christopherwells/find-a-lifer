@@ -78,6 +78,15 @@ export default function MapControls({
   const [expanded, setExpanded] = useState(false)
   const [speciesExpanded, setSpeciesExpanded] = useState(false)
   const [highlightsExpanded, setHighlightsExpanded] = useState(false)
+  const [homeRegionId, setHomeRegionId] = useState(() => localStorage.getItem('homeRegion') || '')
+
+  // Listen for home region changes (set from TopBar kebab menu)
+  useEffect(() => {
+    const check = () => setHomeRegionId(localStorage.getItem('homeRegion') || '')
+    window.addEventListener('storage', check)
+    window.addEventListener('homeRegionChange', check)
+    return () => { window.removeEventListener('storage', check); window.removeEventListener('homeRegionChange', check) }
+  }, [])
   const { isAnimating, showWrapIndicator, startAnimation, stopAnimation } = useWeekAnimation(currentWeek, setCurrentWeek)
 
   // Species picker state
@@ -120,9 +129,8 @@ export default function MapControls({
   // Weekly highlights — computed from peakWeek data, no heavy fetches needed
   const weeklyHighlights = useMemo(() => {
     if (allSpecies.length === 0) return []
-    const homeRegion = localStorage.getItem('homeRegion') || undefined
-    return getWeeklyHighlightsLite(allSpecies, currentWeek, seenSpecies, goalSpeciesCodes, 4, homeRegion)
-  }, [allSpecies, currentWeek, seenSpecies, goalSpeciesCodes])
+    return getWeeklyHighlightsLite(allSpecies, currentWeek, seenSpecies, goalSpeciesCodes, 4, homeRegionId || undefined)
+  }, [allSpecies, currentWeek, seenSpecies, goalSpeciesCodes, homeRegionId])
 
   const selectedSpeciesMeta = allSpecies.find((s) => s.speciesCode === selectedSpecies)
 

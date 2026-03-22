@@ -285,7 +285,7 @@ export default function TripPlanner({
               Scanning {endWeek - startWeek + 1} weeks...
             </span>
           </div>
-        ) : seenSpecies.size === 0 ? (
+        ) : !seenSpecies || seenSpecies.size === 0 ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-8">
             Import your life list to see trip planning results
           </p>

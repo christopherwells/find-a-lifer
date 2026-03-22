@@ -134,6 +134,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
                     setHomeRegion(val)
                     if (val) localStorage.setItem('homeRegion', val)
                     else localStorage.removeItem('homeRegion')
+                    window.dispatchEvent(new Event('homeRegionChange'))
                   }}
                   onClick={(e) => e.stopPropagation()}
                   className={`flex-1 min-w-0 text-xs py-0.5 bg-transparent border-none outline-none ${
