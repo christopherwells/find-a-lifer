@@ -106,6 +106,41 @@ for region_id, (_, state_codes, _) in SUB_REGIONS.items():
     for sc in state_codes:
         STATE_TO_REGION[sc] = region_id
 
+# Super-region definitions: key -> (display_name, state/country_codes)
+# Codes may be state-level (US-AK) or country-level (CA, MX, GL, PM, etc.)
+# Country-level codes match via prefix fallback (CA-BC -> CA -> "northern")
+SUPER_REGIONS = {
+    "northern": ("Northern", {
+        "US-AK", "CA", "GL", "PM",
+    }),
+    "continental-us": ("Continental US", {
+        "US-AL", "US-AZ", "US-AR", "US-CA", "US-CO", "US-CT", "US-DE", "US-DC",
+        "US-FL", "US-GA", "US-ID", "US-IL", "US-IN", "US-IA", "US-KS", "US-KY",
+        "US-LA", "US-ME", "US-MD", "US-MA", "US-MI", "US-MN", "US-MS", "US-MO",
+        "US-MT", "US-NE", "US-NV", "US-NH", "US-NJ", "US-NM", "US-NY", "US-NC",
+        "US-ND", "US-OH", "US-OK", "US-OR", "US-PA", "US-RI", "US-SC", "US-SD",
+        "US-TN", "US-TX", "US-UT", "US-VT", "US-VA", "US-WA", "US-WV", "US-WI",
+        "US-WY",
+    }),
+    "hawaii": ("Hawaii", {
+        "US-HI",
+    }),
+    "mex-central": ("Mexico & Central America", {
+        "MX", "BZ", "GT", "SV", "HN", "NI", "CR", "PA",
+    }),
+    "caribbean": ("Caribbean", {
+        "CU", "JM", "HT", "DO", "PR", "BS", "BM", "TC", "TT", "BB",
+        "KN", "AG", "DM", "GD", "LC", "VC", "VI", "VG", "AW", "MF",
+        "MQ", "BQ", "SX",
+    }),
+}
+
+# Build reverse lookup: state/country_code -> super_region_id
+STATE_TO_SUPER_REGION = {}
+for sr_id, (_, sr_codes) in SUPER_REGIONS.items():
+    for sc in sr_codes:
+        STATE_TO_SUPER_REGION[sc] = sr_id
+
 
 def load_json(path):
     with open(path, "r") as f:
@@ -500,6 +535,102 @@ def compute_difficulty_scores():
         print(f"\n  {species_with_regional}/{len(results)} species have regional difficulty scores")
     else:
         print("  Skipped (no grid data)")
+
+    # ── Super-region difficulty ────────────────────────────────────────
+
+    print("\nComputing super-region difficulty...")
+    if not cell_states:
+        print("  Skipped (no cell_states data)")
+    else:
+        # Build super_region -> set of h3 cells using state codes
+        super_region_cells = {k: set() for k in SUPER_REGIONS}
+        sr_assigned = 0
+        for h3_index in checklists.keys():
+            state_code = cell_states.get(h3_index, "")
+            if not state_code:
+                continue
+            # Try exact match first (US-AK, US-NY, etc.), then country prefix (CA-BC -> CA, MX-BCN -> MX)
+            resolved = (STATE_TO_SUPER_REGION.get(state_code)
+                        or STATE_TO_SUPER_REGION.get(state_code.split('-')[0]))
+            if resolved:
+                super_region_cells[resolved].add(h3_index)
+                sr_assigned += 1
+
+        print(f"  Assigned {sr_assigned}/{len(checklists)} cells to super-regions")
+        for sr_key, (sr_name, _) in SUPER_REGIONS.items():
+            if super_region_cells[sr_key]:
+                print(f"  {sr_key} ({sr_name}): {len(super_region_cells[sr_key])} cells")
+
+        # For each super-region, compute per-species metrics using only that region's cells
+        for sr_key, (sr_name, _) in SUPER_REGIONS.items():
+            sr_cells = super_region_cells[sr_key]
+            if len(sr_cells) == 0:
+                print(f"  Skipping {sr_key}: no cells")
+                continue
+
+            # Filter checklists to this super-region
+            sr_checklists = {c: v for c, v in checklists.items() if c in sr_cells}
+            sr_total_cells = len(sr_checklists)
+            if sr_total_cells == 0:
+                continue
+
+            # Compute metrics for each species within this super-region
+            sr_metrics = {}
+            for species_id, cell_data in detections.items():
+                filtered_cells = {c: v for c, v in cell_data.items() if c in sr_cells}
+                if not filtered_cells:
+                    continue
+
+                metrics = compute_species_metrics(
+                    species_id, filtered_cells, sr_checklists, sr_total_cells
+                )
+                if metrics is not None:
+                    sr_metrics[species_id] = metrics
+
+            if len(sr_metrics) < 2:
+                print(f"  Skipping {sr_key}: only {len(sr_metrics)} species")
+                continue
+
+            # Rank and score within this super-region
+            sr_ratings = rank_and_score(sr_metrics)
+
+            # Convert 1-10 rating to full difficulty object with score, rating, label
+            for sid, rating in sr_ratings.items():
+                if sid in results:
+                    if "superRegionDifficulty" not in results[sid]:
+                        results[sid]["superRegionDifficulty"] = {}
+
+                    if rating <= 2:
+                        label = "Easy"
+                    elif rating <= 4:
+                        label = "Moderate"
+                    elif rating <= 6:
+                        label = "Hard"
+                    elif rating <= 8:
+                        label = "Very Hard"
+                    else:
+                        label = "Extremely Hard"
+
+                    # Compute a 0-100 score from the metrics for this super-region
+                    m = sr_metrics[sid]
+                    # Use the same weighted formula as global scoring
+                    # but we only have the 1-10 rating from rank_and_score;
+                    # approximate 0-100 from the rating
+                    score_0_100 = round((rating - 0.5) * 10, 1)
+
+                    results[sid]["superRegionDifficulty"][sr_key] = {
+                        "difficultyScore": score_0_100,
+                        "difficultyRating": rating,
+                        "difficultyLabel": label,
+                    }
+
+            print(f"  {sr_key}: scored {len(sr_ratings)} species")
+
+        # Print summary of super-region coverage
+        species_with_super = sum(
+            1 for r in results.values() if "superRegionDifficulty" in r
+        )
+        print(f"\n  {species_with_super}/{len(results)} species have super-region difficulty scores")
 
     # ── Manual overrides ─────────────────────────────────────────────
 

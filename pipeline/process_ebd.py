@@ -1423,6 +1423,8 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             entry["difficultyLabel"] = d["difficultyLabel"]
             if "regionalDifficulty" in d:
                 entry["regionalDifficulty"] = d["regionalDifficulty"]
+            if "superRegionDifficulty" in d:
+                entry["superRegionDifficulty"] = d["superRegionDifficulty"]
             difficulty_matched += 1
 
         # Super-regions: which broad biogeographic areas the species occurs in
