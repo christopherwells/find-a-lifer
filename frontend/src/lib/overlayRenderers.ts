@@ -316,17 +316,20 @@ export function applyLiferCountRangeFilter(
  * Filter a cell-value map to only include cells within a region's bounding box.
  * Returns the input map unmodified if no region filter is active.
  */
+/**
+ * Filter cell values to only include cells in the selected region.
+ * Uses state-code-based cell_states.json for precise filtering (no bbox leaking).
+ * @param regionId - sub-region or super-region ID, or null for no filtering
+ */
 export function regionMask(
   values: Map<number, number>,
-  regionBbox: [[number, number], [number, number]] | null,
-  cellCenters: Map<number, [number, number]>,
+  regionId: string | null,
+  isCellInRegionFn: (cellId: number | string, regionId: string) => boolean,
 ): Map<number, number> {
-  if (!regionBbox) return values
-  const [[west, south], [east, north]] = regionBbox
+  if (!regionId) return values
   const masked = new Map<number, number>()
   values.forEach((value, cellId) => {
-    const center = cellCenters.get(cellId)
-    if (center && center[0] >= west && center[0] <= east && center[1] >= south && center[1] <= north) {
+    if (isCellInRegionFn(cellId, regionId)) {
       masked.set(cellId, value)
     }
   })

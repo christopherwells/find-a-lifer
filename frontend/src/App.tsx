@@ -28,7 +28,7 @@ function AppInner() {
   const [showProfile, setShowProfile] = useState(false)
   // AddSpeciesModal removed — use Species tab search instead
   const tourStartedRef = useRef(false)
-  const { effectiveSeenSpecies, importSpeciesList, activeTripName, activeTripMemberCount } = useLifeList()
+  const { effectiveSeenSpecies, importSpeciesList, activeTripName, activeTripMemberCount, setTripUnion, setActiveTripName, setActiveTripMemberCount } = useLifeList()
   const { showToast } = useToast()
 
   // Session counting
@@ -133,9 +133,19 @@ function AppInner() {
           </ErrorBoundary>
           {/* Trip mode banner */}
           {activeTripName && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-[#2C3E7B] text-white px-3 py-1.5 rounded-full shadow-lg text-xs font-medium flex items-center gap-2 pointer-events-none">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-[#2C3E7B] text-white px-3 py-1.5 rounded-full shadow-lg text-xs font-medium flex items-center gap-2">
               <span>Trip: {activeTripName}</span>
               <span className="bg-white/20 px-1.5 py-0.5 rounded-full">{activeTripMemberCount}</span>
+              <button
+                onClick={() => { setTripUnion(null); setActiveTripName(null); setActiveTripMemberCount(0); localStorage.removeItem('activeTripId') }}
+                className="ml-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+                aria-label="Exit trip mode"
+                title="Exit trip mode"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
           )}
           {/* Floating map controls — mobile only (desktop uses ExploreTab in panel) */}

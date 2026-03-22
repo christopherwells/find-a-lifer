@@ -4,7 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // getDisplayGroup removed — habitat filter replaced family filter
 import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
 import SpeciesInfoCard from './SpeciesInfoCard'
-import { loadCellStates } from '../lib/subRegions'
+import { loadCellStates, isCellInRegion } from '../lib/subRegions'
 import { trackEvent } from '../lib/analytics'
 import { useToast } from '../contexts/ToastContext'
 import { useMapControls } from '../contexts/MapControlsContext'
@@ -1181,13 +1181,12 @@ export default memo(function MapView({
     if (!map.current || !gridReady) return
     if (weeklySummary.length === 0 && weeklyData.length === 0) return
 
-    // Region mask: filter cell values to the selected region's bounding box.
-    // Call BEFORE computing legend min/max and normalization so the scale
-    // reflects only the region of interest.
-    const regionFilter = speciesFilters?.region
-    const regionBbox = (regionFilter && REGION_BBOX[regionFilter]) ? REGION_BBOX[regionFilter] : null
+    // Region mask: filter cell values to the selected region using state codes.
+    // Uses cell_states.json for precise sub-region/super-region filtering.
+    const regionFilter = speciesFilters?.region || null
+    // Cell states will be loaded inside each async overlay function below
     const regionMask = (values: Map<number, number>): Map<number, number> =>
-      regionMaskFn(values, regionBbox, cellCentersRef.current)
+      regionMaskFn(values, regionFilter, isCellInRegion)
 
     // Helper: apply feature states to ALL grid cells.
     // Cells in cellValues get their value; ALL other cells get value=-1 (hidden).
@@ -1627,6 +1626,9 @@ export default memo(function MapView({
       // If user has a life list, use the lifer-summary endpoint to subtract seen species
       // Otherwise, use the pre-computed summary (total species per cell)
       const loadDensity = async () => {
+        // Ensure cell_states loaded for state-code-based region masking
+        if (regionFilter) await loadCellStates(activeResolution)
+
         let cellLiferCounts: Map<number, number>
 
         const hasSpeciesFilter = speciesFilterIdsRef.current !== null

@@ -383,8 +383,28 @@ export default function SpeciesTab() {
         const matchesRegion =
           !regionSpeciesCodes || regionSpeciesCodes.has(species.speciesCode)
 
-        const matchesRegionFilter =
-          !selectedRegionFilter || (regionCodes?.some(code => species.regions?.includes(code)) ?? false)
+        // Region filter: use regionalDifficulty keys for sub-region/super-region precision
+        // (country codes are too broad — "US" matches all US species regardless of sub-region)
+        let matchesRegionFilter = true
+        if (selectedRegionFilter) {
+          const rd = Object.keys(species.regionalDifficulty ?? {})
+          const superToSubs: Record<string, string[]> = {
+            'northern': ['ca-west', 'ca-central', 'ca-east'],
+            'continental-us': ['us-ne', 'us-se', 'us-mw', 'us-sw', 'us-west', 'us-rockies'],
+            'hawaii': ['us-hi'],
+            'mex-central': ['mx-north', 'mx-south', 'ca-c-north', 'ca-c-south'],
+            'caribbean': ['caribbean-greater', 'caribbean-lesser', 'atlantic-west'],
+          }
+          const memberSubs = superToSubs[selectedRegionFilter]
+          if (memberSubs) {
+            matchesRegionFilter = rd.some(k => memberSubs.includes(k))
+          } else if (SUB_REGIONS.some(r => r.id === selectedRegionFilter)) {
+            matchesRegionFilter = rd.includes(selectedRegionFilter)
+          } else {
+            // Country code fallback for non-sub-region selections
+            matchesRegionFilter = regionCodes?.some(code => species.regions?.includes(code)) ?? false
+          }
+        }
 
         const matchesSeen =
           !seenFilter ||
