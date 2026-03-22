@@ -314,17 +314,19 @@ export default function ProgressTab() {
             { label: '\u{1F7E4}', name: 'Copper', tier: 'copper' as const, color: 'text-amber-700 dark:text-amber-500' },
             { label: '\u{1F331}', name: 'Started', tier: null, color: 'text-gray-500 dark:text-gray-400' },
           ] as const).filter(({ tier }) => {
-            // Always show emerald (the aspirational top)
+            // Always show emerald
             if (tier === 'emerald') return true
-            // For lower tiers: show if ANY group (including unstarted) is at or below this tier
+            // Hide a tier only when ALL groups have surpassed it
+            // Diamond hides only if ALL groups are emerald
+            // Gold hides only if ALL groups are diamond or emerald
+            // etc.
             const tierRank = { 'emerald': 5, 'diamond': 4, 'gold': 3, 'silver': 2, 'copper': 1 }
             const thisRank = tier ? tierRank[tier] : 0
-            const totalGroups = Object.keys(groupStats).length
-            // Unstarted groups have rank -1 (below "Started" which is 0)
             const allGroupRanks = Object.values(groupStats).map(s => {
               const level = getTrophyLevel(s.seen, s.total)
               return level ? tierRank[level] : s.seen > 0 ? 0 : -1
             })
+            // Show this tier if ANY group is NOT above it
             return allGroupRanks.some(rank => rank <= thisRank)
           }).map(({ label, name, tier, color }, i) => (
             <div key={i} className="text-center">
