@@ -254,11 +254,11 @@ export default function ExploreTab() {
             <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400">This Week's Highlights</h3>
             <button onClick={() => setShowHighlights(false)} className="text-xs lg:text-xs text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+          <div className="grid grid-cols-3 gap-2 pb-2">
             {highlights.map(h => (
               <div
                 key={h.species.speciesCode}
-                className="flex-shrink-0 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 cursor-pointer hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => {
                   setViewMode('species')
                   setSelectedSpecies(h.species.speciesCode)
