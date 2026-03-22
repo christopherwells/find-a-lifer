@@ -69,18 +69,17 @@ ALL_LAND_KEYS = FOREST_KEYS + ["shrub", "herb", "cultivated", "urban", "water", 
 # Sub-region definitions: key -> (display_name, state_codes, fallback_bbox)
 # state_codes used for exact matching via cell_states archive; bbox as fallback
 SUB_REGIONS = {
-    "ca-west": ("Western Canada", {"CA-BC", "CA-AB"}, [-141, 48, -125, 70]),
-    "ca-central": ("Central Canada", {"CA-SK", "CA-MB"}, [-120, 48, -89, 70]),
-    "ca-east": ("Eastern Canada", {"CA-ON", "CA-QC", "CA-NB", "CA-NS", "CA-NL", "CA-PE"}, [-89, 42, -50, 63]),
-    "ca-north": ("Northern Canada", {"CA-YT", "CA-NT", "CA-NU"}, [-141, 60, -60, 84]),
+    "ca-west": ("Western Canada & Alaska", {"CA-BC", "CA-AB", "US-AK", "CA-YT"}, [-180, 48, -125, 72]),
+    "ca-central": ("Central Canada", {"CA-SK", "CA-MB", "CA-ON", "CA-NT", "CA-NU"}, [-120, 42, -75, 84]),
+    "ca-east": ("Eastern Canada & North Atlantic Islands", {"CA-QC", "CA-NB", "CA-NS", "CA-NL", "CA-PE", "PM", "GL"}, [-75, 42, -10, 84]),
     "mx-north": ("Northern Mexico",
                   {f"MX-{s}" for s in ["BCN","BCS","SON","CHH","COA","NLE","TAM","SIN","DUR","ZAC","SLP","AGU","NAY","JAL"]},
                   [-118, 20, -86, 33]),
     "mx-south": ("Southern Mexico",
                   {f"MX-{s}" for s in ["COL","MIC","GUA","GRO","OAX","CHP","TAB","VER","PUE","TLA","HID","MEX","MOR","QUE","CAM","ROO","YUC","CMX","DIF"]},
                   [-118, 14, -100, 20]),
-    "ca-c-north": ("Northern Central America", {"BZ", "GT", "SV", "HN", "NI"}, [-92, 12, -83, 18]),
-    "ca-c-south": ("Southern Central America", {"CR", "PA"}, [-86, 7, -77, 12]),
+    "ca-c-north": ("Upper Central America", {"BZ", "GT", "SV", "HN", "NI"}, [-92, 12, -83, 18]),
+    "ca-c-south": ("Costa Rica & Panama", {"CR", "PA"}, [-86, 7, -77, 12]),
     "caribbean-greater": ("Greater Antilles", {"CU", "JM", "HT", "DO", "PR"}, [-85, 17, -64, 24]),
     "caribbean-lesser": ("Lesser Antilles", {"TT", "BB", "KN", "VI", "VG", "AW", "MF", "MQ", "BQ", "SX", "AG", "DM", "GD", "LC", "VC"}, [-70, 10, -59, 19]),
     "atlantic-west": ("Western Atlantic Islands", {"BM", "BS", "TC"}, [-80, 20, -60, 33]),
@@ -90,7 +89,6 @@ SUB_REGIONS = {
     "us-sw": ("Southwestern US", {"US-TX","US-OK","US-NM","US-AZ"}, [-115, 25, -93, 37]),
     "us-west": ("Western US", {"US-CA","US-OR","US-WA"}, [-125, 32, -116, 49]),
     "us-rockies": ("US Rockies", {"US-NV","US-UT","US-CO","US-WY","US-MT","US-ID"}, [-117, 35, -102, 49]),
-    "us-ak": ("Alaska", {"US-AK"}, [-180, 51, -130, 72]),
     "us-hi": ("Hawaii", {"US-HI"}, [-161, 18, -154, 23]),
 }
 

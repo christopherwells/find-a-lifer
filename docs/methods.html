@@ -720,13 +720,13 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <h3>13.3 Per-Sub-Region Difficulty</h3>
-<p>The same rank-based percentile methodology is applied independently within each of the 18 sub-regions (see &sect;15) and also within 5 <strong>super-regions</strong> (Northern, Continental US, Hawaii, Mexico &amp; Central America, Caribbean). Super-regions provide a broader geographic context that captures species rarity at the biome level rather than the political boundary level. A species that is common in one region may be extremely rare in another, producing dramatically different scores. Regional difficulty is stored in <code>species.regionalDifficulty</code> as <code>Record&lt;subRegionId, number&gt;</code>, and super-region difficulty in <code>species.superRegionDifficulty</code> as <code>Record&lt;superRegionId, {difficultyScore, difficultyRating, difficultyLabel}&gt;</code>. Cell assignment to sub-regions uses state codes from <code>cell_states.json</code>.</p>
+<p>The same rank-based percentile methodology is applied independently within each of the 17 sub-regions (see &sect;15) and also within 5 <strong>super-regions</strong> (Northern, Continental US, Hawaii, Mexico &amp; Central America, Caribbean). Super-regions provide a broader geographic context that captures species rarity at the biome level rather than the political boundary level. A species that is common in one region may be extremely rare in another, producing dramatically different scores. Regional difficulty is stored in <code>species.regionalDifficulty</code> as <code>Record&lt;subRegionId, number&gt;</code>, and super-region difficulty in <code>species.superRegionDifficulty</code> as <code>Record&lt;superRegionId, {difficultyScore, difficultyRating, difficultyLabel}&gt;</code>. Cell assignment to sub-regions uses state codes from <code>cell_states.json</code>.</p>
 
 <h3>13.4 Manual Overrides</h3>
 <p>Both the conservation status and difficulty pipelines support <strong>manual override files</strong> that are applied as the final step, taking precedence over all computed values:</p>
 <ul style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li><strong>Conservation overrides</strong> (<code>pipeline/reference/conservation_overrides.json</code>): 66 species with manually corrected IUCN status codes, applied after the Wikidata SPARQL &rarr; IUCN &rarr; NatureServe &rarr; COSEWIC priority merge. Corrects species where Wikidata is outdated or where the automated merge produces incorrect results.</li>
-  <li><strong>Difficulty overrides</strong> (<code>pipeline/reference/difficulty_overrides.json</code>): 20 species with manually set difficulty scores and ratings, overriding the rank-based computation. Used for species where the statistical approach produces counter-intuitive results (e.g., a common species scored as very hard due to unusual geographic distribution).</li>
+  <li><strong>Conservation overrides</strong> (<code>pipeline/reference/conservation_overrides.json</code>): 161 species with manually corrected IUCN status codes, applied after the Wikidata SPARQL &rarr; IUCN &rarr; NatureServe &rarr; COSEWIC priority merge. Corrects species where Wikidata is outdated due to taxonomic splits or where the automated merge produces incorrect results (145 LC, 5 NT, 4 VU, 6 EN, 1 CR).</li>
+  <li><strong>Difficulty overrides</strong> (<code>pipeline/reference/difficulty_overrides.json</code>): 88 species with manually set difficulty scores and ratings, overriding the rank-based computation. Corrects for pelagic species (inherently hard but data-sparse), nocturnal/skulking species, Hawaiian endemics, range-restricted endemics, introduced species (artificially inflated difficulty from small ranges), and data artifacts.</li>
 </ul>
 
 <!-- ============================================================ -->
@@ -751,7 +751,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Species cards are region-aware. When opened from a map click, the card auto-detects the geographic sub-region and filters all displayed data (seasonality, difficulty, best locations, invasion status) to that region.</p>
 
 <h3>15.1 Sub-Region Definitions</h3>
-<p>18 sub-regions are defined by <strong>state/province codes</strong> (not bounding boxes). Cell assignment uses STATE CODE data captured from the EBD during pipeline processing, stored as <code>cell_states_r{N}.json</code> and shipped to the frontend as <code>r{N}/cell_states.json</code>. Each cell maps to a state code, which in turn maps to a sub-region via <code>STATE_TO_REGION</code> lookup.</p>
+<p>17 sub-regions are defined by <strong>state/province codes</strong> (not bounding boxes). Cell assignment uses STATE CODE data captured from the EBD during pipeline processing, stored as <code>cell_states_r{N}.json</code> and shipped to the frontend as <code>r{N}/cell_states.json</code>. Each cell maps to a state code, which in turn maps to a sub-region via <code>STATE_TO_REGION</code> lookup.</p>
 
 <table>
   <tr><th>Group</th><th>Sub-Regions</th><th>State/Province Codes</th></tr>
@@ -792,7 +792,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>A dropdown on the card shows all regions where the species has occurrence data, allowing manual switching. The dropdown is populated by scanning the species-weeks data for cells in each sub-region via cell_states mapping.</p>
 
 <h3>15.5 Region Filter Integration</h3>
-<p>Sub-regions are fully integrated into the species filter dropdown across all tabs. The region filter system (<code>regionGroups.ts</code>) defines 18 sub-regions plus multi-country groups:</p>
+<p>Sub-regions are fully integrated into the species filter dropdown across all tabs. The region filter system (<code>regionGroups.ts</code>) defines 17 sub-regions plus multi-country groups:</p>
 <ul>
   <li><strong>US sub-regions (7 + Hawaii):</strong> Northeastern, Southeastern, Midwestern, Southwestern, Western US, US Rockies, Hawaii &mdash; shown under "United States" optgroup</li>
   <li><strong>Canada sub-regions (3):</strong> Western Canada &amp; Alaska, Central Canada, Eastern Canada &amp; North Atlantic Islands &mdash; shown under "Canada" optgroup</li>
