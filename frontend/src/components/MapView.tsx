@@ -523,6 +523,10 @@ export default memo(function MapView({
         cellChecklistCountsRef.current = counts
         cellSpeciesCountsRef.current = speciesCounts
         setWeeklyData([]) // Clear full data — loaded on demand
+        // Preload adjacent weeks for instant slider response
+        import('../lib/dataCache').then(({ preloadAdjacentWeeks }) => {
+          preloadAdjacentWeeks(currentWeek, activeResolution)
+        })
         console.log(`Loaded week ${currentWeek} summary: ${summary.length} cells`)
       } catch (error) {
         if (!abortController.signal.aborted) {
