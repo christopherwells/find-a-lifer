@@ -720,7 +720,14 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <h3>13.3 Per-Sub-Region Difficulty</h3>
-<p>The same rank-based percentile methodology is applied independently within each of the 18 sub-regions (see &sect;15). A species that is common in one region may be extremely rare in another, producing dramatically different scores. Regional difficulty is stored in <code>species.regionalDifficulty</code> as <code>Record&lt;subRegionId, number&gt;</code>. Cell assignment to sub-regions uses state codes from <code>cell_states.json</code>.</p>
+<p>The same rank-based percentile methodology is applied independently within each of the 18 sub-regions (see &sect;15) and also within 5 <strong>super-regions</strong> (Northern, Continental US, Hawaii, Mexico &amp; Central America, Caribbean). Super-regions provide a broader geographic context that captures species rarity at the biome level rather than the political boundary level. A species that is common in one region may be extremely rare in another, producing dramatically different scores. Regional difficulty is stored in <code>species.regionalDifficulty</code> as <code>Record&lt;subRegionId, number&gt;</code>, and super-region difficulty in <code>species.superRegionDifficulty</code> as <code>Record&lt;superRegionId, {difficultyScore, difficultyRating, difficultyLabel}&gt;</code>. Cell assignment to sub-regions uses state codes from <code>cell_states.json</code>.</p>
+
+<h3>13.4 Manual Overrides</h3>
+<p>Both the conservation status and difficulty pipelines support <strong>manual override files</strong> that are applied as the final step, taking precedence over all computed values:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Conservation overrides</strong> (<code>pipeline/reference/conservation_overrides.json</code>): 66 species with manually corrected IUCN status codes, applied after the Wikidata SPARQL &rarr; IUCN &rarr; NatureServe &rarr; COSEWIC priority merge. Corrects species where Wikidata is outdated or where the automated merge produces incorrect results.</li>
+  <li><strong>Difficulty overrides</strong> (<code>pipeline/reference/difficulty_overrides.json</code>): 20 species with manually set difficulty scores and ratings, overriding the rank-based computation. Used for species where the statistical approach produces counter-intuitive results (e.g., a common species scored as very hard due to unusual geographic distribution).</li>
+</ul>
 
 <!-- ============================================================ -->
 <h2 id="multi-range">14. Multi-Species Range Overlay</h2>
@@ -744,19 +751,18 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Species cards are region-aware. When opened from a map click, the card auto-detects the geographic sub-region and filters all displayed data (seasonality, difficulty, best locations, invasion status) to that region.</p>
 
 <h3>15.1 Sub-Region Definitions</h3>
-<p>19 sub-regions are defined by <strong>state/province codes</strong> (not bounding boxes). Cell assignment uses STATE CODE data captured from the EBD during pipeline processing, stored as <code>cell_states_r{N}.json</code> and shipped to the frontend as <code>r{N}/cell_states.json</code>. Each cell maps to a state code, which in turn maps to a sub-region via <code>STATE_TO_REGION</code> lookup.</p>
+<p>18 sub-regions are defined by <strong>state/province codes</strong> (not bounding boxes). Cell assignment uses STATE CODE data captured from the EBD during pipeline processing, stored as <code>cell_states_r{N}.json</code> and shipped to the frontend as <code>r{N}/cell_states.json</code>. Each cell maps to a state code, which in turn maps to a sub-region via <code>STATE_TO_REGION</code> lookup.</p>
 
 <table>
   <tr><th>Group</th><th>Sub-Regions</th><th>State/Province Codes</th></tr>
-  <tr><td>Canada (4-way)</td><td>Pacific Northwest &amp; Alaska</td><td>BC, AB (+ Alaska US state codes)</td></tr>
-  <tr><td></td><td>Central Canada</td><td>SK, MB</td></tr>
-  <tr><td></td><td>Atlantic Canada &amp; Islands</td><td>ON, QC, NB, NS, NL, PE, PM, GL</td></tr>
-  <tr><td></td><td>Northern Canada</td><td>YT, NT, NU</td></tr>
-  <tr><td>US (8 regions)</td><td>Northeast, Southeast, Midwest, Southwest, West, Rockies, Alaska, Hawaii</td><td>Defined by US state codes (e.g., US-ME, US-CA)</td></tr>
+  <tr><td>Canada (3-way)</td><td>Western Canada &amp; Alaska</td><td>BC, AB, YT (+ US-AK)</td></tr>
+  <tr><td></td><td>Central Canada</td><td>SK, MB, ON, NT, NU</td></tr>
+  <tr><td></td><td>Eastern Canada &amp; North Atlantic Islands</td><td>QC, NB, NS, NL, PE, PM, GL</td></tr>
+  <tr><td>US (7 regions + Hawaii)</td><td>Northeast, Southeast, Midwest, Southwest, West, Rockies, Hawaii</td><td>Defined by US state codes (e.g., US-ME, US-CA). Alaska folded into Western Canada.</td></tr>
   <tr><td>Mexico (2-way)</td><td>Northern Mexico</td><td>BCN, BCS, SON, CHH, COA, NLE, TAM, SIN, DUR, ZAC, SLP, AGU, NAY, JAL</td></tr>
   <tr><td></td><td>Southern Mexico</td><td>COL, MIC, GUA, GRO, OAX, CHP, TAB, VER, PUE, TLA, HID, MEX, MOR, QUE, CAM, ROO, YUC, CMX, DIF</td></tr>
-  <tr><td>Central America (2-way)</td><td>Northern Central America</td><td>BZ, GT, SV, HN, NI</td></tr>
-  <tr><td></td><td>Southern Central America</td><td>CR, PA</td></tr>
+  <tr><td>Central America (2-way)</td><td>Upper Central America</td><td>BZ, GT, SV, HN, NI</td></tr>
+  <tr><td></td><td>Costa Rica &amp; Panama</td><td>CR, PA</td></tr>
   <tr><td>Caribbean (3)</td><td>Greater Antilles</td><td>CU, JM, HT, DO, PR (prefix matching for province codes, e.g., CU-03 &rarr; CU)</td></tr>
   <tr><td></td><td>Lesser Antilles</td><td>TT, BB, KN, VI, VG, AW, MF, MQ, BQ, SX, AG, DM, GD, LC, VC (15 territories)</td></tr>
   <tr><td></td><td>Western Atlantic Islands</td><td>BM, BS, TC</td></tr>
@@ -770,7 +776,9 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Difficulty ratings are pre-computed per sub-region using the same rank-based percentile approach as global scores (decile 1&ndash;10), but scoped to cells within each region. This produces dramatically different ratings: a Rusty Blackbird scores 3/10 in Eastern Canada but 10/10 in Mexico. Stored in <code>species.regionalDifficulty</code> as a <code>Record&lt;subRegionId, number&gt;</code>.</p>
 
 <h3>15.3 Regional Habitat Labels</h3>
-<p>Habitat labels are also computed per sub-region. A species may be labeled "Forest" globally but "Wetland" in a specific region where it predominantly uses different habitat. Regional habitat computation uses the same frequency-weighted covariate methodology as the global pipeline, scoped to cells within each sub-region.</p>
+<p>Habitat labels are computed at three granularity levels: global, per-sub-region, and per-super-region. A species may be labeled "Forest" globally but "Wetland" in a specific region where it predominantly uses different habitat. All levels use the same frequency-weighted covariate methodology, scoped to the appropriate cell set.</p>
+
+<p><strong>Super-region habitat</strong> is computed across 5 broad geographic zones (Northern, Continental US, Hawaii, Mexico &amp; Central America, Caribbean) and stored in <code>species.superRegionHabitat</code>. This provides meaningful habitat context even for species with sparse sub-region data.</p>
 
 <h3>15.4 Regional Data Filtering</h3>
 <p>When a sub-region is selected, the species card filters:</p>
@@ -784,12 +792,13 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>A dropdown on the card shows all regions where the species has occurrence data, allowing manual switching. The dropdown is populated by scanning the species-weeks data for cells in each sub-region via cell_states mapping.</p>
 
 <h3>15.5 Region Filter Integration</h3>
-<p>Sub-regions are fully integrated into the species filter dropdown across all tabs. The region filter system (<code>regionGroups.ts</code>) defines 19 sub-regions plus 3 multi-country groups:</p>
+<p>Sub-regions are fully integrated into the species filter dropdown across all tabs. The region filter system (<code>regionGroups.ts</code>) defines 18 sub-regions plus multi-country groups:</p>
 <ul>
-  <li><strong>US sub-regions (8):</strong> Northeastern, Southeastern, Midwestern, Southwestern, Western US, US Rockies, Alaska, Hawaii &mdash; shown under "United States" optgroup</li>
-  <li><strong>Canada sub-regions (4):</strong> Pacific Northwest &amp; Alaska, Central Canada, Atlantic Canada &amp; Islands, Northern Canada &mdash; shown under "Canada" optgroup</li>
+  <li><strong>US sub-regions (7 + Hawaii):</strong> Northeastern, Southeastern, Midwestern, Southwestern, Western US, US Rockies, Hawaii &mdash; shown under "United States" optgroup</li>
+  <li><strong>Canada sub-regions (3):</strong> Western Canada &amp; Alaska, Central Canada, Eastern Canada &amp; North Atlantic Islands &mdash; shown under "Canada" optgroup</li>
   <li><strong>Mexico sub-regions (2):</strong> Northern, Southern Mexico &mdash; shown under "Mexico" optgroup</li>
-  <li><strong>Multi-country groups:</strong> Central America (7 countries), Greater Antilles (5), Lesser Antilles (15 territories), Western Atlantic Islands (3) &mdash; shown under "Central America" and "Caribbean" optgroups</li>
+  <li><strong>Central America (2):</strong> Upper Central America (BZ/GT/SV/HN/NI), Costa Rica &amp; Panama (CR/PA) &mdash; shown under "Central America" optgroup</li>
+  <li><strong>Caribbean (3):</strong> Greater Antilles, Lesser Antilles (15 territories), Western Atlantic Islands &mdash; shown under "Caribbean" optgroup</li>
 </ul>
 <p>Two-tier filtering: selecting a sub-region like "Northeastern US" expands to the country code <code>['US']</code> for species-level filtering (matching species.json regions), while the sub-region's bounding box provides cell-level masking on the map. This means the species list shows all US species but the heatmap only highlights cells within the Northeastern US bounding box.</p>
 <p>The Progress tab uses <code>species.regionalDifficulty</code> keys as sub-region presence indicators to compute per-sub-region species counts, avoiding the ambiguity of mapping a single country code (US) to multiple sub-regions.</p>
@@ -806,6 +815,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li><strong>Rare Finds</strong> &mdash; species with difficulty &ge; 7 that the user hasn't seen</li>
   <li><strong>Easy Wins</strong> &mdash; species with high reporting frequency (&ge; 30%) and difficulty &le; 3</li>
 </ol>
+<p>A <strong>minimum frequency filter of 1%</strong> (<code>freq &lt; 0.01</code>) is applied to all notable birds. Species with reporting frequencies below this threshold are excluded from notable recommendations to avoid surfacing extremely unlikely sightings that would mislead trip planning.</p>
 <p>An "all species" popup mode shows the complete cell species list with checkmarks for already-seen species. Users can add species to their goal list directly from Notable Birds entries and species cards.</p>
 
 <h3>16.2 This Week's Highlights</h3>
@@ -880,21 +890,23 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <h3>18.1 Celebrations &amp; Trophy Case</h3>
 <p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts. Celebrations can be disabled in the kebab menu preferences.</p>
 
-<p><strong>Trophy tiers</strong> are awarded per display group based on completion percentage, using a copper/silver/gold progression:</p>
+<p><strong>Trophy tiers</strong> are awarded per display group based on completion percentage, using a five-tier progression with stacking animations:</p>
 <table>
   <tr><th>Tier</th><th>Threshold</th><th>Visual Treatment</th></tr>
-  <tr><td>Copper</td><td>&ge; 33% of species seen</td><td>Copper-toned medal</td></tr>
-  <tr><td>Silver</td><td>&ge; 67% of species seen</td><td>Silver medal with glow pulse animation</td></tr>
-  <tr><td>Gold</td><td>100% of species seen</td><td>Gold medal with sheen sweep + sparkle animations</td></tr>
+  <tr><td>Copper</td><td>&ge; 10% of species seen</td><td>Copper-toned medal with sheen sweep</td></tr>
+  <tr><td>Silver</td><td>&ge; 25% of species seen</td><td>Silver medal + glow pulse animation</td></tr>
+  <tr><td>Gold</td><td>&ge; 50% of species seen</td><td>Gold medal + sheen + glow + sparkle pseudo-elements</td></tr>
+  <tr><td>Diamond</td><td>&ge; 75% of species seen</td><td>Diamond medal + icy glow pulse + sparkle</td></tr>
+  <tr><td>Emerald</td><td>100% of species seen</td><td>Emerald medal + prismatic green glow + all stacking animations</td></tr>
 </table>
 
-<p>Each of the 40+ display groups has a dedicated emoji icon shown alongside the trophy. The Trophy Case (in the Stats tab) merges the former "Progress by Group" view, displaying all groups with their completion fractions, earned trophies, and remaining species counts. CSS animations include a <strong>sheen sweep</strong> (diagonal light reflection on gold trophies), a <strong>glow pulse</strong> (soft halo on silver/gold), and a <strong>sparkle effect</strong> on gold completions.</p>
+<p>Each of the 40 display groups has a dedicated emoji icon (e.g., owl for Owls, parrot for Parrots, fly for Flycatchers) shown alongside the trophy. The Trophy Case (in the Stats tab) merges the former "Progress by Group" view, displaying all groups with their completion fractions, earned trophies, and remaining species counts. CSS animations stack as tiers increase: <strong>sheen sweep</strong> (diagonal light reflection, all tiers), <strong>glow pulse</strong> (soft halo, silver+), <strong>sparkle effect</strong> (pseudo-element particles, gold+), and <strong>prismatic glow</strong> (emerald only).</p>
 
 <h3>18.2 Activity Tracking</h3>
 <p>Streak tracking computes consecutive days with manual species additions (excluding bulk imports). Weekly summary shows new lifers and new family groups started. Data derived from IndexedDB <code>dateAdded</code> and <code>source</code> fields on life list entries.</p>
 
 <h3>18.3 Firebase Social</h3>
-<p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards (global top 10 + friends) in Progress tab.</p>
+<p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards in the Stats tab with a <strong>friends/global toggle</strong> &mdash; friends mode shows only connected friends, global mode shows the top 10 across all users.</p>
 
 <!-- ============================================================ -->
 <h2 id="pipeline-orchestrator">19. Pipeline Orchestrator</h2>
@@ -984,6 +996,32 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <h3>20.6 Resizable Desktop Sidebar</h3>
 <p>On desktop viewports, the side panel features a <strong>draggable left edge</strong> for resizing between 320px and 800px width. The resize handle appears as a subtle grip indicator on hover. The user's preferred width is persisted in <code>localStorage</code> and restored on subsequent visits. This allows users to expand the panel for detailed species lists or narrow it to maximize the map area.</p>
 
+<h3>20.7 MapControlsContext</h3>
+<p>Map control state (view mode, week, opacity, filters) was previously passed through 5+ levels of prop drilling from <code>App.tsx</code> down through <code>SidePanel</code>, <code>ExploreTab</code>, and <code>MapControls</code> into <code>MapView</code>. A dedicated React context (<code>MapControlsContext.tsx</code>) now provides this state directly to any component that needs it, eliminating prop drilling and simplifying component interfaces across 12+ files.</p>
+
+<h3>20.8 Guided Feature Tour</h3>
+<p>New users are guided through the app with a <strong>driver.js</strong> feature tour (<code>lib/featureTour.ts</code>) that replaces the previous onboarding overlay slides. The tour consists of 8 steps highlighting key UI elements:</p>
+<ol style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li>Map overview (hexagonal cells)</li>
+  <li>View mode selector (Count/Chance/Range/Goals)</li>
+  <li>Week slider for temporal exploration</li>
+  <li>Cell click interaction</li>
+  <li>Species tab for browsing and life list management</li>
+  <li>Goals tab for goal list creation</li>
+  <li>Plan tab for trip planning</li>
+  <li>Menu button (import, dark mode, tutorial, about)</li>
+</ol>
+<p>The tour is <strong>responsive</strong>: on mobile (&lt;768px), steps target the bottom tab bar buttons and floating MapControls; on desktop, they target the side panel tab navigation. driver.js is lazy-loaded via dynamic <code>import()</code> to avoid increasing the main bundle size. Tour completion state is persisted in <code>localStorage</code> and can be replayed from the kebab menu.</p>
+
+<h3>20.9 Geolocation Prompt</h3>
+<p>After a user's first life list import, the app prompts for browser geolocation permission. If granted, the map flies to the user's location at zoom level 7 (resolution 4, local trip planning scale). This only triggers when no saved map position exists in <code>localStorage</code>, ensuring returning users are not re-prompted.</p>
+
+<h3>20.10 Font Size Accessibility</h3>
+<p>A minimum font size of <strong>12px</strong> is enforced throughout the app. A responsive three-tier type scale ensures readability across devices: primary text uses 12px on mobile scaling to 14px on large screens, while icon-associated text uses 11px scaling to 12px. No text in the app is rendered below 11px.</p>
+
+<h3>20.11 Manual Species Add</h3>
+<p>Users can add individual species to their life list via a search-and-add modal accessible from the kebab menu. The modal provides a fuzzy search across all species names (common and scientific), allowing users to quickly add species they have seen without importing a full CSV file. Each addition triggers the same celebration and milestone logic as other life list additions.</p>
+
 <!-- ============================================================ -->
 <h2 id="pwa">21. PWA &amp; Installability</h2>
 
@@ -1055,7 +1093,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li>Wikidata. Free structured knowledge base. <a href="https://www.wikidata.org/">wikidata.org</a> (CC0) &mdash; used for SPARQL queries of IUCN conservation status (P141), NatureServe status (P4319), COSEWIC status (P6949), and species photographs (P18)</li>
 </ul>
 
-<p class="updated">Last updated: March 2026. Pipeline source code: <code>pipeline/process_ebd.py</code></p>
+<p class="updated">Last updated: March 22, 2026. Pipeline source code: <code>pipeline/process_ebd.py</code></p>
 
 </body>
 </html>
