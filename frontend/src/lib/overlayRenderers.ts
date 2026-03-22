@@ -116,20 +116,30 @@ export function buildMultiSpeciesBitmaskColors(
 /**
  * Count unseen goal species per cell.
  */
-export function computeGoalBirdsDensity(
+/**
+ * Compute combined probability of seeing at least one goal bird per cell.
+ * P = 1 - ∏(1 - freq_i) for all goal species in the cell.
+ * More useful than count for trip planning — shows your CHANCE of success.
+ */
+export function computeGoalBirdsProbability(
   weekCells: Map<number, CellSpeciesData>,
   goalSpeciesIdSet: Set<number>,
   getSpeciesBatch: (wc: Map<number, CellSpeciesData>, sids: Set<number>) => Record<number, { cell_id: number; probability: number }[]>,
 ): OverlayResult {
   const batchData = getSpeciesBatch(weekCells, goalSpeciesIdSet)
-  const values = new Map<number, number>()
+  // Accumulate P(miss) = ∏(1 - freq_i) per cell, then P(hit) = 1 - P(miss)
+  const missProbability = new Map<number, number>()
   Object.values(batchData).forEach((records) => {
     for (const r of records) {
       if (r.probability > 0) {
-        const prev = values.get(r.cell_id) || 0
-        values.set(r.cell_id, prev + 1)
+        const prevMiss = missProbability.get(r.cell_id) ?? 1
+        missProbability.set(r.cell_id, prevMiss * (1 - r.probability))
       }
     }
+  })
+  const values = new Map<number, number>()
+  missProbability.forEach((miss, cellId) => {
+    values.set(cellId, 1 - miss)
   })
   return { values }
 }

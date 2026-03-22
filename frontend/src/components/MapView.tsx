@@ -19,7 +19,7 @@ import {
   computeSingleSpeciesRange,
   computeMultiSpeciesRange,
   buildMultiSpeciesBitmaskColors,
-  computeGoalBirdsDensity,
+  computeGoalBirdsProbability,
   buildProbabilityTargetIds,
   computeProbabilityOverlay,
   computeDensityFromLiferSummary,
@@ -1461,7 +1461,7 @@ export default memo(function MapView({
           const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
 
-          const { values: cellCounts } = computeGoalBirdsDensity(weekCells, goalSpeciesIdSet, getSpeciesBatch)
+          const { values: cellCounts } = computeGoalBirdsProbability(weekCells, goalSpeciesIdSet, getSpeciesBatch)
           if (cancelled) return
 
           const maskedCounts = regionMask(cellCounts)
@@ -1586,7 +1586,7 @@ export default memo(function MapView({
           const weekCells = await fetchWeekCells(currentWeek, activeResolution)
           if (cancelled) return
 
-          const { values: cellCounts } = computeGoalBirdsDensity(weekCells, goalSpeciesIdSet, getSpeciesBatch)
+          const { values: cellCounts } = computeGoalBirdsProbability(weekCells, goalSpeciesIdSet, getSpeciesBatch)
           if (cancelled) return
 
           const maskedCounts = regionMask(cellCounts)
@@ -1777,7 +1777,8 @@ export default memo(function MapView({
         let emptyMessage = ''
 
         if (viewMode === 'goal-birds') {
-          legendTitle = 'Goal Birds Density'
+          legendTitle = 'Goal Bird Chance'
+          isPercentage = true
           gradient = 'linear-gradient(to right, #FFF3C4, #FBBF24, #D97706, #B45309, #92400E)'
           showLegend = true
           emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
