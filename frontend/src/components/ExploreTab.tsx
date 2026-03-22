@@ -217,22 +217,31 @@ export default function ExploreTab() {
             </button>
           ))}
         </div>
-        {/* Lifer metric dropdown */}
+        {/* Lifer metric toggle — compact segmented buttons */}
         {(viewMode === 'density' || viewMode === 'probability') && (
-          <select
-            value={liferMetric}
-            onChange={e => {
-              const metric = e.target.value as 'count' | 'chance' | 'expected'
-              setLiferMetric(metric)
-              if (metric === 'chance') setViewMode('probability')
-              else if (viewMode === 'probability') setViewMode('density')
-            }}
-            className="w-full mt-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-          >
-            <option value="expected">Expected Lifers</option>
-            <option value="count">Lifer Count</option>
-            <option value="chance">Lifer Chance</option>
-          </select>
+          <div className="flex gap-0.5 mt-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+            {([
+              { key: 'expected' as const, label: 'Expected' },
+              { key: 'count' as const, label: 'Count' },
+              { key: 'chance' as const, label: 'Chance' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setLiferMetric(key)
+                  if (key === 'chance') setViewMode('probability')
+                  else if (viewMode === 'probability') setViewMode('density')
+                }}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  liferMetric === key
+                    ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         )}
         <div className="flex items-center gap-1 mt-1">
           <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />

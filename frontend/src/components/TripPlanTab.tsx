@@ -1,14 +1,30 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { useMapControls } from '../contexts/MapControlsContext'
-import type { Species } from './types'
+import type { Species, LiferMetric } from './types'
 import { fetchSpecies, fetchGrid } from '../lib/dataCache'
 import { buildSpeciesById } from './tripPlanUtils'
 import TripGroupSection from './TripGroupSection'
 import TripPlanner from './TripPlanner'
 
 export default function TripPlanTab() {
-  const { state: { goalLists } } = useMapControls()
+  const { state: { goalLists, liferMetric }, setLiferMetric, setViewMode } = useMapControls()
+
+  // Auto-switch to Expected Lifers metric when Plan tab is active
+  const prevMetricRef = useRef<LiferMetric>(liferMetric)
+  useEffect(() => {
+    if (window.innerWidth >= 768 && liferMetric !== 'expected') {
+      prevMetricRef.current = liferMetric
+      setLiferMetric('expected')
+      setViewMode('density')
+    }
+    return () => {
+      if (window.innerWidth >= 768 && prevMetricRef.current !== 'expected') {
+        setLiferMetric(prevMetricRef.current)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const { effectiveSeenSpecies: seenSpecies } = useLifeList()
 
   const [speciesData, setSpeciesData] = useState<Species[]>([])
