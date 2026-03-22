@@ -72,6 +72,20 @@ function AppInner() {
       detail: 'Explore the map to find your next lifer!',
       duration: 5000,
     })
+    // On first import, prompt for geolocation to fly map to user's area
+    if (!localStorage.getItem('mapPosition') && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const mapEl = document.querySelector('.maplibregl-map') as HTMLElement & { __maplibreglMap?: { flyTo: (opts: { center: [number, number]; zoom: number }) => void } }
+          const mapInstance = (window as Record<string, unknown>).__maplibreglMap as { flyTo: (opts: { center: [number, number]; zoom: number }) => void } | undefined
+          if (mapInstance) {
+            mapInstance.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 7 })
+          }
+        },
+        () => { /* User denied or error — no action */ },
+        { timeout: 10000 }
+      )
+    }
   }, [showToast])
 
   const handleImportClick = useCallback(async () => {
