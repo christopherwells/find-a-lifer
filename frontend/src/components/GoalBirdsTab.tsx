@@ -8,7 +8,7 @@ import type { Species } from './types'
 import { FamilyGroupSkeleton } from './Skeleton'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { getDisplayGroup } from '../lib/familyGroups'
-import { getPatternSuggestions } from '../lib/goalPatternEngine'
+import { getPatternSuggestions, dismissSuggestion } from '../lib/goalPatternEngine'
 
 /** Returns Tailwind classes for difficulty rating pill. */
 function getDifficultyColor(rating: number): string {
@@ -476,11 +476,13 @@ export default function GoalBirdsTab() {
   }, [allSpecies, activeList, isSpeciesSeen])
 
   // Pattern-based suggestions from goalPatternEngine
+  const [dismissVersion, setDismissVersion] = useState(0)
   const patternSuggestions = useMemo(() => {
+    void dismissVersion // trigger re-computation after dismiss
     if (!activeList || allSpecies.length === 0) return []
     const goalCodes = new Set(activeList.speciesCodes)
     return getPatternSuggestions(allSpecies, goalCodes, seenSpecies)
-  }, [allSpecies, activeList, seenSpecies])
+  }, [allSpecies, activeList, seenSpecies, dismissVersion])
 
   const almostComplete = useMemo(() => {
     if (!activeList || allSpecies.length === 0) return []
@@ -1273,9 +1275,14 @@ export default function GoalBirdsTab() {
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                             </div>
                           ) : (
-                            <button onClick={() => handleAddSpecies(ps.species)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-purple-700 dark:text-purple-400 border border-purple-300 dark:border-purple-700 rounded hover:bg-purple-600 hover:text-white transition-colors" title={`Add ${ps.species.comName}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                            </button>
+                            <div className="ml-2 flex-shrink-0 flex items-center gap-1">
+                              <button onClick={() => handleAddSpecies(ps.species)} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-purple-700 dark:text-purple-400 border border-purple-300 dark:border-purple-700 rounded hover:bg-purple-600 hover:text-white transition-colors" title={`Add ${ps.species.comName}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                              </button>
+                              <button onClick={() => { dismissSuggestion(ps.species.speciesCode); setDismissVersion(v => v + 1) }} className="min-h-[44px] min-w-[36px] flex items-center justify-center text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors" title="Not interested">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                              </button>
+                            </div>
                           )}
                         </div>
                       )
