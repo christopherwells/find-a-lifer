@@ -146,6 +146,10 @@ export async function startTour(): Promise<void> {
       progressText: '{{current}} of {{total}}',
       onDestroyed: () => {
         markTourComplete()
+        // Force cleanup of any lingering driver.js overlay elements on iOS
+        // which can hide the TopBar after early dismissal
+        document.querySelectorAll('.driver-overlay, .driver-popover, .driver-active-element').forEach(el => el.remove())
+        document.body.classList.remove('driver-active')
         resolve()
       },
     }
