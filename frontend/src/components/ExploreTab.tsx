@@ -86,13 +86,27 @@ export default function ExploreTab() {
       if (effectiveSeenSpecies.has(sp.speciesCode)) continue
       if (!sp.photoUrl) continue
 
-      // Region filter
+      // Region filter: species must be present AND not a vagrant (difficulty < 8) in the region
+      let effectiveDifficulty = sp.difficultyRating ?? 5
       if (homeRegion) {
-        const subKeys = Object.keys(sp.regionalDifficulty ?? {})
-        const inSub = subKeys.includes(homeRegion)
+        const rd = sp.regionalDifficulty ?? {}
         const memberSubs = superToSubs[homeRegion]
-        const inSuper = memberSubs ? subKeys.some(k => memberSubs.includes(k)) : false
-        if (!inSub && !inSuper) continue
+
+        // Find the best (lowest) regional difficulty across matching sub-regions
+        let bestRegionalDiff = 99
+        if (rd[homeRegion] !== undefined) {
+          bestRegionalDiff = rd[homeRegion]
+        } else if (memberSubs) {
+          for (const sub of memberSubs) {
+            if (rd[sub] !== undefined && rd[sub] < bestRegionalDiff) {
+              bestRegionalDiff = rd[sub]
+            }
+          }
+        }
+
+        if (bestRegionalDiff === 99) continue // not in this region at all
+        if (bestRegionalDiff >= 8) continue   // vagrant — too hard to realistically find here
+        effectiveDifficulty = bestRegionalDiff
       }
 
       // Goal birds peaking this week
@@ -109,9 +123,9 @@ export default function ExploreTab() {
         seen.add(sp.speciesCode)
       }
 
-      // Easy wins in season (low difficulty, peak close to current week)
-      if (sp.difficultyRating <= 3 && Math.abs(sp.peakWeek - currentWeek) <= 2 && !seen.has(sp.speciesCode)) {
-        result.push({ species: sp, reason: `Easy lifer — difficulty ${sp.difficultyRating}/10` })
+      // Easy wins in season (low regional difficulty, peak close to current week)
+      if (effectiveDifficulty <= 3 && Math.abs(sp.peakWeek - currentWeek) <= 2 && !seen.has(sp.speciesCode)) {
+        result.push({ species: sp, reason: `Easy lifer — difficulty ${effectiveDifficulty}/10` })
         seen.add(sp.speciesCode)
       }
 

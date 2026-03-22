@@ -197,13 +197,10 @@ export function getWeeklyHighlightsLite(
     if (seenCodes.has(sp.speciesCode)) continue
     if (!sp.peakWeek || sp.peakWeek < 1) continue
 
-    // Region filter: check if species has occurrence data in the selected region
+    // Region filter: species must be present AND not a vagrant (difficulty < 8)
+    let effectiveDifficulty = sp.difficultyRating ?? 5
     if (regionId) {
-      const subRegionKeys = Object.keys(sp.regionalDifficulty ?? {})
-      // Direct sub-region match (e.g., "us-ne")
-      const inSubRegion = subRegionKeys.includes(regionId)
-      // Super-region match: map sub-region IDs to their parent super-region
-      // and check if any match the selected super-region
+      const rd = sp.regionalDifficulty ?? {}
       const superToSubs: Record<string, string[]> = {
         'northern': ['ca-west', 'ca-central', 'ca-east'],
         'continental-us': ['us-ne', 'us-se', 'us-mw', 'us-sw', 'us-west', 'us-rockies'],
@@ -212,8 +209,19 @@ export function getWeeklyHighlightsLite(
         'caribbean': ['caribbean-greater', 'caribbean-lesser', 'atlantic-west'],
       }
       const memberSubs = superToSubs[regionId]
-      const inSuperRegion = memberSubs ? subRegionKeys.some(k => memberSubs.includes(k)) : false
-      if (!inSubRegion && !inSuperRegion) continue
+
+      // Find best (lowest) regional difficulty across matching sub-regions
+      let bestRegionalDiff = 99
+      if (rd[regionId] !== undefined) bestRegionalDiff = rd[regionId]
+      else if (memberSubs) {
+        for (const sub of memberSubs) {
+          if (rd[sub] !== undefined && rd[sub] < bestRegionalDiff) bestRegionalDiff = rd[sub]
+        }
+      }
+
+      if (bestRegionalDiff === 99) continue // not in this region
+      if (bestRegionalDiff >= 8) continue   // vagrant — skip
+      effectiveDifficulty = bestRegionalDiff
     }
 
     const distFromPeak = Math.min(
@@ -236,7 +244,7 @@ export function getWeeklyHighlightsLite(
     }
 
     // New arrival: moderately difficult species arriving soon (peak 1-3 weeks away)
-    if (weeksUntilPeak >= 1 && weeksUntilPeak <= 3 && sp.difficultyRating >= 4) {
+    if (weeksUntilPeak >= 1 && weeksUntilPeak <= 3 && effectiveDifficulty >= 4) {
       highlights.push({
         species: sp,
         category: 'new-arrival',
@@ -247,7 +255,7 @@ export function getWeeklyHighlightsLite(
     }
 
     // Peak season: easy-to-moderate species peaking this exact week
-    if (sp.peakWeek === currentWeek && sp.difficultyRating <= 5) {
+    if (sp.peakWeek === currentWeek && effectiveDifficulty <= 5) {
       highlights.push({
         species: sp,
         category: 'peak-season',
@@ -258,7 +266,7 @@ export function getWeeklyHighlightsLite(
     }
 
     // Rare visitor: difficult species at or near peak
-    if (sp.difficultyRating >= 7 && distFromPeak <= 1) {
+    if (effectiveDifficulty >= 7 && distFromPeak <= 1) {
       highlights.push({
         species: sp,
         category: 'rare-visitor',
