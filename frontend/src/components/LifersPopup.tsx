@@ -95,11 +95,11 @@ export default function LifersPopup({
         </div>
         <button
           onClick={onClose}
-          className="text-teal-600 dark:text-teal-400 hover:text-teal-900 dark:hover:text-teal-200 transition-colors p-1 rounded"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-teal-600 dark:text-teal-400 hover:text-teal-900 dark:hover:text-teal-200 transition-colors rounded-lg md:min-h-0 md:min-w-0 md:p-1"
           aria-label="Close popup"
           data-testid="lifers-popup-close"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         </button>
@@ -440,9 +440,15 @@ export default function LifersPopup({
         )}
       </div>
 
-      {/* Footer hint */}
-      <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 rounded-b-lg">
-        <p className="text-xs text-gray-400 text-center">
+      {/* Footer */}
+      <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 rounded-b-lg">
+        <button
+          onClick={onClose}
+          className="w-full py-2 text-sm font-medium text-[#2C3E7B] dark:text-blue-400 md:hidden"
+        >
+          Back to Map
+        </button>
+        <p className="text-xs text-gray-400 text-center hidden md:block">
           Click species name for details · Click cell to update
         </p>
       </div>
