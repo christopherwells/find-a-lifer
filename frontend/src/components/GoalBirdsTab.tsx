@@ -502,7 +502,7 @@ export default function GoalBirdsTab() {
   if (loading) {
     return (
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Goal Birds</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-brand-text)]">Goal Birds</h3>
         <FamilyGroupSkeleton itemCount={3} />
         <FamilyGroupSkeleton itemCount={2} />
       </div>
@@ -515,12 +515,12 @@ export default function GoalBirdsTab() {
       <div className="space-y-2 pb-2 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Goal Birds</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-brand-text)]">Goal Birds</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Track birds you want to see and get personalized suggestions</p>
           </div>
           <button
             onClick={() => setShowCreateDialog(true)}
-            className="px-2 py-1 bg-[#2C3E7B] text-white text-xs font-medium rounded-md hover:bg-[#1f2d5a] transition-colors flex-shrink-0"
+            className="px-2 py-1 bg-[var(--color-brand)] text-white text-xs font-medium rounded-md hover:bg-[#1f2d5a] transition-colors flex-shrink-0"
           >
             + New List
           </button>
@@ -541,14 +541,14 @@ export default function GoalBirdsTab() {
                     if (e.key === 'Escape') handleCancelRename()
                   }}
                   placeholder="Enter new name..."
-                  className="flex-1 px-3 py-2 text-sm border border-[#2C3E7B] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="flex-1 px-3 py-2 text-sm border border-[var(--color-brand)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
                   autoFocus
                   data-testid="rename-input"
                 />
                 <button
                   onClick={handleConfirmRename}
                   disabled={!renameValue.trim()}
-                  className="px-3 py-2 text-sm text-white bg-[#2C3E7B] rounded-lg hover:bg-[#1f2d5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 text-sm text-white bg-[var(--color-brand)] rounded-lg hover:bg-[#1f2d5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Save new name"
                   data-testid="rename-save-btn"
                 >
@@ -647,7 +647,7 @@ export default function GoalBirdsTab() {
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCreateDialog(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-80 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-4">Create New Goal List</h4>
+            <h4 className="text-lg font-semibold text-[var(--color-brand-text)] mb-4">Create New Goal List</h4>
 
             <div className="space-y-4">
               <div>
@@ -690,7 +690,7 @@ export default function GoalBirdsTab() {
                 <button
                   onClick={handleCreateList}
                   disabled={!newListName.trim()}
-                  className="px-4 py-2 text-sm text-white bg-[#2C3E7B] rounded-lg hover:bg-[#1f2d5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm text-white bg-[var(--color-brand)] rounded-lg hover:bg-[#1f2d5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create
                 </button>
@@ -704,7 +704,7 @@ export default function GoalBirdsTab() {
       {showDeleteDialog && deletingList && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleCancelDelete}>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h4 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-4">Delete Goal List?</h4>
+            <h4 className="text-lg font-semibold text-[var(--color-brand-text)] mb-4">Delete Goal List?</h4>
 
             <div className="space-y-4">
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -749,13 +749,13 @@ export default function GoalBirdsTab() {
           <div className="space-y-4 py-6 px-2">
             <div className="text-center">
               <div className="text-5xl mb-3">{'\uD83C\uDFAF'}</div>
-              <h4 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-1">Create Your First Goal List</h4>
+              <h4 className="text-lg font-semibold text-[var(--color-brand-text)] mb-1">Create Your First Goal List</h4>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                 Track the birds you most want to see.
               </p>
               <button
                 onClick={() => setShowCreateDialog(true)}
-                className="px-5 py-2.5 bg-[#2C3E7B] text-white text-sm font-medium rounded-lg hover:bg-[#1f2d5a] transition-colors"
+                className="px-5 py-2.5 bg-[var(--color-brand)] text-white text-sm font-medium rounded-lg hover:bg-[#1f2d5a] transition-colors"
               >
                 + Create Empty List
               </button>
@@ -821,7 +821,7 @@ export default function GoalBirdsTab() {
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">
+                        <div className="text-sm font-medium text-[var(--color-brand-text)] dark:text-gray-200 truncate">
                           {species.comName}
                         </div>
                         <div className="text-xs italic text-gray-600 dark:text-gray-400 truncate">
@@ -962,7 +962,7 @@ export default function GoalBirdsTab() {
                               className={`text-sm font-medium truncate ${
                                 seen
                                   ? 'line-through text-gray-500 dark:text-gray-400'
-                                  : 'text-[#2C3E50] dark:text-gray-200 hover:text-[#2C3E7B] dark:hover:text-blue-400'
+                                  : 'text-[var(--color-brand-text)] dark:text-gray-200 hover:text-[var(--color-brand)] dark:hover:text-blue-400'
                               }`}
                               data-testid={seen ? `goal-species-seen-${code}` : `goal-species-unseen-${code}`}
                             >
@@ -1002,7 +1002,7 @@ export default function GoalBirdsTab() {
                           {species && (
                             <button
                               onClick={() => setSelectedSpeciesCard(species)}
-                              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[#2C3E7B] dark:text-blue-400 hover:bg-[#2C3E7B] hover:text-white dark:hover:bg-blue-600 rounded transition-colors"
+                              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--color-brand)] hover:bg-[var(--color-brand)] hover:text-white dark:hover:bg-blue-600 rounded transition-colors"
                               title="View species info"
                               aria-label={`View info about ${species.comName}`}
                               data-testid={`goal-species-info-icon-${code}`}
@@ -1095,7 +1095,7 @@ export default function GoalBirdsTab() {
                           >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
+                                <span className="text-sm font-medium text-[var(--color-brand-text)] dark:text-gray-200 truncate">{sp.comName}</span>
                                 <span className={`text-xs ${badgeStyle.bg} ${badgeStyle.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`} data-testid={`easy-wins-probability-badge-${sp.speciesCode}`}>
                                   ⭐ {badgeStyle.label}
                                 </span>
@@ -1107,7 +1107,7 @@ export default function GoalBirdsTab() {
                             {alreadyInList ? (
                               <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`easy-wins-already-added-${sp.speciesCode}`}>✓</div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`easy-wins-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[var(--color-brand)] border border-[var(--color-brand)]/30 rounded hover:bg-[var(--color-brand)] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`easy-wins-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1160,7 +1160,7 @@ export default function GoalBirdsTab() {
                           <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`seasonal-suggestion-${sp.speciesCode}`}>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
+                                <span className="text-sm font-medium text-[var(--color-brand-text)] dark:text-gray-200 truncate">{sp.comName}</span>
                                 <span className={`text-xs ${seasonColor.bg} ${seasonColor.text} px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0`} data-testid={`seasonal-season-badge-${sp.speciesCode}`}>🗓️ {seasonLabel}</span>
                                 {alreadyInList && (<span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0" data-testid={`seasonal-in-list-badge-${sp.speciesCode}`}>✓ In list</span>)}
                               </div>
@@ -1168,7 +1168,7 @@ export default function GoalBirdsTab() {
                             {alreadyInList ? (
                               <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`seasonal-already-added-${sp.speciesCode}`}>✓</div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`seasonal-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[var(--color-brand)] border border-[var(--color-brand)]/30 rounded hover:bg-[var(--color-brand)] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`seasonal-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1217,7 +1217,7 @@ export default function GoalBirdsTab() {
                                   <div key={sp.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`} data-testid={`almost-complete-suggestion-${sp.speciesCode}`}>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-200 truncate">{sp.comName}</span>
+                                        <span className="text-sm font-medium text-[var(--color-brand-text)] dark:text-gray-200 truncate">{sp.comName}</span>
                                         <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0">{data.unseen.length === 1 ? 'Last one!' : `${data.unseen.length} left`}</span>
                                         {alreadyInList && (<span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0" data-testid={`almost-complete-in-list-badge-${sp.speciesCode}`}>✓ In list</span>)}
                                       </div>
@@ -1227,7 +1227,7 @@ export default function GoalBirdsTab() {
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                       </div>
                                     ) : (
-                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`almost-complete-add-btn-${sp.speciesCode}`}>
+                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[var(--color-brand)] border border-[var(--color-brand)]/30 rounded hover:bg-[var(--color-brand)] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`almost-complete-add-btn-${sp.speciesCode}`}>
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
                                       </button>
                                     )}
@@ -1300,7 +1300,7 @@ export default function GoalBirdsTab() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3">
-              <p className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100 truncate">Add to which list?</p>
+              <p className="text-sm font-semibold text-[var(--color-brand-text)] truncate">Add to which list?</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{listPickerSpecies.comName}</p>
             </div>
             <div className="flex flex-col gap-2" data-testid="list-picker-options">
@@ -1317,7 +1317,7 @@ export default function GoalBirdsTab() {
                     className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       alreadyIn
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                        : 'bg-[#f4f6fa] dark:bg-gray-700 hover:bg-[#e8ecf5] dark:hover:bg-gray-600 text-[#2C3E50] dark:text-gray-200 cursor-pointer'
+                        : 'bg-[#f4f6fa] dark:bg-gray-700 hover:bg-[#e8ecf5] dark:hover:bg-gray-600 text-[var(--color-brand-text)] dark:text-gray-200 cursor-pointer'
                     }`}
                     data-testid={`list-picker-option-${list.id}`}
                     title={alreadyIn ? `${listPickerSpecies.comName} is already in ${list.name}` : `Add to ${list.name}`}

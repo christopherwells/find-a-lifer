@@ -133,7 +133,7 @@ function AppInner() {
           </ErrorBoundary>
           {/* Trip mode banner */}
           {activeTripName && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-[#2C3E7B] text-white px-3 py-1.5 rounded-full shadow-lg text-xs font-medium flex items-center gap-2">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-[var(--color-brand)] text-white px-3 py-1.5 rounded-full shadow-lg text-xs font-medium flex items-center gap-2">
               <span>Trip: {activeTripName}</span>
               <span className="bg-white/20 px-1.5 py-0.5 rounded-full">{activeTripMemberCount}</span>
               <button
@@ -178,7 +178,7 @@ function AppInner() {
                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </button>
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" /></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin" /></div>}>
               <ProfileTab
                 onShowAbout={() => { setShowProfile(false); setShowAbout(true) }}
                 onShowOnboarding={() => { setShowProfile(false); handleShowTour() }}

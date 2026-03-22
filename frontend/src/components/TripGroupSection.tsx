@@ -140,7 +140,7 @@ export default function TripGroupSection() {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-3">
         <div className="flex items-center justify-center py-2">
-          <div className="h-5 w-5 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" />
+          <div className="h-5 w-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
@@ -260,11 +260,11 @@ export default function TripGroupSection() {
   if (activeTrip) {
     const isOwner = activeTrip.ownerUid === user.uid
     return (
-      <div className="bg-white dark:bg-gray-800 border border-[#2C3E7B]/30 dark:border-blue-700/40 rounded-lg p-3 mb-3 space-y-2">
+      <div className="bg-white dark:bg-gray-800 border border-[var(--color-brand)]/30 dark:border-blue-700/40 rounded-lg p-3 mb-3 space-y-2">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 uppercase tracking-wider">Trip</span>
+            <span className="text-xs font-semibold text-[var(--color-brand)] uppercase tracking-wider">Trip</span>
             {renamingTrip ? (
               <div className="flex items-center gap-1 flex-1 min-w-0">
                 <input
@@ -290,7 +290,7 @@ export default function TripGroupSection() {
                     setActiveTripName(renameValue.trim())
                   }
                   setRenamingTrip(false)
-                }} className="text-xs text-[#2C3E7B] dark:text-blue-400 font-medium">Save</button>
+                }} className="text-xs text-[var(--color-brand)] font-medium">Save</button>
               </div>
             ) : (
               <button
@@ -315,7 +315,7 @@ export default function TripGroupSection() {
           {members.map(m => (
             <div key={m.uid} className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded-full bg-[#2C3E7B]/10 dark:bg-blue-900/30 flex items-center justify-center text-[10px] font-bold text-[#2C3E7B] dark:text-blue-400">
+                <div className="w-5 h-5 rounded-full bg-[var(--color-brand)]/10 dark:bg-blue-900/30 flex items-center justify-center text-[10px] font-bold text-[var(--color-brand)]">
                   {m.displayName.charAt(0).toUpperCase()}
                 </div>
                 <span className="text-gray-700 dark:text-gray-300">{m.displayName}</span>
@@ -339,7 +339,7 @@ export default function TripGroupSection() {
           {activeTrip.memberUids.length < 6 && (
             <button
               onClick={loadFriendsForInvite}
-              className="text-xs px-2.5 py-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1e2d5b] min-h-[32px]"
+              className="text-xs px-2.5 py-1.5 bg-[var(--color-brand)] text-white rounded-lg hover:bg-[#1e2d5b] min-h-[32px]"
             >
               Invite Friend
             </button>
@@ -395,11 +395,11 @@ export default function TripGroupSection() {
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-3 space-y-2">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 uppercase tracking-wider">Group Trip</h4>
+        <h4 className="text-xs font-semibold text-[var(--color-brand)] uppercase tracking-wider">Group Trip</h4>
         {!creating && (
           <button
             onClick={() => setCreating(true)}
-            className="text-xs px-2.5 py-1.5 bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1e2d5b] min-h-[32px]"
+            className="text-xs px-2.5 py-1.5 bg-[var(--color-brand)] text-white rounded-lg hover:bg-[#1e2d5b] min-h-[32px]"
           >
             Create Trip
           </button>
@@ -421,7 +421,7 @@ export default function TripGroupSection() {
           <button
             onClick={handleCreateTrip}
             disabled={!newTripName.trim()}
-            className="px-3 py-1.5 text-sm bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50"
+            className="px-3 py-1.5 text-sm bg-[var(--color-brand)] text-white rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50"
           >
             Create
           </button>

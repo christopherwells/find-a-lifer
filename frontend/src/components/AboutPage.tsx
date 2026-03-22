@@ -28,7 +28,7 @@ export default function AboutPage({ onClose }: AboutPageProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <h2 className="text-lg font-bold text-[#2C3E7B] dark:text-blue-300">About Find-A-Lifer</h2>
+          <h2 className="text-lg font-bold text-[var(--color-brand)] dark:text-blue-300">About Find-A-Lifer</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
@@ -98,7 +98,7 @@ export default function AboutPage({ onClose }: AboutPageProps) {
                 href="https://www.aba.org/aba-code-of-birding-ethics/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block mt-2.5 text-sm text-[#2C3E7B] dark:text-blue-400 underline hover:text-[#1a2a5e] dark:hover:text-blue-300 font-medium"
+                className="inline-block mt-2.5 text-sm text-[var(--color-brand)] underline hover:text-[#1a2a5e] dark:hover:text-blue-300 font-medium"
                 data-testid="about-aba-link"
               >
                 ABA Code of Birding Ethics
@@ -112,7 +112,7 @@ export default function AboutPage({ onClose }: AboutPageProps) {
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
               <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic">
                 eBird Basic Dataset. Version: EBD_relDec-2024. Cornell Lab of Ornithology, Ithaca, New York.{' '}
-                <a href="https://ebird.org" target="_blank" rel="noopener noreferrer" className="text-[#2C3E7B] dark:text-blue-400 underline">ebird.org</a>
+                <a href="https://ebird.org" target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] underline">ebird.org</a>
               </p>
             </div>
           </section>

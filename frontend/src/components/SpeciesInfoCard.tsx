@@ -257,7 +257,7 @@ export default function SpeciesInfoCard({
           {onShowOnMap && (
             <button
               onClick={onShowOnMap}
-              className="absolute top-2 right-14 min-h-[44px] px-3 flex items-center gap-1 bg-[#2C3E7B] text-white text-xs font-medium rounded-full shadow hover:bg-[#1e2d5b] transition-colors"
+              className="absolute top-2 right-14 min-h-[44px] px-3 flex items-center gap-1 bg-[var(--color-brand)] text-white text-xs font-medium rounded-full shadow hover:bg-[#1e2d5b] transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -271,7 +271,7 @@ export default function SpeciesInfoCard({
         <div className="overflow-y-auto flex-1 p-4 space-y-3">
           {/* Names */}
           <div>
-            <h3 className="text-lg font-bold text-[#2C3E50] dark:text-gray-100 leading-tight" data-testid="species-info-common-name">
+            <h3 className="text-lg font-bold text-[var(--color-brand-text)] leading-tight" data-testid="species-info-common-name">
               {species.comName}
             </h3>
             <p className="text-sm italic text-gray-500 dark:text-gray-400" data-testid="species-info-sci-name">
@@ -357,7 +357,7 @@ export default function SpeciesInfoCard({
                       data-testid={`best-loc-${loc.cellId}`}
                     >
                       <span className="text-gray-700 dark:text-gray-300 truncate flex-1 mr-2">{loc.name}</span>
-                      <span className="text-[#2C3E7B] dark:text-blue-400 font-medium flex-shrink-0">
+                      <span className="text-[var(--color-brand)] font-medium flex-shrink-0">
                         {(loc.freq * 100).toFixed(0)}% of trips
                       </span>
                     </button>
@@ -370,7 +370,7 @@ export default function SpeciesInfoCard({
               {selectedRegionId && (
                 <button
                   onClick={() => setShowGlobalLocations(prev => !prev)}
-                  className="text-xs lg:text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline"
+                  className="text-xs lg:text-xs text-[var(--color-brand)] hover:underline"
                   data-testid="species-info-toggle-global"
                 >
                   {showGlobalLocations ? 'Show regional' : 'Show global'}
@@ -449,7 +449,7 @@ export default function SpeciesInfoCard({
             href={`https://ebird.org/species/${species.speciesCode}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2 bg-[#2C3E7B] hover:bg-[#1f2d5a] text-white text-sm font-medium rounded-lg transition-colors w-full justify-center"
+            className="flex items-center gap-2 px-3 py-2 bg-[var(--color-brand)] hover:bg-[#1f2d5a] text-white text-sm font-medium rounded-lg transition-colors w-full justify-center"
             data-testid="species-info-ebird-link"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">

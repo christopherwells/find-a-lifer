@@ -1756,7 +1756,7 @@ export default memo(function MapView({
       {isLoadingWeek && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200">
           <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#2C3E7B] border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[var(--color-brand)] border-t-transparent"></div>
             <span className="text-sm text-gray-700">Loading week data...</span>
           </div>
         </div>

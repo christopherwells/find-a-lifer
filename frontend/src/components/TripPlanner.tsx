@@ -291,7 +291,7 @@ export default function TripPlanner({
             <input
               type="range" min={1} max={52} value={startWeek}
               onChange={e => setStartWeek(Math.min(Number(e.target.value), endWeek))}
-              className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
               title={`Start: ${getWeekLabel(startWeek)}`}
             />
           </div>
@@ -300,7 +300,7 @@ export default function TripPlanner({
             <input
               type="range" min={1} max={52} value={endWeek}
               onChange={e => setEndWeek(Math.max(Number(e.target.value), startWeek))}
-              className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
               title={`End: ${getWeekLabel(endWeek)}`}
             />
           </div>
@@ -367,7 +367,7 @@ export default function TripPlanner({
             onClick={() => { setViewMode(m); setExpandedId(null) }}
             className={`py-2 text-xs font-semibold rounded-md text-center transition-all ${
               viewMode === m
-                ? 'bg-[#2C3E7B] text-white shadow-sm'
+                ? 'bg-[var(--color-brand)] text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
             }`}
           >
@@ -380,7 +380,7 @@ export default function TripPlanner({
       <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="h-5 w-5 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" />
+            <div className="h-5 w-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin" />
             <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
               Scanning {endWeek - startWeek + 1} weeks...
             </span>
@@ -423,7 +423,7 @@ export default function TripPlanner({
                     <div className="border-t border-gray-100 dark:border-gray-700 px-2.5 py-2 bg-gray-50/50 dark:bg-gray-800/50 space-y-1.5">
                       <button
                         onClick={() => handleShowOnMap(loc.cellId, loc.coordinates, loc.bestWeek)}
-                        className="text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline"
+                        className="text-xs text-[var(--color-brand)] hover:underline"
                       >
                         Show on Map
                       </button>
@@ -480,7 +480,7 @@ export default function TripPlanner({
                             onClick={() => handleShowOnMap(cell.cellId, cell.coordinates, wk.week)}
                             className="w-full flex items-center justify-between text-xs py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-1"
                           >
-                            <span className="text-[#2C3E7B] dark:text-blue-400 truncate">
+                            <span className="text-[var(--color-brand)] truncate">
                               {cell.cellName || `Cell ${cell.cellId}`}
                             </span>
                             <span className="text-gray-500 dark:text-gray-400 ml-2 tabular-nums">

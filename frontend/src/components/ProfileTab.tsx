@@ -98,7 +98,7 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
 
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100">Profile & Data</h3>
+      <h3 className="text-lg font-semibold text-[var(--color-brand-text)]">Profile & Data</h3>
       <p className="text-xs text-gray-600 dark:text-gray-400">
         Account, export, and settings. Import your life list from the menu above.
       </p>
@@ -111,8 +111,8 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
 
       {/* Stats Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">Your Life List</h4>
-        <p className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="total-seen-count">
+        <h4 className="text-sm font-medium text-[var(--color-brand-text)] mb-1.5">Your Life List</h4>
+        <p className="text-2xl font-bold text-[var(--color-brand)]" data-testid="total-seen-count">
           {getTotalSeen()} species
         </p>
         <p className="text-xs text-gray-600 dark:text-gray-400">marked as seen</p>
@@ -120,7 +120,7 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="mt-3 w-full px-4 py-2 border border-[#2C3E7B] dark:border-blue-500 text-[#2C3E7B] dark:text-blue-400 rounded-lg hover:bg-[#2C3E7B]/10 dark:hover:bg-blue-500/10 disabled:border-gray-300 dark:disabled:border-gray-600 disabled:text-gray-300 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+            className="mt-3 w-full px-4 py-2 border border-[var(--color-brand)] dark:border-blue-500 text-[var(--color-brand)] rounded-lg hover:bg-[var(--color-brand)]/10 dark:hover:bg-blue-500/10 disabled:border-gray-300 dark:disabled:border-gray-600 disabled:text-gray-300 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
             data-testid="export-csv-button"
           >
             {exporting ? 'Exporting...' : 'Export Life List as CSV'}
@@ -130,14 +130,14 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
 
       {/* App Updates Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1.5">App Updates</h4>
+        <h4 className="text-sm font-medium text-[var(--color-brand-text)] mb-1.5">App Updates</h4>
         <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
           Clear cached data and reload to get the latest version.
         </p>
         <button
           onClick={handleCheckForUpdates}
           disabled={updating}
-          className="w-full px-4 py-2 border border-[#2C3E7B] dark:border-blue-500 text-[#2C3E7B] dark:text-blue-400 rounded-lg hover:bg-[#2C3E7B]/10 dark:hover:bg-blue-500/10 disabled:border-gray-300 dark:disabled:border-gray-600 disabled:text-gray-300 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+          className="w-full px-4 py-2 border border-[var(--color-brand)] dark:border-blue-500 text-[var(--color-brand)] rounded-lg hover:bg-[var(--color-brand)]/10 dark:hover:bg-blue-500/10 disabled:border-gray-300 dark:disabled:border-gray-600 disabled:text-gray-300 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
         >
           {updating ? 'Updating...' : 'Check for Updates'}
         </button>
@@ -145,7 +145,7 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
 
       {/* Preferences Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1">Preferences</h4>
+        <h4 className="text-sm font-medium text-[var(--color-brand-text)] mb-1">Preferences</h4>
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm text-gray-700 dark:text-gray-300">Celebration animations</span>
           <CelebrationToggle />
@@ -160,7 +160,7 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
               onClick={onShowOnboarding}
               className="w-full flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-[#2C3E7B] dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-[var(--color-brand)]" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               Tutorial
@@ -171,7 +171,7 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
               onClick={onShowAbout}
               className="w-full flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-[#2C3E7B] dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-[var(--color-brand)]" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
               About Find-A-Lifer
@@ -182,7 +182,7 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
 
       {/* Reset Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1">Reset</h4>
+        <h4 className="text-sm font-medium text-[var(--color-brand-text)] mb-1">Reset</h4>
         <button
           onClick={handleResetTour}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -259,7 +259,7 @@ function AccountSection() {
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
-      <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">
+      <h4 className="text-sm font-medium text-[var(--color-brand-text)]">
         {mode === 'signin' ? 'Sign In' : 'Create Account'}
       </h4>
       <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -304,7 +304,7 @@ function AccountSection() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full px-4 py-2 bg-[#2C3E7B] text-white text-sm rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50 transition-colors"
+          className="w-full px-4 py-2 bg-[var(--color-brand)] text-white text-sm rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50 transition-colors"
         >
           {submitting ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
         </button>
@@ -323,7 +323,7 @@ function AccountSection() {
                   setResetSent(true)
                 } catch { /* error shown via context */ }
               }}
-              className="text-xs text-gray-500 dark:text-gray-400 hover:text-[#2C3E7B] dark:hover:text-blue-400 underline"
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-[var(--color-brand)] dark:hover:text-blue-400 underline"
             >
               Forgot password?
             </button>
@@ -333,9 +333,9 @@ function AccountSection() {
 
       <p className="text-xs text-center text-gray-500 dark:text-gray-400">
         {mode === 'signin' ? (
-          <>No account? <button onClick={() => { setMode('signup'); clearError() }} className="text-[#2C3E7B] dark:text-blue-400 underline">Create one</button></>
+          <>No account? <button onClick={() => { setMode('signup'); clearError() }} className="text-[var(--color-brand)] underline">Create one</button></>
         ) : (
-          <>Already have an account? <button onClick={() => { setMode('signin'); clearError() }} className="text-[#2C3E7B] dark:text-blue-400 underline">Sign in</button></>
+          <>Already have an account? <button onClick={() => { setMode('signin'); clearError() }} className="text-[var(--color-brand)] underline">Sign in</button></>
         )}
       </p>
     </div>
@@ -348,7 +348,7 @@ function CelebrationToggle() {
     <button
       onClick={() => setCelebrationsEnabled(!celebrationsEnabled)}
       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-        celebrationsEnabled ? 'bg-[#27AE60]' : 'bg-gray-300 dark:bg-gray-600'
+        celebrationsEnabled ? 'bg-[var(--color-success)]' : 'bg-gray-300 dark:bg-gray-600'
       }`}
       role="switch"
       aria-checked={celebrationsEnabled}

@@ -358,25 +358,25 @@ export default function ProgressTab() {
 
   return (
     <div className="space-y-3" data-testid="progress-tab">
-      <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100">My Progress</h3>
+      <h3 className="text-lg font-semibold text-[var(--color-brand-text)]">My Progress</h3>
 
       {/* Overall Progress Card */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
         <div className="flex items-baseline justify-between">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Overall Progress</h4>
-          <span className="text-2xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="progress-percentage">
+          <h4 className="text-sm font-medium text-[var(--color-brand-text)]">Overall Progress</h4>
+          <span className="text-2xl font-bold text-[var(--color-brand)]" data-testid="progress-percentage">
             {percentComplete.toFixed(1)}%
           </span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden" data-testid="progress-bar-container">
           <div
-            className="bg-[#27AE60] h-full rounded-full transition-all duration-300"
+            className="bg-[var(--color-success)] h-full rounded-full transition-all duration-300"
             style={{ width: `${percentComplete}%` }}
             data-testid="progress-bar-fill"
           />
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="progress-species-count">
-          <span className="font-semibold text-[#2C3E7B] dark:text-blue-400">{totalSeen}</span> of{' '}
+          <span className="font-semibold text-[var(--color-brand)]">{totalSeen}</span> of{' '}
           <span className="font-semibold">{totalSpecies}</span> species seen
         </p>
       </div>
@@ -420,11 +420,11 @@ export default function ProgressTab() {
       {/* 4. Activity */}
       {weeklySummary && weeklySummary.newLifers > 0 && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="activity-section">
-          <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">Activity</h4>
+          <h4 className="text-base font-medium text-[var(--color-brand-text)]">Activity</h4>
           <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-            This week: <span className="font-medium text-[#2C3E7B] dark:text-blue-400">+{weeklySummary.newLifers} lifers</span>
+            This week: <span className="font-medium text-[var(--color-brand)]">+{weeklySummary.newLifers} lifers</span>
             {weeklySummary.newFamiliesStarted > 0 && (
-              <>, <span className="font-medium text-[#27AE60] dark:text-green-400">{weeklySummary.newFamiliesStarted} new {weeklySummary.newFamiliesStarted === 1 ? 'group' : 'groups'}</span></>
+              <>, <span className="font-medium text-[var(--color-success)]">{weeklySummary.newFamiliesStarted} new {weeklySummary.newFamiliesStarted === 1 ? 'group' : 'groups'}</span></>
             )}
           </p>
         </div>
@@ -432,7 +432,7 @@ export default function ProgressTab() {
 
       {/* Trophy Case — unified with subtabs: Groups / Regions / Achievements */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
-        <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
+        <h4 className="text-base font-medium text-[var(--color-brand-text)]">{'\uD83C\uDFC6'} Trophy Case</h4>
         {/* Subtabs */}
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
           {([
@@ -446,7 +446,7 @@ export default function ProgressTab() {
               onClick={() => setTrophyTab(key)}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-md text-center transition-all ${
                 trophyTab === key
-                  ? 'bg-white dark:bg-gray-600 text-[#2C3E7B] dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-[var(--color-brand)] dark:text-white shadow-sm'
                   : 'text-gray-500 dark:text-gray-400'
               }`}
             >
@@ -582,13 +582,13 @@ export default function ProgressTab() {
         {trophyTab === 'leaderboard' && user && (leaderboard.length > 0 || friendLeaderboard.length > 0) && (
         <div className="space-y-2" data-testid="leaderboard-section">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Species Count</span>
+            <span className="text-sm font-medium text-[var(--color-brand-text)]">Species Count</span>
             <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
               <button
                 onClick={() => setLeaderboardMode('friends')}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                   leaderboardMode === 'friends'
-                    ? 'bg-white dark:bg-gray-600 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                    ? 'bg-white dark:bg-gray-600 text-[var(--color-brand)] shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
               >Friends</button>
@@ -596,7 +596,7 @@ export default function ProgressTab() {
                 onClick={() => setLeaderboardMode('global')}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                   leaderboardMode === 'global'
-                    ? 'bg-white dark:bg-gray-600 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                    ? 'bg-white dark:bg-gray-600 text-[var(--color-brand)] shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
               >Global</button>
@@ -609,7 +609,7 @@ export default function ProgressTab() {
                 <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
                   {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
                 </span>
-                <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
+                <span className="text-[var(--color-brand)] font-medium">{entry.stats.speciesCount}</span>
               </div>
             ))}
             {(leaderboardMode === 'friends' ? friendLeaderboard : leaderboard).length === 0 && (

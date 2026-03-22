@@ -2,19 +2,30 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Cornell Lab of Ornithology inspired design system */
+/* ═══ Design Tokens ═══
+   Single source of truth for all brand colors.
+   Components use Tailwind classes like text-brand, bg-brand, text-brand-text, etc.
+   Dark mode overrides swap values automatically via .dark selector.
+*/
 :root {
-  --color-primary: #2C3E7B;
+  --color-brand: #2C3E7B;
+  --color-brand-text: #2C3E50;
+  --color-success: #27AE60;
   --color-secondary: #E87722;
+  --color-warning: #F39C12;
+  --color-danger: #E74C3C;
+  --color-trophy-copper: #8B4531;
   --color-bg-light: #FFFFFF;
   --color-bg-light-alt: #F5F5F5;
   --color-bg-dark: #1A1A2E;
   --color-bg-dark-alt: #16213E;
-  --color-success: #27AE60;
-  --color-warning: #F39C12;
-  --color-danger: #E74C3C;
-  --color-text-dark: #2C3E50;
   --color-text-light: #ECF0F1;
+}
+
+.dark {
+  --color-brand: #60a5fa;
+  --color-brand-text: #f3f4f6;
+  --color-success: #4ade80;
 }
 
 body {
@@ -50,7 +61,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #2C3E7B;
+  background: var(--color-brand);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 1px 4px rgba(0,0,0,0.25);
@@ -65,19 +76,19 @@ input[type="range"]::-moz-range-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #2C3E7B;
+  background: var(--color-brand);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
 
 .dark input[type="range"]::-webkit-slider-thumb {
-  background: #60a5fa;
+  background: var(--color-brand);
   border-color: #1f2937;
 }
 
 .dark input[type="range"]::-moz-range-thumb {
-  background: #60a5fa;
+  background: var(--color-brand);
   border-color: #1f2937;
 }
 

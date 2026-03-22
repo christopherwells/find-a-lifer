@@ -87,7 +87,7 @@ export default function GoalBirdsPopup({
               >
                 <div className="min-w-0 flex-1 mr-2">
                   <button
-                    className={`text-sm font-medium text-left ${bird.isSeen ? 'line-through text-gray-400' : 'text-gray-800 hover:text-[#2C3E7B]'} cursor-pointer`}
+                    className={`text-sm font-medium text-left ${bird.isSeen ? 'line-through text-gray-400' : 'text-gray-800 hover:text-[var(--color-brand)]'} cursor-pointer`}
                     onClick={() => {
                       const meta = speciesByIdCache?.get(bird.species_id)
                       if (meta) {

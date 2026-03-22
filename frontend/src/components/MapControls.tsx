@@ -158,7 +158,7 @@ export default function MapControls({
                 onClick={() => setViewMode(mode)}
                 className={`flex-1 flex items-center justify-center gap-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-md transition-all ${
                   (mode === 'density' ? (viewMode === 'density' || viewMode === 'probability') : viewMode === mode)
-                    ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-700 text-[var(--color-brand)] dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
                 title={label}
@@ -173,7 +173,7 @@ export default function MapControls({
             onClick={() => setExpanded(!expanded)}
             className={`ml-1 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors ${
               expanded
-                ? 'bg-[#2C3E7B] text-white'
+                ? 'bg-[var(--color-brand)] text-white'
                 : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
             }`}
             title={expanded ? 'Hide controls' : 'More controls'}
@@ -202,7 +202,7 @@ export default function MapControls({
                 }}
                 className={`flex-1 py-1 text-xs font-medium rounded transition-all ${
                   liferMetric === key
-                    ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-700 text-[var(--color-brand)] dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
@@ -217,7 +217,7 @@ export default function MapControls({
           <span className={`text-xs font-bold whitespace-nowrap px-1.5 py-0.5 rounded transition-colors ${
             showWrapIndicator
               ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40'
-              : 'text-[#2C3E7B] dark:text-blue-400 bg-gray-50 dark:bg-gray-800'
+              : 'text-[var(--color-brand)] bg-gray-50 dark:bg-gray-800'
           }`}>
             Wk {currentWeek} · {getWeekLabel(currentWeek)}
           </span>
@@ -227,7 +227,7 @@ export default function MapControls({
             max="52"
             value={currentWeek}
             onChange={(e) => setCurrentWeek(parseInt(e.target.value, 10))}
-            className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
             data-testid="mc-week-slider"
             title={`Week ${currentWeek}`}
             aria-label="Select week of the year"
@@ -237,7 +237,7 @@ export default function MapControls({
             className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-all shadow-sm ${
               isAnimating
                 ? 'bg-gray-500 hover:bg-gray-600 text-white'
-                : 'bg-[#2C3E7B] hover:bg-[#243267] text-white'
+                : 'bg-[var(--color-brand)] hover:bg-[#243267] text-white'
             }`}
             data-testid={isAnimating ? 'mc-animation-pause' : 'mc-animation-play'}
             aria-label={isAnimating ? 'Pause animation' : 'Play animation'}
@@ -329,7 +329,7 @@ export default function MapControls({
                 max="100"
                 value={Math.round(heatmapOpacity * 100)}
                 onChange={(e) => setHeatmapOpacity(parseInt(e.target.value, 10) / 100)}
-                className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
                 data-testid="mc-opacity-slider"
                 title={`Opacity: ${Math.round(heatmapOpacity * 100)}%`}
                 aria-label="Adjust heatmap opacity"
@@ -345,7 +345,7 @@ export default function MapControls({
                 onClick={() => setGoalBirdsOnlyFilter(!goalBirdsOnlyFilter)}
                 className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   goalBirdsOnlyFilter
-                    ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white'
+                    ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
                     : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
                 aria-pressed={goalBirdsOnlyFilter}
@@ -367,7 +367,7 @@ export default function MapControls({
                 onClick={() => setShowTotalRichness(!showTotalRichness)}
                 className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   showTotalRichness
-                    ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white'
+                    ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
                     : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
                 aria-pressed={showTotalRichness}
@@ -413,7 +413,7 @@ export default function MapControls({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">Min Lifers</label>
-                  <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 tabular-nums">
+                  <span className="text-xs font-semibold text-[var(--color-brand)] tabular-nums">
                     {liferCountRange[0]}+
                   </span>
                 </div>
@@ -426,12 +426,12 @@ export default function MapControls({
                     const val = parseInt(e.target.value, 10)
                     setLiferCountRange([val, 9999])
                   }}
-                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
                 />
                 {liferCountRange[0] > dataRange[0] && (
                   <button
                     onClick={() => setLiferCountRange([dataRange[0], 9999])}
-                    className="text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
+                    className="text-xs text-[var(--color-brand)] hover:underline font-medium"
                   >
                     Reset
                   </button>
@@ -447,7 +447,7 @@ export default function MapControls({
           <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-800">
             {/* Selected species or prompt */}
             {!compareMode && selectedSpecies && selectedSpeciesMeta ? (
-              <div className="flex items-center gap-2 bg-[#2C3E7B] text-white px-2.5 py-2 rounded-lg text-xs">
+              <div className="flex items-center gap-2 bg-[var(--color-brand)] text-white px-2.5 py-2 rounded-lg text-xs">
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold truncate">{selectedSpeciesMeta.comName}</div>
                   <div className="text-xs text-blue-200 italic truncate">{selectedSpeciesMeta.sciName}</div>
@@ -508,7 +508,7 @@ export default function MapControls({
                     setSelectedSpeciesMulti([selectedSpecies])
                   }
                 }}
-                className="w-full mt-1.5 px-2 py-1.5 text-xs font-medium text-[#2C3E7B] dark:text-blue-400 border border-dashed border-[#2C3E7B]/30 dark:border-blue-400/30 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors"
+                className="w-full mt-1.5 px-2 py-1.5 text-xs font-medium text-[var(--color-brand)] border border-dashed border-[var(--color-brand)]/30 dark:border-blue-400/30 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors"
               >
                 + Compare species
               </button>

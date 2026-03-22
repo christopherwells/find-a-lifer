@@ -209,7 +209,7 @@ export default function ExploreTab() {
               title={label}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg text-center transition-all ${
                 (mode === 'density' ? (viewMode === 'density' || viewMode === 'probability') : viewMode === mode)
-                  ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-gray-700 text-[var(--color-brand)] dark:text-white shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:bg-gray-200 dark:active:bg-gray-700'
               }`}
             >
@@ -234,7 +234,7 @@ export default function ExploreTab() {
                 }}
                 className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
                   liferMetric === key
-                    ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-700 text-[var(--color-brand)] dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
@@ -271,7 +271,7 @@ export default function ExploreTab() {
             <select
               value={activeGoalListId || ''}
               onChange={(e) => setActiveGoalListId(e.target.value || null)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[#2C3E7B] bg-white dark:bg-gray-800 dark:text-gray-200"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[var(--color-brand)] bg-white dark:bg-gray-800 dark:text-gray-200"
               data-testid="active-goal-list-selector"
               aria-label="Select active goal list for map"
             >
@@ -291,7 +291,7 @@ export default function ExploreTab() {
           onClick={() => setShowTotalRichness(!showTotalRichness)}
           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-sm font-medium ${
             showTotalRichness
-              ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white shadow-sm'
+              ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white shadow-sm'
               : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
           }`}
           aria-pressed={showTotalRichness}
@@ -350,7 +350,7 @@ export default function ExploreTab() {
             value={speciesSearch}
             onChange={(e) => setSpeciesSearch(e.target.value)}
             data-testid="species-range-search"
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[#2C3E7B] bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[var(--color-brand)] bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
           />
 
           {/* Multi-species chip row */}
@@ -402,7 +402,7 @@ export default function ExploreTab() {
                   setSelectedSpeciesMulti([selectedSpecies])
                 }
               }}
-              className="w-full mt-2 px-3 py-2 text-xs font-medium text-[#2C3E7B] dark:text-blue-400 border border-dashed border-[#2C3E7B]/30 dark:border-blue-400/30 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors"
+              className="w-full mt-2 px-3 py-2 text-xs font-medium text-[var(--color-brand)] border border-dashed border-[var(--color-brand)]/30 dark:border-blue-400/30 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors"
               data-testid="compare-species-btn"
             >
               + Compare species
@@ -424,7 +424,7 @@ export default function ExploreTab() {
 
           {/* Selected species display (single mode only) */}
           {!compareMode && selectedSpecies && selectedSpeciesMeta && (
-            <div className="flex items-center justify-between bg-[#2C3E7B] text-white px-3 py-2.5 rounded-xl text-sm mt-2 shadow-sm">
+            <div className="flex items-center justify-between bg-[var(--color-brand)] text-white px-3 py-2.5 rounded-xl text-sm mt-2 shadow-sm">
               <div className="min-w-0 flex-1">
                 <div className="font-semibold truncate">{selectedSpeciesMeta.comName}</div>
                 <div className="text-xs text-blue-200 italic truncate">{selectedSpeciesMeta.sciName}</div>
@@ -444,7 +444,7 @@ export default function ExploreTab() {
           {/* Species list */}
           {isLoadingSpecies ? (
             <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-              <div className="animate-spin inline-block rounded-full h-5 w-5 border-2 border-[#2C3E7B] border-t-transparent mr-2"></div>
+              <div className="animate-spin inline-block rounded-full h-5 w-5 border-2 border-[var(--color-brand)] border-t-transparent mr-2"></div>
               Loading species...
             </div>
           ) : (
@@ -505,7 +505,7 @@ export default function ExploreTab() {
           <span className={`text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm transition-colors duration-300 ${
             showWrapIndicator
               ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40'
-              : 'text-[#2C3E7B] dark:text-blue-400 bg-white dark:bg-gray-700'
+              : 'text-[var(--color-brand)] bg-white dark:bg-gray-700'
           }`}>
             Wk {currentWeek} · {getWeekLabel(currentWeek)}
           </span>
@@ -518,7 +518,7 @@ export default function ExploreTab() {
             max="52"
             value={currentWeek}
             onChange={(e) => setCurrentWeek(parseInt(e.target.value, 10))}
-            className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
             data-testid="week-slider"
             title={`Week ${currentWeek}`}
           />
@@ -528,7 +528,7 @@ export default function ExploreTab() {
             className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all shadow-sm ${
               isAnimating
                 ? 'bg-gray-500 hover:bg-gray-600 text-white'
-                : 'bg-[#2C3E7B] hover:bg-[#243267] text-white'
+                : 'bg-[var(--color-brand)] hover:bg-[#243267] text-white'
             }`}
             aria-label={isAnimating ? 'Pause migration animation' : 'Play migration animation'}
             title={isAnimating ? 'Pause animation' : 'Play migration animation'}
@@ -564,7 +564,7 @@ export default function ExploreTab() {
               max="100"
               value={Math.round(heatmapOpacity * 100)}
               onChange={(e) => setHeatmapOpacity(parseInt(e.target.value, 10) / 100)}
-              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
               data-testid="opacity-slider"
               aria-label="Adjust heatmap opacity"
               title={`Opacity: ${Math.round(heatmapOpacity * 100)}%`}
@@ -577,7 +577,7 @@ export default function ExploreTab() {
             <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
               Minimum Lifers <Tooltip content={TOOLTIPS.liferRange} />
             </label>
-            <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 tabular-nums">
+            <span className="text-xs font-semibold text-[var(--color-brand)] tabular-nums">
               {liferCountRange[0]}+
             </span>
           </div>
@@ -590,7 +590,7 @@ export default function ExploreTab() {
               const val = parseInt(e.target.value, 10)
               setLiferCountRange([val, 9999])
             }}
-            className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+            className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
             data-testid="lifer-range-min-slider"
             aria-label="Minimum lifer count"
             title={`Minimum lifers: ${liferCountRange[0]}`}
@@ -602,7 +602,7 @@ export default function ExploreTab() {
           {liferCountRange[0] > dataRange[0] && (
             <button
               onClick={() => setLiferCountRange([dataRange[0], 9999])}
-              className="w-full text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
+              className="w-full text-xs text-[var(--color-brand)] hover:underline font-medium"
               data-testid="reset-lifer-range"
             >
               Reset minimum

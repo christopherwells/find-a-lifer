@@ -37,7 +37,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
 
   const menuDividerClass = `border-t ${darkMode ? 'border-gray-700' : 'border-gray-100'}`
 
-  const iconClass = `h-4 w-4 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-[#2C3E7B]'}`
+  const iconClass = `h-4 w-4 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-[var(--color-brand)]'}`
 
   return (
     <header
@@ -192,7 +192,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
                   </svg>
                 )}
                 <span className="flex-1">Dark Mode</span>
-                <span className={`inline-block w-8 h-4 rounded-full relative transition-colors ${darkMode ? 'bg-[#2C3E7B]' : 'bg-gray-300'}`}>
+                <span className={`inline-block w-8 h-4 rounded-full relative transition-colors ${darkMode ? 'bg-[var(--color-brand)]' : 'bg-gray-300'}`}>
                   <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${darkMode ? 'left-4' : 'left-0.5'}`} />
                 </span>
               </button>

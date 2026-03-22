@@ -103,13 +103,13 @@ export default function FriendsSection() {
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-      <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Friends</h4>
+      <h4 className="text-sm font-medium text-[var(--color-brand-text)]">Friends</h4>
 
       {/* My friend code */}
       {myFriendCode && (
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 dark:text-gray-400">Your code:</span>
-          <code className="px-2 py-0.5 text-sm font-mono font-bold bg-gray-100 dark:bg-gray-700 rounded text-[#2C3E7B] dark:text-blue-400">
+          <code className="px-2 py-0.5 text-sm font-mono font-bold bg-gray-100 dark:bg-gray-700 rounded text-[var(--color-brand)]">
             {myFriendCode}
           </code>
           <button
@@ -135,7 +135,7 @@ export default function FriendsSection() {
         <button
           onClick={handleSendRequest}
           disabled={addCode.length !== 6}
-          className="px-3 py-1.5 text-sm bg-[#2C3E7B] text-white rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50"
+          className="px-3 py-1.5 text-sm bg-[var(--color-brand)] text-white rounded-lg hover:bg-[#1e2d5b] disabled:opacity-50"
         >
           Add
         </button>

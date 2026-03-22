@@ -32,7 +32,7 @@ export default function TripSpeciesItem({ lifer, index, showProbability = true, 
           {lifer.conservStatus && lifer.conservStatus !== 'Least Concern' && (
             <Badge variant="conservation" value={lifer.conservStatus} size="dot" />
           )}
-          <span className={`text-sm font-medium truncate ${colorClass ? `text-${colorClass}-900 dark:text-${colorClass}-200` : 'text-[#2C3E50] dark:text-gray-200'}`}>
+          <span className={`text-sm font-medium truncate ${colorClass ? `text-${colorClass}-900 dark:text-${colorClass}-200` : 'text-[var(--color-brand-text)] dark:text-gray-200'}`}>
             {lifer.comName}
           </span>
         </div>

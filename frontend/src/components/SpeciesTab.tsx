@@ -432,7 +432,7 @@ export default function SpeciesTab() {
   if (loading) {
     return (
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-brand-text)]">Species Checklist</h3>
         <FamilyGroupSkeleton itemCount={4} />
         <FamilyGroupSkeleton itemCount={3} />
         <FamilyGroupSkeleton itemCount={5} />
@@ -443,7 +443,7 @@ export default function SpeciesTab() {
   if (error) {
     return (
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-brand-text)]">Species Checklist</h3>
         <div className="bg-red-50 dark:bg-red-900/30 rounded-lg p-2">
           <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
         </div>
@@ -475,9 +475,9 @@ export default function SpeciesTab() {
       <div className="space-y-1.5 pb-1.5 border-b border-gray-200 dark:border-gray-700">
         {/* Title row */}
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Species Checklist</h3>
+          <h3 className="text-sm font-semibold text-[var(--color-brand-text)]">Species Checklist</h3>
           <span className="text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
-            <span className="font-semibold text-[#2C3E7B] dark:text-blue-400">{seenSpecies}</span>/{totalSpecies}
+            <span className="font-semibold text-[var(--color-brand)]">{seenSpecies}</span>/{totalSpecies}
             {filteredSpeciesCount !== totalSpecies && (
               <span className="text-gray-400 dark:text-gray-500 ml-1">({filteredSpeciesCount} shown)</span>
             )}
@@ -521,7 +521,7 @@ export default function SpeciesTab() {
                     className="w-full text-left px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-50 dark:border-gray-700 last:border-b-0 transition-colors"
                     data-testid={`suggestion-${species.speciesCode}`}
                   >
-                    <div className="text-xs font-medium text-[#2C3E50] dark:text-gray-200">{species.comName}</div>
+                    <div className="text-xs font-medium text-[var(--color-brand-text)] dark:text-gray-200">{species.comName}</div>
                     <div className="text-xs lg:text-xs text-gray-400 italic">{species.sciName} · {species.familyComName}</div>
                   </button>
                 ))}
@@ -532,7 +532,7 @@ export default function SpeciesTab() {
             onClick={() => setShowFilters(f => !f)}
             className={`px-2 py-1.5 text-xs border rounded-lg flex items-center gap-1 flex-shrink-0 transition-colors ${
               showFilters || activeFilterCount > 0
-                ? 'border-[#2C3E7B] bg-[#2C3E7B]/5 text-[#2C3E7B] dark:border-blue-400 dark:bg-blue-900/20 dark:text-blue-400'
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/5 text-[var(--color-brand)] dark:border-blue-400 dark:bg-blue-900/20 dark:text-blue-400'
                 : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400'
             }`}
             data-testid="filter-toggle-btn"
@@ -543,7 +543,7 @@ export default function SpeciesTab() {
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
             </svg>
             {activeFilterCount > 0 && (
-              <span className="bg-[#2C3E7B] text-white rounded-full w-4 h-4 text-xs lg:text-xs font-bold flex items-center justify-center">{activeFilterCount}</span>
+              <span className="bg-[var(--color-brand)] text-white rounded-full w-4 h-4 text-xs lg:text-xs font-bold flex items-center justify-center">{activeFilterCount}</span>
             )}
           </button>
         </div>
@@ -664,7 +664,7 @@ export default function SpeciesTab() {
               onClick={() => setShowTotalRichness(!showTotalRichness)}
               className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
                 showTotalRichness
-                  ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white'
+                  ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
                   : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
               }`}
               title={showTotalRichness ? 'Map shows all species including seen' : 'Map shows only unseen species (lifers)'}
@@ -778,7 +778,7 @@ export default function SpeciesTab() {
                           type="checkbox"
                           checked={isSpeciesSeen(species.speciesCode)}
                           onChange={() => celebrateToggle(species.speciesCode, species.comName)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer flex-shrink-0"
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--color-brand)] focus:ring-[#2C3E7B] cursor-pointer flex-shrink-0"
                         />
                         {/* Species name — single line */}
                         <button
@@ -787,7 +787,7 @@ export default function SpeciesTab() {
                           title={`${species.comName} (${species.sciName})`}
                           data-testid={`species-info-btn-${species.speciesCode}`}
                         >
-                          <span className="text-xs font-medium text-[#2C3E50] dark:text-gray-200 hover:text-[#2C3E7B] dark:hover:text-blue-400">
+                          <span className="text-xs font-medium text-[var(--color-brand-text)] dark:text-gray-200 hover:text-[var(--color-brand)] dark:hover:text-blue-400">
                             {species.comName}
                           </span>
                         </button>
@@ -806,7 +806,7 @@ export default function SpeciesTab() {
                         {/* Add to goal list */}
                         <button
                           onClick={() => handleStartAddToGoalList(species.speciesCode, species.comName)}
-                          className="flex-shrink-0 text-gray-300 hover:text-[#2C3E7B] transition-colors text-xs"
+                          className="flex-shrink-0 text-gray-300 hover:text-[var(--color-brand)] transition-colors text-xs"
                           title="Add to goal list"
                           data-testid={`add-to-goal-${species.speciesCode}`}
                         >
@@ -832,7 +832,7 @@ export default function SpeciesTab() {
             className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-96 max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100 mb-2">
+            <h3 className="text-lg font-semibold text-[var(--color-brand-text)] mb-2">
               Add to Goal List
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
@@ -851,9 +851,9 @@ export default function SpeciesTab() {
                   <button
                     key={list.id}
                     onClick={() => handleAddToGoalList(list.id)}
-                    className="w-full text-left px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#2C3E7B] hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                    className="w-full text-left px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-[var(--color-brand)] hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <div className="font-medium text-[#2C3E50] dark:text-gray-200">{list.name}</div>
+                    <div className="font-medium text-[var(--color-brand-text)] dark:text-gray-200">{list.name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {list.speciesCodes.length} bird{list.speciesCodes.length !== 1 ? 's' : ''}
                     </div>

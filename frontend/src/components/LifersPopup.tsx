@@ -355,7 +355,7 @@ export default function LifersPopup({
                               className={`text-xs truncate flex-1 text-left cursor-pointer ${
                                 lifer.isSeen
                                   ? 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                                  : 'text-gray-800 dark:text-gray-200 hover:text-[#2C3E7B] dark:hover:text-blue-400'
+                                  : 'text-gray-800 dark:text-gray-200 hover:text-[var(--color-brand)] dark:hover:text-blue-400'
                               }`}
                               onClick={() => {
                                 const meta = speciesByIdCache?.get(lifer.species_id)
@@ -396,7 +396,7 @@ export default function LifersPopup({
                   })}
                   {!popupShowAll && totalCount > POPUP_PAGE_SIZE && (
                     <button
-                      className="w-full px-3 py-2 text-xs text-[#2C3E7B] dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-center"
+                      className="w-full px-3 py-2 text-xs text-[var(--color-brand)] hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-center"
                       onClick={onShowAllToggle}
                       data-testid="popup-show-all"
                     >
@@ -414,7 +414,7 @@ export default function LifersPopup({
       <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 rounded-b-lg">
         <button
           onClick={onClose}
-          className="w-full py-2 text-sm font-medium text-[#2C3E7B] dark:text-blue-400 md:hidden"
+          className="w-full py-2 text-sm font-medium text-[var(--color-brand)] md:hidden"
         >
           Back to Map
         </button>

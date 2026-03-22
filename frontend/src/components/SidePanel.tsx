@@ -149,7 +149,7 @@ export default memo(function SidePanel({
                 }}
                 className={`flex-1 flex flex-col items-center justify-center min-h-[44px] py-1.5 transition-colors ${
                   isHighlighted
-                    ? 'text-[#2C3E7B] dark:text-blue-400'
+                    ? 'text-[var(--color-brand)]'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
                 title={tab.label}
@@ -187,7 +187,7 @@ export default memo(function SidePanel({
         {/* Resize handle (desktop only) */}
         {!collapsed && (
           <div
-            className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#2C3E7B]/30 active:bg-[#2C3E7B]/50 transition-colors z-10"
+            className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--color-brand)]/30 active:bg-[var(--color-brand)]/50 transition-colors z-10"
             onMouseDown={handleMouseDown}
             title="Drag to resize"
           />
@@ -209,7 +209,7 @@ export default memo(function SidePanel({
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-2.5 px-1 flex flex-col items-center transition-all relative ${
                 activeTab === tab.id
-                  ? 'text-[#2C3E7B] dark:text-blue-400'
+                  ? 'text-[var(--color-brand)]'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
               }`}
               title={tab.label}
@@ -219,7 +219,7 @@ export default memo(function SidePanel({
                 activeTab === tab.id ? 'font-semibold' : ''
               }`}>{tab.label}</span>
               {activeTab === tab.id && (
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#2C3E7B] dark:bg-blue-400 rounded-full" />
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[var(--color-brand)] dark:bg-blue-400 rounded-full" />
               )}
             </button>
           ))}
@@ -246,7 +246,7 @@ export default memo(function SidePanel({
               </div>
             )}
             {activeTab === 'species' && <SpeciesTab />}
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" /></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin" /></div>}>
               {activeTab === 'goals' && <GoalBirdsTab />}
               {activeTab === 'trip' && <TripPlanTab />}
               {activeTab === 'progress' && <ProgressTab />}
