@@ -30,8 +30,7 @@ describe('ExploreTab', () => {
 
   it('renders view mode buttons', () => {
     renderWithProvider()
-    expect(screen.getByText('Count')).toBeInTheDocument()
-    expect(screen.getByText('Chance')).toBeInTheDocument()
+    expect(screen.getByText('Lifers')).toBeInTheDocument()
     expect(screen.getByText('Range')).toBeInTheDocument()
     expect(screen.getByText('Goals')).toBeInTheDocument()
   })
