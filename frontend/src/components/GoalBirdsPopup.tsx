@@ -23,7 +23,7 @@ interface GoalBirdsPopupProps {
 
 export default function GoalBirdsPopup({
   popup,
-  notableBirds,
+  notableBirds: _notableBirds,
   speciesByIdCache,
   onClose,
   onSpeciesCardOpen,

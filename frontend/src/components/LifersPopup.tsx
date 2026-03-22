@@ -38,20 +38,20 @@ interface LifersPopupProps {
 
 export default function LifersPopup({
   popup,
-  notableBirds,
+  notableBirds: _notableBirds,
   speciesByIdCache,
   seenSpecies,
   popupShowAll,
   popupShowAllSpecies,
   popupCovariates,
-  popupGoalLists,
-  popupGoalAddFeedback,
+  popupGoalLists: _popupGoalLists,
+  popupGoalAddFeedback: _popupGoalAddFeedback,
   onClose,
   onSpeciesCardOpen,
   onRegionContextChange,
   onShowAllToggle,
   onShowAllSpeciesToggle,
-  onNotableAddToGoal,
+  onNotableAddToGoal: _onNotableAddToGoal,
 }: LifersPopupProps) {
   return (
     <div
