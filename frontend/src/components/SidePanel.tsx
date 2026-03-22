@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, lazy, Suspense } from 'react'
+import { memo, useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import type { GoalList } from '../lib/goalListsDB'
 import ExploreTab from './ExploreTab'
 import SpeciesTab from './SpeciesTab'
@@ -134,6 +134,33 @@ export default memo(function SidePanel({
     onActiveTabChange?.(tab)
   }
 
+  // Resizable sidebar width (desktop only)
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('sidebarWidth')
+    return saved ? Math.max(320, Math.min(800, parseInt(saved))) : 420
+  })
+  const isResizing = useRef(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizing.current = true
+    const startX = e.clientX
+    const startWidth = sidebarWidth
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isResizing.current) return
+      const newWidth = Math.max(320, Math.min(800, startWidth - (ev.clientX - startX)))
+      setSidebarWidth(newWidth)
+    }
+    const onMouseUp = () => {
+      isResizing.current = false
+      localStorage.setItem('sidebarWidth', String(sidebarWidth))
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [sidebarWidth])
+
   // Auto-switch to Trip Plan tab when a location is selected on the map
   useEffect(() => {
     if (selectedLocation) {
@@ -207,13 +234,22 @@ export default memo(function SidePanel({
           border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700
           ${collapsed
             ? 'h-0 md:w-0 overflow-hidden'
-            : 'md:h-full md:w-[420px] animate-sheet-up md:animate-none'
+            : 'md:h-full animate-sheet-up md:animate-none'
           }`}
         style={!collapsed ? {
           bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))',
           height: 'calc(100vh - 52px - 44px - env(safe-area-inset-bottom, 0px))',
+          ...(window.innerWidth >= 768 ? { width: `${sidebarWidth}px`, bottom: 'auto', height: 'auto' } : {}),
         } : undefined}
       >
+        {/* Resize handle (desktop only) */}
+        {!collapsed && (
+          <div
+            className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#2C3E7B]/30 active:bg-[#2C3E7B]/50 transition-colors z-10"
+            onMouseDown={handleMouseDown}
+            title="Drag to resize"
+          />
+        )}
         {/* Desktop Tab Navigation */}
         <nav
           data-testid="tab-navigation"
