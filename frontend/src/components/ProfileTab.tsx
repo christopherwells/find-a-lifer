@@ -140,7 +140,7 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
     <div className="space-y-3">
       <h3 className="text-lg font-semibold text-[#2C3E50] dark:text-gray-100">Profile & Data</h3>
       <p className="text-xs text-gray-600 dark:text-gray-400">
-        Manage your life list, import from eBird, export as CSV, or reset.
+        Account, export, and settings. Import your life list from the menu above.
       </p>
 
       {/* Account Section */}
@@ -148,72 +148,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
 
       {/* Friends Section (only when signed in) */}
       <FriendsSection />
-
-      {/* Import Section */}
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Import eBird Life List</h4>
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          Download your life list from{' '}
-          <a
-            href="https://ebird.org/lifelist"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#2C3E7B] dark:text-blue-400 underline"
-          >
-            ebird.org/lifelist
-          </a>
-          {' '}as CSV, then import it here.
-        </p>
-        <button
-          type="button"
-          onClick={handleImportClick}
-          disabled={importing}
-          className={`block w-full px-4 py-2 text-center rounded-lg transition-colors ${
-            importing
-              ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500'
-              : 'bg-[#2C3E7B] text-white hover:bg-[#1e2a54] active:bg-[#162044]'
-          }`}
-          data-testid="import-csv-button"
-        >
-          {importing ? 'Importing...' : 'Import CSV'}
-        </button>
-
-        {/* Import Progress/Results */}
-        {importing && (
-          <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3" data-testid="import-progress">
-            <p className="text-sm text-blue-700 dark:text-blue-400">
-              <span className="font-medium">Importing...</span> Please wait while we process your file.
-            </p>
-          </div>
-        )}
-
-        {importResult && !importing && (
-          <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3" data-testid="import-success">
-            <p className="text-sm text-green-700 dark:text-green-400">
-              <span className="font-medium">Import complete!</span>
-            </p>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              {importResult.matched} of {importResult.total} species matched.
-              {importResult.unmatched > 0 && ` ${importResult.unmatched} could not be matched.`}
-            </p>
-            {importResult.matched > 0 && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1" data-testid="import-merge-stats">
-                {importResult.newCount > 0 && <span className="font-medium">{importResult.newCount} new</span>}
-                {importResult.newCount > 0 && importResult.existingCount > 0 && ', '}
-                {importResult.existingCount > 0 && <span>{importResult.existingCount} already in your list</span>}
-              </p>
-            )}
-          </div>
-        )}
-
-        {importError && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3" data-testid="import-error">
-            <p className="text-sm text-red-700 dark:text-red-400">
-              <span className="font-medium">Import failed:</span> {importError}
-            </p>
-          </div>
-        )}
-      </div>
 
       {/* Stats Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
