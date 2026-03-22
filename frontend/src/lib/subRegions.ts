@@ -109,7 +109,7 @@ const CENTRAL_AM_NORTH: SubRegion = {
 
 const CENTRAL_AM_SOUTH: SubRegion = {
   id: 'ca-c-south',
-  name: 'Costa Rica & Panama',
+  name: 'Southern Central America',
   stateCodes: ['CR', 'PA'],
 }
 

@@ -56,7 +56,7 @@ SUB_REGIONS = {
     'ca-c-north': ('Upper Central America',
                    {'BZ', 'GT', 'SV', 'HN', 'NI'},
                    [-92, 12, -83, 18]),
-    'ca-c-south': ('Costa Rica & Panama',
+    'ca-c-south': ('Southern Central America',
                    {'CR', 'PA'},
                    [-86, 7, -77, 12]),
     'caribbean-greater': ('Greater Antilles',

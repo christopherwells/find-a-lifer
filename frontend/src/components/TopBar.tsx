@@ -165,7 +165,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
                     <option value="mx-north">Northern Mexico</option>
                     <option value="mx-south">Southern Mexico</option>
                     <option value="ca-c-north">Upper Central America</option>
-                    <option value="ca-c-south">Costa Rica &amp; Panama</option>
+                    <option value="ca-c-south">Southern Central America</option>
                   </optgroup>
                   <optgroup label="Caribbean">
                     <option value="caribbean">All Caribbean</option>

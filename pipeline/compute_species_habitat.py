@@ -79,7 +79,7 @@ SUB_REGIONS = {
                   {f"MX-{s}" for s in ["COL","MIC","GUA","GRO","OAX","CHP","TAB","VER","PUE","TLA","HID","MEX","MOR","QUE","CAM","ROO","YUC","CMX","DIF"]},
                   [-118, 14, -100, 20]),
     "ca-c-north": ("Upper Central America", {"BZ", "GT", "SV", "HN", "NI"}, [-92, 12, -83, 18]),
-    "ca-c-south": ("Costa Rica & Panama", {"CR", "PA"}, [-86, 7, -77, 12]),
+    "ca-c-south": ("Southern Central America", {"CR", "PA"}, [-86, 7, -77, 12]),
     "caribbean-greater": ("Greater Antilles", {"CU", "JM", "HT", "DO", "PR"}, [-85, 17, -64, 24]),
     "caribbean-lesser": ("Lesser Antilles", {"TT", "BB", "KN", "VI", "VG", "AW", "MF", "MQ", "BQ", "SX", "AG", "DM", "GD", "LC", "VC"}, [-70, 10, -59, 19]),
     "atlantic-west": ("Western Atlantic Islands", {"BM", "BS", "TC"}, [-80, 20, -60, 33]),

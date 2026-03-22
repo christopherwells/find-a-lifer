@@ -239,7 +239,7 @@ export default function ProgressTab() {
     'Southern Mexico': 21,
     // Central America
     'Upper Central America': 30,
-    'Costa Rica & Panama': 31,
+    'Southern Central America': 31,
     // Caribbean
     'Greater Antilles': 40,
     'Lesser Antilles': 41,
@@ -296,10 +296,6 @@ export default function ProgressTab() {
 
     // Additional counts
     const totalFamilies = new Set(allSpecies.map(s => getDisplayGroup(s.familyComName))).size
-    const totalThreatened = allSpecies.filter(s =>
-      s.conservStatus === 'Vulnerable' || s.conservStatus === 'Endangered' || s.conservStatus === 'Critically Endangered'
-    ).length
-
     // Count easy species seen (difficulty 1-3)
     const easySeen = seenSpeciesList.filter(s => (s.difficultyRating ?? 5) <= 3).length
     const totalEasy = allSpecies.filter(s => (s.difficultyRating ?? 5) <= 3).length

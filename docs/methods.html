@@ -762,7 +762,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td>Mexico (2-way)</td><td>Northern Mexico</td><td>BCN, BCS, SON, CHH, COA, NLE, TAM, SIN, DUR, ZAC, SLP, AGU, NAY, JAL</td></tr>
   <tr><td></td><td>Southern Mexico</td><td>COL, MIC, GUA, GRO, OAX, CHP, TAB, VER, PUE, TLA, HID, MEX, MOR, QUE, CAM, ROO, YUC, CMX, DIF</td></tr>
   <tr><td>Central America (2-way)</td><td>Upper Central America</td><td>BZ, GT, SV, HN, NI</td></tr>
-  <tr><td></td><td>Costa Rica &amp; Panama</td><td>CR, PA</td></tr>
+  <tr><td></td><td>Southern Central America</td><td>CR, PA</td></tr>
   <tr><td>Caribbean (3)</td><td>Greater Antilles</td><td>CU, JM, HT, DO, PR (prefix matching for province codes, e.g., CU-03 &rarr; CU)</td></tr>
   <tr><td></td><td>Lesser Antilles</td><td>TT, BB, KN, VI, VG, AW, MF, MQ, BQ, SX, AG, DM, GD, LC, VC (15 territories)</td></tr>
   <tr><td></td><td>Western Atlantic Islands</td><td>BM, BS, TC</td></tr>
@@ -797,7 +797,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li><strong>US sub-regions (7 + Hawaii):</strong> Northeastern, Southeastern, Midwestern, Southwestern, Western US, US Rockies, Hawaii &mdash; shown under "United States" optgroup</li>
   <li><strong>Canada sub-regions (3):</strong> Western Canada &amp; Alaska, Central Canada, Eastern Canada &amp; North Atlantic Islands &mdash; shown under "Canada" optgroup</li>
   <li><strong>Mexico sub-regions (2):</strong> Northern, Southern Mexico &mdash; shown under "Mexico" optgroup</li>
-  <li><strong>Central America (2):</strong> Upper Central America (BZ/GT/SV/HN/NI), Costa Rica &amp; Panama (CR/PA) &mdash; shown under "Central America" optgroup</li>
+  <li><strong>Central America (2):</strong> Upper Central America (BZ/GT/SV/HN/NI), Southern Central America (CR/PA) &mdash; shown under "Central America" optgroup</li>
   <li><strong>Caribbean (3):</strong> Greater Antilles, Lesser Antilles (15 territories), Western Atlantic Islands &mdash; shown under "Caribbean" optgroup</li>
 </ul>
 <p>Two-tier filtering: selecting a sub-region like "Northeastern US" expands to the country code <code>['US']</code> for species-level filtering (matching species.json regions), while the sub-region's bounding box provides cell-level masking on the map. This means the species list shows all US species but the heatmap only highlights cells within the Northeastern US bounding box.</p>
