@@ -269,14 +269,101 @@ export default function ProgressTab() {
     return regionNames[key] || key
   }
 
-  // Milestones
-  // Dynamic milestones: round numbers up to total species count
-  const milestoneValues = [100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000].filter(m => m <= totalSpecies)
-  const milestones = milestoneValues.map(target => ({
-    target,
-    reached: totalSeen >= target,
-  }))
-  const nextMilestone = milestones.find(m => !m.reached)
+  // Meaningful milestones — ecological achievements, not arbitrary round numbers
+  const milestones = useMemo(() => {
+    if (allSpecies.length === 0) return []
+    const seen = seenSpecies
+    const seenSpeciesList = allSpecies.filter(s => seen.has(s.speciesCode))
+
+    // Count unique habitats seen
+    const habitatsSeen = new Set<string>()
+    for (const s of seenSpeciesList) {
+      for (const h of s.habitatLabels ?? []) {
+        if (h !== 'Habitat Generalist' && h !== 'Urban-tolerant') habitatsSeen.add(h)
+      }
+    }
+
+    // Count unique sub-regions with sightings
+    const regionsSeen = new Set<string>()
+    for (const s of seenSpeciesList) {
+      for (const r of Object.keys(s.regionalDifficulty ?? {})) regionsSeen.add(r)
+    }
+
+    // Count conservation status species seen
+    const threatenedSeen = seenSpeciesList.filter(s =>
+      s.conservStatus === 'Vulnerable' || s.conservStatus === 'Endangered' || s.conservStatus === 'Critically Endangered'
+    ).length
+
+    // Count hard species (difficulty 7+)
+    const hardSeen = seenSpeciesList.filter(s => (s.difficultyRating ?? 0) >= 7).length
+
+    // Count families started
+    const familiesSeen = new Set(seenSpeciesList.map(s => getDisplayGroup(s.familyComName)))
+
+    const items: Array<{ label: string; description: string; progress: number; target: number; reached: boolean }> = []
+
+    // Habitat explorer
+    items.push({
+      label: 'Habitat Explorer',
+      description: `Seen birds in ${habitatsSeen.size} of 10 habitat types`,
+      progress: habitatsSeen.size,
+      target: 10,
+      reached: habitatsSeen.size >= 10,
+    })
+
+    // Region collector
+    items.push({
+      label: 'Region Collector',
+      description: `Species in ${regionsSeen.size} of 17 sub-regions`,
+      progress: regionsSeen.size,
+      target: 17,
+      reached: regionsSeen.size >= 17,
+    })
+
+    // Family breadth
+    const totalFamilies = new Set(allSpecies.map(s => getDisplayGroup(s.familyComName))).size
+    items.push({
+      label: 'Taxonomic Breadth',
+      description: `${familiesSeen.size} of ${totalFamilies} bird groups started`,
+      progress: familiesSeen.size,
+      target: totalFamilies,
+      reached: familiesSeen.size >= totalFamilies,
+    })
+
+    // Conservation champion
+    const totalThreatened = allSpecies.filter(s =>
+      s.conservStatus === 'Vulnerable' || s.conservStatus === 'Endangered' || s.conservStatus === 'Critically Endangered'
+    ).length
+    if (totalThreatened > 0) {
+      items.push({
+        label: 'Conservation Champion',
+        description: `${threatenedSeen} threatened species observed`,
+        progress: threatenedSeen,
+        target: Math.min(25, totalThreatened),
+        reached: threatenedSeen >= 25,
+      })
+    }
+
+    // Rarity hunter
+    items.push({
+      label: 'Rarity Hunter',
+      description: `${hardSeen} hard-to-find species (difficulty 7+)`,
+      progress: hardSeen,
+      target: 50,
+      reached: hardSeen >= 50,
+    })
+
+    // Overall progress
+    items.push({
+      label: 'Life List',
+      description: `${totalSeen} of ${totalSpecies} species`,
+      progress: totalSeen,
+      target: totalSpecies,
+      reached: totalSeen >= totalSpecies,
+    })
+
+    return items
+  }, [allSpecies, seenSpecies, totalSeen, totalSpecies])
 
   return (
     <div className="space-y-3" data-testid="progress-tab">
@@ -406,42 +493,29 @@ export default function ProgressTab() {
       </div>
 
 
-      {/* 7. Milestones */}
+      {/* 7. Achievements */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="milestones-section">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Milestones</h4>
-        <div className="space-y-2">
-          {milestones.map(({ target, reached }) => {
-            const isNext = nextMilestone?.target === target
-            const progressToNext = isNext ? (totalSeen / target) * 100 : 0
+        <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">Achievements</h4>
+        <div className="space-y-2.5">
+          {milestones.map(m => {
+            const pct = Math.min(100, (m.progress / m.target) * 100)
             return (
-              <div key={target} className="flex items-center gap-2" data-testid={`milestone-${target}`}>
-                <span className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-xs ${
-                  reached
-                    ? 'bg-[#27AE60] text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
-                }`}>
-                  {reached ? '\u2713' : ''}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={`font-medium ${reached ? 'text-[#27AE60] dark:text-green-400' : isNext ? 'text-[#2C3E7B] dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                      {target.toLocaleString()} species
-                    </span>
-                    {isNext && (
-                      <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">
-                        {totalSeen}/{target}
-                      </span>
-                    )}
-                  </div>
-                  {isNext && (
-                    <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden mt-1">
-                      <div
-                        className="bg-[#2C3E7B] h-full rounded-full transition-all duration-300"
-                        style={{ width: `${progressToNext}%` }}
-                      />
-                    </div>
-                  )}
+              <div key={m.label} data-testid={`milestone-${m.label}`}>
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className={`text-xs font-semibold ${m.reached ? 'text-[#27AE60] dark:text-green-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                    {m.reached ? '\u2713 ' : ''}{m.label}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                    {m.progress}/{m.target}
+                  </span>
                 </div>
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${m.reached ? 'bg-[#27AE60]' : 'bg-[#2C3E7B]'}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{m.description}</p>
               </div>
             )
           })}

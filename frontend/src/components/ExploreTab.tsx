@@ -70,12 +70,30 @@ export default function ExploreTab() {
   // Compute lightweight highlights from species metadata (no expensive frequency lookup)
   const highlights: LightweightHighlight[] = useMemo(() => {
     if (fullSpecies.length === 0 || effectiveSeenSpecies.size === 0) return []
+    const homeRegion = localStorage.getItem('homeRegion') || ''
+    // Super-region to sub-region mapping for filtering
+    const superToSubs: Record<string, string[]> = {
+      'northern': ['ca-west', 'ca-central', 'ca-east'],
+      'continental-us': ['us-ne', 'us-se', 'us-mw', 'us-sw', 'us-west', 'us-rockies'],
+      'hawaii': ['us-hi'],
+      'mex-central': ['mx-north', 'mx-south', 'ca-c-north', 'ca-c-south'],
+      'caribbean': ['caribbean-greater', 'caribbean-lesser', 'atlantic-west'],
+    }
     const result: LightweightHighlight[] = []
     const seen = new Set<string>()
 
     for (const sp of fullSpecies) {
       if (effectiveSeenSpecies.has(sp.speciesCode)) continue
-      if (!sp.photoUrl) continue // only show species with photos for visual appeal
+      if (!sp.photoUrl) continue
+
+      // Region filter
+      if (homeRegion) {
+        const subKeys = Object.keys(sp.regionalDifficulty ?? {})
+        const inSub = subKeys.includes(homeRegion)
+        const memberSubs = superToSubs[homeRegion]
+        const inSuper = memberSubs ? subKeys.some(k => memberSubs.includes(k)) : false
+        if (!inSub && !inSuper) continue
+      }
 
       // Goal birds peaking this week
       if (goalSpeciesCodes.has(sp.speciesCode) && sp.peakWeek === currentWeek) {
