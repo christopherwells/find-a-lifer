@@ -356,7 +356,7 @@ export default function ProgressTab() {
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
         <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
         {earnedGroups.length > 0 ? (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {earnedGroups.map((g) => {
               const tierClass = g.level === 'emerald'
                 ? 'trophy-emerald bg-emerald-600 text-emerald-50'
