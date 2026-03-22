@@ -16,9 +16,8 @@ export interface SubRegion {
 
 const CA_WEST: SubRegion = {
   id: 'ca-west',
-  name: 'Western Canada',
-  stateCodes: ['CA-BC', 'CA-AB'],
-
+  name: 'Pacific Northwest & Alaska',
+  stateCodes: ['CA-BC', 'CA-AB', 'US-AK'],
 }
 
 const CA_CENTRAL: SubRegion = {
@@ -29,8 +28,8 @@ const CA_CENTRAL: SubRegion = {
 
 const CA_EAST: SubRegion = {
   id: 'ca-east',
-  name: 'Eastern Canada',
-  stateCodes: ['CA-ON', 'CA-QC', 'CA-NB', 'CA-NS', 'CA-NL', 'CA-PE'],
+  name: 'Atlantic Canada & Islands',
+  stateCodes: ['CA-ON', 'CA-QC', 'CA-NB', 'CA-NS', 'CA-NL', 'CA-PE', 'PM', 'GL'],
 }
 
 const CA_NORTH: SubRegion = {
@@ -80,11 +79,7 @@ const US_ROCKIES: SubRegion = {
   stateCodes: ['US-NV', 'US-UT', 'US-CO', 'US-WY', 'US-MT', 'US-ID'],
 }
 
-const US_ALASKA: SubRegion = {
-  id: 'us-ak',
-  name: 'Alaska',
-  stateCodes: ['US-AK'],
-}
+// Alaska merged into Pacific Northwest & Alaska (CA_WEST)
 
 const US_HAWAII: SubRegion = {
   id: 'us-hi',
@@ -151,8 +146,7 @@ export const SUB_REGIONS: SubRegion[] = [
   WESTERN_ATLANTIC,
   GREATER_ANTILLES,
   LESSER_ANTILLES,
-  // Alaska/Hawaii
-  US_ALASKA,
+  // Hawaii
   US_HAWAII,
   // Canada
   CA_NORTH,
