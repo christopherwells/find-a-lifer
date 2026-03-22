@@ -316,16 +316,16 @@ export default function ProgressTab() {
           ] as const).filter(({ tier }) => {
             // Always show emerald (the aspirational top)
             if (tier === 'emerald') return true
-            // For lower tiers: show if ANY group is still at or below this tier
-            // "Started" (null) shows if any group has seen>0 but <10% (no tier)
-            // "Copper" shows if any group is at copper or below (started/copper)
-            // etc.
+            // For lower tiers: show if ANY group (including unstarted) is at or below this tier
             const tierRank = { 'emerald': 5, 'diamond': 4, 'gold': 3, 'silver': 2, 'copper': 1 }
             const thisRank = tier ? tierRank[tier] : 0
-            return earnedGroups.some(g => {
-              const groupRank = g.level ? tierRank[g.level] : 0
-              return groupRank <= thisRank
+            const totalGroups = Object.keys(groupStats).length
+            // Unstarted groups have rank -1 (below "Started" which is 0)
+            const allGroupRanks = Object.values(groupStats).map(s => {
+              const level = getTrophyLevel(s.seen, s.total)
+              return level ? tierRank[level] : s.seen > 0 ? 0 : -1
             })
+            return allGroupRanks.some(rank => rank <= thisRank)
           }).map(({ label, name, tier, color }, i) => (
             <div key={i} className="text-center">
               <p className={`text-xl font-bold ${color}`}>
