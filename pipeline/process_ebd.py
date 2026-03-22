@@ -1344,10 +1344,15 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     print(f"  Pre-computed numCells/peakWeek for {len(taxon_numcells)} species (res 4)")
 
     # Build reverse lookup: region code -> set of super-region ids
+    # Include both state-level codes AND country-level prefix fallbacks
     region_to_super = {}
     for sr_id, (_, sr_codes) in SUPER_REGIONS.items():
         for code in sr_codes:
             region_to_super[code] = sr_id
+    # Add country-level fallbacks: "US" -> "continental-us" (most US species)
+    # This catches species with country-level region codes
+    region_to_super.setdefault("US", "continental-us")
+    region_to_super.setdefault("MX", "mex-central")
 
     # Load habitat data (from compute_species_habitat.py, keyed by speciesCode)
     habitat_path = SCRIPT_DIR / "reference" / "species_habitat.json"
@@ -1427,12 +1432,28 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
                 entry["superRegionDifficulty"] = d["superRegionDifficulty"]
             difficulty_matched += 1
 
-        # Super-regions: which broad biogeographic areas the species occurs in
-        sp_regions = entry["regions"]
+        # Super-regions: derive from regionalDifficulty sub-region keys (more precise than country codes)
         sr_set = set()
-        for r in sp_regions:
-            if r in region_to_super:
-                sr_set.add(region_to_super[r])
+        # Map sub-region IDs to their parent super-region
+        sub_to_super = {
+            'ca-west': 'northern', 'ca-central': 'northern', 'ca-east': 'northern',
+            'us-ne': 'continental-us', 'us-se': 'continental-us', 'us-mw': 'continental-us',
+            'us-sw': 'continental-us', 'us-west': 'continental-us', 'us-rockies': 'continental-us',
+            'us-hi': 'hawaii',
+            'mx-north': 'mex-central', 'mx-south': 'mex-central',
+            'ca-c-north': 'mex-central', 'ca-c-south': 'mex-central',
+            'caribbean-greater': 'caribbean', 'caribbean-lesser': 'caribbean',
+            'atlantic-west': 'caribbean',
+        }
+        rd = entry.get("regionalDifficulty", {})
+        for sub_id in rd:
+            if sub_id in sub_to_super:
+                sr_set.add(sub_to_super[sub_id])
+        # Also check country-level codes for species without regionalDifficulty
+        if not sr_set:
+            for r in entry["regions"]:
+                if r in region_to_super:
+                    sr_set.add(region_to_super[r])
         if sr_set:
             entry["superRegions"] = sorted(sr_set)
 
