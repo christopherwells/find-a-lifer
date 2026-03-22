@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useSpecies } from '../hooks/useSpecies'
