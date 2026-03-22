@@ -304,7 +304,7 @@ export default function TripPlanner({
                     onClick={() => setExpandedId(expanded ? null : key)}
                     className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[40px]"
                   >
-                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500 w-5 text-right">{i + 1}</span>
+                    <span className="text-xs font-bold text-gray-400 dark:text-gray-400 w-5 text-right">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
                         {loc.cellName || `Cell ${loc.cellId}`}
@@ -351,7 +351,7 @@ export default function TripPlanner({
                     onClick={() => setExpandedId(expanded ? null : key)}
                     className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[40px]"
                   >
-                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500 w-5 text-right">{i + 1}</span>
+                    <span className="text-xs font-bold text-gray-400 dark:text-gray-400 w-5 text-right">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium text-gray-900 dark:text-gray-100">
                         {getWeekLabel(wk.week)}

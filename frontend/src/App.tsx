@@ -12,8 +12,6 @@ import { MapControlsProvider } from './contexts/MapControlsContext'
 import { trackEvent } from './lib/analytics'
 import { openFilePicker, processCSVFile } from './lib/csvImport'
 import { isTourComplete, startTour } from './lib/featureTour'
-import { fetchSpecies } from './lib/dataCache'
-import type { Species } from './components/types'
 import './App.css'
 
 const ProfileTab = lazy(() => import('./components/ProfileTab'))
@@ -28,9 +26,9 @@ function AppInner() {
   })
   const [showAbout, setShowAbout] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [showAddSpecies, setShowAddSpecies] = useState(false) // kept for backward compat with AddSpeciesModal
+  // AddSpeciesModal removed — use Species tab search instead
   const tourStartedRef = useRef(false)
-  const { effectiveSeenSpecies, isSpeciesSeen, toggleSpecies, importSpeciesList, activeTripName, activeTripMemberCount } = useLifeList()
+  const { effectiveSeenSpecies, importSpeciesList, activeTripName, activeTripMemberCount } = useLifeList()
   const { showToast } = useToast()
 
   // Session counting
@@ -179,176 +177,8 @@ function AppInner() {
           </div>
         </div>
       )}
-      {showAddSpecies && (
-        <AddSpeciesModal
-          onClose={() => setShowAddSpecies(false)}
-          isSpeciesSeen={isSpeciesSeen}
-          toggleSpecies={toggleSpecies}
-          showToast={showToast}
-        />
-      )}
       {/* Global Toast */}
       <Toast />
-    </div>
-  )
-}
-
-/** Inline modal for searching and toggling species on the life list */
-function AddSpeciesModal({
-  onClose,
-  isSpeciesSeen,
-  toggleSpecies,
-  showToast,
-}: {
-  onClose: () => void
-  isSpeciesSeen: (code: string) => boolean
-  toggleSpecies: (code: string, name: string) => Promise<void>
-  showToast: (t: Omit<import('./contexts/ToastContext').Toast, 'id'>) => void
-}) {
-  const [query, setQuery] = useState('')
-  const [allSpecies, setAllSpecies] = useState<Species[]>([])
-  const [loading, setLoading] = useState(true)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  // Load species list once on mount
-  useEffect(() => {
-    fetchSpecies().then((species) => {
-      setAllSpecies(species)
-      setLoading(false)
-    })
-  }, [])
-
-  // Auto-focus search input on mount
-  useEffect(() => {
-    // Short delay so the modal animation doesn't interfere
-    const timer = setTimeout(() => inputRef.current?.focus(), 100)
-    return () => clearTimeout(timer)
-  }, [])
-
-  // Close on Escape key
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
-  // Filter species by query (comName and sciName), limit to 50 results
-  const trimmed = query.trim().toLowerCase()
-  const results = trimmed.length < 2
-    ? []
-    : allSpecies
-        .filter(
-          (s) =>
-            s.comName.toLowerCase().includes(trimmed) ||
-            s.sciName.toLowerCase().includes(trimmed)
-        )
-        .slice(0, 50)
-
-  const handleToggle = async (species: Species) => {
-    const wasSeen = isSpeciesSeen(species.speciesCode)
-    try {
-      await toggleSpecies(species.speciesCode, species.comName)
-      showToast({
-        type: wasSeen ? 'muted' : 'success',
-        message: wasSeen
-          ? `Removed ${species.comName} from life list`
-          : `Added ${species.comName} to life list`,
-        duration: 2500,
-      })
-    } catch {
-      showToast({ type: 'muted', message: 'Failed to update life list', duration: 3000 })
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-12 md:pt-20">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md max-h-[80vh] flex flex-col bg-white dark:bg-gray-900 rounded-xl shadow-2xl mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Add Species</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            aria-label="Close"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Search input */}
-        <div className="px-4 pb-3">
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by common or scientific name..."
-            className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] dark:focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Results */}
-        <div className="flex-1 overflow-y-auto px-2 pb-3 min-h-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : trimmed.length < 2 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-              Type at least 2 characters to search
-            </p>
-          ) : results.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-              No species found
-            </p>
-          ) : (
-            <ul>
-              {results.map((species) => {
-                const seen = isSpeciesSeen(species.speciesCode)
-                return (
-                  <li key={species.speciesCode}>
-                    <button
-                      onClick={() => handleToggle(species)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors min-h-[44px]"
-                    >
-                      {/* Seen indicator */}
-                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
-                        seen
-                          ? 'bg-green-500 text-white'
-                          : 'border-2 border-gray-300 dark:border-gray-600'
-                      }`}>
-                        {seen && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </span>
-                      {/* Species info */}
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium truncate ${
-                          seen
-                            ? 'text-green-700 dark:text-green-400'
-                            : 'text-gray-900 dark:text-gray-100'
-                        }`}>
-                          {species.comName}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 italic truncate">
-                          {species.sciName}
-                        </div>
-                      </div>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
     </div>
   )
 }

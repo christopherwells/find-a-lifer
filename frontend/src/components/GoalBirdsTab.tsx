@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
 import { useToast } from '../contexts/ToastContext'
 import { useSpecies } from '../hooks/useSpecies'
@@ -8,6 +8,7 @@ import type { Species } from './types'
 import { FamilyGroupSkeleton } from './Skeleton'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { getDisplayGroup } from '../lib/familyGroups'
+import { getPatternSuggestions } from '../lib/goalPatternEngine'
 
 /** Returns Tailwind classes for difficulty rating pill. */
 function getDifficultyColor(rating: number): string {
@@ -31,7 +32,7 @@ function getConservStatusDot(status: string): React.ReactNode {
 }
 
 export default function GoalBirdsTab() {
-  const { setGoalLists: onGoalListsChange, setActiveGoalListId: onActiveGoalListIdChange } = useMapControls()
+  const { state: { viewMode }, setGoalLists: onGoalListsChange, setActiveGoalListId: onActiveGoalListIdChange, setViewMode } = useMapControls()
   const { isSpeciesSeen, seenSpecies } = useLifeList()
   const { showToast } = useToast()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
@@ -62,6 +63,23 @@ export default function GoalBirdsTab() {
 
   // Species info card state
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
+
+  // On desktop, auto-switch to Goals view mode so the map shows goal bird density
+  // as the user adds species. Restore previous mode on unmount.
+  const prevViewModeRef = useRef(viewMode)
+  useEffect(() => {
+    if (window.innerWidth >= 768 && viewMode !== 'goal-birds') {
+      prevViewModeRef.current = viewMode
+      setViewMode('goal-birds')
+    }
+    return () => {
+      if (window.innerWidth >= 768 && prevViewModeRef.current !== 'goal-birds') {
+        setViewMode(prevViewModeRef.current)
+      }
+    }
+    // Only run on mount/unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Refresh counter — incremented when tab becomes visible or species are added externally
   const [refreshKey, setRefreshKey] = useState(0)
@@ -456,6 +474,13 @@ export default function GoalBirdsTab() {
       .sort((a, b) => (b.seasonalityScore ?? 0) - (a.seasonalityScore ?? 0))
       .slice(0, 20)
   }, [allSpecies, activeList, isSpeciesSeen])
+
+  // Pattern-based suggestions from goalPatternEngine
+  const patternSuggestions = useMemo(() => {
+    if (!activeList || allSpecies.length === 0) return []
+    const goalCodes = new Set(activeList.speciesCodes)
+    return getPatternSuggestions(allSpecies, goalCodes, seenSpecies)
+  }, [allSpecies, activeList, seenSpecies])
 
   const almostComplete = useMemo(() => {
     if (!activeList || allSpecies.length === 0) return []
@@ -1220,6 +1245,46 @@ export default function GoalBirdsTab() {
             })()}
           </div>
         ) : null}
+
+          {/* ── Similar Species (Pattern Engine) ── */}
+          {patternSuggestions.length > 0 && (() => {
+            const sectionKey = 'patterns'
+            return (
+              <div className="mt-4" data-testid="pattern-suggestions-section">
+                <button onClick={() => toggleSection(sectionKey)} className="w-full flex items-center justify-between py-2.5 px-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors" aria-expanded={expandedSections.has(sectionKey)}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-purple-800 dark:text-purple-300">Similar Species</span>
+                    <span className="text-xs bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-300 px-1.5 py-0.5 rounded-full font-medium">{patternSuggestions.length}</span>
+                  </div>
+                  <svg className={`h-4 w-4 text-purple-500 transition-transform ${expandedSections.has(sectionKey) ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                </button>
+                {expandedSections.has(sectionKey) && (
+                  <div className="mt-1 space-y-1">
+                    {patternSuggestions.map((ps) => {
+                      const alreadyInList = activeList?.speciesCodes.includes(ps.species.speciesCode) ?? false
+                      return (
+                        <div key={ps.species.speciesCode} className={`flex items-center justify-between px-2 py-2.5 rounded ${alreadyInList ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                          <button onClick={() => setSelectedSpeciesCard(ps.species)} className="flex-1 text-left min-w-0">
+                            <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{ps.species.comName}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{ps.reason}</div>
+                          </button>
+                          {alreadyInList ? (
+                            <div className="ml-2 flex-shrink-0 text-purple-500" title="Already in list">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                            </div>
+                          ) : (
+                            <button onClick={() => handleAddSpecies(ps.species)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-purple-700 dark:text-purple-400 border border-purple-300 dark:border-purple-700 rounded hover:bg-purple-600 hover:text-white transition-colors" title={`Add ${ps.species.comName}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
       </div>
 
       {/* List Picker — quick selector when multiple goal lists exist */}

@@ -276,7 +276,7 @@ export default function TripGroupSection() {
                   {m.displayName.charAt(0).toUpperCase()}
                 </div>
                 <span className="text-gray-700 dark:text-gray-300">{m.displayName}</span>
-                <span className="text-gray-400 dark:text-gray-500">({m.speciesCodes.length})</span>
+                <span className="text-gray-400 dark:text-gray-400">({m.speciesCodes.length})</span>
               </div>
               {isOwner && m.uid !== user.uid && (
                 <button
@@ -427,7 +427,7 @@ export default function TripGroupSection() {
               className="w-full flex items-center justify-between px-2.5 py-2 text-xs text-left rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[36px]"
             >
               <span className="text-gray-800 dark:text-gray-200 font-medium truncate">{trip.name}</span>
-              <span className="text-gray-400 dark:text-gray-500 whitespace-nowrap ml-2">
+              <span className="text-gray-400 dark:text-gray-400 whitespace-nowrap ml-2">
                 {trip.memberUids.length} {trip.memberUids.length === 1 ? 'member' : 'members'}
               </span>
             </button>
