@@ -454,21 +454,22 @@ export default function ProgressTab() {
         {/* Subtabs */}
         <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
           {([
-            { key: 'groups' as const, label: 'Groups' },
-            { key: 'regions' as const, label: 'Regions' },
-            { key: 'achievements' as const, label: 'Achievements' },
-            ...(user ? [{ key: 'leaderboard' as const, label: 'Leaderboard' }] : []),
-          ]).map(({ key, label }) => (
+            { key: 'groups' as const, icon: '🐦', label: 'Groups' },
+            { key: 'regions' as const, icon: '🗺️', label: 'Regions' },
+            { key: 'achievements' as const, icon: '⭐', label: 'Achieve' },
+            ...(user ? [{ key: 'leaderboard' as const, icon: '📊', label: 'Rank' }] : []),
+          ]).map(({ key, icon, label }) => (
             <button
               key={key}
               onClick={() => setTrophyTab(key)}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-md text-center transition-all ${
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-md text-center transition-all flex flex-col items-center gap-0.5 ${
                 trophyTab === key
                   ? 'bg-white dark:bg-gray-600 text-[var(--color-brand)] dark:text-white shadow-sm'
                   : 'text-gray-500 dark:text-gray-400'
               }`}
             >
-              {label}
+              <span className="text-sm leading-none">{icon}</span>
+              <span className="leading-none">{label}</span>
             </button>
           ))}
         </div>
@@ -587,17 +588,15 @@ export default function ProgressTab() {
             return (
               <div
                 key={m.label}
-                className={`relative flex flex-col items-center p-2.5 rounded-lg shadow-sm overflow-hidden ${tierClass} ${animClass}`}
+                className={`relative flex flex-col items-center justify-center p-2.5 rounded-lg shadow-sm overflow-hidden min-h-[90px] ${tierClass} ${animClass}`}
                 style={{ animationDelay: `${delay}s` }}
                 data-testid={`milestone-${m.label}`}
                 title={`${m.label}: ${m.desc}`}
               >
                 <span className="text-2xl">{m.emoji}</span>
                 <p className="text-xs font-semibold text-center leading-tight mt-0.5" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{m.label}</p>
-                <p className="text-sm font-medium mt-0.5">{tierEmoji} {m.desc}</p>
-                {nextTarget && nextTierName && (
-                  <p className="text-xs opacity-75 mt-0.5">{m.progress}/{nextTarget} to {nextTierName}</p>
-                )}
+                <p className="text-xs font-medium mt-0.5">{tierEmoji} {m.desc}</p>
+                <p className="text-xs opacity-60 mt-0.5 h-3.5">{nextTarget && nextTierName ? `${m.progress}/${nextTarget} to ${nextTierName}` : '\u00A0'}</p>
               </div>
             )
           })}
