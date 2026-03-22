@@ -44,13 +44,20 @@ export default function TripPlanner({
   goalLists,
 }: TripPlannerProps) {
   const {
-    state: { currentWeek },
+    state: { currentWeek, viewMode: mapViewMode },
     setCurrentWeek,
     setSelectedLocation,
+    setSelectedRegion,
+    setViewMode: setMapViewMode,
   } = useMapControls()
 
   // Filters
-  const [regionId, setRegionId] = useState<string>(() => localStorage.getItem('homeRegion') || '')
+  const [regionId, setRegionIdState] = useState<string>(() => localStorage.getItem('homeRegion') || '')
+  const setRegionId = useCallback((id: string) => {
+    setRegionIdState(id)
+    // Sync to MapControlsContext so the map zooms to the region
+    setSelectedRegion(id || null)
+  }, [setSelectedRegion])
   const [startWeek, setStartWeek] = useState(() => Math.max(1, currentWeek - 4))
   const [endWeek, setEndWeek] = useState(() => Math.min(52, currentWeek + 4))
   const [goalListId, setGoalListId] = useState<string>('')
@@ -223,21 +230,31 @@ export default function TripPlanner({
         </div>
 
         {/* Week range */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Weeks</label>
-          <input
-            type="range" min={1} max={52} value={startWeek}
-            onChange={e => setStartWeek(Math.min(Number(e.target.value), endWeek))}
-            className="flex-1 h-1.5 accent-[#2C3E7B]"
-          />
-          <span className="text-xs text-gray-500 dark:text-gray-400 w-20 text-center tabular-nums">
-            {getWeekLabel(startWeek)} – {getWeekLabel(endWeek)}
-          </span>
-          <input
-            type="range" min={1} max={52} value={endWeek}
-            onChange={e => setEndWeek(Math.max(Number(e.target.value), startWeek))}
-            className="flex-1 h-1.5 accent-[#2C3E7B]"
-          />
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Date Range</label>
+            <span className="text-xs font-medium text-gray-800 dark:text-gray-200 tabular-nums">
+              {getWeekLabel(startWeek)} – {getWeekLabel(endWeek)}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 dark:text-gray-400 w-10">From</span>
+            <input
+              type="range" min={1} max={52} value={startWeek}
+              onChange={e => setStartWeek(Math.min(Number(e.target.value), endWeek))}
+              className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              title={`Start: ${getWeekLabel(startWeek)}`}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 dark:text-gray-400 w-10">To</span>
+            <input
+              type="range" min={1} max={52} value={endWeek}
+              onChange={e => setEndWeek(Math.max(Number(e.target.value), startWeek))}
+              className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
+              title={`End: ${getWeekLabel(endWeek)}`}
+            />
+          </div>
         </div>
 
         {/* Goal list filter */}
@@ -246,7 +263,13 @@ export default function TripPlanner({
           <select
             id="planner-goal"
             value={goalListId}
-            onChange={e => setGoalListId(e.target.value)}
+            onChange={e => {
+              const val = e.target.value
+              setGoalListId(val)
+              // Switch map view: goal list → goal-birds mode, all lifers → density mode
+              if (val && mapViewMode !== 'goal-birds') setMapViewMode('goal-birds')
+              else if (!val && mapViewMode === 'goal-birds') setMapViewMode('density')
+            }}
             className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
           >
             <option value="">All Lifers</option>

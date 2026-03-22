@@ -112,12 +112,36 @@ let speciesByIdCache: Map<number, SpeciesMeta> | null = null
 
 // Region bounds for zoom presets
 const REGION_BOUNDS: Record<string, { center: [number, number]; zoom: number }> = {
+  // Super-regions
+  'northern': { center: [-100, 58], zoom: 3 },
+  'continental-us': { center: [-98, 39], zoom: 3.5 },
+  'hawaii': { center: [-157, 20.5], zoom: 6.5 },
+  'mex-central': { center: [-95, 18], zoom: 4 },
+  'caribbean': { center: [-72, 19], zoom: 5 },
+  // Sub-regions (17)
+  'ca-west': { center: [-135, 58], zoom: 3.5 },
+  'ca-central': { center: [-95, 55], zoom: 4 },
+  'ca-east': { center: [-65, 50], zoom: 4 },
+  'us-ne': { center: [-73.5, 42], zoom: 5.5 },
+  'us-se': { center: [-83.5, 31], zoom: 5 },
+  'us-mw': { center: [-93, 42], zoom: 5 },
+  'us-sw': { center: [-103, 31], zoom: 5 },
+  'us-west': { center: [-120, 39], zoom: 5 },
+  'us-rockies': { center: [-110, 42], zoom: 4.5 },
+  'us-hi': { center: [-157, 20.5], zoom: 6.5 },
+  'mx-north': { center: [-105, 27], zoom: 5 },
+  'mx-south': { center: [-96, 18], zoom: 5.5 },
+  'ca-c-north': { center: [-87, 15], zoom: 6 },
+  'ca-c-south': { center: [-82, 9.5], zoom: 6.5 },
+  'caribbean-greater': { center: [-75, 20], zoom: 5.5 },
+  'caribbean-lesser': { center: [-62, 15], zoom: 6 },
+  'atlantic-west': { center: [-75, 26], zoom: 5.5 },
+  // Legacy IDs (backward compat)
   us_northeast: { center: [-73.5, 42], zoom: 5.5 },
   us_southeast: { center: [-83.5, 31], zoom: 5.5 },
   us_midwest: { center: [-93, 42], zoom: 5 },
   us_west: { center: [-114.5, 40.5], zoom: 4.5 },
   alaska: { center: [-150, 64], zoom: 4 },
-  hawaii: { center: [-157, 20.5], zoom: 6.5 }
 }
 
 export default memo(function MapView({
