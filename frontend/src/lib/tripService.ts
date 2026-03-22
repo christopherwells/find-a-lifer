@@ -189,6 +189,11 @@ export async function declineTripInvite(inviteId: string): Promise<void> {
 }
 
 /** Sync (update) a member's life list in a trip */
+/** Rename a trip */
+export async function renameTrip(tripId: string, name: string): Promise<void> {
+  await updateDoc(doc(db, 'trips', tripId), { name })
+}
+
 export async function syncMemberList(
   tripId: string, uid: string, speciesCodes: string[]
 ): Promise<void> {

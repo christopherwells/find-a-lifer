@@ -5,7 +5,7 @@ import { getFriends, type Friend } from '../lib/friendsService'
 import {
   createTrip, getUserTrips, getTripMembers, getTrip,
   inviteToTrip, getPendingTripInvites, acceptTripInvite, declineTripInvite,
-  syncMemberList, leaveTrip, removeTripMember, deleteTrip,
+  syncMemberList, leaveTrip, removeTripMember, deleteTrip, renameTrip,
   type Trip, type TripMember, type TripInvite,
 } from '../lib/tripService'
 import { trackEvent } from '../lib/analytics'
@@ -23,6 +23,8 @@ export default function TripGroupSection() {
   const [creating, setCreating] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [newTripName, setNewTripName] = useState('')
+  const [renamingTrip, setRenamingTrip] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeTripIdRef = useRef<string | null>(null)
@@ -263,7 +265,42 @@ export default function TripGroupSection() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs font-semibold text-[#2C3E7B] dark:text-blue-400 uppercase tracking-wider">Trip</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{activeTrip.name}</span>
+            {renamingTrip ? (
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter' && renameValue.trim()) {
+                      await renameTrip(activeTrip.id, renameValue.trim())
+                      setActiveTrip({ ...activeTrip, name: renameValue.trim() })
+                      setActiveTripName(renameValue.trim())
+                      setRenamingTrip(false)
+                    }
+                    if (e.key === 'Escape') setRenamingTrip(false)
+                  }}
+                  className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  autoFocus
+                />
+                <button onClick={async () => {
+                  if (renameValue.trim()) {
+                    await renameTrip(activeTrip.id, renameValue.trim())
+                    setActiveTrip({ ...activeTrip, name: renameValue.trim() })
+                    setActiveTripName(renameValue.trim())
+                  }
+                  setRenamingTrip(false)
+                }} className="text-xs text-[#2C3E7B] dark:text-blue-400 font-medium">Save</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setRenameValue(activeTrip.name); setRenamingTrip(true) }}
+                className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate hover:underline"
+                title="Click to rename"
+              >
+                {activeTrip.name}
+              </button>
+            )}
           </div>
           <button
             onClick={deactivateTrip}

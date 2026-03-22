@@ -22,9 +22,10 @@ type SpeciesByGroup = Record<string, Species[]>
 
 export default function SpeciesTab() {
   const {
-    state: { selectedRegion, speciesFilters, showTotalRichness },
+    state: { selectedRegion, speciesFilters, showTotalRichness, seenFilter },
     setSpeciesFilters: onSpeciesFiltersChange,
     setShowTotalRichness,
+    setSeenFilter,
   } = useMapControls()
   const { species: rawSpecies, loading } = useSpecies()
   const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
@@ -46,7 +47,7 @@ export default function SpeciesTab() {
   const setSelectedConservStatus = (v: string) => updateFilters({ conservStatus: v })
   const setSelectedInvasionStatus = (v: string) => updateFilters({ invasionStatus: v })
   const setSelectedDifficulty = (v: string) => updateFilters({ difficulty: v })
-  const [seenFilter, setSeenFilter] = useState<'' | 'seen' | 'unseen' | 'lifers'>('') // '' means "All"
+  // seenFilter persists in MapControlsContext so it survives tab switches
   const [, setRegionNameMap] = useState<Record<string, string>>({})
   const [showFilters, setShowFilters] = useState(false)
   const { isSpeciesSeen, getTotalSeen } = useLifeList()
