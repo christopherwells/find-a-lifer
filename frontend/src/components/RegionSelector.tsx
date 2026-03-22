@@ -14,7 +14,7 @@ import { SUB_REGIONS } from '../lib/subRegions'
 // Map sub-region IDs to their major region category
 const MAJOR_REGIONS: { label: string; subRegionIds: string[] }[] = [
   { label: 'Canada', subRegionIds: ['ca-west', 'ca-central', 'ca-east', 'ca-north'] },
-  { label: 'United States', subRegionIds: ['us-ne', 'us-se', 'us-mw', 'us-sw', 'us-west', 'us-rockies', 'us-ak', 'us-hi'] },
+  { label: 'United States', subRegionIds: ['us-west', 'us-rockies', 'us-sw', 'us-mw', 'us-ne', 'us-se', 'us-hi'] },
   { label: 'Mexico', subRegionIds: ['mx-north', 'mx-south'] },
   { label: 'Central America', subRegionIds: ['ca-c-north', 'ca-c-south'] },
   { label: 'Caribbean', subRegionIds: ['caribbean-greater', 'caribbean-lesser', 'atlantic-west'] },

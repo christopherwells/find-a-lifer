@@ -57,8 +57,9 @@ export function getNotableBirds(
   const candidates: NotableBird[] = []
 
   for (const { species, frequency } of cellSpecies) {
-    // Skip species the user has already seen
+    // Skip species the user has already seen or with <1% reporting frequency
     if (seenCodes.has(species.speciesCode)) continue
+    if (frequency < 0.01) continue
 
     if (goalCodes.has(species.speciesCode)) {
       candidates.push({ species, tag: 'Goal bird', frequency })
