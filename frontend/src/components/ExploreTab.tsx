@@ -160,8 +160,8 @@ export default function ExploreTab({
       <div>
         <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex gap-1">
           {[
-            { mode: 'density' as const, label: 'Richness' },
-            { mode: 'probability' as const, label: 'Frequency' },
+            { mode: 'density' as const, label: 'Count' },
+            { mode: 'probability' as const, label: 'Chance' },
             { mode: 'species' as const, label: 'Range' },
             { mode: 'goal-birds' as const, label: 'Goals' },
           ].map(({ mode, label }) => (

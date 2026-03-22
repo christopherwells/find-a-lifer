@@ -34,12 +34,12 @@ interface MapControlsProps {
 const VIEW_MODES: { mode: MapViewMode; label: string; icon: React.ReactNode }[] = [
   {
     mode: 'density',
-    label: 'Richness',
+    label: 'Count',
     icon: <span className="text-sm font-bold leading-none">#</span>,
   },
   {
     mode: 'probability',
-    label: 'Frequency',
+    label: 'Chance',
     icon: <span className="text-sm font-bold leading-none">%</span>,
   },
   {

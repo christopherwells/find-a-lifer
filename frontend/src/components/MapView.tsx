@@ -1783,7 +1783,7 @@ export default memo(function MapView({
           showLegend = true
           emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
         } else if (viewMode === 'density' && !goalBirdsOnlyFilter) {
-          legendTitle = seenSpecies.size > 0 ? 'Lifer Density' : 'Species Richness'
+          legendTitle = seenSpecies.size > 0 ? 'Lifer Count' : 'Species Count'
           showLegend = true
         } else if (viewMode === 'species' && selectedSpecies) {
           legendTitle = selectedSpeciesMeta ? selectedSpeciesMeta.comName : 'Species Range'
