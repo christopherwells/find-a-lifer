@@ -643,40 +643,41 @@ export default function SpeciesTab() {
                 <option value="Provisional">Provisional</option>
               </select>
             </div>
-            {/* Goal List filter */}
-            {goalLists.length > 0 && (
-              <select
-                value={goalListFilter}
-                onChange={(e) => setGoalListFilter(e.target.value)}
-                className="w-full px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                data-testid="goal-list-filter"
+            {/* Goal List + Include Seen */}
+            <div className="flex gap-1.5">
+              {goalLists.length > 0 && (
+                <select
+                  value={goalListFilter}
+                  onChange={(e) => setGoalListFilter(e.target.value)}
+                  className="flex-1 min-w-0 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  data-testid="goal-list-filter"
+                >
+                  <option value="">All Species</option>
+                  <option value="all">Any Goal List</option>
+                  {goalLists.map(l => (
+                    <option key={l.id} value={l.id}>{l.name} ({l.speciesCodes.length})</option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={() => setShowTotalRichness(!showTotalRichness)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
+                  showTotalRichness
+                    ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                }`}
+                title={showTotalRichness ? 'Map shows all species including seen' : 'Map shows only unseen species (lifers)'}
               >
-                <option value="">All Species</option>
-                <option value="all">Any Goal List</option>
-                {goalLists.map(l => (
-                  <option key={l.id} value={l.id}>{l.name} ({l.speciesCodes.length})</option>
-                ))}
-              </select>
-            )}
-            {/* Include Seen Species toggle — syncs with map heatmap */}
-            <button
-              onClick={() => setShowTotalRichness(!showTotalRichness)}
-              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
-                showTotalRichness
-                  ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
-              }`}
-              title={showTotalRichness ? 'Map shows all species including seen' : 'Map shows only unseen species (lifers)'}
-            >
-              Include Seen on Map
-              <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
-              }`}>
-                <span className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-                  showTotalRichness ? 'translate-x-3.5' : 'translate-x-0.5'
-                }`} />
-              </span>
-            </button>
+                Include Seen
+                <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                  showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
+                }`}>
+                  <span className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+                    showTotalRichness ? 'translate-x-3.5' : 'translate-x-0.5'
+                  }`} />
+                </span>
+              </button>
+            </div>
             {/* Clear filters */}
             {activeFilterCount > 0 && (
               <button
