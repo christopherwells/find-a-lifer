@@ -81,6 +81,26 @@ html, body {
     rgb(250 204 21) 100%
   );
 }
+.trophy-diamond.trophy-sheen {
+  background-image: linear-gradient(
+    110deg,
+    rgb(186 230 253) 0%,
+    rgb(186 230 253) 40%,
+    rgb(224 245 255) 50%,
+    rgb(186 230 253) 60%,
+    rgb(186 230 253) 100%
+  );
+}
+.trophy-emerald.trophy-sheen {
+  background-image: linear-gradient(
+    110deg,
+    rgb(5 150 105) 0%,
+    rgb(5 150 105) 40%,
+    rgb(52 211 153) 50%,
+    rgb(5 150 105) 60%,
+    rgb(5 150 105) 100%
+  );
+}
 
 /* Dark mode sheen adjustments */
 @media (prefers-color-scheme: dark) {
@@ -113,8 +133,20 @@ html, body {
   animation-timing-function: linear, ease-in-out;
   animation-iteration-count: infinite, infinite;
 }
+.trophy-diamond.trophy-glow {
+  animation-name: trophy-sheen, trophy-glow;
+  animation-duration: 8s, 3s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
+.trophy-emerald.trophy-glow {
+  animation-name: trophy-sheen, trophy-glow;
+  animation-duration: 8s, 2.5s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
 
-/* Sparkle: small white dots that appear/disappear — gold only */
+/* Sparkle: small white dots that appear/disappear — gold, diamond, emerald */
 @keyframes trophy-sparkle-1 {
   0%, 100% { opacity: 0; }
   50% { opacity: 1; }
@@ -146,4 +178,24 @@ html, body {
   bottom: 25%;
   left: 12%;
   animation: trophy-sparkle-2 2.2s ease-in-out infinite;
+}
+
+/* Pulse: subtle border color animation — diamond + emerald */
+@keyframes trophy-pulse {
+  0%, 100% { border-color: rgba(255, 255, 255, 0.3); }
+  50% { border-color: rgba(255, 255, 255, 0.7); }
+}
+.trophy-pulse {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  animation: trophy-pulse 3s ease-in-out infinite;
+}
+
+/* Prismatic: very subtle hue rotation — emerald only */
+@keyframes trophy-prismatic {
+  0% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(15deg); }
+  100% { filter: hue-rotate(0deg); }
+}
+.trophy-prismatic {
+  animation: trophy-prismatic 6s ease-in-out infinite;
 }

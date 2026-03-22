@@ -160,14 +160,16 @@ export default function ProgressTab() {
   // Calculate quick stats
   const groupsStarted = Object.values(groupStats).filter(s => s.seen > 0).length
 
-  // Trophy tiers: copper (>=33%), silver (>=67%), gold (100%)
-  type TrophyLevel = 'gold' | 'silver' | 'copper' | null
+  // Trophy tiers: copper (>=10%), silver (>=25%), gold (>=50%), diamond (>=75%), emerald (100%)
+  type TrophyLevel = 'emerald' | 'diamond' | 'gold' | 'silver' | 'copper' | null
   const getTrophyLevel = (seen: number, total: number): TrophyLevel => {
     if (total === 0 || seen === 0) return null
     const ratio = seen / total
-    if (ratio >= 1) return 'gold'
-    if (ratio >= 2 / 3) return 'silver'
-    if (ratio >= 1 / 3) return 'copper'
+    if (ratio >= 1) return 'emerald'
+    if (ratio >= 0.75) return 'diamond'
+    if (ratio >= 0.5) return 'gold'
+    if (ratio >= 0.25) return 'silver'
+    if (ratio >= 0.1) return 'copper'
     return null
   }
 
@@ -177,7 +179,7 @@ export default function ProgressTab() {
     .filter(([, stats]) => stats.seen > 0)
     .map(([name, stats]) => ({ name, ...stats, level: getTrophyLevel(stats.seen, stats.total) }))
     .sort((a, b) => {
-      const order = { gold: 0, silver: 1, copper: 2, none: 3 }
+      const order = { emerald: 0, diamond: 1, gold: 2, silver: 3, copper: 4, none: 5 }
       const aOrder = a.level ? order[a.level] : order.none
       const bOrder = b.level ? order[b.level] : order.none
       const levelDiff = aOrder - bOrder
@@ -307,20 +309,28 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* 5. Trophy Case — unified copper/silver/gold display */}
+      {/* 5. Trophy Case — 5-tier display: copper/silver/gold/diamond/emerald */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
         {earnedGroups.length > 0 ? (
           <div className="grid grid-cols-3 gap-2">
             {earnedGroups.map((g) => {
-              const tierClass = g.level === 'gold'
+              const tierClass = g.level === 'emerald'
+                ? 'trophy-emerald bg-emerald-600 text-emerald-50'
+                : g.level === 'diamond'
+                ? 'trophy-diamond bg-sky-200 text-sky-900'
+                : g.level === 'gold'
                 ? 'trophy-gold bg-yellow-400 text-yellow-900'
                 : g.level === 'silver'
                 ? 'trophy-silver bg-gray-300 text-gray-800 dark:bg-gray-400 dark:text-gray-900'
                 : g.level === 'copper'
                 ? 'trophy-copper bg-amber-800 text-amber-100'
                 : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-              const animClass = g.level === 'gold'
+              const animClass = g.level === 'emerald'
+                ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse trophy-prismatic'
+                : g.level === 'diamond'
+                ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse'
+                : g.level === 'gold'
                 ? 'trophy-sheen trophy-glow trophy-sparkle'
                 : g.level === 'silver'
                 ? 'trophy-sheen trophy-glow'
