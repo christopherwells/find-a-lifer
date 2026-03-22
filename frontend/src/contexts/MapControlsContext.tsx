@@ -1,13 +1,14 @@
 import { createContext, useContext, useReducer, useMemo, useEffect, useCallback, type ReactNode } from 'react'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import { trackEvent } from '../lib/analytics'
-import type { MapViewMode, SelectedLocation, SpeciesFilters, CompareLocations } from '../components/types'
+import type { MapViewMode, LiferMetric, SelectedLocation, SpeciesFilters, CompareLocations } from '../components/types'
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
 export interface MapControlsState {
   currentWeek: number
   viewMode: MapViewMode
+  liferMetric: LiferMetric
   heatmapOpacity: number
   goalBirdsOnlyFilter: boolean
   showTotalRichness: boolean
@@ -34,6 +35,7 @@ function getInitialWeek(): number {
 const initialState: MapControlsState = {
   currentWeek: getInitialWeek(),
   viewMode: 'density',
+  liferMetric: 'expected',
   heatmapOpacity: 0.8,
   goalBirdsOnlyFilter: false,
   showTotalRichness: false,
@@ -54,6 +56,7 @@ const initialState: MapControlsState = {
 type MapControlsAction =
   | { type: 'SET_CURRENT_WEEK'; week: number }
   | { type: 'SET_VIEW_MODE'; mode: MapViewMode }
+  | { type: 'SET_LIFER_METRIC'; metric: LiferMetric }
   | { type: 'SET_HEATMAP_OPACITY'; opacity: number }
   | { type: 'SET_GOAL_BIRDS_ONLY_FILTER'; value: boolean }
   | { type: 'SET_SHOW_TOTAL_RICHNESS'; value: boolean }
@@ -88,6 +91,9 @@ function mapControlsReducer(state: MapControlsState, action: MapControlsAction):
       }
       return { ...state, ...updates }
     }
+
+    case 'SET_LIFER_METRIC':
+      return { ...state, liferMetric: action.metric }
 
     case 'SET_HEATMAP_OPACITY':
       return { ...state, heatmapOpacity: action.opacity }
@@ -149,6 +155,7 @@ interface MapControlsContextValue {
   // Convenience setters (stable callbacks wrapping dispatch)
   setCurrentWeek: (week: number) => void
   setViewMode: (mode: MapViewMode) => void
+  setLiferMetric: (metric: LiferMetric) => void
   setHeatmapOpacity: (opacity: number) => void
   setGoalBirdsOnlyFilter: (value: boolean) => void
   setShowTotalRichness: (value: boolean) => void
@@ -211,6 +218,10 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_VIEW_MODE', mode })
   }, [])
 
+  const setLiferMetric = useCallback((metric: LiferMetric) => {
+    dispatch({ type: 'SET_LIFER_METRIC', metric })
+  }, [])
+
   const setHeatmapOpacity = useCallback((opacity: number) => {
     dispatch({ type: 'SET_HEATMAP_OPACITY', opacity })
   }, [])
@@ -268,6 +279,7 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
     goalSpeciesCodes,
     setCurrentWeek,
     setViewMode,
+    setLiferMetric,
     setHeatmapOpacity,
     setGoalBirdsOnlyFilter,
     setShowTotalRichness,
@@ -286,6 +298,7 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
     goalSpeciesCodes,
     setCurrentWeek,
     setViewMode,
+    setLiferMetric,
     setHeatmapOpacity,
     setGoalBirdsOnlyFilter,
     setShowTotalRichness,

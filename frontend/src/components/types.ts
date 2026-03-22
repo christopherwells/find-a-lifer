@@ -1,4 +1,5 @@
 export type MapViewMode = 'density' | 'probability' | 'species' | 'goal-birds'
+export type LiferMetric = 'count' | 'chance' | 'expected'
 
 export interface SelectedLocation {
   cellId: number
