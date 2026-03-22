@@ -16,8 +16,7 @@ function getTabNav(page: Page) {
 async function gotoReady(page: Page) {
   await page.goto('/')
   await page.evaluate(() => {
-    localStorage.setItem('hasSeenOnboarding', 'true')
-    localStorage.setItem('beginnerMode', 'false')
+    localStorage.setItem('tourComplete', 'true')
     localStorage.setItem('sessionCount', '10')
   })
   await page.reload()

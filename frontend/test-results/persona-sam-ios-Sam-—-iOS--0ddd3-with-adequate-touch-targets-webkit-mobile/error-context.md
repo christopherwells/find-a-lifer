@@ -1,0 +1,59 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - link "Skip to main content" [ref=e4]:
+      - /url: "#main-content"
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - generic [ref=e8]:
+            - region "Map" [ref=e9]
+            - generic:
+              - button "Find my location" [ref=e11] [cursor=pointer]
+              - generic [ref=e13]: 500 km
+          - generic [ref=e14]:
+            - generic [ref=e15]: Species Richness
+            - generic [ref=e17]:
+              - generic [ref=e18]: "0"
+              - generic [ref=e19]: "0"
+              - generic [ref=e20]: "0"
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - button "Richness" [ref=e25]:
+                - img [ref=e26]
+              - button "Frequency" [ref=e28]:
+                - img [ref=e29]
+              - button "Range" [ref=e31]:
+                - img [ref=e32]
+              - button "Goals" [ref=e35]:
+                - img [ref=e36]
+            - button "More controls" [ref=e38]:
+              - img [ref=e39]
+          - generic [ref=e41]:
+            - generic [ref=e42]: Wk 12 · Mar 21
+            - slider [ref=e43] [cursor=pointer]: "12"
+            - button "Play animation" [ref=e44]:
+              - img [ref=e45]
+      - navigation "Main navigation" [ref=e47]:
+        - tablist "App sections" [ref=e48]:
+          - tab "Explore" [selected] [ref=e49]:
+            - img [ref=e51]
+            - generic [ref=e53]: Explore
+          - tab "Species" [ref=e54]:
+            - img [ref=e56]
+            - generic [ref=e60]: Species
+          - tab "Goals" [ref=e61]:
+            - img [ref=e63]
+            - generic [ref=e65]: Goals
+          - tab "Plan" [ref=e66]:
+            - img [ref=e68]
+            - generic [ref=e70]: Plan
+          - tab "Stats" [ref=e71]:
+            - img [ref=e73]
+            - generic [ref=e75]: Stats
+  - iframe [ref=e77]:
+    
+```

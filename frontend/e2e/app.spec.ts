@@ -1,14 +1,13 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * Navigate to the app with onboarding already dismissed.
- * Sets localStorage before page load to skip the onboarding overlay.
+ * Navigate to the app with the feature tour already completed.
+ * Sets localStorage before page load to skip the driver.js tour.
  */
 async function gotoReady(page: Page) {
   await page.goto('/')
   await page.evaluate(() => {
-    localStorage.setItem('hasSeenOnboarding', 'true')
-    localStorage.setItem('beginnerMode', 'false')
+    localStorage.setItem('tourComplete', 'true')
     localStorage.setItem('sessionCount', '10')
   })
   await page.reload()
@@ -562,19 +561,22 @@ test.describe('Regression: Empty hex visibility', () => {
   })
 })
 
-test.describe('Onboarding Flow', () => {
-  test('shows onboarding overlay on first visit', async ({ page }) => {
+test.describe('Feature Tour', () => {
+  test('shows driver.js tour on first visit', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByTestId('onboarding-overlay')).toBeVisible({ timeout: 5000 })
+    // driver.js creates an overlay with class driver-overlay
+    await expect(page.locator('.driver-overlay')).toBeVisible({ timeout: 5000 })
   })
 
-  test('can dismiss onboarding with Skip button', async ({ page }) => {
+  test('can dismiss tour and app becomes interactive', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByTestId('onboarding-overlay')).toBeVisible({ timeout: 5000 })
-    // Skip button is always visible on all slides
-    await page.getByTestId('onboarding-skip').click()
-    await expect(page.getByTestId('onboarding-overlay')).not.toBeVisible({ timeout: 3000 })
-    await expect(page.getByTestId('tab-navigation')).toBeVisible()
+    await expect(page.locator('.driver-overlay')).toBeVisible({ timeout: 5000 })
+    // Close the tour via the close button on the popover
+    await page.locator('.driver-popover-close-btn').click()
+    await expect(page.locator('.driver-overlay')).not.toBeVisible({ timeout: 3000 })
+    // Tour completion is persisted — tourComplete set in localStorage
+    const tourDone = await page.evaluate(() => localStorage.getItem('tourComplete'))
+    expect(tourDone).toBe('true')
   })
 })
 

@@ -1,33 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { MapViewMode, Species } from './types'
-import type { GoalList } from '../lib/goalListsDB'
 import { fetchSpecies } from '../lib/dataCache'
 import { useWeekAnimation } from '../lib/useWeekAnimation'
 import { getWeekLabel } from './tripPlanUtils'
 import { getWeeklyHighlightsLite } from '../lib/recommendationEngine'
+import { useMapControls } from '../contexts/MapControlsContext'
 
 interface MapControlsProps {
-  viewMode: MapViewMode
-  onViewModeChange?: (mode: MapViewMode) => void
-  currentWeek: number
-  onWeekChange?: (week: number) => void
-  heatmapOpacity: number
-  onHeatmapOpacityChange?: (opacity: number) => void
-  goalBirdsOnlyFilter: boolean
-  onGoalBirdsOnlyFilterChange?: (value: boolean) => void
-  showTotalRichness: boolean
-  onShowTotalRichnessChange?: (value: boolean) => void
-  goalLists: GoalList[]
-  activeGoalListId: string | null
-  onActiveGoalListIdChange?: (id: string | null) => void
-  goalSpeciesCodes: Set<string>
-  selectedSpecies: string | null
-  onSelectedSpeciesChange?: (code: string | null) => void
-  selectedSpeciesMulti: string[]
-  onSelectedSpeciesMultiChange?: (codes: string[]) => void
-  liferCountRange: [number, number]
-  onLiferCountRangeChange?: (range: [number, number]) => void
-  dataRange: [number, number]
   seenSpecies: Set<string>
 }
 
@@ -67,33 +46,38 @@ const VIEW_MODES: { mode: MapViewMode; label: string; icon: React.ReactNode }[] 
 const MULTI_COLORS = ['#4A90D9', '#E74C3C', '#27AE60', '#8E44AD']
 
 export default function MapControls({
-  viewMode,
-  onViewModeChange,
-  currentWeek,
-  onWeekChange,
-  heatmapOpacity,
-  onHeatmapOpacityChange,
-  goalBirdsOnlyFilter,
-  onGoalBirdsOnlyFilterChange,
-  showTotalRichness,
-  onShowTotalRichnessChange,
-  goalLists,
-  activeGoalListId,
-  onActiveGoalListIdChange,
-  goalSpeciesCodes,
-  selectedSpecies,
-  onSelectedSpeciesChange,
-  selectedSpeciesMulti,
-  onSelectedSpeciesMultiChange,
-  liferCountRange,
-  onLiferCountRangeChange,
-  dataRange,
   seenSpecies,
 }: MapControlsProps) {
+  const {
+    state: {
+      viewMode,
+      currentWeek,
+      heatmapOpacity,
+      goalBirdsOnlyFilter,
+      showTotalRichness,
+      goalLists,
+      activeGoalListId,
+      selectedSpecies,
+      selectedSpeciesMulti,
+      liferCountRange,
+      dataRange,
+    },
+    goalSpeciesCodes,
+    setViewMode,
+    setCurrentWeek,
+    setHeatmapOpacity,
+    setGoalBirdsOnlyFilter,
+    setShowTotalRichness,
+    setActiveGoalListId,
+    setSelectedSpecies,
+    setSelectedSpeciesMulti,
+    setLiferCountRange,
+  } = useMapControls()
+
   const [expanded, setExpanded] = useState(false)
   const [speciesExpanded, setSpeciesExpanded] = useState(false)
   const [highlightsExpanded, setHighlightsExpanded] = useState(false)
-  const { isAnimating, showWrapIndicator, startAnimation, stopAnimation } = useWeekAnimation(currentWeek, onWeekChange)
+  const { isAnimating, showWrapIndicator, startAnimation, stopAnimation } = useWeekAnimation(currentWeek, setCurrentWeek)
 
   // Species picker state
   const [allSpecies, setAllSpecies] = useState<Species[]>([])
@@ -160,7 +144,7 @@ export default function MapControls({
             {visibleModes.map(({ mode, label, icon }) => (
               <button
                 key={mode}
-                onClick={() => onViewModeChange?.(mode)}
+                onClick={() => setViewMode(mode)}
                 className={`flex-1 flex items-center justify-center gap-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-md transition-all ${
                   viewMode === mode
                     ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
@@ -204,7 +188,7 @@ export default function MapControls({
             min="1"
             max="52"
             value={currentWeek}
-            onChange={(e) => onWeekChange?.(parseInt(e.target.value, 10))}
+            onChange={(e) => setCurrentWeek(parseInt(e.target.value, 10))}
             className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
             data-testid="mc-week-slider"
           />
@@ -298,7 +282,7 @@ export default function MapControls({
                 min="0"
                 max="100"
                 value={Math.round(heatmapOpacity * 100)}
-                onChange={(e) => onHeatmapOpacityChange?.(parseInt(e.target.value, 10) / 100)}
+                onChange={(e) => setHeatmapOpacity(parseInt(e.target.value, 10) / 100)}
                 className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
                 data-testid="mc-opacity-slider"
               />
@@ -310,7 +294,7 @@ export default function MapControls({
             {/* Goal Birds Only Toggle */}
             {showGoalBirdsToggle && (
               <button
-                onClick={() => onGoalBirdsOnlyFilterChange?.(!goalBirdsOnlyFilter)}
+                onClick={() => setGoalBirdsOnlyFilter(!goalBirdsOnlyFilter)}
                 className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   goalBirdsOnlyFilter
                     ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white'
@@ -332,7 +316,7 @@ export default function MapControls({
             {/* Show All Species Toggle */}
             {showTotalRichnessToggle && (
               <button
-                onClick={() => onShowTotalRichnessChange?.(!showTotalRichness)}
+                onClick={() => setShowTotalRichness(!showTotalRichness)}
                 className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   showTotalRichness
                     ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white'
@@ -361,7 +345,7 @@ export default function MapControls({
                 ) : (
                   <select
                     value={activeGoalListId || ''}
-                    onChange={(e) => onActiveGoalListIdChange?.(e.target.value || null)}
+                    onChange={(e) => setActiveGoalListId(e.target.value || null)}
                     className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none"
                     data-testid="mc-goal-list-selector"
                   >
@@ -391,13 +375,13 @@ export default function MapControls({
                   value={liferCountRange[0]}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10)
-                    onLiferCountRangeChange?.([val, 9999])
+                    setLiferCountRange([val, 9999])
                   }}
                   className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
                 />
                 {liferCountRange[0] > dataRange[0] && (
                   <button
-                    onClick={() => onLiferCountRangeChange?.([dataRange[0], 9999])}
+                    onClick={() => setLiferCountRange([dataRange[0], 9999])}
                     className="text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
                   >
                     Reset
@@ -420,7 +404,7 @@ export default function MapControls({
                   <div className="text-xs text-blue-200 italic truncate">{selectedSpeciesMeta.sciName}</div>
                 </div>
                 <button
-                  onClick={() => onSelectedSpeciesChange?.(null)}
+                  onClick={() => setSelectedSpecies(null)}
                   className="text-blue-200 hover:text-white p-0.5 flex-shrink-0"
                   aria-label="Clear species"
                 >
@@ -446,12 +430,12 @@ export default function MapControls({
                       <button
                         onClick={() => {
                           const next = selectedSpeciesMulti.filter((c) => c !== code)
-                          onSelectedSpeciesMultiChange?.(next)
+                          setSelectedSpeciesMulti(next)
                           if (next.length <= 1) {
-                            onSelectedSpeciesChange?.(next[0] || null)
+                            setSelectedSpecies(next[0] || null)
                             if (next.length === 0) setCompareMode(false)
                           } else {
-                            onSelectedSpeciesChange?.(next[0])
+                            setSelectedSpecies(next[0])
                           }
                         }}
                         className="hover:bg-white/30 rounded p-0.5"
@@ -472,7 +456,7 @@ export default function MapControls({
                 onClick={() => {
                   setCompareMode(true)
                   if (selectedSpecies && !selectedSpeciesMulti.includes(selectedSpecies)) {
-                    onSelectedSpeciesMultiChange?.([selectedSpecies])
+                    setSelectedSpeciesMulti([selectedSpecies])
                   }
                 }}
                 className="w-full mt-1.5 px-2 py-1.5 text-xs font-medium text-[#2C3E7B] dark:text-blue-400 border border-dashed border-[#2C3E7B]/30 dark:border-blue-400/30 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors"
@@ -484,7 +468,7 @@ export default function MapControls({
               <button
                 onClick={() => {
                   setCompareMode(false)
-                  onSelectedSpeciesMultiChange?.([])
+                  setSelectedSpeciesMulti([])
                 }}
                 className="w-full text-xs text-gray-500 hover:text-red-500 font-medium mt-1"
               >
@@ -528,10 +512,10 @@ export default function MapControls({
                               if (selectedSpeciesMulti.includes(s.speciesCode)) return
                               if (selectedSpeciesMulti.length >= 4) return
                               const next = [...selectedSpeciesMulti, s.speciesCode]
-                              onSelectedSpeciesMultiChange?.(next)
-                              onSelectedSpeciesChange?.(next[0])
+                              setSelectedSpeciesMulti(next)
+                              setSelectedSpecies(next[0])
                             } else {
-                              onSelectedSpeciesChange?.(s.speciesCode)
+                              setSelectedSpecies(s.speciesCode)
                             }
                             setSpeciesSearch('')
                             if (!compareMode) {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import type { ExploreTabProps, SpeciesMeta, Species } from './types'
+import type { SpeciesMeta, Species } from './types'
 import { fetchSpecies } from '../lib/dataCache'
 import { useLifeList } from '../contexts/LifeListContext'
+import { useMapControls } from '../contexts/MapControlsContext'
 import { useWeekAnimation } from '../lib/useWeekAnimation'
 import { getWeekLabel } from './tripPlanUtils'
 import Tooltip from './Tooltip'
@@ -12,30 +13,31 @@ interface LightweightHighlight {
   reason: string
 }
 
-export default function ExploreTab({
-  currentWeek = 26,
-  onWeekChange,
-  viewMode = 'density',
-  onViewModeChange,
-  goalBirdsOnlyFilter = false, // kept for goal list selector visibility
-  selectedSpecies = null,
-  onSelectedSpeciesChange,
-  selectedSpeciesMulti = [],
-  onSelectedSpeciesMultiChange,
-  goalSpeciesCodes = new Set(),
-  goalLists = [],
-  activeGoalListId = null,
-  onActiveGoalListIdChange,
-  selectedRegion: _selectedRegion = null, // eslint-disable-line @typescript-eslint/no-unused-vars
-  onSelectedRegionChange: _onSelectedRegionChange, // eslint-disable-line @typescript-eslint/no-unused-vars
-  heatmapOpacity = 0.8,
-  onHeatmapOpacityChange,
-  liferCountRange = [0, 9999],
-  onLiferCountRangeChange,
-  dataRange = [0, 0],
-  showTotalRichness = false,
-  onShowTotalRichnessChange,
-}: ExploreTabProps) {
+export default function ExploreTab() {
+  const {
+    state: {
+      currentWeek,
+      viewMode,
+      goalBirdsOnlyFilter,
+      selectedSpecies,
+      selectedSpeciesMulti,
+      goalLists,
+      activeGoalListId,
+      heatmapOpacity,
+      liferCountRange,
+      dataRange,
+      showTotalRichness,
+    },
+    goalSpeciesCodes,
+    setCurrentWeek,
+    setViewMode,
+    setSelectedSpecies,
+    setSelectedSpeciesMulti,
+    setActiveGoalListId,
+    setHeatmapOpacity,
+    setLiferCountRange,
+    setShowTotalRichness,
+  } = useMapControls()
   // Species picker state for Species Range view
   const [allSpecies, setAllSpecies] = useState<SpeciesMeta[]>([])
   const [speciesSearch, setSpeciesSearch] = useState('')
@@ -50,7 +52,7 @@ export default function ExploreTab({
   const { effectiveSeenSpecies } = useLifeList()
 
   // Week animation
-  const { isAnimating, showWrapIndicator, startAnimation, stopAnimation } = useWeekAnimation(currentWeek, onWeekChange)
+  const { isAnimating, showWrapIndicator, startAnimation, stopAnimation } = useWeekAnimation(currentWeek, setCurrentWeek)
 
   // Load full species data for highlights (cached, shared with MapView)
   useEffect(() => {
@@ -168,7 +170,7 @@ export default function ExploreTab({
             <button
               key={mode}
               data-testid={`view-mode-${mode}`}
-              onClick={() => onViewModeChange?.(mode)}
+              onClick={() => setViewMode(mode)}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg text-center transition-all ${
                 viewMode === mode
                   ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
@@ -202,7 +204,7 @@ export default function ExploreTab({
           ) : (
             <select
               value={activeGoalListId || ''}
-              onChange={(e) => onActiveGoalListIdChange?.(e.target.value || null)}
+              onChange={(e) => setActiveGoalListId(e.target.value || null)}
               className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[#2C3E7B] bg-white dark:bg-gray-800 dark:text-gray-200"
               data-testid="active-goal-list-selector"
               aria-label="Select active goal list for map"
@@ -220,7 +222,7 @@ export default function ExploreTab({
       {/* Show All Species toggle — in density mode, shows total richness instead of lifer density */}
       {viewMode === 'density' && (
         <button
-          onClick={() => onShowTotalRichnessChange?.(!showTotalRichness)}
+          onClick={() => setShowTotalRichness(!showTotalRichness)}
           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-sm font-medium ${
             showTotalRichness
               ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white shadow-sm'
@@ -256,8 +258,8 @@ export default function ExploreTab({
                 key={h.species.speciesCode}
                 className="flex-shrink-0 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => {
-                  onViewModeChange?.('species')
-                  onSelectedSpeciesChange?.(h.species.speciesCode)
+                  setViewMode('species')
+                  setSelectedSpecies(h.species.speciesCode)
                 }}
               >
                 {h.species.photoUrl && (
@@ -304,13 +306,13 @@ export default function ExploreTab({
                     <button
                       onClick={() => {
                         const next = selectedSpeciesMulti.filter((c) => c !== code)
-                        onSelectedSpeciesMultiChange?.(next)
+                        setSelectedSpeciesMulti(next)
                         // If removing leaves 1 or 0, sync selectedSpecies
                         if (next.length <= 1) {
-                          onSelectedSpeciesChange?.(next[0] || null)
+                          setSelectedSpecies(next[0] || null)
                           if (next.length === 0) setCompareMode(false)
                         } else {
-                          onSelectedSpeciesChange?.(next[0])
+                          setSelectedSpecies(next[0])
                         }
                       }}
                       className="hover:bg-white/30 rounded p-0.5 transition-colors"
@@ -333,7 +335,7 @@ export default function ExploreTab({
                 setCompareMode(true)
                 // Seed multi list with the currently selected species
                 if (selectedSpecies && !selectedSpeciesMulti.includes(selectedSpecies)) {
-                  onSelectedSpeciesMultiChange?.([selectedSpecies])
+                  setSelectedSpeciesMulti([selectedSpecies])
                 }
               }}
               className="w-full mt-2 px-3 py-2 text-xs font-medium text-[#2C3E7B] dark:text-blue-400 border border-dashed border-[#2C3E7B]/30 dark:border-blue-400/30 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors"
@@ -346,7 +348,7 @@ export default function ExploreTab({
             <button
               onClick={() => {
                 setCompareMode(false)
-                onSelectedSpeciesMultiChange?.([])
+                setSelectedSpeciesMulti([])
                 // Keep the first species as selectedSpecies
               }}
               className="w-full mt-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 font-medium transition-colors"
@@ -364,7 +366,7 @@ export default function ExploreTab({
                 <div className="text-xs text-blue-200 italic truncate">{selectedSpeciesMeta.sciName}</div>
               </div>
               <button
-                onClick={() => onSelectedSpeciesChange?.(null)}
+                onClick={() => setSelectedSpecies(null)}
                 className="ml-2 text-blue-200 hover:text-white transition-colors flex-shrink-0 p-1"
                 aria-label="Clear selected species"
                 data-testid="clear-selected-species"
@@ -403,10 +405,10 @@ export default function ExploreTab({
                         if (selectedSpeciesMulti.includes(s.speciesCode)) return
                         if (selectedSpeciesMulti.length >= 4) return
                         const next = [...selectedSpeciesMulti, s.speciesCode]
-                        onSelectedSpeciesMultiChange?.(next)
-                        onSelectedSpeciesChange?.(next[0]) // Keep first as primary
+                        setSelectedSpeciesMulti(next)
+                        setSelectedSpecies(next[0]) // Keep first as primary
                       } else {
-                        onSelectedSpeciesChange?.(s.speciesCode)
+                        setSelectedSpecies(s.speciesCode)
                       }
                       setSpeciesSearch('')
                     }}
@@ -451,7 +453,7 @@ export default function ExploreTab({
             min="1"
             max="52"
             value={currentWeek}
-            onChange={(e) => onWeekChange?.(parseInt(e.target.value, 10))}
+            onChange={(e) => setCurrentWeek(parseInt(e.target.value, 10))}
             className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
             data-testid="week-slider"
           />
@@ -495,7 +497,7 @@ export default function ExploreTab({
               min="0"
               max="100"
               value={Math.round(heatmapOpacity * 100)}
-              onChange={(e) => onHeatmapOpacityChange?.(parseInt(e.target.value, 10) / 100)}
+              onChange={(e) => setHeatmapOpacity(parseInt(e.target.value, 10) / 100)}
               className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
               data-testid="opacity-slider"
               aria-label="Adjust heatmap opacity"
@@ -519,7 +521,7 @@ export default function ExploreTab({
             value={liferCountRange[0]}
             onChange={(e) => {
               const val = parseInt(e.target.value, 10)
-              onLiferCountRangeChange?.([val, 9999])
+              setLiferCountRange([val, 9999])
             }}
             className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
             data-testid="lifer-range-min-slider"
@@ -531,7 +533,7 @@ export default function ExploreTab({
           </div>
           {liferCountRange[0] > dataRange[0] && (
             <button
-              onClick={() => onLiferCountRangeChange?.([dataRange[0], 9999])}
+              onClick={() => setLiferCountRange([dataRange[0], 9999])}
               className="w-full text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
               data-testid="reset-lifer-range"
             >

@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test'
 /**
  * Persona: Alex — Complete Beginner
  * No life list, doesn't know birds, using phone.
- * Journey: Onboarding → explore map → browse species → search → understand groups
+ * Journey: Feature tour → explore map → browse species → search → understand groups
  */
 
 function getTabNav(page: Page) {
@@ -13,16 +13,10 @@ function getTabNav(page: Page) {
     : page.getByTestId('tab-navigation')
 }
 
-async function gotoFresh(page: Page) {
-  await page.goto('/')
-  await page.waitForLoadState('networkidle')
-}
-
 async function gotoReady(page: Page) {
   await page.goto('/')
   await page.evaluate(() => {
-    localStorage.setItem('hasSeenOnboarding', 'true')
-    localStorage.setItem('beginnerMode', 'false')
+    localStorage.setItem('tourComplete', 'true')
     localStorage.setItem('sessionCount', '10')
   })
   await page.reload()
@@ -30,15 +24,16 @@ async function gotoReady(page: Page) {
 }
 
 test.describe('Alex — Complete Beginner (no life list)', () => {
-  test('onboarding dismissal enables app interaction', async ({ page }) => {
-    await gotoFresh(page)
-    await expect(page.getByTestId('onboarding-overlay')).toBeVisible({ timeout: 10000 })
+  test('tour dismissal enables app interaction', async ({ page }) => {
+    await page.goto('/')
+    // driver.js tour appears on first visit
+    await expect(page.locator('.driver-overlay')).toBeVisible({ timeout: 5000 })
 
-    // Skip onboarding
-    await page.getByTestId('onboarding-skip').click()
+    // Close the tour
+    await page.locator('.driver-popover-close-btn').click()
 
-    // OUTCOME: Onboarding is gone and the app is interactive — tab nav works
-    await expect(page.getByTestId('onboarding-overlay')).not.toBeVisible({ timeout: 3000 })
+    // OUTCOME: Tour is gone and the app is interactive — tab nav works
+    await expect(page.locator('.driver-overlay')).not.toBeVisible({ timeout: 3000 })
     const tabNav = getTabNav(page)
     await expect(tabNav).toBeVisible()
 

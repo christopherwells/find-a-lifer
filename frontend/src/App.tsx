@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import TopBar from './components/TopBar'
-import SidePanel, { type MapViewMode } from './components/SidePanel'
+import SidePanel from './components/SidePanel'
 import MapView from './components/MapView'
 import MapControls from './components/MapControls'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -8,17 +8,17 @@ import AboutPage from './components/AboutPage'
 import Toast from './components/Toast'
 import { useLifeList } from './contexts/LifeListContext'
 import { useToast } from './contexts/ToastContext'
-import { goalListsDB, type GoalList } from './lib/goalListsDB'
+import { MapControlsProvider } from './contexts/MapControlsContext'
 import { trackEvent } from './lib/analytics'
 import { openFilePicker, processCSVFile } from './lib/csvImport'
 import { isTourComplete, startTour } from './lib/featureTour'
 import { fetchSpecies } from './lib/dataCache'
-import type { Species, SelectedLocation, SpeciesFilters, CompareLocations } from './components/types'
+import type { Species } from './components/types'
 import './App.css'
 
 const ProfileTab = lazy(() => import('./components/ProfileTab'))
 
-function App() {
+function AppInner() {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true'
   })
@@ -26,32 +26,9 @@ function App() {
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(() => {
     return window.innerWidth < 768
   })
-  const [currentWeek, setCurrentWeek] = useState(() => {
-    // Default to current week of year
-    const now = new Date()
-    const start = new Date(now.getFullYear(), 0, 1)
-    const diff = now.getTime() - start.getTime()
-    const oneWeek = 7 * 24 * 60 * 60 * 1000
-    return Math.min(52, Math.max(1, Math.ceil(diff / oneWeek)))
-  })
-  const [viewMode, setViewMode] = useState<MapViewMode>('density')
-  const [goalBirdsOnlyFilter, setGoalBirdsOnlyFilter] = useState(false)
-  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null)
-  const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
-  const [goalLists, setGoalLists] = useState<GoalList[]>([])
-  const [activeGoalListId, setActiveGoalListId] = useState<string | null>(null)
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
-  const [heatmapOpacity, setHeatmapOpacity] = useState(0.8) // Default to 80% opacity
-  const [liferCountRange, setLiferCountRange] = useState<[number, number]>([0, 9999])
-  const [dataRange, setDataRange] = useState<[number, number]>([0, 0])
-  const [showTotalRichness, setShowTotalRichness] = useState(false)
-  const [speciesFilters, setSpeciesFilters] = useState<SpeciesFilters>({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
-  const [selectedSpeciesMulti, setSelectedSpeciesMulti] = useState<string[]>([])
-  const [compareLocations, setCompareLocations] = useState<CompareLocations | null>(null)
   const [showAbout, setShowAbout] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showAddSpecies, setShowAddSpecies] = useState(false)
-  const [, setActiveTab] = useState<string>('explore')
   const tourStartedRef = useRef(false)
   const { effectiveSeenSpecies, isSpeciesSeen, toggleSpecies, importSpeciesList } = useLifeList()
   const { showToast } = useToast()
@@ -80,59 +57,8 @@ function App() {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
 
-  // Load all goal lists on startup
-  useEffect(() => {
-    const loadGoalLists = async () => {
-      try {
-        const lists = await goalListsDB.getAllLists()
-        setGoalLists(lists)
-
-        // Restore saved active list from localStorage
-        const savedActiveListId = localStorage.getItem('activeGoalListId')
-        const validSavedId = savedActiveListId && lists.some((l) => l.id === savedActiveListId)
-        const resolvedActiveId = validSavedId ? savedActiveListId : (lists.length > 0 ? lists[0].id : null)
-
-        setActiveGoalListId((prevId) => {
-          // If we already have a valid active list, keep it (don't reset on re-loads)
-          if (prevId && lists.some((l) => l.id === prevId)) return prevId
-          return resolvedActiveId
-        })
-
-      } catch (error) {
-        console.error('App: failed to load goal lists', error)
-      }
-    }
-
-    loadGoalLists()
-  }, [])
-
-  // Compute goal species codes from the ACTIVE list — derived from state, no effect needed
-  const goalSpeciesCodes = useMemo(() => {
-    if (!activeGoalListId) return new Set<string>()
-    const activeList = goalLists.find((l) => l.id === activeGoalListId)
-    if (!activeList) return new Set<string>()
-    return new Set<string>(activeList.speciesCodes)
-  }, [activeGoalListId, goalLists])
-
   const handleShowTour = useCallback(() => {
     startTour()
-  }, [])
-
-  // Shared view mode change handler — resets filters appropriately
-  const handleViewModeChange = useCallback((mode: MapViewMode) => {
-    setViewMode(mode)
-    trackEvent('view_mode_change', { mode })
-    if (mode !== 'density' && mode !== 'probability' && mode !== 'species') setGoalBirdsOnlyFilter(false)
-    if (mode !== 'species') {
-      setSelectedSpecies(null)
-      setSelectedSpeciesMulti([])
-    }
-  }, [])
-
-  const handleActiveGoalListIdChange = useCallback((id: string | null) => {
-    setActiveGoalListId(id)
-    if (id) localStorage.setItem('activeGoalListId', id)
-    else localStorage.removeItem('activeGoalListId')
   }, [])
 
   const handleImportComplete = useCallback((newCount: number) => {
@@ -191,47 +117,11 @@ function App() {
           <ErrorBoundary section="map">
           <MapView
             darkMode={darkMode}
-            currentWeek={currentWeek}
-            viewMode={viewMode}
-            goalBirdsOnlyFilter={goalBirdsOnlyFilter}
-            onLocationSelect={setSelectedLocation}
-            goalSpeciesCodes={goalSpeciesCodes}
             seenSpecies={effectiveSeenSpecies}
-            selectedSpecies={selectedSpecies}
-            selectedSpeciesMulti={selectedSpeciesMulti}
-            selectedRegion={selectedRegion}
-            heatmapOpacity={heatmapOpacity}
-            selectedLocation={selectedLocation}
-            liferCountRange={liferCountRange}
-            onDataRangeChange={setDataRange}
-            showTotalRichness={showTotalRichness}
-            speciesFilters={speciesFilters}
-            compareLocations={compareLocations}
           />
           </ErrorBoundary>
           {/* Floating map controls — mobile only (desktop uses ExploreTab in panel) */}
           <MapControls
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            currentWeek={currentWeek}
-            onWeekChange={setCurrentWeek}
-            heatmapOpacity={heatmapOpacity}
-            onHeatmapOpacityChange={setHeatmapOpacity}
-            goalBirdsOnlyFilter={goalBirdsOnlyFilter}
-            onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
-            showTotalRichness={showTotalRichness}
-            onShowTotalRichnessChange={setShowTotalRichness}
-            goalLists={goalLists}
-            activeGoalListId={activeGoalListId}
-            onActiveGoalListIdChange={handleActiveGoalListIdChange}
-            goalSpeciesCodes={goalSpeciesCodes}
-            selectedSpecies={selectedSpecies}
-            onSelectedSpeciesChange={setSelectedSpecies}
-            selectedSpeciesMulti={selectedSpeciesMulti}
-            onSelectedSpeciesMultiChange={setSelectedSpeciesMulti}
-            liferCountRange={liferCountRange}
-            onLiferCountRangeChange={setLiferCountRange}
-            dataRange={dataRange}
             seenSpecies={effectiveSeenSpecies}
           />
         </div>
@@ -241,36 +131,6 @@ function App() {
         <SidePanel
           collapsed={sidePanelCollapsed}
           onToggle={() => setSidePanelCollapsed((prev) => !prev)}
-          currentWeek={currentWeek}
-          onWeekChange={setCurrentWeek}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          goalBirdsOnlyFilter={goalBirdsOnlyFilter}
-          onGoalBirdsOnlyFilterChange={setGoalBirdsOnlyFilter}
-          selectedLocation={selectedLocation}
-          onSelectedLocationChange={setSelectedLocation}
-          selectedSpecies={selectedSpecies}
-          onSelectedSpeciesChange={setSelectedSpecies}
-          selectedSpeciesMulti={selectedSpeciesMulti}
-          onSelectedSpeciesMultiChange={setSelectedSpeciesMulti}
-          goalSpeciesCodes={goalSpeciesCodes}
-          goalLists={goalLists}
-          activeGoalListId={activeGoalListId}
-          onActiveGoalListIdChange={handleActiveGoalListIdChange}
-          onGoalListsChange={setGoalLists}
-          selectedRegion={selectedRegion}
-          onSelectedRegionChange={setSelectedRegion}
-          heatmapOpacity={heatmapOpacity}
-          onHeatmapOpacityChange={setHeatmapOpacity}
-          liferCountRange={liferCountRange}
-          onLiferCountRangeChange={setLiferCountRange}
-          dataRange={dataRange}
-          showTotalRichness={showTotalRichness}
-          onShowTotalRichnessChange={setShowTotalRichness}
-          speciesFilters={speciesFilters}
-          onSpeciesFiltersChange={setSpeciesFilters}
-          onCompareLocationsChange={setCompareLocations}
-          onActiveTabChange={setActiveTab}
         />
         </ErrorBoundary>
       </div>
@@ -307,10 +167,6 @@ function App() {
           showToast={showToast}
         />
       )}
-      {showOnboarding && (
-        <OnboardingOverlay onComplete={handleOnboardingComplete} onImportComplete={handleImportComplete} />
-      )}
-
       {/* Global Toast */}
       <Toast />
     </div>
@@ -474,6 +330,14 @@ function AddSpeciesModal({
         </div>
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <MapControlsProvider>
+      <AppInner />
+    </MapControlsProvider>
   )
 }
 

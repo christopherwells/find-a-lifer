@@ -1,13 +1,12 @@
 import { memo, useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
-import type { GoalList } from '../lib/goalListsDB'
 import ExploreTab from './ExploreTab'
 import SpeciesTab from './SpeciesTab'
+import { useMapControls } from '../contexts/MapControlsContext'
 
 const GoalBirdsTab = lazy(() => import('./GoalBirdsTab'))
 const TripPlanTab = lazy(() => import('./TripPlanTab'))
 const ProgressTab = lazy(() => import('./ProgressTab'))
 
-import type { MapViewMode, SpeciesFilters, CompareLocations } from './types'
 import { trackEvent } from '../lib/analytics'
 export type { MapViewMode, SelectedLocation } from './types'
 
@@ -16,36 +15,6 @@ type TabId = 'explore' | 'species' | 'goals' | 'trip' | 'progress'
 interface SidePanelProps {
   collapsed: boolean
   onToggle: () => void
-  currentWeek?: number
-  onWeekChange?: (week: number) => void
-  viewMode?: MapViewMode
-  onViewModeChange?: (mode: MapViewMode) => void
-  goalBirdsOnlyFilter?: boolean
-  onGoalBirdsOnlyFilterChange?: (value: boolean) => void
-  selectedLocation?: { cellId: number; coordinates: [number, number]; name?: string } | null
-  onSelectedLocationChange?: (location: { cellId: number; coordinates: [number, number]; name?: string } | null) => void
-  selectedSpecies?: string | null
-  onSelectedSpeciesChange?: (speciesCode: string | null) => void
-  selectedSpeciesMulti?: string[]
-  onSelectedSpeciesMultiChange?: (codes: string[]) => void
-  goalSpeciesCodes?: Set<string>
-  goalLists?: GoalList[]
-  activeGoalListId?: string | null
-  onActiveGoalListIdChange?: (id: string | null) => void
-  onGoalListsChange?: (lists: GoalList[]) => void
-  selectedRegion?: string | null
-  onSelectedRegionChange?: (regionId: string | null) => void
-  heatmapOpacity?: number
-  onHeatmapOpacityChange?: (opacity: number) => void
-  liferCountRange?: [number, number]
-  onLiferCountRangeChange?: (range: [number, number]) => void
-  dataRange?: [number, number]
-  showTotalRichness?: boolean
-  onShowTotalRichnessChange?: (value: boolean) => void
-  speciesFilters?: SpeciesFilters
-  onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
-  onCompareLocationsChange?: (locations: CompareLocations | null) => void
-  onActiveTabChange?: (tabId: string) => void
 }
 
 interface Tab {
@@ -96,42 +65,15 @@ const tabs: Tab[] = [
 export default memo(function SidePanel({
   collapsed,
   onToggle,
-  currentWeek = 26,
-  onWeekChange,
-  viewMode = 'density',
-  onViewModeChange,
-  goalBirdsOnlyFilter = false,
-  onGoalBirdsOnlyFilterChange,
-  selectedLocation,
-  onSelectedLocationChange,
-  selectedSpecies,
-  onSelectedSpeciesChange,
-  selectedSpeciesMulti = [],
-  onSelectedSpeciesMultiChange,
-  goalSpeciesCodes,
-  goalLists = [],
-  activeGoalListId = null,
-  onActiveGoalListIdChange,
-  onGoalListsChange,
-  selectedRegion = null,
-  onSelectedRegionChange,
-  heatmapOpacity = 0.8,
-  onHeatmapOpacityChange,
-  liferCountRange,
-  onLiferCountRangeChange,
-  dataRange,
-  showTotalRichness = false,
-  onShowTotalRichnessChange,
-  speciesFilters,
-  onSpeciesFiltersChange,
-  onCompareLocationsChange,
-  onActiveTabChange,
 }: SidePanelProps) {
+  const {
+    state: { selectedLocation },
+  } = useMapControls()
+
   const [activeTab, setActiveTabRaw] = useState<TabId>('explore')
   const setActiveTab = (tab: TabId) => {
     trackEvent('tab_switch', { tab })
     setActiveTabRaw(tab)
-    onActiveTabChange?.(tab)
   }
 
   // Resizable sidebar width (desktop only)
@@ -165,11 +107,10 @@ export default memo(function SidePanel({
   useEffect(() => {
     if (selectedLocation) {
       setActiveTabRaw('trip') // eslint-disable-line react-hooks/set-state-in-effect -- intentional UX: auto-navigate on map click
-      onActiveTabChange?.('trip')
       // Open the sheet if it was collapsed (e.g. user was on the map)
       if (collapsed) onToggle()
     }
-  }, [selectedLocation]) // eslint-disable-line react-hooks/exhaustive-deps -- onActiveTabChange/onToggle/collapsed are stable
+  }, [selectedLocation]) // eslint-disable-line react-hooks/exhaustive-deps -- onToggle/collapsed are stable
 
   return (
     <>
@@ -300,49 +241,13 @@ export default memo(function SidePanel({
             {/* ExploreTab renders on desktop only; on mobile, MapControls handles explore */}
             {activeTab === 'explore' && (
               <div className="hidden md:block">
-                <ExploreTab
-                  currentWeek={currentWeek}
-                  onWeekChange={onWeekChange}
-                  viewMode={viewMode}
-                  onViewModeChange={onViewModeChange}
-                  goalBirdsOnlyFilter={goalBirdsOnlyFilter}
-                  onGoalBirdsOnlyFilterChange={onGoalBirdsOnlyFilterChange}
-                  selectedSpecies={selectedSpecies}
-                  onSelectedSpeciesChange={onSelectedSpeciesChange}
-                  selectedSpeciesMulti={selectedSpeciesMulti}
-                  onSelectedSpeciesMultiChange={onSelectedSpeciesMultiChange}
-                  goalSpeciesCodes={goalSpeciesCodes}
-                  goalLists={goalLists}
-                  activeGoalListId={activeGoalListId}
-                  onActiveGoalListIdChange={onActiveGoalListIdChange}
-                  selectedRegion={selectedRegion}
-                  onSelectedRegionChange={onSelectedRegionChange}
-                  heatmapOpacity={heatmapOpacity}
-                  onHeatmapOpacityChange={onHeatmapOpacityChange}
-                  liferCountRange={liferCountRange}
-                  onLiferCountRangeChange={onLiferCountRangeChange}
-                  dataRange={dataRange}
-                  showTotalRichness={showTotalRichness}
-                  onShowTotalRichnessChange={onShowTotalRichnessChange}
-                />
+                <ExploreTab />
               </div>
             )}
-            {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} speciesFilters={speciesFilters} onSpeciesFiltersChange={onSpeciesFiltersChange} />}
+            {activeTab === 'species' && <SpeciesTab />}
             <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" /></div>}>
-              {activeTab === 'goals' && <GoalBirdsTab onGoalListsChange={onGoalListsChange} onActiveGoalListIdChange={onActiveGoalListIdChange} />}
-              {activeTab === 'trip' && (
-                <TripPlanTab
-                  selectedLocation={selectedLocation}
-                  currentWeek={currentWeek}
-                  onWeekChange={onWeekChange}
-                  onLocationSelect={onSelectedLocationChange}
-                  selectedRegion={selectedRegion}
-                  onCompareLocationsChange={onCompareLocationsChange}
-                  goalLists={goalLists}
-                  activeGoalListId={activeGoalListId}
-                  goalSpeciesCodes={goalSpeciesCodes}
-                />
-              )}
+              {activeTab === 'goals' && <GoalBirdsTab />}
+              {activeTab === 'trip' && <TripPlanTab />}
               {activeTab === 'progress' && <ProgressTab />}
             </Suspense>
           </div>

@@ -1,0 +1,146 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - link "Skip to main content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e7]
+      - generic [ref=e12]:
+        - heading "Find-A-Lifer" [level=1] [ref=e13]
+        - generic [ref=e14]: BETA
+    - generic [ref=e15]:
+      - button "Switch to dark mode" [ref=e16]:
+        - img [ref=e17]
+      - button "Menu" [ref=e20]:
+        - img [ref=e21]
+  - generic [ref=e23]:
+    - generic [ref=e25]:
+      - generic [ref=e26]:
+        - region "Map" [ref=e27]
+        - generic:
+          - generic:
+            - generic [ref=e28]:
+              - button "Zoom in" [ref=e29] [cursor=pointer]
+              - button "Zoom out" [ref=e31] [cursor=pointer]
+            - button "Find my location" [ref=e34] [cursor=pointer]
+          - generic [ref=e36]: 1000 km
+      - generic [ref=e37]:
+        - generic [ref=e38]: Species Richness
+        - generic [ref=e40]:
+          - generic [ref=e41]: "3"
+          - generic [ref=e42]: "76"
+          - generic [ref=e43]: "138"
+          - generic [ref=e44]: "187"
+          - generic [ref=e45]: "736"
+    - generic [ref=e46]:
+      - navigation "Main navigation" [ref=e47]:
+        - tablist "App sections" [ref=e48]:
+          - tab "Explore" [selected] [ref=e49]:
+            - img [ref=e51]
+            - generic [ref=e53]: Explore
+          - tab "Species" [ref=e55]:
+            - img [ref=e57]
+            - generic [ref=e61]: Species
+          - tab "Goals" [ref=e62]:
+            - img [ref=e64]
+            - generic [ref=e66]: Goals
+          - tab "Plan" [ref=e67]:
+            - img [ref=e69]
+            - generic [ref=e71]: Plan
+          - tab "Stats" [ref=e72]:
+            - img [ref=e74]
+            - generic [ref=e76]: Stats
+        - button "Collapse panel" [ref=e77]:
+          - img [ref=e78]
+      - tabpanel "Explore" [ref=e80]:
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - button "Richness" [ref=e85]
+              - button "Frequency" [ref=e86]
+              - button "Range" [ref=e87]
+              - button "Goals" [ref=e88]
+            - generic [ref=e89]:
+              - button "More info" [ref=e90]: i
+              - generic [ref=e91]: New birds in each area
+          - button "Goal Birds Only More info" [ref=e92]:
+            - generic [ref=e93]:
+              - text: Goal Birds Only
+              - button "More info" [ref=e94]: i
+          - button "Include Seen Species More info" [ref=e97]:
+            - generic [ref=e98]:
+              - text: Include Seen Species
+              - button "More info" [ref=e99]: i
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - generic [ref=e104]: Week
+              - generic [ref=e105]: Wk 12 · Mar 21
+            - generic [ref=e106]:
+              - slider "Week" [ref=e107] [cursor=pointer]: "12"
+              - button "Play migration animation" [ref=e108]:
+                - img [ref=e109]
+          - generic [ref=e111]:
+            - generic [ref=e112]:
+              - generic [ref=e113]:
+                - text: Opacity
+                - button "More info" [ref=e114]: i
+              - generic [ref=e115]: 80%
+            - slider "Adjust heatmap opacity" [ref=e116] [cursor=pointer]: "80"
+          - generic [ref=e117]:
+            - generic [ref=e118]:
+              - generic [ref=e119]:
+                - text: Minimum Lifers
+                - button "More info" [ref=e120]: i
+              - generic [ref=e121]: 0+
+            - slider "Minimum lifer count" [ref=e122] [cursor=pointer]: "3"
+            - generic [ref=e123]:
+              - generic [ref=e124]: "3"
+              - generic [ref=e125]: "736"
+          - paragraph [ref=e126]:
+            - text: Please bird responsibly.
+            - link "ABA Code of Birding Ethics" [ref=e127] [cursor=pointer]:
+              - /url: https://www.aba.org/aba-code-of-birding-ethics/
+  - generic [ref=e130]:
+    - button "Close" [ref=e131]:
+      - img [ref=e132]
+    - generic [ref=e134]:
+      - heading "Profile & Data" [level=3] [ref=e135]
+      - paragraph [ref=e136]: Manage your life list, import from eBird, export as CSV, or reset.
+      - generic [ref=e137]:
+        - heading "Sign In" [level=4] [ref=e138]
+        - paragraph [ref=e139]: Sign in to sync stats, see leaderboards, and connect with friends.
+        - generic [ref=e140]:
+          - textbox "Email" [ref=e141]
+          - textbox "Password" [ref=e142]
+          - button "Sign In" [ref=e143]
+        - paragraph [ref=e144]:
+          - text: No account?
+          - button "Create one" [ref=e145]
+      - generic [ref=e146]:
+        - heading "Import eBird Life List" [level=4] [ref=e147]
+        - paragraph [ref=e148]:
+          - text: Download your life list from
+          - link "ebird.org/lifelist" [ref=e149] [cursor=pointer]:
+            - /url: https://ebird.org/lifelist
+          - text: as CSV, then import it here.
+        - button "Import CSV" [ref=e150]
+      - generic [ref=e151]:
+        - heading "Your Life List" [level=4] [ref=e152]
+        - paragraph [ref=e153]: 0 species
+        - paragraph [ref=e154]: marked as seen
+      - generic [ref=e155]:
+        - heading "App Updates" [level=4] [ref=e156]
+        - paragraph [ref=e157]: Clear cached data and reload to get the latest version.
+        - button "Check for Updates" [ref=e158]
+      - generic [ref=e159]:
+        - heading "Preferences" [level=4] [ref=e160]
+        - generic [ref=e161] [cursor=pointer]:
+          - generic [ref=e162]: Celebration animations
+          - switch "Celebration animations" [checked] [ref=e163]
+      - generic [ref=e165]:
+        - heading "Reset" [level=4] [ref=e166]
+        - button "Replay Onboarding Tutorial" [ref=e167]
+        - button "Clear All Species" [ref=e168]
+```

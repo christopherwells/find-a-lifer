@@ -215,3 +215,118 @@ html, body {
   animation-iteration-count: infinite, infinite, infinite, infinite;
   border: 3px solid rgba(255, 255, 255, 0.4);
 }
+
+/* driver.js feature tour — match app navy/white theme */
+.fal-tour-popover .driver-popover {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  max-width: 340px;
+}
+.fal-tour-popover .driver-popover-title {
+  color: #2C3E7B;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fal-tour-popover .driver-popover-description {
+  color: #4B5563;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.fal-tour-popover .driver-popover-progress-text {
+  color: #9CA3AF;
+  font-size: 12px;
+}
+.fal-tour-popover .driver-popover-prev-btn {
+  background: transparent;
+  color: #6B7280;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.fal-tour-popover .driver-popover-prev-btn:hover {
+  background: #F3F4F6;
+}
+.fal-tour-popover .driver-popover-next-btn,
+.fal-tour-popover .driver-popover-done-btn {
+  background: #2C3E7B;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.fal-tour-popover .driver-popover-next-btn:hover,
+.fal-tour-popover .driver-popover-done-btn:hover {
+  background: #243267;
+}
+.fal-tour-popover .driver-popover-close-btn {
+  color: #9CA3AF;
+}
+.fal-tour-popover .driver-popover-close-btn:hover {
+  color: #6B7280;
+}
+.fal-tour-popover .driver-popover-arrow-side-top .driver-popover-arrow {
+  border-bottom-color: #fff;
+}
+.fal-tour-popover .driver-popover-arrow-side-bottom .driver-popover-arrow {
+  border-top-color: #fff;
+}
+.fal-tour-popover .driver-popover-arrow-side-left .driver-popover-arrow {
+  border-right-color: #fff;
+}
+.fal-tour-popover .driver-popover-arrow-side-right .driver-popover-arrow {
+  border-left-color: #fff;
+}
+
+/* Dark mode tour styles */
+.dark .fal-tour-popover .driver-popover {
+  background: #1F2937;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+.dark .fal-tour-popover .driver-popover-title {
+  color: #93C5FD;
+}
+.dark .fal-tour-popover .driver-popover-description {
+  color: #D1D5DB;
+}
+.dark .fal-tour-popover .driver-popover-progress-text {
+  color: #6B7280;
+}
+.dark .fal-tour-popover .driver-popover-prev-btn {
+  color: #D1D5DB;
+  border-color: #4B5563;
+}
+.dark .fal-tour-popover .driver-popover-prev-btn:hover {
+  background: #374151;
+}
+.dark .fal-tour-popover .driver-popover-next-btn,
+.dark .fal-tour-popover .driver-popover-done-btn {
+  background: #3B5CCC;
+}
+.dark .fal-tour-popover .driver-popover-next-btn:hover,
+.dark .fal-tour-popover .driver-popover-done-btn:hover {
+  background: #4B6CD9;
+}
+.dark .fal-tour-popover .driver-popover-close-btn {
+  color: #6B7280;
+}
+.dark .fal-tour-popover .driver-popover-close-btn:hover {
+  color: #9CA3AF;
+}
+.dark .fal-tour-popover .driver-popover-arrow-side-top .driver-popover-arrow {
+  border-bottom-color: #1F2937;
+}
+.dark .fal-tour-popover .driver-popover-arrow-side-bottom .driver-popover-arrow {
+  border-top-color: #1F2937;
+}
+.dark .fal-tour-popover .driver-popover-arrow-side-left .driver-popover-arrow {
+  border-right-color: #1F2937;
+}
+.dark .fal-tour-popover .driver-popover-arrow-side-right .driver-popover-arrow {
+  border-left-color: #1F2937;
+}

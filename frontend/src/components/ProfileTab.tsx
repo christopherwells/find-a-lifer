@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
 import FriendsSection from './FriendsSection'
 import { fetchSpecies } from '../lib/dataCache'
+import { resetTour } from '../lib/featureTour'
 async function clearAppCaches(): Promise<boolean> {
   try {
     // Clear Cache API (service worker runtime caches)
@@ -90,12 +91,9 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
     }
   }
 
-  const handleResetOnboarding = () => {
-    localStorage.removeItem('hasSeenOnboarding')
-    localStorage.removeItem('starterChecklistDismissed')
-    localStorage.removeItem('sessionCount')
-    localStorage.removeItem('beginnerMode')
-    window.location.reload()
+  const handleResetTour = () => {
+    resetTour()
+    onShowOnboarding?.()
   }
 
   return (
@@ -186,11 +184,11 @@ export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTab
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1">Reset</h4>
         <button
-          onClick={handleResetOnboarding}
+          onClick={handleResetTour}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          data-testid="reset-onboarding-button"
+          data-testid="reset-tour-button"
         >
-          Replay Onboarding Tutorial
+          Replay Feature Tour
         </button>
         <button
           onClick={handleClearAll}
