@@ -1136,6 +1136,17 @@ def write_resolution_data(res, detections, cell_week_checklists, species_names,
             boundary = h3.cell_to_boundary(h3_cell)
             coords = [[lon, lat] for lat, lon in boundary]
             coords.append(coords[0])
+
+            # Fix antimeridian: if any pair of adjacent longitudes spans > 180°,
+            # the polygon crosses the antimeridian and needs normalization
+            crosses_antimeridian = any(
+                abs(coords[i][0] - coords[i-1][0]) > 180
+                for i in range(1, len(coords))
+            )
+            if crosses_antimeridian:
+                # Shift negative longitudes to positive (e.g., -179 → 181)
+                coords = [[lon + 360 if lon < 0 else lon, lat] for lon, lat in coords]
+
             center = h3.cell_to_latlng(h3_cell)
             props = {
                 "cell_id": int_id,
