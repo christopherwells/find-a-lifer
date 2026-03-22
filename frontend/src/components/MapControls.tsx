@@ -144,7 +144,7 @@ export default function MapControls({
   return (
     <div
       className="absolute left-3 right-3 z-10 md:hidden"
-      style={{ top: '12px' }}
+      style={{ top: '8px' }}
     >
       <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50">
         {/* Row 1: View Mode Toggle */}

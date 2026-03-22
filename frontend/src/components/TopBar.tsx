@@ -42,7 +42,8 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
   return (
     <header
       data-testid="top-bar"
-      className={`h-11 flex items-center justify-between px-4 z-50 shadow-md relative ${
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      className={`flex items-center justify-between px-4 z-50 shadow-md relative min-h-[44px] ${
         darkMode
           ? 'bg-[#1A1A2E] text-white'
           : 'bg-gradient-to-r from-[#2C3E7B] to-[#1a2a5e] text-white'
