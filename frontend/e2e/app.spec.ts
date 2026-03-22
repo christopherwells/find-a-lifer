@@ -64,11 +64,12 @@ test.describe('Find-A-Lifer App', () => {
     await expect(page.getByText('Profile & Data')).toBeVisible()
   })
 
-  test('dark mode toggle works', async ({ page }) => {
-    await page.getByTestId('topbar-dark-mode').click()
+  test('dark mode toggle works via kebab menu', async ({ page }) => {
+    await page.getByTestId('topbar-menu-button').click()
+    await page.locator('[data-testid="topbar-menu"] button').filter({ hasText: 'Dark Mode' }).click()
     const hasDarkClass = await page.evaluate(() => document.documentElement.classList.contains('dark'))
     expect(hasDarkClass).toBe(true)
-    await page.getByTestId('topbar-dark-mode').click()
+    await page.locator('[data-testid="topbar-menu"] button').filter({ hasText: 'Dark Mode' }).click()
     const hasNoDark = await page.evaluate(() => !document.documentElement.classList.contains('dark'))
     expect(hasNoDark).toBe(true)
   })
@@ -168,16 +169,14 @@ test.describe('Regression: Core Feature Interactions', () => {
     await expect(page.getByText('Progress by Region')).toBeVisible()
   })
 
-  test('Profile modal shows all sections', async ({ page }) => {
+  test('Profile modal shows core sections', async ({ page }) => {
     await page.getByTestId('topbar-menu-button').click()
     await page.getByTestId('topbar-account-button').click()
     await expect(page.getByText('Profile & Data')).toBeVisible()
-    await expect(page.getByText('Import eBird Life List')).toBeVisible()
-    // Export only visible when species > 0, so check life list stats instead
     await expect(page.getByTestId('total-seen-count')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('Year Lists')).toBeVisible()
-    await expect(page.getByText('Partner Life List')).toBeVisible()
     await expect(page.getByText('Preferences')).toBeVisible()
+    // Import, Year Lists, Partner List removed — now in kebab menu or cut
+    await expect(page.getByText('Import eBird Life List')).not.toBeVisible()
   })
 
   test('map container is present and interactive', async ({ page }) => {

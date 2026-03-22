@@ -98,18 +98,19 @@ test.describe('Sam — iOS User (phone)', () => {
 
   test('dark mode toggle changes document class', async ({ page }) => {
     await gotoReady(page)
-    const viewport = page.viewportSize()
 
-    // Dark mode toggle is in TopBar (desktop)
-    const darkToggle = page.getByTestId('topbar-dark-mode')
-    await expect(darkToggle).toBeVisible({ timeout: 5000 })
+    // Dark mode toggle is in kebab menu
+    await page.getByTestId('topbar-menu-button').click()
+    await page.waitForTimeout(300)
+    const darkBtn = page.locator('[data-testid="topbar-menu"] button').filter({ hasText: 'Dark Mode' })
+    await expect(darkBtn).toBeVisible({ timeout: 5000 })
 
     // Verify initial state — not dark
     const initialDark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
     expect(initialDark).toBe(false)
 
     // Click to enable dark mode
-    await darkToggle.click()
+    await darkBtn.click()
     await page.waitForTimeout(300)
 
     // OUTCOME: Document has 'dark' class (dark mode is active)
@@ -117,7 +118,7 @@ test.describe('Sam — iOS User (phone)', () => {
     expect(hasDarkClass).toBe(true)
 
     // Toggle back to light
-    await darkToggle.click()
+    await darkBtn.click()
     await page.waitForTimeout(300)
 
     // OUTCOME: Dark class removed (light mode restored)

@@ -161,7 +161,7 @@ test.describe('Jordan — Goal-Oriented Birder (300 species)', () => {
 
     await page.getByTestId('topbar-menu-button').click()
     await page.getByTestId('topbar-account-button').click()
-    await expect(page.getByText('Import eBird Life List')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Profile & Data')).toBeVisible({ timeout: 10000 })
 
     // OUTCOME: Profile shows the imported species count
     const speciesText = page.getByText(/\d+ species/i).first()
