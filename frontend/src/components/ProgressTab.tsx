@@ -137,10 +137,6 @@ export default function ProgressTab() {
     }).catch(err => console.error('Failed to sync stats:', err))
   }, [user, loading, seenSpecies, allSpecies])
 
-  if (loading) {
-    return <ProgressSkeleton />
-  }
-
   const totalSpecies = allSpecies.length
   const totalSeen = getTotalSeen()
   const percentComplete = totalSpecies > 0 ? (totalSeen / totalSpecies) * 100 : 0
@@ -364,6 +360,10 @@ export default function ProgressTab() {
 
     return items
   }, [allSpecies, seenSpecies, totalSeen, totalSpecies])
+
+  if (loading) {
+    return <ProgressSkeleton />
+  }
 
   return (
     <div className="space-y-3" data-testid="progress-tab">
