@@ -9,7 +9,7 @@ import { getDisplayGroup } from '../lib/familyGroups'
 import { GROUPED_CODES } from '../lib/regionGroups'
 import { SUB_REGIONS } from '../lib/subRegions'
 import { computeWeeklySummary } from '../lib/streakUtils'
-import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, type LeaderboardEntry } from '../lib/firebaseSync'
+import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, fetchGlobalRank, type LeaderboardEntry } from '../lib/firebaseSync'
 import { getFriends } from '../lib/friendsService'
 
 const GROUP_EMOJI: Record<string, string> = {
@@ -66,6 +66,7 @@ export default function ProgressTab() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [friendLeaderboard, setFriendLeaderboard] = useState<LeaderboardEntry[]>([])
   const [leaderboardMode, setLeaderboardMode] = useState<'friends' | 'global'>('friends')
+  const [globalRank, setGlobalRank] = useState<{ rank: number; total: number } | null>(null)
   const [weeklySummary, setWeeklySummary] = useState<{ newLifers: number; newFamiliesStarted: number } | null>(null)
 
   // Load region names on mount
@@ -108,6 +109,11 @@ export default function ProgressTab() {
         ])
         setLeaderboard(global)
         setFriendLeaderboard(friends)
+        // Fetch global rank
+        const speciesCount = seenSpecies.size
+        if (speciesCount > 0) {
+          fetchGlobalRank(speciesCount).then(setGlobalRank).catch(() => {})
+        }
       } catch (err) {
         console.error('Failed to load leaderboards:', err)
       }
@@ -379,6 +385,18 @@ export default function ProgressTab() {
           <span className="font-semibold text-[var(--color-brand)]">{totalSeen}</span> of{' '}
           <span className="font-semibold">{totalSpecies}</span> species seen
         </p>
+        {globalRank && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+            <span>🏆</span>
+            <span className="font-semibold text-[var(--color-brand)]">#{globalRank.rank}</span>
+            <span>of {globalRank.total} lifers globally</span>
+            {globalRank.total >= 10 && (
+              <span className="ml-1 text-gray-400 dark:text-gray-500">
+                (top {Math.max(1, Math.round((globalRank.rank / globalRank.total) * 100))}%)
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       {/* 3. Quick Stats — tier breakdown */}
@@ -544,6 +562,9 @@ export default function ProgressTab() {
             // Determine tier based on how many thresholds exceeded
             const tiersReached = m.tiers.filter(t => m.progress >= t).length
             const level = tiersReached >= 5 ? 'emerald' : tiersReached >= 4 ? 'diamond' : tiersReached >= 3 ? 'gold' : tiersReached >= 2 ? 'silver' : tiersReached >= 1 ? 'copper' : null
+            // Hide unearned achievements
+            if (!level) return null
+            const tierEmoji = level === 'emerald' ? '💎' : level === 'diamond' ? '💠' : level === 'gold' ? '🏆' : level === 'silver' ? '🥈' : '🪙'
             const tierClass = level === 'emerald'
               ? 'trophy-emerald bg-emerald-600 text-emerald-50'
               : level === 'diamond'
@@ -552,15 +573,17 @@ export default function ProgressTab() {
               ? 'trophy-gold bg-yellow-400 text-yellow-900'
               : level === 'silver'
               ? 'trophy-silver bg-gray-300 text-gray-800 dark:bg-gray-400 dark:text-gray-900'
-              : level === 'copper'
-              ? 'trophy-copper bg-[var(--color-trophy-copper)] text-amber-100'
-              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              : 'trophy-copper bg-[var(--color-trophy-copper)] text-amber-100'
             const animClass = level === 'emerald' ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse trophy-prismatic'
               : level === 'diamond' ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse'
               : level === 'gold' ? 'trophy-sheen trophy-glow trophy-sparkle'
               : level === 'silver' ? 'trophy-sheen trophy-glow'
-              : level ? 'trophy-sheen' : ''
+              : 'trophy-sheen'
             const delay = ((m.label.length * 7 + m.progress * 13) % 20) * 0.5
+            // Next tier indicator
+            const nextTierIdx = tiersReached < 5 ? tiersReached : -1
+            const nextTarget = nextTierIdx >= 0 ? m.tiers[nextTierIdx] : null
+            const nextTierName = nextTierIdx === 1 ? 'Silver' : nextTierIdx === 2 ? 'Gold' : nextTierIdx === 3 ? 'Diamond' : nextTierIdx === 4 ? 'Emerald' : null
             return (
               <div
                 key={m.label}
@@ -569,9 +592,12 @@ export default function ProgressTab() {
                 data-testid={`milestone-${m.label}`}
                 title={`${m.label}: ${m.desc}`}
               >
-                <span className="text-3xl">{m.emoji}</span>
-                <p className="text-xs font-semibold text-center leading-tight mt-1" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{m.label}</p>
-                <p className="text-sm font-medium mt-0.5">{m.desc}</p>
+                <span className="text-2xl">{m.emoji}</span>
+                <p className="text-xs font-semibold text-center leading-tight mt-0.5" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{m.label}</p>
+                <p className="text-sm font-medium mt-0.5">{tierEmoji} {m.desc}</p>
+                {nextTarget && nextTierName && (
+                  <p className="text-xs opacity-75 mt-0.5">{m.progress}/{nextTarget} to {nextTierName}</p>
+                )}
               </div>
             )
           })}

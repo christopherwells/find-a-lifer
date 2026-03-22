@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, collection, query, where, getDocs, orderBy, limit as firestoreLimit, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, collection, query, where, getDocs, orderBy, limit as firestoreLimit, serverTimestamp, getCountFromServer } from 'firebase/firestore'
 import { db } from './firebase'
 
 export interface UserStats {
@@ -61,6 +61,21 @@ export async function fetchFriendLeaderboard(friendUids: string[]): Promise<Lead
   }
 
   return results.sort((a, b) => b.stats.speciesCount - a.stats.speciesCount)
+}
+
+/** Get the user's global rank and total user count */
+export async function fetchGlobalRank(userSpeciesCount: number): Promise<{ rank: number; total: number }> {
+  const usersRef = collection(db, 'users')
+  // Count users with more species than the current user
+  const aheadQuery = query(usersRef, where('stats.speciesCount', '>', userSpeciesCount))
+  const [aheadSnap, totalSnap] = await Promise.all([
+    getCountFromServer(aheadQuery),
+    getCountFromServer(query(usersRef)),
+  ])
+  return {
+    rank: aheadSnap.data().count + 1,
+    total: totalSnap.data().count,
+  }
 }
 
 /** Get a single user's profile */
