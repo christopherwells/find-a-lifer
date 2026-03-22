@@ -100,7 +100,7 @@ export default function TripPlanTab({
         )}
 
         {/* Mode Toggle */}
-        <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 grid grid-cols-4" role="tablist" aria-label="Trip planning mode">
+        <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 grid grid-cols-3" role="tablist" aria-label="Trip planning mode">
           {(['location', 'hotspots', 'window'] as const).map((m) => (
             <button
               key={m}
