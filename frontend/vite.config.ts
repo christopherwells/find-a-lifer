@@ -59,10 +59,9 @@ export default defineConfig({
           },
           {
             urlPattern: /\/data\/r\d+\/weeks\//,
-            handler: 'NetworkFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'week-data-cache',
-              networkTimeoutSeconds: 5,
               expiration: {
                 maxEntries: 500,
                 maxAgeSeconds: 60 * 60 * 24 * 7,

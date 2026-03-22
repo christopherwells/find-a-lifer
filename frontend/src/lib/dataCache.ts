@@ -223,6 +223,20 @@ export function fetchWeekCells(week: number, resolution?: number): Promise<Map<n
 }
 
 /**
+ * Preload adjacent weeks (±1) in the background for instant slider response.
+ * Fetches are fire-and-forget — results go into the cache for later use.
+ */
+export function preloadAdjacentWeeks(week: number, resolution?: number): void {
+  const prev = week > 1 ? week - 1 : 52
+  const next = week < 52 ? week + 1 : 1
+  // Fire-and-forget: populate the cache, ignore errors
+  fetchWeekSummary(prev, resolution).catch(() => {})
+  fetchWeekSummary(next, resolution).catch(() => {})
+  fetchWeekCells(prev, resolution).catch(() => {})
+  fetchWeekCells(next, resolution).catch(() => {})
+}
+
+/**
  * Fetch per-species occurrence data for a resolution across all 52 weeks.
  * Returns { "1": [[cell_id, freq], ...], "2": [...], ... }
  */
