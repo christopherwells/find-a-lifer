@@ -51,14 +51,8 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
     >
       {/* Left: Logo and Title */}
       <div className="flex items-center gap-2">
-        {/* Bird binoculars icon */}
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#E87722]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="7" cy="17" r="3"/>
-          <circle cx="17" cy="17" r="3"/>
-          <path d="M7 14V6a2 2 0 0 1 2-2h.5"/>
-          <path d="M17 14V6a2 2 0 0 0-2-2h-.5"/>
-          <path d="M10 4h4"/>
-        </svg>
+        {/* App icon */}
+        <img src={`${import.meta.env.BASE_URL}icon-192x192.png`} alt="" className="h-6 w-6 rounded-sm" />
         <div className="flex items-baseline gap-1.5">
           <h1 className="text-[15px] font-bold tracking-tight">
             Find-A-Lifer
