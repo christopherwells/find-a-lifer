@@ -145,19 +145,10 @@ export default function HotspotsMode({
           </div>
         ) : (
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2">
               <h4 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">
                 Top Lifer Hotspots ({hotspots.length})
               </h4>
-              <select
-                value={hotspotSortMode}
-                onChange={(e) => setHotspotSortMode(e.target.value as 'liferCount' | 'name')}
-                className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 focus:outline-none"
-                data-testid="hotspot-sort-select"
-              >
-                <option value="liferCount">Most lifers first</option>
-                <option value="name">Location name</option>
-              </select>
             </div>
             <div className="space-y-1" data-testid="hotspot-list">
               {(showAll ? sortedHotspots : sortedHotspots.slice(0, 20)).map((hotspot) => (

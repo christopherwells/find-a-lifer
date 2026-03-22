@@ -65,6 +65,7 @@ export default function ProgressTab() {
   const [regionNames, setRegionNames] = useState<Record<string, string>>({})
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [friendLeaderboard, setFriendLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [leaderboardMode, setLeaderboardMode] = useState<'friends' | 'global'>('friends')
   const [weeklySummary, setWeeklySummary] = useState<{ newLifers: number; newFamiliesStarted: number } | null>(null)
 
   // Load region names on mount
@@ -228,8 +229,37 @@ export default function ProgressTab() {
     }
   })
 
-  // Sort regions by total species count descending
-  const sortedRegions = Object.entries(regionStats).sort((a, b) => b[1].total - a[1].total)
+  // Sort regions geographically (north to south, west to east)
+  const REGION_ORDER: Record<string, number> = {
+    // Canada
+    'Pacific Northwest & Alaska': 1,
+    'Central Canada': 2,
+    'Atlantic Canada & Islands': 3,
+    'Northern Canada': 4,
+    // US
+    'Western US': 10,
+    'US Rockies': 11,
+    'Southwestern US': 12,
+    'Midwestern US': 13,
+    'Northeastern US': 14,
+    'Southeastern US': 15,
+    'Hawaii': 16,
+    // Mexico
+    'Northern Mexico': 20,
+    'Southern Mexico': 21,
+    // Central America
+    'Central America': 30,
+    // Caribbean
+    'Greater Antilles': 40,
+    'Lesser Antilles': 41,
+    'Western Atlantic Islands': 42,
+  }
+  const sortedRegions = Object.entries(regionStats).sort((a, b) => {
+    const orderA = REGION_ORDER[a[0]] ?? 99
+    const orderB = REGION_ORDER[b[0]] ?? 99
+    if (orderA !== orderB) return orderA - orderB
+    return b[1].total - a[1].total // fallback: species count
+  })
 
   // Get display name for a region key (sub-region name or country code)
   const getRegionDisplayName = (key: string): string => {
@@ -406,39 +436,43 @@ export default function ProgressTab() {
       {/* 8. Leaderboard */}
       {user && (leaderboard.length > 0 || friendLeaderboard.length > 0) && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="leaderboard-section">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Leaderboard</h4>
-          {friendLeaderboard.length > 0 && (
-            <>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Friends</p>
-              <div className="space-y-1.5">
-                {friendLeaderboard.map((entry, i) => (
-                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
-                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
-                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
-                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
-                    </span>
-                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
-                  </div>
-                ))}
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Leaderboard</h4>
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+              <button
+                onClick={() => setLeaderboardMode('friends')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  leaderboardMode === 'friends'
+                    ? 'bg-white dark:bg-gray-600 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}
+              >Friends</button>
+              <button
+                onClick={() => setLeaderboardMode('global')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  leaderboardMode === 'global'
+                    ? 'bg-white dark:bg-gray-600 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}
+              >Global</button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {(leaderboardMode === 'friends' ? friendLeaderboard : leaderboard).map((entry, i) => (
+              <div key={entry.uid} className={`flex items-center gap-2 text-sm ${entry.uid === user.uid ? 'font-bold' : ''}`}>
+                <span className="w-6 text-right text-gray-400 text-xs">#{i + 1}</span>
+                <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
+                  {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
+                </span>
+                <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
               </div>
-            </>
-          )}
-          {leaderboard.length > 0 && (
-            <>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">Global Top 10</p>
-              <div className="space-y-1.5">
-                {leaderboard.map((entry, i) => (
-                  <div key={entry.uid} className={`flex items-center gap-2 text-xs ${entry.uid === user.uid ? 'font-bold' : ''}`}>
-                    <span className="w-5 text-right text-gray-400">#{i + 1}</span>
-                    <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
-                      {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
-                    </span>
-                    <span className="text-[#2C3E7B] dark:text-blue-400 font-medium">{entry.stats.speciesCount}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+            ))}
+            {(leaderboardMode === 'friends' ? friendLeaderboard : leaderboard).length === 0 && (
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                {leaderboardMode === 'friends' ? 'Add friends to see their progress' : 'No data yet'}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
