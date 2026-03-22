@@ -216,7 +216,7 @@ function RegionModal({
               return (
                 <div
                   key={`header-${i}`}
-                  className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 sticky top-0 bg-white dark:bg-gray-900"
+                  className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 sticky top-0 bg-white dark:bg-gray-900"
                 >
                   {item.label}
                 </div>

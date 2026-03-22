@@ -116,37 +116,13 @@ html, body {
   }
 }
 
-/* Glow: visible pulse — 2nd animation for silver + gold + diamond + emerald */
+/* Glow keyframe */
 @keyframes trophy-glow {
-  0%, 100% { box-shadow: 0 0 2px rgba(255,255,255,0.1), 0 0 6px rgba(255,255,255,0.05); }
-  50% { box-shadow: 0 0 8px rgba(255,255,255,0.4), 0 0 20px rgba(255,255,255,0.15); }
-}
-.trophy-glow {
-  animation-name: trophy-sheen, trophy-glow;
-  animation-duration: 8s, 4s;
-  animation-timing-function: linear, ease-in-out;
-  animation-iteration-count: infinite, infinite;
-}
-.trophy-gold.trophy-glow {
-  animation-name: trophy-sheen, trophy-glow;
-  animation-duration: 8s, 3s;
-  animation-timing-function: linear, ease-in-out;
-  animation-iteration-count: infinite, infinite;
-}
-.trophy-diamond.trophy-glow {
-  animation-name: trophy-sheen, trophy-glow;
-  animation-duration: 8s, 3s;
-  animation-timing-function: linear, ease-in-out;
-  animation-iteration-count: infinite, infinite;
-}
-.trophy-emerald.trophy-glow {
-  animation-name: trophy-sheen, trophy-glow;
-  animation-duration: 8s, 2.5s;
-  animation-timing-function: linear, ease-in-out;
-  animation-iteration-count: infinite, infinite;
+  0%, 100% { box-shadow: 0 0 2px rgba(255,255,255,0.1); }
+  50% { box-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 25px rgba(255,255,255,0.2); }
 }
 
-/* Sparkle: small white dots that appear/disappear — gold, diamond, emerald */
+/* Sparkle pseudo-elements — used by gold, diamond, emerald */
 @keyframes trophy-sparkle-1 {
   0%, 100% { opacity: 0; }
   50% { opacity: 1; }
@@ -155,16 +131,12 @@ html, body {
   0%, 100% { opacity: 0; }
   35% { opacity: 1; }
 }
-@keyframes trophy-sparkle-3 {
-  0%, 100% { opacity: 0; }
-  65% { opacity: 1; }
-}
 .trophy-sparkle::before,
 .trophy-sparkle::after {
   content: '';
   position: absolute;
-  width: 3px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: white;
   pointer-events: none;
@@ -180,22 +152,58 @@ html, body {
   animation: trophy-sparkle-2 2.2s ease-in-out infinite;
 }
 
-/* Pulse: visible border animation — diamond + emerald */
+/* Pulse border keyframe */
 @keyframes trophy-pulse {
-  0%, 100% { border-color: rgba(255, 255, 255, 0.2); box-shadow: 0 0 4px rgba(255,255,255,0.1); }
-  50% { border-color: rgba(255, 255, 255, 0.8); box-shadow: 0 0 12px rgba(255,255,255,0.3); }
+  0%, 100% { border-color: rgba(255, 255, 255, 0.2); }
+  50% { border-color: rgba(255, 255, 255, 0.9); }
 }
 .trophy-pulse {
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  animation: trophy-pulse 2.5s ease-in-out infinite;
+  border: 3px solid rgba(255, 255, 255, 0.4);
 }
 
-/* Prismatic: very subtle hue rotation — emerald only */
+/* Prismatic keyframe — visible hue shift */
 @keyframes trophy-prismatic {
-  0% { filter: hue-rotate(0deg); }
-  50% { filter: hue-rotate(15deg); }
-  100% { filter: hue-rotate(0deg); }
+  0% { filter: hue-rotate(0deg) brightness(1); }
+  33% { filter: hue-rotate(30deg) brightness(1.1); }
+  66% { filter: hue-rotate(-20deg) brightness(1.05); }
+  100% { filter: hue-rotate(0deg) brightness(1); }
 }
-.trophy-prismatic {
-  animation: trophy-prismatic 6s ease-in-out infinite;
+
+/*
+ * Combined animation declarations per tier.
+ * Each tier explicitly lists ALL its animations to avoid CSS override issues.
+ * Copper: sheen only (defined by .trophy-sheen above)
+ */
+
+/* Silver: sheen + glow */
+.trophy-silver.trophy-glow {
+  animation-name: trophy-sheen, trophy-glow;
+  animation-duration: 8s, 3s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
+
+/* Gold: sheen + glow (sparkle handled by pseudo-elements) */
+.trophy-gold.trophy-glow {
+  animation-name: trophy-sheen, trophy-glow;
+  animation-duration: 8s, 2.5s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
+
+/* Diamond: sheen + glow + pulse */
+.trophy-diamond.trophy-pulse {
+  animation-name: trophy-sheen, trophy-glow, trophy-pulse;
+  animation-duration: 8s, 2.5s, 2.5s;
+  animation-timing-function: linear, ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite, infinite;
+}
+
+/* Emerald: sheen + glow + pulse + prismatic */
+.trophy-emerald.trophy-prismatic {
+  animation-name: trophy-sheen, trophy-glow, trophy-pulse, trophy-prismatic;
+  animation-duration: 8s, 2s, 2.5s, 4s;
+  animation-timing-function: linear, ease-in-out, ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite, infinite, infinite;
+  border: 3px solid rgba(255, 255, 255, 0.4);
 }

@@ -152,7 +152,7 @@ export default function HotspotsMode({
               <select
                 value={hotspotSortMode}
                 onChange={(e) => setHotspotSortMode(e.target.value as 'liferCount' | 'name')}
-                className="text-[11px] border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 focus:outline-none"
+                className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 focus:outline-none"
                 data-testid="hotspot-sort-select"
               >
                 <option value="liferCount">Most lifers first</option>

@@ -244,7 +244,7 @@ export default function LocationMode({
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as 'probability' | 'name' | 'family')}
-                className="text-[11px] border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 focus:outline-none"
+                className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 focus:outline-none"
                 data-testid="lifer-sort-select"
               >
                 <option value="probability">Probability</option>

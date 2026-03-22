@@ -85,7 +85,7 @@ export default function TripPlanTab({
           <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Trip Planning</h3>
           <button
             onClick={handleReset}
-            className="px-2 py-0.5 text-[11px] font-medium text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+            className="px-2 py-0.5 text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
             data-testid="clear-trip-plan-btn"
             title="Clear all trip planning selections"
           >
@@ -94,7 +94,7 @@ export default function TripPlanTab({
         </div>
 
         {dataError && (
-          <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-1.5 rounded text-[11px]">
+          <div className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-1.5 rounded text-xs">
             {dataError}
           </div>
         )}
@@ -107,7 +107,7 @@ export default function TripPlanTab({
               role="tab"
               aria-selected={mode === m}
               onClick={() => setMode(m)}
-              className={`py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
+              className={`py-1.5 text-xs font-medium rounded-md text-center transition-all ${
                 mode === m
                   ? 'bg-white dark:bg-gray-800 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'

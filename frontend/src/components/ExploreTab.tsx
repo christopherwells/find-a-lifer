@@ -181,7 +181,7 @@ export default function ExploreTab({
         </div>
         <div className="flex items-center gap-1 mt-1">
           <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />
-          <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500">
+          <span className="text-xs lg:text-xs text-gray-400 dark:text-gray-500">
             {viewMode === 'density' ? 'New birds in each area' : viewMode === 'probability' ? 'Chance of finding a lifer' : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Where multiple species overlap' : 'Where this species is found') : 'Goal birds in each area'}
           </span>
         </div>
@@ -190,7 +190,7 @@ export default function ExploreTab({
       {/* Active Goal List Selector */}
       {(viewMode === 'goal-birds' || ((viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && goalBirdsOnlyFilter)) && (
         <div>
-          <label className="block text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs lg:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             Active Goal List
           </label>
           {goalLists.length === 0 ? (
@@ -248,7 +248,7 @@ export default function ExploreTab({
         <div className="mb-0">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400">This Week's Highlights</h3>
-            <button onClick={() => setShowHighlights(false)} className="text-[11px] lg:text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
+            <button onClick={() => setShowHighlights(false)} className="text-xs lg:text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
             {highlights.map(h => (
@@ -264,7 +264,7 @@ export default function ExploreTab({
                   <img src={h.species.photoUrl} alt="" className="w-full h-20 rounded object-cover mb-1" loading="lazy" />
                 )}
                 <div className="text-xs font-medium truncate dark:text-gray-200">{h.species.comName}</div>
-                <div className="text-[11px] lg:text-xs text-gray-500 dark:text-gray-400 truncate">{h.reason}</div>
+                <div className="text-xs lg:text-xs text-gray-500 dark:text-gray-400 truncate">{h.reason}</div>
               </div>
             ))}
           </div>
@@ -274,7 +274,7 @@ export default function ExploreTab({
       {/* Species Picker — shown in Species Range view */}
       {viewMode === 'species' && (
         <div>
-          <label className="block text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs lg:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             {compareMode ? 'Compare Species (up to 4)' : 'Select Species'}
           </label>
           {/* Search input */}
@@ -349,7 +349,7 @@ export default function ExploreTab({
                 onSelectedSpeciesMultiChange?.([])
                 // Keep the first species as selectedSpecies
               }}
-              className="w-full mt-1.5 text-[11px] text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 font-medium transition-colors"
+              className="w-full mt-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 font-medium transition-colors"
               data-testid="clear-comparison-btn"
             >
               Clear comparison
@@ -525,14 +525,14 @@ export default function ExploreTab({
             data-testid="lifer-range-min-slider"
             aria-label="Minimum lifer count"
           />
-          <div className="flex justify-between text-[11px] lg:text-xs text-gray-400 dark:text-gray-500">
+          <div className="flex justify-between text-xs lg:text-xs text-gray-400 dark:text-gray-500">
             <span>{dataRange[0]}</span>
             <span>{dataRange[1]}</span>
           </div>
           {liferCountRange[0] > dataRange[0] && (
             <button
               onClick={() => onLiferCountRangeChange?.([dataRange[0], 9999])}
-              className="w-full text-[11px] text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
+              className="w-full text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline font-medium"
               data-testid="reset-lifer-range"
             >
               Reset minimum
@@ -542,7 +542,7 @@ export default function ExploreTab({
       )}
 
       {/* Responsible birding footer */}
-      <p className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 text-center mt-4 px-2">
+      <p className="text-xs lg:text-xs text-gray-400 dark:text-gray-500 text-center mt-4 px-2">
         Please bird responsibly.{' '}
         <a
           href="https://www.aba.org/aba-code-of-birding-ethics/"

@@ -100,7 +100,7 @@ export default function Badge({ variant, value, size = 'pill', className = '' }:
     if (!char) return null // Don't show icon badge for Easy/Moderate/Least Concern
     return (
       <span
-        className={`inline-flex items-center justify-center ${char.length > 1 ? 'min-w-[1.25rem] px-0.5' : 'w-4'} h-4 rounded text-[11px] font-bold flex-shrink-0 ${style.bg} ${style.text} ${className}`}
+        className={`inline-flex items-center justify-center ${char.length > 1 ? 'min-w-[1.25rem] px-0.5' : 'w-4'} h-4 rounded text-xs font-bold flex-shrink-0 ${style.bg} ${style.text} ${className}`}
         title={value}
         data-testid={`badge-${variant}-icon`}
       >

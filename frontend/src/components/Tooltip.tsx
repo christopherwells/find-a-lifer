@@ -116,7 +116,7 @@ export default function Tooltip({ content, className = '' }: TooltipProps) {
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`inline-flex items-center justify-center w-4 h-4 text-[11px] lg:text-xs font-bold rounded-full
+        className={`inline-flex items-center justify-center w-4 h-4 text-xs lg:text-xs font-bold rounded-full
           text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300
           bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600
           transition-colors cursor-help flex-shrink-0 ${className}`}

@@ -494,11 +494,11 @@ export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChan
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-[#2C3E50] dark:text-gray-100">Goal Birds</h3>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Track birds you want to see and get personalized suggestions</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Track birds you want to see and get personalized suggestions</p>
           </div>
           <button
             onClick={() => setShowCreateDialog(true)}
-            className="px-2 py-1 bg-[#2C3E7B] text-white text-[11px] font-medium rounded-md hover:bg-[#1f2d5a] transition-colors flex-shrink-0"
+            className="px-2 py-1 bg-[#2C3E7B] text-white text-xs font-medium rounded-md hover:bg-[#1f2d5a] transition-colors flex-shrink-0"
           >
             + New List
           </button>
@@ -963,7 +963,7 @@ export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChan
                             )}
                             {/* Habitat tags */}
                             {species?.habitatLabels?.slice(0, 2).map(label => (
-                              <span key={label} className="text-[11px] lg:text-xs px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-500 dark:text-gray-400">
+                              <span key={label} className="text-xs lg:text-xs px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-500 dark:text-gray-400">
                                 {label}
                               </span>
                             ))}
@@ -1085,7 +1085,7 @@ export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChan
                             {alreadyInList ? (
                               <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`easy-wins-already-added-${sp.speciesCode}`}>✓</div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`easy-wins-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`easy-wins-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1146,7 +1146,7 @@ export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChan
                             {alreadyInList ? (
                               <div className="ml-2 flex-shrink-0 p-1.5 text-blue-400 cursor-default" title="Already in this goal list" data-testid={`seasonal-already-added-${sp.speciesCode}`}>✓</div>
                             ) : (
-                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`seasonal-add-btn-${sp.speciesCode}`}>+</button>
+                              <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`seasonal-add-btn-${sp.speciesCode}`}>+</button>
                             )}
                           </div>
                         )
@@ -1183,7 +1183,7 @@ export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChan
                           <div key={familyName} data-testid={`almost-complete-family-${familyName.replace(/\s+/g, '-').toLowerCase()}`}>
                             <div className="flex items-center justify-between px-1 mb-1">
                               <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide truncate">{familyName}</span>
-                              <span className="text-[11px] lg:text-xs text-indigo-600 font-medium whitespace-nowrap ml-2">{data.seen}/{data.total} ({pct}%)</span>
+                              <span className="text-xs lg:text-xs text-indigo-600 font-medium whitespace-nowrap ml-2">{data.seen}/{data.total} ({pct}%)</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden mx-1 mb-1" style={{ width: 'calc(100% - 8px)' }}>
                               <div className="bg-indigo-500 h-1 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
@@ -1205,7 +1205,7 @@ export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChan
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                       </div>
                                     ) : (
-                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[11px] font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`almost-complete-add-btn-${sp.speciesCode}`}>
+                                      <button onClick={() => handleAddSpecies(sp)} className="ml-2 flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-xs font-medium text-[#2C3E7B] border border-[#2C3E7B]/30 rounded hover:bg-[#2C3E7B] hover:text-white transition-colors" title={`Add ${sp.comName} to goal list`} aria-label={`Add ${sp.comName} to goal list`} data-testid={`almost-complete-add-btn-${sp.speciesCode}`}>
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
                                       </button>
                                     )}

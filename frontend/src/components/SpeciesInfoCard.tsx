@@ -295,7 +295,7 @@ export default function SpeciesInfoCard({
           {/* Habitat badges */}
           {species.habitatLabels && species.habitatLabels.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[11px] lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Habitat</p>
+              <p className="text-xs lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Habitat</p>
               <div className="flex flex-wrap gap-1.5" data-testid="species-info-habitat">
                 {species.habitatLabels.map((label) => (
                   <Badge key={label} variant="habitat" value={label} size="pill" />
@@ -317,7 +317,7 @@ export default function SpeciesInfoCard({
           {/* Sparkline — 52-week frequency chart */}
           {freqProfile && (
             <div className="space-y-1">
-              <p className="text-[11px] lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <p className="text-xs lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 Seasonality{selectedRegion ? ` — ${selectedRegion.name}` : ''}
               </p>
               <Sparkline data={freqProfile} currentWeek={week} />
@@ -327,7 +327,7 @@ export default function SpeciesInfoCard({
           {/* Best locations for current week */}
           {(bestLocations || loadingLocations) && (
             <div className="space-y-1.5">
-              <p className="text-[11px] lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <p className="text-xs lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 Best Locations (Week {week}){selectedRegion && !showGlobalLocations ? ` — ${selectedRegion.name}` : ''}
               </p>
               {loadingLocations ? (
@@ -355,7 +355,7 @@ export default function SpeciesInfoCard({
               {selectedRegionId && (
                 <button
                   onClick={() => setShowGlobalLocations(prev => !prev)}
-                  className="text-[11px] lg:text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline"
+                  className="text-xs lg:text-xs text-[#2C3E7B] dark:text-blue-400 hover:underline"
                   data-testid="species-info-toggle-global"
                 >
                   {showGlobalLocations ? 'Show regional' : 'Show global'}

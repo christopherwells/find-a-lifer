@@ -60,7 +60,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
           <h1 className="text-[15px] font-bold tracking-tight">
             Find-A-Lifer
           </h1>
-          <span className="text-[11px] lg:text-xs text-blue-200/60 font-semibold tracking-wide">BETA</span>
+          <span className="text-xs lg:text-xs text-blue-200/60 font-semibold tracking-wide">BETA</span>
         </div>
       </div>
 

@@ -268,14 +268,14 @@ export default function MapControls({
                       key={h.species.speciesCode}
                       className="flex items-center gap-2 px-2 py-1.5 bg-white/60 dark:bg-gray-800/60 rounded-lg"
                     >
-                      <span className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded ${catStyles[h.category]}`}>
+                      <span className={`flex-shrink-0 px-1.5 py-0.5 text-xs font-bold rounded ${catStyles[h.category]}`}>
                         {catLabels[h.category]}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
                           {h.species.comName}
                         </div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                           {h.reason}
                         </div>
                       </div>
@@ -545,12 +545,12 @@ export default function MapControls({
                           disabled={compareMode && selectedSpeciesMulti.length >= 4 && !selectedSpeciesMulti.includes(s.speciesCode)}
                         >
                           <div className="font-medium text-gray-800 dark:text-gray-200 truncate">{s.comName}</div>
-                          <div className="text-[11px] text-gray-400 italic truncate">{s.sciName}</div>
+                          <div className="text-xs text-gray-400 italic truncate">{s.sciName}</div>
                         </button>
                       ))
                     )}
                     {filteredSpecies.length > 50 && (
-                      <div className="px-2 py-1.5 text-[11px] text-gray-400 text-center">
+                      <div className="px-2 py-1.5 text-xs text-gray-400 text-center">
                         {filteredSpecies.length - 50} more — type to search
                       </div>
                     )}

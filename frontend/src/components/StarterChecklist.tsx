@@ -120,7 +120,7 @@ export default function StarterChecklist({ onDismiss }: StarterChecklistProps) {
         <h3 className="text-sm font-bold text-blue-900 dark:text-blue-200">
           Check off species you've seen
         </h3>
-        <p className="text-[11px] text-blue-700 dark:text-blue-400 mt-0.5">
+        <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">
           Tap "Done" when finished to start your life list.
         </p>
       </div>
@@ -130,7 +130,7 @@ export default function StarterChecklist({ onDismiss }: StarterChecklistProps) {
         {groupedSpecies.map(([group, species]) => (
           <div key={group}>
             <div className="px-3 py-0.5 bg-blue-100/70 dark:bg-blue-800/30 border-b border-blue-200/50 dark:border-blue-700/50 sticky top-0">
-              <span className="text-[11px] lg:text-xs font-bold text-blue-800/70 dark:text-blue-300/70 uppercase tracking-wider">{group}</span>
+              <span className="text-xs lg:text-xs font-bold text-blue-800/70 dark:text-blue-300/70 uppercase tracking-wider">{group}</span>
             </div>
             {species.map((sp) => (
               <label
@@ -163,7 +163,7 @@ export default function StarterChecklist({ onDismiss }: StarterChecklistProps) {
 
       {/* Footer */}
       <div className="px-3 py-2 border-t border-blue-200 dark:border-blue-800 flex items-center justify-between">
-        <span className="text-[11px] text-blue-700 dark:text-blue-400 font-medium">
+        <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">
           {checkedCodes.size} selected
         </span>
         <div className="flex items-center gap-2">

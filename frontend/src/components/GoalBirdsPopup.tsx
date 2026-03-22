@@ -61,7 +61,7 @@ export default function GoalBirdsPopup({
       {popup.nChecklists != null && popup.nChecklists < 10 && (
         <div className="px-3 py-1.5 bg-amber-50 border-b border-amber-200 flex items-center gap-1.5">
           <span className="text-amber-500 text-xs">{'\u26A0'}</span>
-          <span className="text-[11px] lg:text-xs text-amber-700">
+          <span className="text-xs lg:text-xs text-amber-700">
             Limited data ({popup.nChecklists} checklist{popup.nChecklists !== 1 ? 's' : ''}) — frequencies may be unreliable
           </span>
         </div>
@@ -72,7 +72,7 @@ export default function GoalBirdsPopup({
         {/* Notable Birds section */}
         {notableBirds.length > 0 && (
           <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
-            <div className="text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
+            <div className="text-xs lg:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
             {notableBirds.map(({ species, tag, frequency }) => (
               <div key={species.speciesCode} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1"
                 onClick={() => {

@@ -37,11 +37,11 @@ export default function TripSpeciesItem({ lifer, index, showProbability = true, 
           </span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 truncate">
+          <span className="text-xs lg:text-xs text-gray-400 dark:text-gray-500 truncate">
             {getDisplayGroup(lifer.familyComName)}
           </span>
           {lifer.difficultyRating != null && lifer.difficultyRating >= 7 && (
-            <span className="text-[11px] lg:text-xs font-medium text-orange-600 dark:text-orange-400">
+            <span className="text-xs lg:text-xs font-medium text-orange-600 dark:text-orange-400">
               {lifer.difficultyRating}/10
             </span>
           )}

@@ -1743,7 +1743,7 @@ export default memo(function MapView({
               className="absolute md:bottom-8 left-3 backdrop-blur-xl bg-white/85 dark:bg-gray-900/85 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 px-3.5 py-2.5"
               style={{ bottom: window.innerWidth < 768 ? 'calc(52px + env(safe-area-inset-bottom, 0px) + 8px)' : undefined, minWidth: '200px', maxWidth: '240px' }}
             >
-              <div className="text-[11px] font-bold text-gray-800 dark:text-gray-200 mb-2 tracking-tight">Species Comparison</div>
+              <div className="text-xs font-bold text-gray-800 dark:text-gray-200 mb-2 tracking-tight">Species Comparison</div>
               <div className="space-y-1">
                 {selectedSpeciesMulti.map((code, idx) => {
                   const meta = speciesMetaCache?.find((s) => s.speciesCode === code)
@@ -1753,7 +1753,7 @@ export default memo(function MapView({
                         className="inline-block w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: MULTI_COLORS[idx] || '#666' }}
                       />
-                      <span className="text-[11px] lg:text-xs text-gray-700 dark:text-gray-300 truncate">{meta?.comName || code}</span>
+                      <span className="text-xs lg:text-xs text-gray-700 dark:text-gray-300 truncate">{meta?.comName || code}</span>
                     </div>
                   )
                 })}
@@ -1762,7 +1762,7 @@ export default memo(function MapView({
                     className="inline-block w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: '#FFD700' }}
                   />
-                  <span className="text-[11px] lg:text-xs text-gray-700 dark:text-gray-300">All species overlap</span>
+                  <span className="text-xs lg:text-xs text-gray-700 dark:text-gray-300">All species overlap</span>
                 </div>
               </div>
             </div>
@@ -1815,18 +1815,18 @@ export default memo(function MapView({
             className="absolute md:bottom-8 left-3 backdrop-blur-xl bg-white/85 dark:bg-gray-900/85 rounded-lg md:rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 px-2 py-1.5 md:px-3.5 md:py-2.5"
             style={{ bottom: window.innerWidth < 768 ? 'calc(52px + env(safe-area-inset-bottom, 0px) + 8px)' : undefined, minWidth: window.innerWidth < 768 ? '140px' : '200px', maxWidth: window.innerWidth < 768 ? '160px' : '240px' }}
           >
-            <div className="text-xs md:text-[11px] font-bold text-gray-800 dark:text-gray-200 mb-1 md:mb-2 tracking-tight">{legendTitle}</div>
+            <div className="text-xs md:text-xs font-bold text-gray-800 dark:text-gray-200 mb-1 md:mb-2 tracking-tight">{legendTitle}</div>
             <div
               className="h-2.5 md:h-3 rounded-full shadow-inner"
               style={{ background: gradient }}
             />
             <div className="flex justify-between mt-1 md:mt-1.5">
               {ticks.map((tick, i) => (
-                <span key={i} className="text-[11px] lg:text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">{tick}</span>
+                <span key={i} className="text-xs lg:text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">{tick}</span>
               ))}
             </div>
             {emptyMessage && (
-              <div className="text-[11px] lg:text-xs text-amber-600 dark:text-amber-400 mt-1 md:mt-1.5 font-medium">{emptyMessage}</div>
+              <div className="text-xs lg:text-xs text-amber-600 dark:text-amber-400 mt-1 md:mt-1.5 font-medium">{emptyMessage}</div>
             )}
           </div>
         )

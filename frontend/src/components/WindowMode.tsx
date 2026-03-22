@@ -223,7 +223,7 @@ export default function WindowMode({
         <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 grid grid-cols-2">
           <button
             onClick={() => setWindowSubMode('single')}
-            className={`py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
+            className={`py-1.5 text-xs font-medium rounded-md text-center transition-all ${
               windowSubMode === 'single'
                 ? 'bg-white dark:bg-gray-800 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
@@ -234,7 +234,7 @@ export default function WindowMode({
           </button>
           <button
             onClick={() => setWindowSubMode('goal-list')}
-            className={`py-1.5 text-[11px] font-medium rounded-md text-center transition-all ${
+            className={`py-1.5 text-xs font-medium rounded-md text-center transition-all ${
               windowSubMode === 'goal-list'
                 ? 'bg-white dark:bg-gray-800 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
@@ -369,7 +369,7 @@ export default function WindowMode({
                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
                 data-testid="goal-window-threshold"
               />
-              <p className="text-[11px] lg:text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              <p className="text-xs lg:text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                 Only count species reported on ≥{goalWindowThreshold}% of checklists
               </p>
             </div>
@@ -514,7 +514,7 @@ export default function WindowMode({
                         <div className="text-sm font-bold text-[#2C3E7B] dark:text-blue-400">
                           {result.targetCount}/{result.totalGoalSpecies}
                         </div>
-                        <div className={`px-1.5 py-0.5 rounded text-[11px] lg:text-xs font-medium ${getProbabilityColor(result.combinedFreq)}`}>
+                        <div className={`px-1.5 py-0.5 rounded text-xs lg:text-xs font-medium ${getProbabilityColor(result.combinedFreq)}`}>
                           {formatProbability(result.combinedFreq)}
                         </div>
                       </div>

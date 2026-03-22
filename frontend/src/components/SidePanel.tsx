@@ -216,7 +216,7 @@ export default memo(function SidePanel({
                 <span className={`transition-transform ${isHighlighted ? 'scale-110' : ''}`}>
                   {tab.icon}
                 </span>
-                <span className="text-[11px] mt-0.5 font-medium leading-none">{tab.label}</span>
+                <span className="text-xs mt-0.5 font-medium leading-none">{tab.label}</span>
               </button>
             )
           })}
@@ -273,7 +273,7 @@ export default memo(function SidePanel({
               title={tab.label}
             >
               <span className="mb-0.5">{tab.icon}</span>
-              <span className={`text-[11px] lg:text-xs font-medium ${
+              <span className={`text-xs lg:text-xs font-medium ${
                 activeTab === tab.id ? 'font-semibold' : ''
               }`}>{tab.label}</span>
               {activeTab === tab.id && (

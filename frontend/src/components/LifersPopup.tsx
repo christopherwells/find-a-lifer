@@ -134,7 +134,7 @@ export default function LifersPopup({
       {popup.estimated && (
         <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-1.5">
           <span className="text-red-500 text-xs">{'\u26A0'}</span>
-          <span className="text-[11px] lg:text-xs text-red-700 dark:text-red-400">
+          <span className="text-xs lg:text-xs text-red-700 dark:text-red-400">
             No checklist data — species estimated from neighboring cells
           </span>
         </div>
@@ -143,7 +143,7 @@ export default function LifersPopup({
       {!popup.estimated && popup.nChecklists != null && popup.nChecklists < 10 && (
         <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 border-b border-teal-200 dark:border-teal-800 flex items-center gap-1.5">
           <span className="text-amber-500 text-xs">{'\u26A0'}</span>
-          <span className="text-[11px] lg:text-xs text-amber-700 dark:text-amber-400">
+          <span className="text-xs lg:text-xs text-amber-700 dark:text-amber-400">
             Limited data ({popup.nChecklists} checklist{popup.nChecklists !== 1 ? 's' : ''}) — frequencies may be unreliable
           </span>
         </div>
@@ -152,7 +152,7 @@ export default function LifersPopup({
       {/* Import prompt when no life list (only show when no filter is active) */}
       {seenSpecies.size === 0 && popup.lifers.length > 0 && !popup.hasActiveFilter && (
         <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-teal-200 dark:border-teal-800 text-center">
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">Import your life list from the menu (<strong>⋮</strong>) to see which are lifers</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Import your life list from the menu (<strong>⋮</strong>) to see which are lifers</p>
         </div>
       )}
       {/* Filter active indicator */}
@@ -161,7 +161,7 @@ export default function LifersPopup({
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
           </svg>
-          <span className="text-[11px] lg:text-xs text-blue-700 dark:text-blue-400">
+          <span className="text-xs lg:text-xs text-blue-700 dark:text-blue-400">
             Filtered — {popup.filteredTotal} of {popup.totalSpecies} species match
           </span>
         </div>
@@ -169,7 +169,7 @@ export default function LifersPopup({
       {/* Habitat bar */}
       {popupCovariates && (
         <div className="px-3 py-2 border-b border-teal-200 dark:border-teal-800 space-y-1" data-testid="habitat-bar">
-          <p className="text-[11px] lg:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Habitat</p>
+          <p className="text-xs lg:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Habitat</p>
           {(() => {
             const cov = popupCovariates as unknown as Record<string, number>
             const ocean = cov.ocean || 0
@@ -229,13 +229,13 @@ export default function LifersPopup({
                   {categories.map(({ key, val, icon, label }) => {
                     if (val < 0.03) return null
                     return (
-                      <span key={key} className="text-[11px] lg:text-xs text-gray-500 dark:text-gray-400">
+                      <span key={key} className="text-xs lg:text-xs text-gray-500 dark:text-gray-400">
                         {icon} {label} {(val * 100).toFixed(0)}%
                       </span>
                     )
                   })}
                   {popupCovariates.elev_mean > 0 && (
-                    <span className="text-[11px] lg:text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs lg:text-xs text-gray-500 dark:text-gray-400">
                       {'\u26F0'} {Math.round(popupCovariates.elev_mean)}m
                     </span>
                   )}
@@ -250,7 +250,7 @@ export default function LifersPopup({
         {/* Notable Birds section */}
         {notableBirds.length > 0 && popup.lifers.length > 0 && (
           <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
-            <div className="text-[11px] lg:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
+            <div className="text-xs lg:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
             {notableBirds.map(({ species, tag, frequency }) => (
               <div key={species.speciesCode} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1"
                 onClick={() => {
@@ -272,7 +272,7 @@ export default function LifersPopup({
                 {/* Add to goal list button */}
                 {popupGoalLists.length > 0 && (
                   popupGoalAddFeedback?.speciesCode === species.speciesCode ? (
-                    <span className={`text-[11px] lg:text-xs flex-shrink-0 font-medium ${
+                    <span className={`text-xs lg:text-xs flex-shrink-0 font-medium ${
                       popupGoalAddFeedback.status === 'added' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
                     }`}>
                       {popupGoalAddFeedback.status === 'added' ? '\u2713' : 'In list'}
@@ -367,7 +367,7 @@ export default function LifersPopup({
                     return (
                       <div key={family}>
                         <div className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
-                          <span className="text-[11px] lg:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{family}</span>
+                          <span className="text-xs lg:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{family}</span>
                         </div>
                         {visibleLifers.map((lifer) => (
                           <div
@@ -405,7 +405,7 @@ export default function LifersPopup({
                               )}
                               {lifer.difficultyRating != null && lifer.difficultyRating >= 5 && (
                                 <span
-                                  className={`inline-flex items-center justify-center min-w-[1.1rem] h-4 px-0.5 rounded text-[11px] lg:text-xs font-bold flex-shrink-0 ${
+                                  className={`inline-flex items-center justify-center min-w-[1.1rem] h-4 px-0.5 rounded text-xs lg:text-xs font-bold flex-shrink-0 ${
                                     lifer.difficultyRating >= 10 ? 'bg-red-200 dark:bg-red-900/60 text-red-900 dark:text-red-200'
                                     : lifer.difficultyRating >= 9 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
                                     : lifer.difficultyRating >= 8 ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300'
