@@ -19,7 +19,7 @@ const GROUP_EMOJI: Record<string, string> = {
   'Auks': '\u{1F427}',                            // penguin (closest)
   'Tubenoses': '\u{1F4A8}',                       // wind/breeze (ocean wanderers)
   'Pelicans, Cormorants, and Allies': '\u{1F41F}', // fish (fish-eaters)
-  'Herons and Allies': '\u{1FABF}',                // long-legged wading bird (goose emoji as stand-in)
+  'Herons and Allies': '\u{1F4A7}',                // droplet (wading in water)
   'Shorebirds': '\u{1F3D6}\u{FE0F}',             // beach
   'Rails, Cranes, and Allies': '\u{1F9A4}',       // dodo (closest to crane)
   'Game Birds': '\u{1F983}',                       // turkey
@@ -45,8 +45,8 @@ const GROUP_EMOJI: Record<string, string> = {
   'Chickadees, Nuthatches, and Allies': '\u{1F330}', // chestnut (seed eaters)
   'Wrens and Gnatcatchers': '\u{1FAB9}',            // empty nest (wrens nest in odd spots)
   'Waxwings, Dippers, and Allies': '\u{1FAB6}',   // feather
-  'Warblers': '\u{1F426}',                         // bird
-  'Pipits and Larks': '\u{2600}\u{FE0F}',         // sun (open country)
+  'Warblers': '\u{1F49B}',                          // yellow heart
+  'Pipits and Larks': '\u{1F3B6}',                  // music notes (larks sing in flight)
   'Sparrows and Allies': '\u{1F33E}',             // rice/grain
   'Finches and Allies': '\u{1F33B}',              // sunflower (seed eaters)
   'Tanagers and Allies': '\u{1F525}',             // fire (brilliant colors)

@@ -46,7 +46,10 @@ html, body {
 }
 .trophy-sheen {
   background-size: 200% 100%;
-  animation: trophy-sheen 8s linear infinite;
+  animation-name: trophy-sheen;
+  animation-duration: 8s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
 }
 .trophy-copper.trophy-sheen {
   background-image: linear-gradient(
@@ -99,13 +102,16 @@ html, body {
   50% { box-shadow: 0 0 14px rgba(255,255,255,0.25); }
 }
 .trophy-glow {
-  animation: trophy-sheen 8s linear infinite, trophy-glow 4s ease-in-out infinite;
-}
-.trophy-silver.trophy-glow {
-  animation: trophy-sheen 8s linear infinite, trophy-glow 4s ease-in-out infinite;
+  animation-name: trophy-sheen, trophy-glow;
+  animation-duration: 8s, 4s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
 }
 .trophy-gold.trophy-glow {
-  animation: trophy-sheen 8s linear infinite, trophy-glow 3s ease-in-out infinite;
+  animation-name: trophy-sheen, trophy-glow;
+  animation-duration: 8s, 3s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
 }
 
 /* Sparkle: small white dots that appear/disappear — gold only */
