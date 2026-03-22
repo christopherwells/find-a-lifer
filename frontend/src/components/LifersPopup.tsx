@@ -3,8 +3,7 @@ import { getDisplayGroup } from '../lib/familyGroups'
 import { detectSubRegionForCell } from '../lib/subRegions'
 import type { Species, CellCovariates } from './types'
 import type { LiferInCell, SpeciesMeta } from '../lib/mapHelpers'
-import type { NotableBird } from '../lib/recommendationEngine'
-import type { GoalList } from '../lib/goalListsDB'
+// NotableBird and GoalList imports removed — Notable Birds section removed
 
 export interface LifersPopupData {
   cellId: number
@@ -20,38 +19,34 @@ export interface LifersPopupData {
 
 interface LifersPopupProps {
   popup: LifersPopupData
-  notableBirds: NotableBird[]
+  notableBirds?: unknown  // kept for caller compat, no longer used
   speciesByIdCache: Map<number, SpeciesMeta> | null
   seenSpecies: Set<string>
   popupShowAll: boolean
   popupShowAllSpecies: boolean
   popupCovariates: CellCovariates | null
-  popupGoalLists: GoalList[]
-  popupGoalAddFeedback: { speciesCode: string; listName: string; status: 'added' | 'already' } | null
+  popupGoalLists?: unknown  // kept for caller compat
+  popupGoalAddFeedback?: unknown  // kept for caller compat
   onClose: () => void
   onSpeciesCardOpen: (species: Species) => void
   onRegionContextChange: (ctx: { subRegionId: string; cellLng: number; cellLat: number } | null) => void
   onShowAllToggle: () => void
   onShowAllSpeciesToggle: () => void
-  onNotableAddToGoal: (speciesCode: string) => void
+  onNotableAddToGoal?: unknown  // kept for caller compat
 }
 
 export default function LifersPopup({
   popup,
-  notableBirds: _notableBirds,
   speciesByIdCache,
   seenSpecies,
   popupShowAll,
   popupShowAllSpecies,
   popupCovariates,
-  popupGoalLists: _popupGoalLists,
-  popupGoalAddFeedback: _popupGoalAddFeedback,
   onClose,
   onSpeciesCardOpen,
   onRegionContextChange,
   onShowAllToggle,
   onShowAllSpeciesToggle,
-  onNotableAddToGoal: _onNotableAddToGoal,
 }: LifersPopupProps) {
   return (
     <div

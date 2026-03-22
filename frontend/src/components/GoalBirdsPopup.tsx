@@ -2,7 +2,6 @@ import Badge from './Badge'
 import { detectSubRegionForCell } from '../lib/subRegions'
 import type { Species } from './types'
 import type { GoalBirdInCell, SpeciesMeta } from '../lib/mapHelpers'
-import type { NotableBird } from '../lib/recommendationEngine'
 
 export interface GoalBirdsPopupData {
   cellId: number
@@ -14,7 +13,7 @@ export interface GoalBirdsPopupData {
 
 interface GoalBirdsPopupProps {
   popup: GoalBirdsPopupData
-  notableBirds: NotableBird[]
+  notableBirds?: unknown  // kept for caller compat, no longer used
   speciesByIdCache: Map<number, SpeciesMeta> | null
   onClose: () => void
   onSpeciesCardOpen: (species: Species) => void
@@ -23,7 +22,6 @@ interface GoalBirdsPopupProps {
 
 export default function GoalBirdsPopup({
   popup,
-  notableBirds: _notableBirds,
   speciesByIdCache,
   onClose,
   onSpeciesCardOpen,
