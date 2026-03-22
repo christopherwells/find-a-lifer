@@ -20,10 +20,9 @@ export const REGION_GROUPS: Record<string, string[]> = {
   'US Rockies':       ['US'],
   'Hawaii':           ['US'],
   // Canada sub-regions (all map to 'CA')
-  'Pacific Northwest & Alaska': ['CA', 'US'],
+  'Western Canada & Alaska': ['CA', 'US'],
   'Central Canada':   ['CA'],
-  'Atlantic Canada & Islands': ['CA', 'PM', 'GL'],
-  'Northern Canada':  ['CA'],
+  'Eastern Canada & North Atlantic Islands': ['CA', 'PM', 'GL'],
   // Mexico sub-regions (all map to 'MX')
   'Northern Mexico':  ['MX'],
   'Southern Mexico':  ['MX'],
@@ -46,10 +45,9 @@ export const REGION_GROUP_CATEGORIES: Record<string, string> = {
   'US Rockies':       'United States',
   'Hawaii':           'United States',
   // Canada
-  'Pacific Northwest & Alaska': 'Canada',
+  'Western Canada & Alaska': 'Canada',
   'Central Canada':   'Canada',
-  'Atlantic Canada & Islands': 'Canada',
-  'Northern Canada':  'Canada',
+  'Eastern Canada & North Atlantic Islands': 'Canada',
   // Mexico
   'Northern Mexico':  'Mexico',
   'Southern Mexico':  'Mexico',
@@ -105,10 +103,9 @@ export const REGION_BBOX: Record<string, [[number, number], [number, number]]> =
   'Hawaii':           [[-161, 18], [-154, 23]],
 
   // Canada sub-regions
-  'Pacific Northwest & Alaska': [[-180, 48], [-110, 72]],
-  'Central Canada':   [[-110, 49], [-89, 60]],
-  'Atlantic Canada & Islands': [[-89, 42], [-52, 55]],
-  'Northern Canada':  [[-141, 55], [-60, 70]],
+  'Western Canada & Alaska': [[-180, 48], [-110, 72]],
+  'Central Canada':   [[-110, 42], [-74, 64]],
+  'Eastern Canada & North Atlantic Islands': [[-74, 42], [-52, 55]],
 
   // Mexico sub-regions
   'Northern Mexico':  [[-117.1, 22], [-97, 32.7]],

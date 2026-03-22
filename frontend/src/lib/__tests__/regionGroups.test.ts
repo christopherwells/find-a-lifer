@@ -26,8 +26,8 @@ describe('expandRegionFilter', () => {
   })
 
   it('expands Canada sub-regions to country codes', () => {
-    expect(expandRegionFilter('Pacific Northwest & Alaska')).toEqual(['CA', 'US'])
-    expect(expandRegionFilter('Atlantic Canada & Islands')).toEqual(['CA', 'PM', 'GL'])
+    expect(expandRegionFilter('Western Canada & Alaska')).toEqual(['CA', 'US'])
+    expect(expandRegionFilter('Eastern Canada & North Atlantic Islands')).toEqual(['CA', 'PM', 'GL'])
   })
 
   it('expands Mexico sub-regions to country code MX', () => {
@@ -111,7 +111,7 @@ describe('REGION_GROUP_CATEGORIES', () => {
     expect(REGION_GROUP_CATEGORIES['Greater Antilles']).toBe('Caribbean')
     expect(REGION_GROUP_CATEGORIES['Western Atlantic Islands']).toBe('Caribbean')
     expect(REGION_GROUP_CATEGORIES['Northeastern US']).toBe('United States')
-    expect(REGION_GROUP_CATEGORIES['Pacific Northwest & Alaska']).toBe('Canada')
+    expect(REGION_GROUP_CATEGORIES['Western Canada & Alaska']).toBe('Canada')
     expect(REGION_GROUP_CATEGORIES['Northern Mexico']).toBe('Mexico')
   })
 })

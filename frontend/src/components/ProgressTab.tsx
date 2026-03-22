@@ -232,10 +232,9 @@ export default function ProgressTab() {
   // Sort regions geographically (north to south, west to east)
   const REGION_ORDER: Record<string, number> = {
     // Canada
-    'Pacific Northwest & Alaska': 1,
+    'Western Canada & Alaska': 1,
     'Central Canada': 2,
-    'Atlantic Canada & Islands': 3,
-    'Northern Canada': 4,
+    'Eastern Canada & North Atlantic Islands': 3,
     // US
     'Western US': 10,
     'US Rockies': 11,
@@ -248,7 +247,8 @@ export default function ProgressTab() {
     'Northern Mexico': 20,
     'Southern Mexico': 21,
     // Central America
-    'Central America': 30,
+    'Upper Central America': 30,
+    'Costa Rica & Panama': 31,
     // Caribbean
     'Greater Antilles': 40,
     'Lesser Antilles': 41,
