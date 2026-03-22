@@ -13,46 +13,46 @@ import { syncUserStats, fetchLeaderboard, fetchFriendLeaderboard, type Leaderboa
 import { getFriends } from '../lib/friendsService'
 
 const GROUP_EMOJI: Record<string, string> = {
-  'Ducks, Geese, and Waterfowl': '\u{1F986}',
-  'Flamingos, Grebes, and Loons': '\u{1F9A9}',
-  'Gulls, Terns, and Skuas': '\u{1F30A}',
-  'Auks': '\u{1F427}',
-  'Tubenoses': '\u{1F30A}',
-  'Pelicans, Cormorants, and Allies': '\u{1F41F}',
-  'Herons and Allies': '\u{1F9A2}',
-  'Shorebirds': '\u{1F3D6}\u{FE0F}',
-  'Rails, Cranes, and Allies': '\u{1F9A4}',
-  'Game Birds': '\u{1F983}',
-  'Pigeons and Doves': '\u{1F54A}\u{FE0F}',
-  'Cuckoos and Allies': '\u{1F426}',
-  'Hummingbirds': '\u{1F48E}',
-  'Nightjars and Allies': '\u{1F319}',
-  'Vultures, Hawks, and Allies': '\u{1F985}',
-  'Falcons': '\u{1F985}',
-  'Owls': '\u{1F989}',
-  'Trogons': '\u{1F308}',
-  'Kingfishers, Motmots, and Allies': '\u{1F451}',
-  'Toucans, Barbets, and Allies': '\u{1F99C}',
-  'Woodpeckers': '\u{1FAB5}',
-  'Parrots': '\u{1F99C}',
-  'Antbirds and Allies': '\u{1F41C}',
-  'Ovenbirds and Woodcreepers': '\u{1F3E0}',
-  'Flycatchers': '\u{1FAB0}',
-  'Cotingas, Manakins, and Allies': '\u{1F483}',
-  'Shrikes and Vireos': '\u{1F3AD}',
-  'Crows and Jays': '\u{1F5A4}',
-  'Swifts and Swallows': '\u{2708}\u{FE0F}',
-  'Chickadees, Nuthatches, and Allies': '\u{1F330}',
-  'Wrens and Gnatcatchers': '\u{1F3B5}',
-  'Waxwings, Dippers, and Allies': '\u{2744}\u{FE0F}',
-  'Warblers': '\u{1F33F}',
-  'Pipits and Larks': '\u{1F3B6}',
-  'Sparrows and Allies': '\u{1F33E}',
-  'Finches and Allies': '\u{1F33B}',
-  'Tanagers and Allies': '\u{1F33A}',
-  'Thrushes, Mockingbirds, and Allies': '\u{1F3A4}',
-  'Cardinals and Allies': '\u{2764}\u{FE0F}',
-  'Blackbirds and Orioles': '\u{1F34A}',
+  'Ducks, Geese, and Waterfowl': '\u{1F986}',   // duck
+  'Flamingos, Grebes, and Loons': '\u{1F9A9}',   // flamingo
+  'Gulls, Terns, and Skuas': '\u{1F30A}',           // ocean wave
+  'Auks': '\u{1F427}',                            // penguin (closest)
+  'Tubenoses': '\u{1F4A8}',                       // wind/breeze (ocean wanderers)
+  'Pelicans, Cormorants, and Allies': '\u{1F41F}', // fish (fish-eaters)
+  'Herons and Allies': '\u{1FABF}',                // long-legged wading bird (goose emoji as stand-in)
+  'Shorebirds': '\u{1F3D6}\u{FE0F}',             // beach
+  'Rails, Cranes, and Allies': '\u{1F9A4}',       // dodo (closest to crane)
+  'Game Birds': '\u{1F983}',                       // turkey
+  'Pigeons and Doves': '\u{1F54A}\u{FE0F}',      // dove
+  'Cuckoos and Allies': '\u{23F0}',               // alarm clock (cuckoo clock)
+  'Hummingbirds': '\u{1F48E}',                    // gem (iridescent)
+  'Nightjars and Allies': '\u{1F319}',            // crescent moon
+  'Vultures, Hawks, and Allies': '\u{1F985}',     // eagle
+  'Falcons': '\u{1F3AF}',                         // target (precision hunters)
+  'Owls': '\u{1F989}',                            // owl
+  'Trogons': '\u{1F308}',                         // rainbow (colorful)
+  'Kingfishers, Motmots, and Allies': '\u{1F451}', // crown (king-fishers)
+  'Toucans, Barbets, and Allies': '\u{1F34C}',    // banana (tropical bill)
+  'Woodpeckers': '\u{1FAB5}',                     // wood
+  'Parrots': '\u{1F99C}',                         // parrot
+  'Antbirds and Allies': '\u{1F41C}',             // ant
+  'Ovenbirds and Woodcreepers': '\u{1F333}',      // tree (bark creepers)
+  'Flycatchers': '\u{1FAB0}',                     // fly
+  'Cotingas, Manakins, and Allies': '\u{1F483}',  // dancer (manakin dances)
+  'Shrikes and Vireos': '\u{1F3AD}',              // masks (impaler)
+  'Crows and Jays': '\u{1F5A4}',                  // black heart
+  'Swifts and Swallows': '\u{2708}\u{FE0F}',     // airplane (aerial)
+  'Chickadees, Nuthatches, and Allies': '\u{1F330}', // chestnut (seed eaters)
+  'Wrens and Gnatcatchers': '\u{1FAB9}',            // empty nest (wrens nest in odd spots)
+  'Waxwings, Dippers, and Allies': '\u{1FAB6}',   // feather
+  'Warblers': '\u{1F426}',                         // bird
+  'Pipits and Larks': '\u{2600}\u{FE0F}',         // sun (open country)
+  'Sparrows and Allies': '\u{1F33E}',             // rice/grain
+  'Finches and Allies': '\u{1F33B}',              // sunflower (seed eaters)
+  'Tanagers and Allies': '\u{1F525}',             // fire (brilliant colors)
+  'Thrushes, Mockingbirds, and Allies': '\u{1F3B5}', // music note (famous songsters)
+  'Cardinals and Allies': '\u{2764}\u{FE0F}\u{200D}\u{1F525}', // heart on fire (passionate red)
+  'Blackbirds and Orioles': '\u{1F34A}',          // orange (oriole color)
 }
 
 export default function ProgressTab() {
@@ -328,14 +328,18 @@ export default function ProgressTab() {
                 ? 'trophy-sheen'
                 : ''
               const emoji = GROUP_EMOJI[g.name] || '\u{1F3C6}'
+              // Random animation delay so plaques don't all shine at once
+              const delay = ((g.name.length * 7 + g.seen * 13) % 20) * 0.5
               return (
                 <div
                   key={g.name}
-                  className={`relative flex flex-col items-center p-2 rounded-lg shadow-sm overflow-hidden ${tierClass} ${animClass}`}
+                  className={`relative flex flex-col items-center p-2.5 rounded-lg shadow-sm overflow-hidden ${tierClass} ${animClass}`}
+                  style={{ animationDelay: `${delay}s` }}
                   data-testid={`trophy-${g.name.replace(/\s+/g, '-').toLowerCase()}`}
+                  title={`${g.name}: ${g.seen}/${g.total}`}
                 >
                   <span className="text-2xl">{emoji}</span>
-                  <p className="text-[10px] font-semibold text-center leading-tight mt-1 line-clamp-2">{g.name}</p>
+                  <p className="text-[9px] font-semibold text-center leading-tight mt-1" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{g.name}</p>
                   <p className="text-[10px] font-medium mt-0.5">{g.seen}/{g.total}</p>
                 </div>
               )
