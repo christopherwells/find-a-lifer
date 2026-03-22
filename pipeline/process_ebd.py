@@ -1268,7 +1268,7 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     # Exotic code → invasion status mapping
     # Priority for mixed codes in a region: N > P > X > ""
     EXOTIC_PRIORITY = {"N": 3, "P": 2, "X": 1, "": 0}
-    EXOTIC_TO_STATUS = {"N": "Introduced", "P": "Vagrant/Accidental", "X": "Vagrant/Accidental", "": "Native"}
+    EXOTIC_TO_STATUS = {"N": "Introduced", "P": "Provisional", "X": "Escapee", "": "Native"}
 
     if species_exotic_codes is None:
         species_exotic_codes = {}
@@ -1350,6 +1350,13 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             if "regionalDifficulty" in d:
                 entry["regionalDifficulty"] = d["regionalDifficulty"]
             difficulty_matched += 1
+
+        # Filter: skip species that are Escapee in ALL regions
+        # (escaped pets, zoo birds — not useful for trip planning)
+        # Provisional vagrants (P) are kept — they're naturally occurring
+        invasion = entry.get("invasionStatus", {})
+        if invasion and all(v == "Escapee" for v in invasion.values()):
+            continue
 
         species_list.append(entry)
     species_list.sort(key=lambda s: s["taxonOrder"])
