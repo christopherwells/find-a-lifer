@@ -59,7 +59,7 @@ describe('ExploreTab', () => {
     fireEvent.click(screen.getByText('Goals'))
     // The Goals button should now be selected (has the active styling class)
     const goalsBtn = screen.getByTestId('view-mode-goal-birds')
-    expect(goalsBtn.className).toContain('text-[#2C3E7B]')
+    expect(goalsBtn.className).toContain('text-[var(--color-brand)]')
   })
 
   it('shows animation play button', () => {
