@@ -1699,8 +1699,15 @@ export default memo(function MapView({
         ref={mapContainer}
         data-testid="map-container"
         className="w-full h-full"
+        role="application"
+        aria-label="Interactive species distribution map. Click hexagonal cells to see species data. Use the side panel tabs for keyboard-accessible species lists, filters, and trip planning."
         style={{ minHeight: '100%' }}
       />
+      {/* Screen reader announcement for cell clicks */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {lifersPopup && `${lifersPopup.label || 'Selected cell'}: ${lifersPopup.totalSpecies} species, ${lifersPopup.lifers.length} unseen`}
+        {goalBirdsPopup && `${goalBirdsPopup.label || 'Selected cell'}: ${goalBirdsPopup.totalGoalSpecies} goal species found`}
+      </div>
       {isLoadingWeek && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200">
           <div className="flex items-center space-x-2">

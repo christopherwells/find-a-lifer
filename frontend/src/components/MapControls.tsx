@@ -15,7 +15,7 @@ const VIEW_MODES: { mode: MapViewMode; label: string; icon: React.ReactNode }[] 
   {
     mode: 'density',
     label: 'Lifers',
-    icon: <span className="text-sm font-bold leading-none">L</span>,
+    icon: <span className="text-xs font-bold leading-none">Lifers</span>,
   },
   {
     mode: 'species',
