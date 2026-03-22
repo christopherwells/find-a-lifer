@@ -313,7 +313,20 @@ export default function ProgressTab() {
             { label: '\u{1FA99}', name: 'Silver', tier: 'silver' as const, color: 'text-gray-400 dark:text-gray-300' },
             { label: '\u{1F7E4}', name: 'Copper', tier: 'copper' as const, color: 'text-amber-700 dark:text-amber-500' },
             { label: '\u{1F331}', name: 'Started', tier: null, color: 'text-gray-500 dark:text-gray-400' },
-          ] as const).map(({ label, name, tier, color }, i) => (
+          ] as const).filter(({ tier }) => {
+            // Always show emerald (the aspirational top)
+            if (tier === 'emerald') return true
+            // For lower tiers: show if ANY group is still at or below this tier
+            // "Started" (null) shows if any group has seen>0 but <10% (no tier)
+            // "Copper" shows if any group is at copper or below (started/copper)
+            // etc.
+            const tierRank = { 'emerald': 5, 'diamond': 4, 'gold': 3, 'silver': 2, 'copper': 1 }
+            const thisRank = tier ? tierRank[tier] : 0
+            return earnedGroups.some(g => {
+              const groupRank = g.level ? tierRank[g.level] : 0
+              return groupRank <= thisRank
+            })
+          }).map(({ label, name, tier, color }, i) => (
             <div key={i} className="text-center">
               <p className={`text-xl font-bold ${color}`}>
                 {tier ? earnedGroups.filter(g => g.level === tier).length : earnedGroups.filter(g => g.level === null).length}
