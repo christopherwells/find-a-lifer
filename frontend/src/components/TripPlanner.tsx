@@ -258,17 +258,17 @@ export default function TripPlanner({
       </div>
 
       {/* View toggle */}
-      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 grid grid-cols-2" role="tablist">
+      <div className="bg-gray-200 dark:bg-gray-700 rounded-lg p-1 grid grid-cols-2 gap-1" role="tablist">
         {(['location', 'week'] as const).map(m => (
           <button
             key={m}
             role="tab"
             aria-selected={viewMode === m}
             onClick={() => { setViewMode(m); setExpandedId(null) }}
-            className={`py-1.5 text-xs font-medium rounded-md text-center transition-all ${
+            className={`py-2 text-xs font-semibold rounded-md text-center transition-all ${
               viewMode === m
-                ? 'bg-white dark:bg-gray-800 text-[#2C3E7B] dark:text-blue-400 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'bg-[#2C3E7B] text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
             }`}
           >
             {m === 'location' ? 'By Location' : 'By Week'}

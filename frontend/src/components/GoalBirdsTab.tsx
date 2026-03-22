@@ -1002,7 +1002,7 @@ export default function GoalBirdsTab() {
                           {species && (
                             <button
                               onClick={() => setSelectedSpeciesCard(species)}
-                              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[#2C3E7B] hover:bg-[#2C3E7B] hover:text-white rounded transition-colors opacity-0 group-hover:opacity-100"
+                              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-[#2C3E7B] dark:text-blue-400 hover:bg-[#2C3E7B] hover:text-white dark:hover:bg-blue-600 rounded transition-colors"
                               title="View species info"
                               aria-label={`View info about ${species.comName}`}
                               data-testid={`goal-species-info-icon-${code}`}
@@ -1015,7 +1015,7 @@ export default function GoalBirdsTab() {
                           {/* Remove button */}
                           <button
                             onClick={() => handleRemoveSpecies(code, species?.comName || code)}
-                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors opacity-0 group-hover:opacity-100"
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                             title="Remove from list"
                             aria-label={`Remove ${species?.comName || code} from list`}
                             data-testid={`remove-species-${code}`}

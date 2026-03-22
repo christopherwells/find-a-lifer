@@ -197,12 +197,22 @@ export function getWeeklyHighlightsLite(
     if (seenCodes.has(sp.speciesCode)) continue
     if (!sp.peakWeek || sp.peakWeek < 1) continue
 
-    // Region filter: if a region is selected, only show species with data in that region
-    // Uses regionalDifficulty keys as a presence indicator for sub-regions,
-    // and superRegions array for super-regions
+    // Region filter: check if species has occurrence data in the selected region
     if (regionId) {
-      const inSubRegion = sp.regionalDifficulty && regionId in sp.regionalDifficulty
-      const inSuperRegion = sp.superRegions?.includes(regionId)
+      const subRegionKeys = Object.keys(sp.regionalDifficulty ?? {})
+      // Direct sub-region match (e.g., "us-ne")
+      const inSubRegion = subRegionKeys.includes(regionId)
+      // Super-region match: map sub-region IDs to their parent super-region
+      // and check if any match the selected super-region
+      const superToSubs: Record<string, string[]> = {
+        'northern': ['ca-west', 'ca-central', 'ca-east'],
+        'continental-us': ['us-ne', 'us-se', 'us-mw', 'us-sw', 'us-west', 'us-rockies'],
+        'hawaii': ['us-hi'],
+        'mex-central': ['mx-north', 'mx-south', 'ca-c-north', 'ca-c-south'],
+        'caribbean': ['caribbean-greater', 'caribbean-lesser', 'atlantic-west'],
+      }
+      const memberSubs = superToSubs[regionId]
+      const inSuperRegion = memberSubs ? subRegionKeys.some(k => memberSubs.includes(k)) : false
       if (!inSubRegion && !inSuperRegion) continue
     }
 
