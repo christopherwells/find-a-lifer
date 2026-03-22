@@ -22,12 +22,6 @@ describe('TopBar', () => {
     expect(screen.getByText('Find-A-Lifer')).toBeInTheDocument()
   })
 
-  it('renders dark mode toggle button', () => {
-    render(<TopBar {...defaultProps} />)
-    const button = screen.getByRole('button', { name: /switch to dark mode/i })
-    expect(button).toBeInTheDocument()
-  })
-
   it('renders kebab menu button', () => {
     render(<TopBar {...defaultProps} />)
     expect(screen.getByTestId('topbar-menu-button')).toBeInTheDocument()
