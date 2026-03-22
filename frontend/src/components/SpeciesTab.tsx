@@ -567,9 +567,9 @@ export default function SpeciesTab() {
                 className="flex-1 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="seen-filter"
               >
-                <option value="">Seen & Unseen</option>
-                <option value="seen">Seen Only</option>
-                <option value="unseen">Unseen Only</option>
+                <option value="">List: All</option>
+                <option value="seen">List: Seen</option>
+                <option value="unseen">List: Unseen</option>
               </select>
             </div>
             {/* Habitat + Difficulty */}
@@ -668,7 +668,7 @@ export default function SpeciesTab() {
                 }`}
                 title={showTotalRichness ? 'Map shows all species including seen' : 'Map shows only unseen species (lifers)'}
               >
-                Include Seen
+                {showTotalRichness ? 'Map: All' : 'Map: Lifers'}
                 <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
                   showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
                 }`}>
