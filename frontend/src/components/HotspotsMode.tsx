@@ -34,7 +34,6 @@ export default function HotspotsMode({
   const [hotspotWeek, setHotspotWeek] = useState(currentWeek)
   const [hotspots, setHotspots] = useState<HotspotLocation[]>([])
   const [hotspotsLoading, setHotspotsLoading] = useState(false)
-  const [hotspotSortMode, setHotspotSortMode] = useState<'liferCount' | 'name'>('liferCount')
   const [showAll, setShowAll] = useState(false)
 
   // Sync week with parent
@@ -92,18 +91,8 @@ export default function HotspotsMode({
   }, [hotspotWeek, speciesLoaded, speciesData, gridData, seenSpecies, selectedRegion])
 
   const sortedHotspots = useMemo(() => {
-    const sorted = [...hotspots]
-    if (hotspotSortMode === 'name') {
-      sorted.sort((a, b) => {
-        const nameA = cellLabels.get(a.cellId) || ''
-        const nameB = cellLabels.get(b.cellId) || ''
-        return nameA.localeCompare(nameB)
-      })
-    } else {
-      sorted.sort((a, b) => b.liferCount - a.liferCount)
-    }
-    return sorted
-  }, [hotspots, hotspotSortMode])
+    return [...hotspots].sort((a, b) => b.liferCount - a.liferCount)
+  }, [hotspots])
 
   const formatLocation = (coordinates: [number, number], cellId?: number): string => {
     if (cellId != null) {
