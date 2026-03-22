@@ -157,9 +157,6 @@ export default function ProgressTab() {
     }
   })
 
-  // Calculate quick stats
-  const groupsStarted = Object.values(groupStats).filter(s => s.seen > 0).length
-
   // Trophy tiers: copper (>=10%), silver (>=25%), gold (>=50%), diamond (>=75%), emerald (100%)
   type TrophyLevel = 'emerald' | 'diamond' | 'gold' | 'silver' | 'copper' | null
   const getTrophyLevel = (seen: number, total: number): TrophyLevel => {
@@ -189,11 +186,6 @@ export default function ProgressTab() {
 
   // Almost-there groups (1-3 remaining, must have ≥5 species and ≥1 already seen
   // to exclude nonsensical groups like Cassowaries and Emu in North America)
-  const almostThereGroups = Object.entries(groupStats)
-    .map(([name, stats]) => ({ name, remaining: stats.total - stats.seen, seen: stats.seen, total: stats.total }))
-    .filter(g => g.remaining > 0 && g.remaining <= 3 && g.total >= 5 && g.seen > 0)
-    .sort((a, b) => a.remaining - b.remaining)
-
   // Build sub-region ID → display name lookup
   const subRegionIdToName: Record<string, string> = {}
   SUB_REGIONS.forEach(sr => {
@@ -281,26 +273,32 @@ export default function ProgressTab() {
         </p>
       </div>
 
-      {/* 3. Quick Stats — compact single row */}
+      {/* 3. Quick Stats — tier breakdown */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3" data-testid="quick-stats">
         <div className="flex items-center justify-around">
-          <div className="text-center">
-            <p className="text-xl font-bold text-[#2C3E7B] dark:text-blue-400" data-testid="groups-started-count">{groupsStarted}</p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Groups Started</p>
-          </div>
-          <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
-          <div className="text-center">
-            <p className="text-xl font-bold text-[#27AE60] dark:text-green-400" data-testid="groups-completed-count">{earnedGroups.filter(g => g.level !== null).length}</p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Trophies</p>
-          </div>
+          {([
+            { label: '\u{1F7E2}', name: 'Emerald', tier: 'emerald' as const, color: 'text-emerald-600 dark:text-emerald-400' },
+            { label: '\u{1F4A0}', name: 'Diamond', tier: 'diamond' as const, color: 'text-sky-500 dark:text-sky-400' },
+            { label: '\u{1F947}', name: 'Gold', tier: 'gold' as const, color: 'text-yellow-500 dark:text-yellow-400' },
+            { label: '\u{1FA99}', name: 'Silver', tier: 'silver' as const, color: 'text-gray-400 dark:text-gray-300' },
+            { label: '\u{1F7E4}', name: 'Copper', tier: 'copper' as const, color: 'text-amber-700 dark:text-amber-500' },
+            { label: '\u{1F331}', name: 'Started', tier: null, color: 'text-gray-500 dark:text-gray-400' },
+          ] as const).map(({ label, name, tier, color }, i) => (
+            <div key={i} className="text-center">
+              <p className={`text-xl font-bold ${color}`}>
+                {tier ? earnedGroups.filter(g => g.level === tier).length : earnedGroups.filter(g => g.level === null).length}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{label} {name}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* 4. Activity */}
       {weeklySummary && weeklySummary.newLifers > 0 && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="activity-section">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Activity</h4>
-          <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
+          <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">Activity</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
             This week: <span className="font-medium text-[#2C3E7B] dark:text-blue-400">+{weeklySummary.newLifers} lifers</span>
             {weeklySummary.newFamiliesStarted > 0 && (
               <>, <span className="font-medium text-[#27AE60] dark:text-green-400">{weeklySummary.newFamiliesStarted} new {weeklySummary.newFamiliesStarted === 1 ? 'group' : 'groups'}</span></>
@@ -311,7 +309,7 @@ export default function ProgressTab() {
 
       {/* 5. Trophy Case — 5-tier display: copper/silver/gold/diamond/emerald */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
+        <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
         {earnedGroups.length > 0 ? (
           <div className="grid grid-cols-3 gap-2">
             {earnedGroups.map((g) => {
@@ -324,7 +322,7 @@ export default function ProgressTab() {
                 : g.level === 'silver'
                 ? 'trophy-silver bg-gray-300 text-gray-800 dark:bg-gray-400 dark:text-gray-900'
                 : g.level === 'copper'
-                ? 'trophy-copper bg-amber-800 text-amber-100'
+                ? 'trophy-copper bg-[#8B4531] text-amber-100'
                 : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
               const animClass = g.level === 'emerald'
                 ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse trophy-prismatic'
@@ -348,34 +346,20 @@ export default function ProgressTab() {
                   data-testid={`trophy-${g.name.replace(/\s+/g, '-').toLowerCase()}`}
                   title={`${g.name}: ${g.seen}/${g.total}`}
                 >
-                  <span className="text-2xl">{emoji}</span>
-                  <p className="text-[9px] font-semibold text-center leading-tight mt-1" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{g.name}</p>
-                  <p className="text-[10px] font-medium mt-0.5">{g.seen}/{g.total}</p>
+                  <span className="text-3xl">{emoji}</span>
+                  <p className="text-xs font-semibold text-center leading-tight mt-1" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{g.name}</p>
+                  <p className="text-sm font-medium mt-0.5">{g.seen}/{g.total}</p>
                 </div>
               )
             })}
           </div>
         ) : (
-          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+          <p className="text-sm text-gray-500 dark:text-gray-400 italic">
             Start seeing species in a group to earn your first trophy!
           </p>
         )}
       </div>
 
-      {/* 6. Almost There */}
-      {almostThereGroups.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="almost-there">
-          <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Almost There!</h4>
-          <div className="space-y-1.5">
-            {almostThereGroups.map((g) => (
-              <p key={g.name} className="text-xs text-gray-600 dark:text-gray-400">
-                <span className="font-medium text-gray-800 dark:text-gray-200">{g.name}:</span>{' '}
-                {g.seen} of {g.total} — just <span className="font-bold text-[#2C3E7B] dark:text-blue-400">{g.remaining}</span> to go!
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 7. Milestones */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="milestones-section">

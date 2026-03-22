@@ -54,11 +54,11 @@ html, body {
 .trophy-copper.trophy-sheen {
   background-image: linear-gradient(
     110deg,
-    rgb(146 64 14) 0%,
-    rgb(146 64 14) 40%,
-    rgb(180 90 30) 50%,
-    rgb(146 64 14) 60%,
-    rgb(146 64 14) 100%
+    rgb(139 69 49) 0%,
+    rgb(139 69 49) 40%,
+    rgb(184 107 77) 50%,
+    rgb(139 69 49) 60%,
+    rgb(139 69 49) 100%
   );
 }
 .trophy-silver.trophy-sheen {
@@ -116,10 +116,10 @@ html, body {
   }
 }
 
-/* Glow: subtle pulse — 2nd animation for silver + gold */
+/* Glow: visible pulse — 2nd animation for silver + gold + diamond + emerald */
 @keyframes trophy-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(255,255,255,0.05); }
-  50% { box-shadow: 0 0 14px rgba(255,255,255,0.25); }
+  0%, 100% { box-shadow: 0 0 2px rgba(255,255,255,0.1), 0 0 6px rgba(255,255,255,0.05); }
+  50% { box-shadow: 0 0 8px rgba(255,255,255,0.4), 0 0 20px rgba(255,255,255,0.15); }
 }
 .trophy-glow {
   animation-name: trophy-sheen, trophy-glow;
@@ -180,14 +180,14 @@ html, body {
   animation: trophy-sparkle-2 2.2s ease-in-out infinite;
 }
 
-/* Pulse: subtle border color animation — diamond + emerald */
+/* Pulse: visible border animation — diamond + emerald */
 @keyframes trophy-pulse {
-  0%, 100% { border-color: rgba(255, 255, 255, 0.3); }
-  50% { border-color: rgba(255, 255, 255, 0.7); }
+  0%, 100% { border-color: rgba(255, 255, 255, 0.2); box-shadow: 0 0 4px rgba(255,255,255,0.1); }
+  50% { border-color: rgba(255, 255, 255, 0.8); box-shadow: 0 0 12px rgba(255,255,255,0.3); }
 }
 .trophy-pulse {
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  animation: trophy-pulse 3s ease-in-out infinite;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  animation: trophy-pulse 2.5s ease-in-out infinite;
 }
 
 /* Prismatic: very subtle hue rotation — emerald only */

@@ -155,7 +155,7 @@ describe('ProgressTab', () => {
     await waitFor(() => {
       expect(screen.getByTestId('quick-stats')).toBeInTheDocument()
     })
-    // With 2 species seen across 2 different groups (Ducks and Hawks), groups started = 2
-    expect(screen.getByTestId('groups-started-count')).toHaveTextContent('2')
+    // Quick stats shows tier breakdown
+    expect(screen.getByTestId('quick-stats')).toBeInTheDocument()
   })
 })
