@@ -9,6 +9,7 @@ import { SUB_REGIONS, SUPER_REGIONS } from '../lib/subRegions'
 
 interface MapControlsProps {
   seenSpecies: Set<string>
+  onHighlightSelect?: (species: Species) => void
 }
 
 const VIEW_MODES: { mode: MapViewMode; label: string; icon: React.ReactNode }[] = [
@@ -43,6 +44,7 @@ const MULTI_COLORS = ['#4A90D9', '#E74C3C', '#27AE60', '#8E44AD']
 
 export default function MapControls({
   seenSpecies,
+  onHighlightSelect,
 }: MapControlsProps) {
   const {
     state: {
@@ -294,9 +296,10 @@ export default function MapControls({
                     'rare-visitor': 'Rare',
                   }
                   return (
-                    <div
+                    <button
                       key={h.species.speciesCode}
-                      className="flex items-center gap-2 px-2 py-1.5 bg-white/60 dark:bg-gray-800/60 rounded-lg"
+                      onClick={() => onHighlightSelect?.(h.species as Species)}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 bg-white/60 dark:bg-gray-800/60 rounded-lg hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors text-left min-h-[44px]"
                     >
                       <span className={`flex-shrink-0 px-1.5 py-0.5 text-xs font-bold rounded ${catStyles[h.category]}`}>
                         {catLabels[h.category]}
@@ -309,7 +312,7 @@ export default function MapControls({
                           {h.reason}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>

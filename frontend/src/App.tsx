@@ -5,6 +5,8 @@ import MapView from './components/MapView'
 import MapControls from './components/MapControls'
 import ErrorBoundary from './components/ErrorBoundary'
 import AboutPage from './components/AboutPage'
+import SpeciesInfoCard from './components/SpeciesInfoCard'
+import type { Species } from './components/types'
 import Toast from './components/Toast'
 import { useLifeList } from './contexts/LifeListContext'
 import { useToast } from './contexts/ToastContext'
@@ -26,6 +28,7 @@ function AppInner() {
   })
   const [showAbout, setShowAbout] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [highlightSpeciesCard, setHighlightSpeciesCard] = useState<Species | null>(null)
   const tourStartedRef = useRef(false)
   const { effectiveSeenSpecies, importSpeciesList, activeTripName, activeTripMemberCount, setTripUnion, setActiveTripName, setActiveTripMemberCount } = useLifeList()
   const { showToast } = useToast()
@@ -150,7 +153,15 @@ function AppInner() {
           {/* Floating map controls — mobile only (desktop uses ExploreTab in panel) */}
           <MapControls
             seenSpecies={effectiveSeenSpecies}
+            onHighlightSelect={(species) => setHighlightSpeciesCard(species)}
           />
+          {/* Species card from mobile highlight tap */}
+          {highlightSpeciesCard && (
+            <SpeciesInfoCard
+              species={highlightSpeciesCard}
+              onClose={() => setHighlightSpeciesCard(null)}
+            />
+          )}
         </div>
 
         {/* Side Panel */}
