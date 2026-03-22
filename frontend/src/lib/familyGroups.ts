@@ -197,7 +197,7 @@ const FAMILY_TO_GROUP: Record<string, string> = {
   'Cassowaries and Emu': 'Game Birds',
   'Rheas': 'Game Birds',
   'Magpie Goose': 'Ducks, Geese, and Waterfowl',
-  'Sandgrouse': 'Game Birds',
+  'Sandgrouse': 'Pigeons and Doves',
   'Hornbills': 'Kingfishers, Motmots, and Allies',
   'Tyrant Flycatchers': 'Flycatchers',
   'Monarch Flycatchers': 'Flycatchers',
