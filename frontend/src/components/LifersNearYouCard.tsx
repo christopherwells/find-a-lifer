@@ -21,22 +21,24 @@ export default function LifersNearYouCard({
 }: LifersNearYouCardProps) {
   const [lifers, setLifers] = useState<NearbyLifer[]>([])
   const [loading, setLoading] = useState(false)
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
-  const fetchedRef = useRef<string>('')
-
-  // Get user location from localStorage mapPosition or geolocation
-  useEffect(() => {
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(() => {
+    // Initialize from localStorage synchronously (not in an effect)
     const stored = localStorage.getItem('mapPosition')
     if (stored) {
       try {
         const pos = JSON.parse(stored)
         if (pos.center) {
-          setUserLocation([pos.center.lng ?? pos.center[0], pos.center.lat ?? pos.center[1]])
-          return
+          return [pos.center.lng ?? pos.center[0], pos.center.lat ?? pos.center[1]]
         }
       } catch { /* ignore */ }
     }
-    // Fallback: try geolocation
+    return null
+  })
+  const fetchedRef = useRef<string>('')
+
+  // Fallback: try geolocation if no stored position
+  useEffect(() => {
+    if (userLocation) return
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setUserLocation([pos.coords.longitude, pos.coords.latitude]),
@@ -44,7 +46,7 @@ export default function LifersNearYouCard({
         { timeout: 5000 }
       )
     }
-  }, [])
+  }, [userLocation])
 
   // Fetch lifers when location/week/seenSpecies change
   useEffect(() => {
@@ -52,13 +54,22 @@ export default function LifersNearYouCard({
     const key = `${userLocation[0].toFixed(2)},${userLocation[1].toFixed(2)}-${week}-${seenSpecies.size}`
     if (key === fetchedRef.current) return
     fetchedRef.current = key
+    let cancelled = false
 
-    setLoading(true)
-    getLifersNearLocation(userLocation[0], userLocation[1], week, seenSpecies, compact ? 3 : 5, resolution)
-      .then(setLifers)
-      .catch(() => setLifers([]))
-      .finally(() => setLoading(false))
-  }, [userLocation, week, seenSpecies, resolution, compact])
+    const load = async () => {
+      setLoading(true)
+      try {
+        const results = await getLifersNearLocation(userLocation[0], userLocation[1], week, seenSpecies, compact ? 3 : 5, resolution)
+        if (!cancelled) setLifers(results)
+      } catch {
+        if (!cancelled) setLifers([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [userLocation, week, seenSpecies, seenSpecies.size, resolution, compact])
 
   if (!userLocation || (lifers.length === 0 && !loading)) return null
 
