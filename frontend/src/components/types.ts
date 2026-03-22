@@ -55,11 +55,6 @@ export interface SpeciesFilters {
   difficulty: string       // '' = all
 }
 
-export interface CompareLocations {
-  locationA: SelectedLocation | null
-  locationB: SelectedLocation | null
-}
-
 export interface TripLifer {
   species_id: number
   speciesCode: string

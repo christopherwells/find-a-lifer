@@ -1,7 +1,6 @@
 import { memo, useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-// getDisplayGroup removed — habitat filter replaced family filter
 import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { loadCellStates, isCellInRegion } from '../lib/subRegions'
@@ -162,7 +161,6 @@ export default memo(function MapView({
       liferCountRange,
       showTotalRichness,
       speciesFilters,
-      compareLocations,
     },
     goalSpeciesCodes,
     setSelectedLocation: onLocationSelect,
@@ -361,60 +359,6 @@ export default memo(function MapView({
     setPopupShowAll(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [popupShowAllSpecies])
-
-  // Compare mode location markers (A = blue, B = orange)
-  const compareMarkerARef = useRef<maplibregl.Marker | null>(null)
-  const compareMarkerBRef = useRef<maplibregl.Marker | null>(null)
-
-  useEffect(() => {
-    if (!map.current) return
-
-    // Remove existing markers
-    if (compareMarkerARef.current) {
-      compareMarkerARef.current.remove()
-      compareMarkerARef.current = null
-    }
-    if (compareMarkerBRef.current) {
-      compareMarkerBRef.current.remove()
-      compareMarkerBRef.current = null
-    }
-
-    if (!compareLocations) return
-
-    // Create Marker A (blue)
-    if (compareLocations.locationA) {
-      const elA = document.createElement('div')
-      elA.style.cssText = 'width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:default;'
-      elA.style.backgroundColor = 'var(--color-brand)'
-      elA.textContent = 'A'
-      compareMarkerARef.current = new maplibregl.Marker({ element: elA })
-        .setLngLat(compareLocations.locationA.coordinates)
-        .addTo(map.current)
-    }
-
-    // Create Marker B (orange)
-    if (compareLocations.locationB) {
-      const elB = document.createElement('div')
-      elB.style.cssText = 'width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:default;'
-      elB.style.backgroundColor = '#E67E22'
-      elB.textContent = 'B'
-      compareMarkerBRef.current = new maplibregl.Marker({ element: elB })
-        .setLngLat(compareLocations.locationB.coordinates)
-        .addTo(map.current)
-    }
-
-    // Cleanup on unmount or when dependencies change
-    return () => {
-      if (compareMarkerARef.current) {
-        compareMarkerARef.current.remove()
-        compareMarkerARef.current = null
-      }
-      if (compareMarkerBRef.current) {
-        compareMarkerBRef.current.remove()
-        compareMarkerBRef.current = null
-      }
-    }
-  }, [compareLocations])
 
   // Build species filter ID set from Species tab filters (family, region, conservation, invasion, difficulty)
   // null = no filter active (show all), Set = only these species match

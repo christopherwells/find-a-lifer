@@ -26,7 +26,6 @@ function AppInner() {
   })
   const [showAbout, setShowAbout] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  // AddSpeciesModal removed — use Species tab search instead
   const tourStartedRef = useRef(false)
   const { effectiveSeenSpecies, importSpeciesList, activeTripName, activeTripMemberCount, setTripUnion, setActiveTripName, setActiveTripMemberCount } = useLifeList()
   const { showToast } = useToast()

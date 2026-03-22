@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useMemo, useEffect, useCallback, type ReactNode } from 'react'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
 import { trackEvent } from '../lib/analytics'
-import type { MapViewMode, LiferMetric, SelectedLocation, SpeciesFilters, CompareLocations } from '../components/types'
+import type { MapViewMode, LiferMetric, SelectedLocation, SpeciesFilters } from '../components/types'
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
@@ -22,7 +22,6 @@ export interface MapControlsState {
   seenFilter: '' | 'seen' | 'unseen' | 'lifers'
   goalLists: GoalList[]
   activeGoalListId: string | null
-  compareLocations: CompareLocations | null
 }
 
 function getInitialWeek(): number {
@@ -50,7 +49,6 @@ const initialState: MapControlsState = {
   seenFilter: '',
   goalLists: [],
   activeGoalListId: null,
-  compareLocations: null,
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────────
@@ -72,7 +70,6 @@ type MapControlsAction =
   | { type: 'SET_SPECIES_FILTERS'; filters: SpeciesFilters }
   | { type: 'SET_GOAL_LISTS'; lists: GoalList[] }
   | { type: 'SET_ACTIVE_GOAL_LIST_ID'; id: string | null }
-  | { type: 'SET_COMPARE_LOCATIONS'; locations: CompareLocations | null }
 
 // ── Reducer ────────────────────────────────────────────────────────────────────
 
@@ -141,9 +138,6 @@ function mapControlsReducer(state: MapControlsState, action: MapControlsAction):
       return { ...state, activeGoalListId: action.id }
     }
 
-    case 'SET_COMPARE_LOCATIONS':
-      return { ...state, compareLocations: action.locations }
-
     default:
       return state
   }
@@ -175,7 +169,6 @@ interface MapControlsContextValue {
   setSpeciesFilters: (filters: SpeciesFilters) => void
   setGoalLists: (lists: GoalList[]) => void
   setActiveGoalListId: (id: string | null) => void
-  setCompareLocations: (locations: CompareLocations | null) => void
 }
 
 const MapControlsContext = createContext<MapControlsContextValue | undefined>(undefined)
@@ -281,9 +274,6 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_ACTIVE_GOAL_LIST_ID', id })
   }, [])
 
-  const setCompareLocations = useCallback((locations: CompareLocations | null) => {
-    dispatch({ type: 'SET_COMPARE_LOCATIONS', locations })
-  }, [])
 
   const value = useMemo<MapControlsContextValue>(() => ({
     state,
@@ -304,7 +294,6 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
     setSpeciesFilters,
     setGoalLists,
     setActiveGoalListId,
-    setCompareLocations,
   }), [
     state,
     goalSpeciesCodes,
@@ -324,7 +313,6 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
     setSpeciesFilters,
     setGoalLists,
     setActiveGoalListId,
-    setCompareLocations,
   ])
 
   return (

@@ -8,6 +8,7 @@
  */
 
 import type { Species } from '../components/types'
+import { getDisplayGroup } from './familyGroups'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -329,7 +330,7 @@ export function getSmartGoalSuggestions(
     let reason = ''
 
     // Highest priority: completes an almost-done family
-    const group = sp.familyComName // TODO: use getDisplayGroup if needed
+    const group = getDisplayGroup(sp.familyComName)
     const progress = familyProgress.get(group)
     if (progress && progress.total >= 3) {
       const pct = progress.seen / progress.total
