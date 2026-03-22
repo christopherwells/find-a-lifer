@@ -168,6 +168,7 @@ export default memo(function MapView({
     setSelectedLocation: onLocationSelect,
     setDataRange: onDataRangeChange,
     setCurrentWeek,
+    setSpeciesFilters,
   } = useMapControls()
   const { showToast } = useToast()
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -1890,6 +1891,9 @@ export default memo(function MapView({
           onShowAllToggle={() => setPopupShowAll(true)}
           onShowAllSpeciesToggle={() => setPopupShowAllSpecies(prev => !prev)}
           onNotableAddToGoal={handleNotableAddToGoal}
+          onHabitatFilter={(habitat) => {
+            setSpeciesFilters({ ...(speciesFilters || {}), habitat })
+          }}
         />
       )}
 

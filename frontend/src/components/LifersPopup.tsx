@@ -33,6 +33,7 @@ interface LifersPopupProps {
   onShowAllToggle: () => void
   onShowAllSpeciesToggle: () => void
   onNotableAddToGoal?: unknown  // kept for caller compat
+  onHabitatFilter?: (habitat: string) => void
 }
 
 export default function LifersPopup({
@@ -47,6 +48,7 @@ export default function LifersPopup({
   onRegionContextChange,
   onShowAllToggle,
   onShowAllSpeciesToggle,
+  onHabitatFilter,
 }: LifersPopupProps) {
   return (
     <div
@@ -226,7 +228,24 @@ export default function LifersPopup({
                 <div className="flex flex-wrap gap-x-2 gap-y-0">
                   {categories.map(({ key, val, icon, label }) => {
                     if (val < 0.03) return null
-                    return (
+                    // Map covariate keys to habitat filter values
+                    const filterMap: Record<string, string> = {
+                      ocean: 'Ocean', needleleaf: 'Conifer Forest', evergreen_broadleaf: 'Tropical Forest',
+                      deciduous_broadleaf: 'Deciduous Forest', mixed_forest: 'Mixed Forest', trees: 'Forest',
+                      shrub: 'Scrubland', herb: 'Grassland', cultivated: 'Agricultural',
+                      urban: 'Urban-tolerant', water: 'Freshwater', flooded: 'Wetland', barren: 'Barren',
+                    }
+                    const filterVal = filterMap[key]
+                    return onHabitatFilter && filterVal ? (
+                      <button
+                        key={key}
+                        onClick={() => onHabitatFilter(filterVal)}
+                        className="text-xs lg:text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        title={`Filter species by ${label}`}
+                      >
+                        {icon} {label} {(val * 100).toFixed(0)}%
+                      </button>
+                    ) : (
                       <span key={key} className="text-xs lg:text-xs text-gray-500 dark:text-gray-400">
                         {icon} {label} {(val * 100).toFixed(0)}%
                       </span>
