@@ -19,16 +19,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/find-a-lifer/icon-192x192.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    },
-    {
-      "src": "/find-a-lifer/icon-512x512.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
     }
   ]
 }

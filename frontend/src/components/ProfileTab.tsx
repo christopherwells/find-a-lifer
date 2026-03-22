@@ -4,32 +4,6 @@ import { useToast } from '../contexts/ToastContext'
 import { useAuth } from '../contexts/AuthContext'
 import FriendsSection from './FriendsSection'
 import { fetchSpecies } from '../lib/dataCache'
-import { openFilePicker, processCSVFile, type CSVImportResult } from '../lib/csvImport'
-
-async function handleImport(
-  importFn: (codes: string[], names: string[]) => Promise<{ newCount: number; existingCount: number }>,
-  setImporting: (v: boolean) => void,
-  setResult: (v: CSVImportResult | null) => void,
-  setError?: (v: string | null) => void,
-  onComplete?: (newCount: number) => void,
-) {
-  const file = await openFilePicker()
-  if (!file) return
-  setImporting(true)
-  setResult(null)
-  if (setError) setError(null)
-  try {
-    const result = await processCSVFile(file, importFn)
-    setResult(result)
-    if (result.newCount > 0 && onComplete) onComplete(result.newCount)
-  } catch (error) {
-    if (setError) setError(error instanceof Error ? error.message : 'Import failed')
-    else console.error('Import error:', error)
-  } finally {
-    setImporting(false)
-  }
-}
-
 async function clearAppCaches(): Promise<boolean> {
   try {
     // Clear Cache API (service worker runtime caches)
@@ -49,21 +23,17 @@ async function clearAppCaches(): Promise<boolean> {
 }
 
 interface ProfileTabProps {
-  onImportComplete?: (newCount: number) => void
   darkMode?: boolean
   onToggleDarkMode?: () => void
   onShowAbout?: () => void
   onShowOnboarding?: () => void
 }
 
-export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMode, onShowAbout, onShowOnboarding }: ProfileTabProps = {}) {
+export default function ProfileTab({ darkMode, onToggleDarkMode, onShowAbout, onShowOnboarding }: ProfileTabProps = {}) {
   const {
-    importSpeciesList, clearAllSpecies, getTotalSeen, isSpeciesSeen,
+    clearAllSpecies, getTotalSeen, isSpeciesSeen,
   } = useLifeList()
   const { showToast } = useToast()
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<CSVImportResult | null>(null)
-  const [importError, setImportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [updating, setUpdating] = useState(false)
   const handleCheckForUpdates = useCallback(async () => {
@@ -76,11 +46,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
       alert('Could not clear caches. Try manually clearing browser data.')
     }
   }, [])
-
-  const handleImportClick = () => {
-    if (importing) return
-    handleImport(importSpeciesList, setImporting, setImportResult, setImportError, onImportComplete)
-  }
 
   const handleExport = async () => {
     setExporting(true)
@@ -120,7 +85,6 @@ export default function ProfileTab({ onImportComplete, darkMode, onToggleDarkMod
     if (window.confirm('Are you sure you want to clear your entire life list? This cannot be undone.')) {
       try {
         await clearAllSpecies()
-        setImportResult(null)
         showToast({ type: 'muted', message: 'Life list cleared' })
       } catch (error) {
         console.error('Error clearing life list:', error)
