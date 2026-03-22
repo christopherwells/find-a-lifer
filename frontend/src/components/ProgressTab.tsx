@@ -393,6 +393,8 @@ export default function ProgressTab() {
     return items
   }, [allSpecies, seenSpecies, totalSeen, totalSpecies])
 
+  const [trophyTab, setTrophyTab] = useState<'groups' | 'regions' | 'achievements'>('groups')
+
   if (loading) {
     return <ProgressSkeleton />
   }
@@ -471,10 +473,32 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* 5. Trophy Case — 5-tier display: copper/silver/gold/diamond/emerald */}
+      {/* Trophy Case — unified with subtabs: Groups / Regions / Achievements */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="trophy-case">
         <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">{'\uD83C\uDFC6'} Trophy Case</h4>
-        {earnedGroups.length > 0 ? (
+        {/* Subtabs */}
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+          {([
+            { key: 'groups' as const, label: 'Groups' },
+            { key: 'regions' as const, label: 'Regions' },
+            { key: 'achievements' as const, label: 'Achievements' },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTrophyTab(key)}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-md text-center transition-all ${
+                trophyTab === key
+                  ? 'bg-white dark:bg-gray-600 text-[#2C3E7B] dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Groups tab */}
+        {trophyTab === 'groups' && earnedGroups.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
             {earnedGroups.map((g) => {
               const tierClass = g.level === 'emerald'
@@ -517,17 +541,46 @@ export default function ProgressTab() {
               )
             })}
           </div>
-        ) : (
+        ) : trophyTab === 'groups' ? (
           <p className="text-sm text-gray-500 dark:text-gray-400 italic">
             Start seeing species in a group to earn your first trophy!
           </p>
+        ) : null}
+
+        {/* Regions tab — 5-tier plaques per sub-region */}
+        {trophyTab === 'regions' && (
+          <div className="grid grid-cols-2 gap-2">
+            {sortedRegions.map(([regionKey, stats]) => {
+              const level = getTrophyLevel(stats.seen, stats.total)
+              if (!level && stats.seen === 0) return null
+              const tierClass = level === 'emerald'
+                ? 'trophy-emerald bg-emerald-600 text-emerald-50'
+                : level === 'diamond'
+                ? 'trophy-diamond bg-sky-200 text-sky-900'
+                : level === 'gold'
+                ? 'trophy-gold bg-yellow-400 text-yellow-900'
+                : level === 'silver'
+                ? 'trophy-silver bg-gray-300 text-gray-800 dark:bg-gray-400 dark:text-gray-900'
+                : level === 'copper'
+                ? 'trophy-copper bg-[#8B4531] text-amber-100'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              const animClass = level === 'emerald' ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse trophy-prismatic'
+                : level === 'diamond' ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse'
+                : level === 'gold' ? 'trophy-sheen trophy-glow trophy-sparkle'
+                : level === 'silver' ? 'trophy-sheen trophy-glow'
+                : level ? 'trophy-sheen' : ''
+              return (
+                <div key={regionKey} className={`relative flex flex-col items-center p-2.5 rounded-lg shadow-sm overflow-hidden ${tierClass} ${animClass}`}>
+                  <p className="text-xs font-semibold text-center leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{getRegionDisplayName(regionKey)}</p>
+                  <p className="text-sm font-medium mt-0.5">{stats.seen}/{stats.total}</p>
+                </div>
+              )
+            })}
+          </div>
         )}
-      </div>
 
-
-      {/* 7. Achievements */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="milestones-section">
-        <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">Achievements</h4>
+        {/* Achievements tab */}
+        {trophyTab === 'achievements' && (
         <div className="grid grid-cols-2 gap-2">
           {milestones.map(m => {
             const done = m.progress >= m.target
@@ -550,6 +603,7 @@ export default function ProgressTab() {
             )
           })}
         </div>
+        )}
       </div>
 
       {/* 8. Leaderboard */}
@@ -594,35 +648,6 @@ export default function ProgressTab() {
           </div>
         </div>
       )}
-
-      {/* 9. Progress by Region */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
-        <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Progress by Region</h4>
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          All {sortedRegions.length} regions by total species count
-        </p>
-        <div className="space-y-2 max-h-96 overflow-y-auto" data-testid="region-breakdown-list">
-          {sortedRegions.map(([regionKey, stats]) => {
-            const regionPercent = stats.total > 0 ? (stats.seen / stats.total) * 100 : 0
-            return (
-              <div key={regionKey} className="space-y-1" data-testid={`region-${regionKey.replace(/\s+/g, '-').toLowerCase()}`}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{getRegionDisplayName(regionKey)}</span>
-                  <span className="text-gray-500 dark:text-gray-400">
-                    {stats.seen}/{stats.total}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-[#2C3E7B] h-full rounded-full transition-all duration-200"
-                    style={{ width: `${regionPercent}%` }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
 
       {/* Completion Message */}
       {totalSeen === totalSpecies && totalSpecies > 0 && (
