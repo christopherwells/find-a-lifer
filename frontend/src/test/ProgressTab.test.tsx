@@ -35,6 +35,13 @@ vi.mock('../contexts/LifeListContext', () => ({
   }),
 }))
 
+// Mock goalListsDB (IndexedDB not available in test environment)
+vi.mock('../lib/goalListsDB', () => ({
+  goalListsDB: {
+    getAllLists: vi.fn().mockResolvedValue([]),
+  },
+}))
+
 // Use real regionGroups exports (not mocked)
 
 import { fetchSpecies, fetchRegionNames } from '../lib/dataCache'
@@ -128,12 +135,12 @@ describe('ProgressTab', () => {
     expect(screen.getByTestId('region-breakdown-list')).toBeInTheDocument()
   })
 
-  it('shows milestones section', async () => {
+  it('shows achievements section', async () => {
     render(<ProgressTab />)
     await waitFor(() => {
       expect(screen.getByTestId('milestones-section')).toBeInTheDocument()
     })
-    expect(screen.getByText('Milestones')).toBeInTheDocument()
+    expect(screen.getByText('Achievements')).toBeInTheDocument()
   })
 
   it('shows empty state when no species are seen', async () => {
