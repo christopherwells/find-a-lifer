@@ -17,35 +17,11 @@ interface SparklineProps {
 }
 
 export default function Sparkline({ data, currentWeek, className = '', onWeekChange }: SparklineProps) {
-  // Unique ID per instance to avoid SVG gradient ID collisions
+  // All hooks MUST be called before any early return (Rules of Hooks)
   const gradId = useId()
   const svgRef = useRef<SVGSVGElement>(null)
   const [dragWeek, setDragWeek] = useState<number | null>(null)
   const isDragging = useRef(false)
-
-  if (data.length === 0) return null
-
-  const width = 160
-  const height = 40
-  const padding = { top: 2, bottom: 2, left: 1, right: 1 }
-  const chartW = width - padding.left - padding.right
-  const chartH = height - padding.top - padding.bottom
-
-  const maxVal = Math.max(...data, 0.01)
-
-  const points = data.map((val, i) => {
-    const x = padding.left + (i / (data.length - 1)) * chartW
-    const y = padding.top + chartH - (val / maxVal) * chartH
-    return { x, y }
-  })
-
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
-  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${padding.top + chartH} L ${padding.left} ${padding.top + chartH} Z`
-
-  const displayWeek = dragWeek ?? currentWeek
-  const weekIdx = Math.min(Math.max(displayWeek - 1, 0), data.length - 1)
-  const markerX = padding.left + (weekIdx / (data.length - 1)) * chartW
-  const markerFreq = data[weekIdx]
 
   // Convert a client X position to a week number (1-52)
   const clientXToWeek = useCallback((clientX: number): number => {
@@ -79,7 +55,31 @@ export default function Sparkline({ data, currentWeek, className = '', onWeekCha
     setDragWeek(null)
   }, [dragWeek, onWeekChange])
 
+  if (data.length === 0) return null
+
+  const width = 160
+  const height = 40
+  const padding = { top: 2, bottom: 2, left: 1, right: 1 }
+  const chartW = width - padding.left - padding.right
+  const chartH = height - padding.top - padding.bottom
+
+  const maxVal = Math.max(...data, 0.01)
+
+  const points = data.map((val, i) => {
+    const x = padding.left + (i / (data.length - 1)) * chartW
+    const y = padding.top + chartH - (val / maxVal) * chartH
+    return { x, y }
+  })
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${padding.top + chartH} L ${padding.left} ${padding.top + chartH} Z`
+
+  const displayWeek = dragWeek ?? currentWeek
+  const weekIdx = Math.min(Math.max(displayWeek - 1, 0), data.length - 1)
+  const markerX = padding.left + (weekIdx / (data.length - 1)) * chartW
+  const markerFreq = data[weekIdx]
   const interactive = !!onWeekChange
+  const dragging = dragWeek !== null
 
   return (
     <div className={`relative ${className}`}>
@@ -122,14 +122,14 @@ export default function Sparkline({ data, currentWeek, className = '', onWeekCha
         <line
           x1={markerX} y1={padding.top} x2={markerX} y2={padding.top + chartH}
           className="stroke-red-500"
-          strokeWidth={isDragging.current || dragWeek !== null ? 2 : 1}
-          strokeDasharray={isDragging.current || dragWeek !== null ? undefined : '2 2'}
+          strokeWidth={dragging ? 2 : 1}
+          strokeDasharray={dragging ? undefined : '2 2'}
           opacity={0.7}
         />
         <circle
           cx={markerX}
           cy={padding.top + chartH - (markerFreq / maxVal) * chartH}
-          r={isDragging.current || dragWeek !== null ? 3.5 : 2.5}
+          r={dragging ? 3.5 : 2.5}
           className="fill-red-500 stroke-white dark:stroke-gray-900"
           strokeWidth={1}
         />
