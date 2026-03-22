@@ -59,6 +59,8 @@ interface LifeListContextValue {
   setActiveTripName: (name: string | null) => void
   activeTripMemberCount: number
   setActiveTripMemberCount: (count: number) => void
+  tripMemberLists: Array<{ name: string; codes: Set<string> }> | null
+  setTripMemberLists: (lists: Array<{ name: string; codes: Set<string> }> | null) => void
 }
 
 const LifeListContext = createContext<LifeListContextValue | undefined>(undefined)
@@ -107,6 +109,7 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
   const [tripUnion, setTripUnion] = useState<Set<string> | null>(null)
   const [activeTripName, setActiveTripName] = useState<string | null>(null)
   const [activeTripMemberCount, setActiveTripMemberCount] = useState(0)
+  const [tripMemberLists, setTripMemberLists] = useState<Array<{ name: string; codes: Set<string> }> | null>(null)
 
   // Load life list from IndexedDB on mount
   useEffect(() => {
@@ -246,6 +249,8 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     setActiveTripName,
     activeTripMemberCount,
     setActiveTripMemberCount,
+    tripMemberLists,
+    setTripMemberLists,
   }
 
   // Don't render children until life list is loaded

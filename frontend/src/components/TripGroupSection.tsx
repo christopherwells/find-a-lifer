@@ -12,7 +12,7 @@ import { trackEvent } from '../lib/analytics'
 
 export default function TripGroupSection() {
   const { user } = useAuth()
-  const { seenSpecies, setTripUnion, setActiveTripName, setActiveTripMemberCount } = useLifeList()
+  const { seenSpecies, setTripUnion, setActiveTripName, setActiveTripMemberCount, setTripMemberLists } = useLifeList()
 
   const [trips, setTrips] = useState<Trip[]>([])
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null)
@@ -76,10 +76,15 @@ export default function TripGroupSection() {
       setTripUnion(union)
       setActiveTripName(trip.name)
       setActiveTripMemberCount(m.length)
+      // Store individual member lists for group optimization strategies
+      setTripMemberLists(m.map(member => ({
+        name: member.displayName,
+        codes: new Set(member.speciesCodes),
+      })))
     } catch (err) {
       console.error('Failed to load trip members:', err)
     }
-  }, [setTripUnion, setActiveTripName, setActiveTripMemberCount])
+  }, [setTripUnion, setActiveTripName, setActiveTripMemberCount, setTripMemberLists])
 
   const deactivateTrip = useCallback(() => {
     setActiveTrip(null)
@@ -88,8 +93,9 @@ export default function TripGroupSection() {
     setTripUnion(null)
     setActiveTripName(null)
     setActiveTripMemberCount(0)
+    setTripMemberLists(null)
     localStorage.removeItem('activeTripId')
-  }, [setTripUnion, setActiveTripName, setActiveTripMemberCount])
+  }, [setTripUnion, setActiveTripName, setActiveTripMemberCount, setTripMemberLists])
 
   // Auto-sync life list to Firestore when it changes while a trip is active
   useEffect(() => {

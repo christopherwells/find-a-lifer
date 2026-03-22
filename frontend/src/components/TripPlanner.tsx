@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useMapControls } from '../contexts/MapControlsContext'
+import { useLifeList } from '../contexts/LifeListContext'
 import type { Species } from './types'
 import { computePlannerResults, type PlannerResult } from '../lib/dataCache'
 import { getWeekLabel, getCellCoordinates, formatProbability, getProbabilityColor } from './tripPlanUtils'
@@ -52,6 +53,7 @@ export default function TripPlanner({
     setSelectedRegion,
     setViewMode: setMapViewMode,
   } = useMapControls()
+  const { tripMemberLists } = useLifeList()
 
   // Filters
   const [regionId, setRegionIdState] = useState<string>(() => localStorage.getItem('homeRegion') || '')
@@ -65,6 +67,7 @@ export default function TripPlanner({
   const [goalListId, setGoalListId] = useState<string>('')
   const [viewMode, setViewMode] = useState<ViewMode>('location')
   const [sortBy, setSortBy] = useState<'expected' | 'chance' | 'count'>('expected')
+  const [groupMode, setGroupMode] = useState<'shared' | 'total' | 'balanced'>('shared')
 
   // Results
   const [results, setResults] = useState<PlannerResult[]>([])
@@ -134,6 +137,40 @@ export default function TripPlanner({
   }, [compute])
 
   // Sort comparator based on selected sort
+  // Re-score results for group optimization modes
+  // 'shared': use existing scores (union of all members' lists — species nobody has seen)
+  // 'total': sum expected lifers across all members (a species counts for each member who hasn't seen it)
+  // 'balanced': use the minimum member's expected lifers (maximize the worst experience)
+  const scoredResults = useMemo(() => {
+    if (!tripMemberLists || tripMemberLists.length <= 1 || groupMode === 'shared') return results
+    return results.map(r => {
+      // For each species in the result, count how many members haven't seen it
+      let totalExpected = 0
+      let minMemberExpected = Infinity
+      const memberExpecteds: number[] = []
+
+      for (const member of tripMemberLists) {
+        let memberExp = 0
+        for (const sp of r.topSpecies) {
+          if (!member.codes.has(sp.speciesCode)) {
+            memberExp += sp.freq
+          }
+        }
+        memberExpecteds.push(memberExp)
+        totalExpected += memberExp
+        if (memberExp < minMemberExpected) minMemberExpected = memberExp
+      }
+
+      return {
+        ...r,
+        expectedLifers: groupMode === 'total' ? totalExpected : minMemberExpected,
+        liferCount: groupMode === 'total'
+          ? r.topSpecies.reduce((sum, sp) => sum + tripMemberLists.filter(m => !m.codes.has(sp.speciesCode)).length, 0)
+          : Math.min(...memberExpecteds.map((_, mi) => r.topSpecies.filter(sp => !tripMemberLists[mi].codes.has(sp.speciesCode)).length)),
+      }
+    })
+  }, [results, tripMemberLists, groupMode])
+
   const sortFn = useCallback((a: { bestProb: number; bestLiferCount: number; bestExpected: number }, b: { bestProb: number; bestLiferCount: number; bestExpected: number }) => {
     if (sortBy === 'chance') return b.bestProb - a.bestProb
     if (sortBy === 'count') return b.bestLiferCount - a.bestLiferCount
@@ -143,7 +180,7 @@ export default function TripPlanner({
   // Group results by location
   const byLocation = useMemo((): GroupedByLocation[] => {
     const map = new Map<number, GroupedByLocation>()
-    for (const r of results) {
+    for (const r of scoredResults) {
       const existing = map.get(r.cellId)
       if (!existing || r.expectedLifers > existing.bestExpected) {
         map.set(r.cellId, {
@@ -163,12 +200,12 @@ export default function TripPlanner({
     return Array.from(map.values())
       .sort(sortFn)
       .slice(0, 30)
-  }, [results, sortFn])
+  }, [scoredResults, sortFn])
 
   // Group results by week
   const byWeek = useMemo((): GroupedByWeek[] => {
     const map = new Map<number, GroupedByWeek>()
-    for (const r of results) {
+    for (const r of scoredResults) {
       const existing = map.get(r.week)
       if (!existing || r.expectedLifers > existing.bestExpected) {
         map.set(r.week, {
@@ -186,7 +223,7 @@ export default function TripPlanner({
     }
     return Array.from(map.values())
       .sort(sortFn)
-  }, [results, sortFn])
+  }, [scoredResults, sortFn])
 
   const handleShowOnMap = (cellId: number, coordinates: [number, number], week?: number) => {
     setSelectedLocation({ cellId, coordinates, name: cellLabels.get(cellId) })
@@ -291,6 +328,22 @@ export default function TripPlanner({
           </select>
         </div>
       </div>
+
+      {/* Group optimization — only shown when a group trip is active with 2+ members */}
+      {tripMemberLists && tripMemberLists.length >= 2 && (
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Optimize for</label>
+          <select
+            value={groupMode}
+            onChange={e => setGroupMode(e.target.value as 'shared' | 'total' | 'balanced')}
+            className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          >
+            <option value="shared">Everyone's New Birds</option>
+            <option value="total">Most Birds for the Group</option>
+            <option value="balanced">Balanced Experience</option>
+          </select>
+        </div>
+      )}
 
       {/* Sort + View toggle */}
       <div className="flex items-center gap-2">
