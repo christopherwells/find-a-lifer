@@ -310,6 +310,7 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook must co-locate with Provider
 export function useMapControls(): MapControlsContextValue {
   const ctx = useContext(MapControlsContext)
   if (!ctx) {

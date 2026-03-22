@@ -1,5 +1,3 @@
-import type { GoalList } from '../lib/goalListsDB'
-
 export type MapViewMode = 'density' | 'probability' | 'species' | 'goal-birds'
 
 export interface SelectedLocation {
@@ -46,32 +44,6 @@ export interface SpeciesByFamily {
   [familyName: string]: Species[]
 }
 
-export interface ExploreTabProps {
-  currentWeek?: number
-  onWeekChange?: (week: number) => void
-  viewMode?: MapViewMode
-  onViewModeChange?: (mode: MapViewMode) => void
-  goalBirdsOnlyFilter?: boolean
-  onGoalBirdsOnlyFilterChange?: (value: boolean) => void
-  selectedSpecies?: string | null
-  onSelectedSpeciesChange?: (speciesCode: string | null) => void
-  selectedSpeciesMulti?: string[]
-  onSelectedSpeciesMultiChange?: (codes: string[]) => void
-  goalSpeciesCodes?: Set<string>
-  goalLists?: GoalList[]
-  activeGoalListId?: string | null
-  onActiveGoalListIdChange?: (id: string | null) => void
-  selectedRegion?: string | null
-  onSelectedRegionChange?: (regionId: string | null) => void
-  heatmapOpacity?: number
-  onHeatmapOpacityChange?: (opacity: number) => void
-  liferCountRange?: [number, number]
-  onLiferCountRangeChange?: (range: [number, number]) => void
-  dataRange?: [number, number]
-  showTotalRichness?: boolean
-  onShowTotalRichnessChange?: (value: boolean) => void
-}
-
 export interface SpeciesFilters {
   family: string           // '' = all (display group name)
   region: string           // '' = all (region code)
@@ -80,27 +52,9 @@ export interface SpeciesFilters {
   difficulty: string       // '' = all
 }
 
-export interface SpeciesTabProps {
-  selectedRegion?: string | null
-  speciesFilters?: SpeciesFilters
-  onSpeciesFiltersChange?: (filters: SpeciesFilters) => void
-}
-
 export interface CompareLocations {
   locationA: SelectedLocation | null
   locationB: SelectedLocation | null
-}
-
-export interface TripPlanTabProps {
-  selectedLocation?: SelectedLocation | null
-  currentWeek?: number
-  onWeekChange?: (week: number) => void
-  onLocationSelect?: (location: SelectedLocation | null) => void
-  selectedRegion?: string | null
-  onCompareLocationsChange?: (locations: CompareLocations | null) => void
-  goalLists?: GoalList[]
-  activeGoalListId?: string | null
-  goalSpeciesCodes?: Set<string>
 }
 
 export interface TripLifer {

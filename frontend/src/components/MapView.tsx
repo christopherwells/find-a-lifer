@@ -7,6 +7,7 @@ import SpeciesInfoCard from './SpeciesInfoCard'
 import { loadCellStates } from '../lib/subRegions'
 import { trackEvent } from '../lib/analytics'
 import { useToast } from '../contexts/ToastContext'
+import { useMapControls } from '../contexts/MapControlsContext'
 import type { Species, CellCovariates } from './types'
 import {
   safeMin, safeMax, computeCentroid,
@@ -36,22 +37,7 @@ import type { LifersPopupData } from './LifersPopup'
 
 interface MapViewProps {
   darkMode?: boolean
-  currentWeek?: number
-  viewMode?: string
-  goalBirdsOnlyFilter?: boolean
-  onLocationSelect?: (location: { cellId: number; coordinates: [number, number]; name?: string }) => void
-  goalSpeciesCodes?: Set<string>
   seenSpecies?: Set<string>
-  selectedSpecies?: string | null
-  selectedSpeciesMulti?: string[]
-  selectedRegion?: string | null
-  heatmapOpacity?: number
-  selectedLocation?: { cellId: number; coordinates: [number, number] } | null
-  liferCountRange?: [number, number]
-  onDataRangeChange?: (range: [number, number]) => void
-  showTotalRichness?: boolean
-  speciesFilters?: { family: string; region: string; conservStatus: string; invasionStatus: string; difficulty: string }
-  compareLocations?: { locationA: { cellId: number; coordinates: [number, number] } | null; locationB: { cellId: number; coordinates: [number, number] } | null } | null
 }
 
 // Module-level cache for species metadata (populated by shared dataCache, used for sync access)
@@ -136,23 +122,27 @@ const REGION_BOUNDS: Record<string, { center: [number, number]; zoom: number }> 
 
 export default memo(function MapView({
   darkMode = false,
-  currentWeek = 26,
-  viewMode = 'density',
-  goalBirdsOnlyFilter = false,
-  onLocationSelect,
-  goalSpeciesCodes = new Set(),
   seenSpecies = new Set(),
-  selectedSpecies = null,
-  selectedSpeciesMulti = [],
-  selectedRegion = null,
-  heatmapOpacity = 0.8,
-  selectedLocation = null,
-  liferCountRange = [0, 9999],
-  onDataRangeChange,
-  showTotalRichness = false,
-  speciesFilters,
-  compareLocations = null,
 }: MapViewProps) {
+  const {
+    state: {
+      currentWeek,
+      viewMode,
+      goalBirdsOnlyFilter,
+      selectedSpecies,
+      selectedSpeciesMulti,
+      selectedRegion,
+      heatmapOpacity,
+      selectedLocation,
+      liferCountRange,
+      showTotalRichness,
+      speciesFilters,
+      compareLocations,
+    },
+    goalSpeciesCodes,
+    setSelectedLocation: onLocationSelect,
+    setDataRange: onDataRangeChange,
+  } = useMapControls()
   const { showToast } = useToast()
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)

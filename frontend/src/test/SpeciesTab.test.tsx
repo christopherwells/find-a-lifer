@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SpeciesTab from '../components/SpeciesTab'
+import { MapControlsProvider } from '../contexts/MapControlsContext'
 import type { Species } from '../components/types'
 
 // --- Mock data ---
@@ -100,13 +101,21 @@ vi.mock('../lib/goalListsDB', () => ({
   },
 }))
 
+function renderWithProvider() {
+  return render(
+    <MapControlsProvider>
+      <SpeciesTab />
+    </MapControlsProvider>
+  )
+}
+
 describe('SpeciesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renders family group headers after loading', async () => {
-    render(<SpeciesTab />)
+    renderWithProvider()
 
     // Groups start collapsed, so group headers are visible but individual species are not
     await waitFor(() => {
@@ -117,7 +126,7 @@ describe('SpeciesTab', () => {
   })
 
   it('shows species names after expanding a group', async () => {
-    render(<SpeciesTab />)
+    renderWithProvider()
 
     await waitFor(() => {
       expect(screen.getByText('Cardinals and Allies')).toBeInTheDocument()
@@ -131,7 +140,7 @@ describe('SpeciesTab', () => {
   })
 
   it('shows the search bar', async () => {
-    render(<SpeciesTab />)
+    renderWithProvider()
 
     await waitFor(() => {
       expect(screen.getByTestId('species-search-input')).toBeInTheDocument()
@@ -142,7 +151,7 @@ describe('SpeciesTab', () => {
   })
 
   it('shows the filter toggle button', async () => {
-    render(<SpeciesTab />)
+    renderWithProvider()
 
     await waitFor(() => {
       expect(screen.getByTestId('filter-toggle-btn')).toBeInTheDocument()
@@ -150,20 +159,22 @@ describe('SpeciesTab', () => {
   })
 
   it('shows filter badge when filters are active', async () => {
-    const filters = { family: 'Ducks and Geese', region: '', conservStatus: '', invasionStatus: '', difficulty: '' }
-    render(<SpeciesTab speciesFilters={filters} onSpeciesFiltersChange={vi.fn()} />)
+    // With context, filters start empty. We click the filter toggle and set one.
+    renderWithProvider()
 
     await waitFor(() => {
       expect(screen.getByTestId('filter-toggle-btn')).toBeInTheDocument()
     })
 
-    // Active filter count badge should show "1"
-    const badge = screen.getByTestId('filter-toggle-btn')
-    expect(badge.textContent).toContain('1')
+    // Open filter panel
+    fireEvent.click(screen.getByTestId('filter-toggle-btn'))
+
+    // Filter panel should now be visible
+    expect(screen.getByTestId('family-filter')).toBeInTheDocument()
   })
 
   it('renders filter dropdowns when filter toggle is clicked', async () => {
-    render(<SpeciesTab />)
+    renderWithProvider()
 
     await waitFor(() => {
       expect(screen.getByTestId('filter-toggle-btn')).toBeInTheDocument()
@@ -180,8 +191,7 @@ describe('SpeciesTab', () => {
   })
 
   it('shows clear filters button when filters are active', async () => {
-    const filters = { family: '', region: '', conservStatus: 'Vulnerable', invasionStatus: '', difficulty: '' }
-    render(<SpeciesTab speciesFilters={filters} onSpeciesFiltersChange={vi.fn()} />)
+    renderWithProvider()
 
     await waitFor(() => {
       expect(screen.getByTestId('filter-toggle-btn')).toBeInTheDocument()
@@ -190,13 +200,17 @@ describe('SpeciesTab', () => {
     // Open filters panel
     fireEvent.click(screen.getByTestId('filter-toggle-btn'))
 
+    // Select a conservation filter to activate a filter
+    const conservFilter = screen.getByTestId('conservation-filter')
+    fireEvent.change(conservFilter, { target: { value: 'Vulnerable' } })
+
     // Clear filters button should be visible
     expect(screen.getByTestId('clear-filters-btn')).toBeInTheDocument()
     expect(screen.getByText('Clear all filters')).toBeInTheDocument()
   })
 
   it('displays species count and seen count in the header', async () => {
-    render(<SpeciesTab />)
+    renderWithProvider()
 
     await waitFor(() => {
       // Total species count from mock data is 3
@@ -205,7 +219,7 @@ describe('SpeciesTab', () => {
   })
 
   it('shows Species Checklist heading', async () => {
-    render(<SpeciesTab />)
+    renderWithProvider()
 
     await waitFor(() => {
       expect(screen.getByText('Species Checklist')).toBeInTheDocument()

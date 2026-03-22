@@ -1,25 +1,26 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useLifeList } from '../contexts/LifeListContext'
-import type { Species, TripPlanTabProps } from './types'
+import { useMapControls } from '../contexts/MapControlsContext'
+import type { Species } from './types'
 import { fetchSpecies, fetchGrid } from '../lib/dataCache'
 import { buildSpeciesById } from './tripPlanUtils'
 import HotspotsMode from './HotspotsMode'
 import LocationMode from './LocationMode'
 import WindowMode from './WindowMode'
 
-// Stable empty array to avoid creating new references on every render
-const EMPTY_GOAL_LISTS: import('../lib/goalListsDB').GoalList[] = []
-
-export default function TripPlanTab({
-  selectedLocation,
-  currentWeek = 26,
-  onWeekChange,
-  onLocationSelect,
-  selectedRegion = null,
-  onCompareLocationsChange,
-  goalLists = EMPTY_GOAL_LISTS,
-  activeGoalListId = null,
-}: TripPlanTabProps) {
+export default function TripPlanTab() {
+  const {
+    state: {
+      selectedLocation,
+      currentWeek,
+      selectedRegion,
+      goalLists,
+      activeGoalListId,
+    },
+    setCurrentWeek: onWeekChange,
+    setSelectedLocation: onLocationSelect,
+    setCompareLocations: onCompareLocationsChange,
+  } = useMapControls()
   const [mode, setMode] = useState<'location' | 'hotspots' | 'window'>('hotspots')
 
   // Shared data
@@ -69,11 +70,11 @@ export default function TripPlanTab({
 
   // Clear compare locations (feature removed)
   useEffect(() => {
-    onCompareLocationsChange?.(null)
+    onCompareLocationsChange(null)
   }, [onCompareLocationsChange])
 
   const handleReset = useCallback(() => {
-    onLocationSelect?.(null)
+    onLocationSelect(null)
     setMode('hotspots')
   }, [onLocationSelect])
 

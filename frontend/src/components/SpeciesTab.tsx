@@ -4,7 +4,8 @@ import { useToast } from '../contexts/ToastContext'
 import { useCelebrations } from '../hooks/useCelebrations'
 import { useSpecies } from '../hooks/useSpecies'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
-import type { Species, SpeciesTabProps } from './types'
+import type { Species } from './types'
+import { useMapControls } from '../contexts/MapControlsContext'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { SUB_REGIONS } from '../lib/subRegions'
 import { getConservationDotColor, getRestrictedRangeDotColor } from '../lib/badgeUtils'
@@ -19,7 +20,11 @@ import { TOOLTIPS } from '../lib/tooltipContent'
 /** Species grouped by display group name, in taxonomic order */
 type SpeciesByGroup = Record<string, Species[]>
 
-export default function SpeciesTab({ selectedRegion = null, speciesFilters, onSpeciesFiltersChange }: SpeciesTabProps) {
+export default function SpeciesTab() {
+  const {
+    state: { selectedRegion, speciesFilters },
+    setSpeciesFilters: onSpeciesFiltersChange,
+  } = useMapControls()
   const { species: rawSpecies, loading } = useSpecies()
   const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
   const [groupOrder, setGroupOrder] = useState<string[]>([]) // groups in taxonomic order

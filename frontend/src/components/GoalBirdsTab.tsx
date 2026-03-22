@@ -3,6 +3,7 @@ import { useLifeList } from '../contexts/LifeListContext'
 import { useToast } from '../contexts/ToastContext'
 import { useSpecies } from '../hooks/useSpecies'
 import { goalListsDB, type GoalList } from '../lib/goalListsDB'
+import { useMapControls } from '../contexts/MapControlsContext'
 import type { Species } from './types'
 import { FamilyGroupSkeleton } from './Skeleton'
 import SpeciesInfoCard from './SpeciesInfoCard'
@@ -29,7 +30,8 @@ function getConservStatusDot(status: string): React.ReactNode {
   return <span className={`inline-block w-2 h-2 rounded-full ${color} flex-shrink-0`} title={title} />
 }
 
-export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChange }: { onGoalListsChange?: (lists: GoalList[]) => void; onActiveGoalListIdChange?: (id: string | null) => void } = {}) {
+export default function GoalBirdsTab() {
+  const { setGoalLists: onGoalListsChange, setActiveGoalListId: onActiveGoalListIdChange } = useMapControls()
   const { isSpeciesSeen, seenSpecies } = useLifeList()
   const { showToast } = useToast()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
@@ -106,13 +108,13 @@ export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChan
 
   // Sync goal lists back to parent (App.tsx) so MapView gets updated goalSpeciesCodes
   useEffect(() => {
-    if (!loading) onGoalListsChange?.(goalLists)
+    if (!loading) onGoalListsChange(goalLists)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalLists, loading])
 
   // Save active list ID to localStorage, notify parent, and reset filter when switching lists
   useEffect(() => {
-    onActiveGoalListIdChange?.(activeListId)
+    onActiveGoalListIdChange(activeListId)
     if (activeListId) {
       localStorage.setItem('activeGoalListId', activeListId)
     } else {
