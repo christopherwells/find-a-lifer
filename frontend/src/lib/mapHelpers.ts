@@ -32,6 +32,7 @@ export interface SpeciesMeta {
   isRestrictedRange?: boolean
   invasionStatus?: Record<string, string>
   regions?: string[]
+  habitatLabels?: string[]
 }
 
 export interface GoalBirdInCell {

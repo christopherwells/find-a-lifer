@@ -3,6 +3,8 @@
  * Shows a small area chart of species reporting frequency across the year.
  */
 
+import { useId } from 'react'
+
 interface SparklineProps {
   /** 52-element array of average reporting frequencies (0-1) */
   data: number[]
@@ -12,6 +14,9 @@ interface SparklineProps {
 }
 
 export default function Sparkline({ data, currentWeek, className = '' }: SparklineProps) {
+  // Unique ID per instance to avoid SVG gradient ID collisions
+  const gradId = useId()
+
   if (data.length === 0) return null
 
   const width = 160
@@ -20,20 +25,17 @@ export default function Sparkline({ data, currentWeek, className = '' }: Sparkli
   const chartW = width - padding.left - padding.right
   const chartH = height - padding.top - padding.bottom
 
-  const maxVal = Math.max(...data, 0.01) // Avoid division by zero
+  const maxVal = Math.max(...data, 0.01)
 
-  // Build SVG path points
   const points = data.map((val, i) => {
     const x = padding.left + (i / (data.length - 1)) * chartW
     const y = padding.top + chartH - (val / maxVal) * chartH
     return { x, y }
   })
 
-  // Area path: line from left-bottom, up through data points, back down to right-bottom
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
   const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${padding.top + chartH} L ${padding.left} ${padding.top + chartH} Z`
 
-  // Current week marker position
   const weekIdx = Math.min(Math.max(currentWeek - 1, 0), data.length - 1)
   const markerX = padding.left + (weekIdx / (data.length - 1)) * chartW
   const markerFreq = data[weekIdx]
@@ -49,27 +51,25 @@ export default function Sparkline({ data, currentWeek, className = '' }: Sparkli
         aria-label={`Frequency sparkline: peak ${(Math.max(...data) * 100).toFixed(0)}%, week ${currentWeek} is ${(markerFreq * 100).toFixed(0)}%`}
         data-testid="sparkline-svg"
       >
-        {/* Gradient fill */}
         <defs>
-          <linearGradient id="sparkline-grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2C3E7B" stopOpacity={0.3} />
-            <stop offset="100%" stopColor="#2C3E7B" stopOpacity={0.05} />
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" className="[stop-color:theme(colors.blue.700)] dark:[stop-color:theme(colors.blue.400)]" stopOpacity={0.3} />
+            <stop offset="100%" className="[stop-color:theme(colors.blue.700)] dark:[stop-color:theme(colors.blue.400)]" stopOpacity={0.05} />
           </linearGradient>
         </defs>
 
-        {/* Area fill */}
-        <path d={areaPath} fill="url(#sparkline-grad)" />
+        <path d={areaPath} fill={`url(#${gradId})`} />
+        <path
+          d={linePath}
+          fill="none"
+          className="stroke-blue-700 dark:stroke-blue-400"
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+        />
 
-        {/* Line */}
-        <path d={linePath} fill="none" stroke="#2C3E7B" strokeWidth={1.5} strokeLinejoin="round" />
-
-        {/* Current week marker */}
         <line
-          x1={markerX}
-          y1={padding.top}
-          x2={markerX}
-          y2={padding.top + chartH}
-          stroke="#E74C3C"
+          x1={markerX} y1={padding.top} x2={markerX} y2={padding.top + chartH}
+          className="stroke-red-500"
           strokeWidth={1}
           strokeDasharray="2 2"
           opacity={0.7}
@@ -78,16 +78,14 @@ export default function Sparkline({ data, currentWeek, className = '' }: Sparkli
           cx={markerX}
           cy={padding.top + chartH - (markerFreq / maxVal) * chartH}
           r={2.5}
-          fill="#E74C3C"
-          stroke="white"
+          className="fill-red-500 stroke-white dark:stroke-gray-900"
           strokeWidth={1}
         />
       </svg>
 
-      {/* Frequency label */}
-      <div className="flex justify-between text-xs lg:text-xs text-gray-400 mt-0.5 px-0.5">
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-0.5 px-0.5">
         <span>Jan</span>
-        <span className="text-red-500 font-medium">
+        <span className="text-red-500 dark:text-red-400 font-medium">
           Wk {currentWeek}: {(markerFreq * 100).toFixed(0)}%
         </span>
         <span>Dec</span>

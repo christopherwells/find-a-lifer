@@ -33,14 +33,14 @@ export default function SpeciesTab() {
   const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string> | 'all'>('all') // 'all' = all collapsed
   const [searchTerm, setSearchTerm] = useState('')
   // All filters are lifted to App.tsx via speciesFilters / onSpeciesFiltersChange
-  const selectedFamily = speciesFilters?.family ?? ''
+  const selectedHabitat = speciesFilters?.habitat ?? ''
   const selectedRegionFilter = speciesFilters?.region ?? ''
   const selectedConservStatus = speciesFilters?.conservStatus ?? ''
   const selectedInvasionStatus = speciesFilters?.invasionStatus ?? ''
   const selectedDifficulty = speciesFilters?.difficulty ?? ''
   const updateFilters = (patch: Partial<NonNullable<typeof speciesFilters>>) =>
-    onSpeciesFiltersChange?.({ family: selectedFamily, region: selectedRegionFilter, conservStatus: selectedConservStatus, invasionStatus: selectedInvasionStatus, difficulty: selectedDifficulty, ...patch })
-  const setSelectedFamily = (v: string) => updateFilters({ family: v })
+    onSpeciesFiltersChange?.({ habitat: selectedHabitat, region: selectedRegionFilter, conservStatus: selectedConservStatus, invasionStatus: selectedInvasionStatus, difficulty: selectedDifficulty, ...patch })
+  const setSelectedHabitat = (v: string) => updateFilters({ habitat: v })
   const setSelectedRegionFilter = (v: string) => updateFilters({ region: v })
   const setSelectedConservStatus = (v: string) => updateFilters({ conservStatus: v })
   const setSelectedInvasionStatus = (v: string) => updateFilters({ invasionStatus: v })
@@ -60,19 +60,25 @@ export default function SpeciesTab() {
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
   const [addingSpecies, setAddingSpecies] = useState<{ code: string; name: string } | null>(null)
 
-  // Goal birds filter
-  const [goalBirdsOnly, setGoalBirdsOnly] = useState(false)
+  // Goal list filter: '' = no filter, 'all' = any goal list, or specific list ID
+  const [goalListFilter, setGoalListFilter] = useState('')
 
-  // Derive all goal species codes from all goal lists
-  const allGoalCodes = useMemo(() => {
+  // Derive goal species codes from selected list (or all lists)
+  const goalFilterCodes = useMemo(() => {
+    if (!goalListFilter) return null
     const codes = new Set<string>()
-    for (const list of goalLists) {
-      for (const code of list.speciesCodes) {
-        codes.add(code)
+    if (goalListFilter === 'all') {
+      for (const list of goalLists) {
+        for (const code of list.speciesCodes) codes.add(code)
+      }
+    } else {
+      const list = goalLists.find(l => l.id === goalListFilter)
+      if (list) {
+        for (const code of list.speciesCodes) codes.add(code)
       }
     }
     return codes
-  }, [goalLists])
+  }, [goalLists, goalListFilter])
 
   // Species info card
   const [selectedSpeciesCard, setSelectedSpeciesCard] = useState<Species | null>(null)
@@ -341,8 +347,8 @@ export default function SpeciesTab() {
   const filteredGroups = useMemo(() => {
     const result: SpeciesByGroup = {}
     for (const groupName of groupOrder) {
-      // If a group is selected, only include that group
-      if (selectedFamily && groupName !== selectedFamily) continue
+      // Habitat filter: skip groups where no species match the habitat
+      // (applied per-species below, but this pre-check is removed — let per-species filter handle it)
 
       const groupSpecies = speciesByGroup[groupName]
       if (!groupSpecies) continue
@@ -365,6 +371,7 @@ export default function SpeciesTab() {
           ? species.invasionStatus?.[regionCodes[0]]
           : Object.values(species.invasionStatus || {}).includes('Native') ? 'Native'
           : Object.values(species.invasionStatus || {}).includes('Introduced') ? 'Introduced'
+          : Object.values(species.invasionStatus || {}).includes('Provisional') ? 'Provisional'
           : Object.values(species.invasionStatus || {})[0] ?? ''
         const matchesInvasion =
           !selectedInvasionStatus || effectiveInvasion === selectedInvasionStatus
@@ -385,16 +392,19 @@ export default function SpeciesTab() {
           (seenFilter === 'lifers' && !isSpeciesSeen(species.speciesCode))
 
         const matchesGoalFilter =
-          !goalBirdsOnly || allGoalCodes.has(species.speciesCode)
+          !goalFilterCodes || goalFilterCodes.has(species.speciesCode)
 
-        return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion && matchesRegionFilter && matchesSeen && matchesGoalFilter
+        const matchesHabitat =
+          !selectedHabitat || (species.habitatLabels ?? []).includes(selectedHabitat)
+
+        return matchesSearch && matchesConserv && matchesInvasion && matchesDifficulty && matchesRegion && matchesRegionFilter && matchesSeen && matchesGoalFilter && matchesHabitat
       })
       if (filtered.length > 0) {
         result[groupName] = filtered
       }
     }
     return result
-  }, [groupOrder, speciesByGroup, selectedFamily, searchTerm, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, regionSpeciesCodes, selectedRegionFilter, seenFilter, isSpeciesSeen, goalBirdsOnly, allGoalCodes])
+  }, [groupOrder, speciesByGroup, selectedHabitat, searchTerm, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, regionSpeciesCodes, selectedRegionFilter, seenFilter, isSpeciesSeen, goalFilterCodes])
 
   if (loading) {
     return (
@@ -428,12 +438,12 @@ export default function SpeciesTab() {
   )
 
   // Count active filters for the clear filters button
-  const activeFilterCount = [selectedFamily, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter, selectedRegionFilter].filter(v => v !== '').length + (goalBirdsOnly ? 1 : 0)
+  const activeFilterCount = [selectedHabitat, selectedConservStatus, selectedInvasionStatus, selectedDifficulty, seenFilter, selectedRegionFilter, goalListFilter].filter(v => v !== '').length
 
   const clearAllFilters = () => {
-    onSpeciesFiltersChange?.({ family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
+    onSpeciesFiltersChange?.({ habitat: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' })
     setSeenFilter('')
-    setGoalBirdsOnly(false)
+    setGoalListFilter('')
   }
 
   return (
@@ -539,20 +549,27 @@ export default function SpeciesTab() {
                 <option value="unseen">Unseen Only</option>
               </select>
             </div>
-            {/* Group filter (full width) */}
+            {/* Habitat filter (full width) */}
             <select
-              id="family-filter"
-              value={selectedFamily}
-              onChange={(e) => setSelectedFamily(e.target.value)}
+              id="habitat-filter"
+              value={selectedHabitat}
+              onChange={(e) => setSelectedHabitat(e.target.value)}
               className="w-full px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-              data-testid="family-filter"
+              data-testid="habitat-filter"
             >
-              <option value="">All Groups ({groupOrder.length})</option>
-              {groupOrder.map((groupName) => (
-                <option key={groupName} value={groupName}>
-                  {groupName} ({speciesByGroup[groupName]?.length ?? 0})
-                </option>
-              ))}
+              <option value="">All Habitats</option>
+              <option value="Forest">Forest</option>
+              <option value="Tropical Forest">Tropical Forest</option>
+              <option value="Conifer Forest">Conifer Forest</option>
+              <option value="Deciduous Forest">Deciduous Forest</option>
+              <option value="Mixed Forest">Mixed Forest</option>
+              <option value="Wetland">Wetland</option>
+              <option value="Freshwater">Freshwater</option>
+              <option value="Ocean">Ocean</option>
+              <option value="Grassland">Grassland</option>
+              <option value="Scrubland">Scrubland</option>
+              <option value="Agricultural">Agricultural</option>
+              <option value="Urban-tolerant">Urban-tolerant</option>
             </select>
             {/* Secondary filters row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
@@ -586,7 +603,7 @@ export default function SpeciesTab() {
                   <option value="">All Origins</option>
                   <option value="Native">Native</option>
                   <option value="Introduced">Introduced</option>
-                  <option value="Vagrant/Accidental">Vagrant/Accidental</option>
+                  <option value="Provisional">Provisional</option>
                 </select>
                 <Tooltip content="Whether a species is native, introduced, or vagrant in a region." />
               </div>
@@ -608,18 +625,20 @@ export default function SpeciesTab() {
                 <Tooltip content={TOOLTIPS.difficulty} />
               </div>
             </div>
-            {/* Goal Birds Only toggle */}
-            {allGoalCodes.size > 0 && (
-              <label className="flex items-center gap-1.5 cursor-pointer" data-testid="goal-birds-only-filter">
-                <input
-                  type="checkbox"
-                  checked={goalBirdsOnly}
-                  onChange={(e) => setGoalBirdsOnly(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-[#2C3E7B] focus:ring-[#2C3E7B] cursor-pointer"
-                />
-                <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">Goal birds only</span>
-                <span className="text-xs lg:text-xs text-gray-400 dark:text-gray-500">({allGoalCodes.size})</span>
-              </label>
+            {/* Goal List filter dropdown */}
+            {goalLists.length > 0 && (
+              <select
+                value={goalListFilter}
+                onChange={(e) => setGoalListFilter(e.target.value)}
+                className="w-full px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="goal-list-filter"
+              >
+                <option value="">All Species</option>
+                <option value="all">Any Goal List</option>
+                {goalLists.map(l => (
+                  <option key={l.id} value={l.id}>{l.name} ({l.speciesCodes.length})</option>
+                ))}
+              </select>
             )}
             {/* Clear filters */}
             {activeFilterCount > 0 && (
@@ -736,7 +755,7 @@ export default function SpeciesTab() {
                         </button>
                         {/* Inline status dots + goal badge */}
                         <div className="flex items-center gap-0.5 flex-shrink-0">
-                          {allGoalCodes.has(species.speciesCode) && (
+                          {goalLists.some(l => l.speciesCodes.includes(species.speciesCode)) && (
                             <span className="inline-flex items-center px-1 py-px rounded text-xs font-semibold leading-tight bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 flex-shrink-0" title="In your goal list" data-testid={`goal-badge-${species.speciesCode}`}>Goal</span>
                           )}
                           {species.conservStatus && species.conservStatus !== 'Least Concern' && species.conservStatus !== 'Data Deficient' && (

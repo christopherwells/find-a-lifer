@@ -117,7 +117,8 @@ export default function MapControls({
   // Weekly highlights — computed from peakWeek data, no heavy fetches needed
   const weeklyHighlights = useMemo(() => {
     if (allSpecies.length === 0) return []
-    return getWeeklyHighlightsLite(allSpecies, currentWeek, seenSpecies, goalSpeciesCodes)
+    const homeRegion = localStorage.getItem('homeRegion') || undefined
+    return getWeeklyHighlightsLite(allSpecies, currentWeek, seenSpecies, goalSpeciesCodes, 4, homeRegion)
   }, [allSpecies, currentWeek, seenSpecies, goalSpeciesCodes])
 
   const selectedSpeciesMeta = allSpecies.find((s) => s.speciesCode === selectedSpecies)
@@ -140,10 +141,12 @@ export default function MapControls({
       <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50">
         {/* Row 1: View Mode Toggle */}
         <div className="flex items-center gap-1 px-2 pt-2 pb-1">
-          <div className="flex gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 flex-1">
+          <div className="flex gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 flex-1" role="radiogroup" aria-label="Map view mode">
             {visibleModes.map(({ mode, label, icon }) => (
               <button
                 key={mode}
+                role="radio"
+                aria-checked={viewMode === mode}
                 onClick={() => setViewMode(mode)}
                 className={`flex-1 flex items-center justify-center gap-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-md transition-all ${
                   viewMode === mode

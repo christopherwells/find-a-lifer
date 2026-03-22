@@ -244,3 +244,101 @@ export function getSpeciesSubRegions(
 
   return result
 }
+
+// ── Super-region definitions (5 broad biogeographic zones) ──────────
+
+export interface SuperRegion {
+  id: string
+  name: string
+  stateCodes: string[]
+}
+
+export const SUPER_REGIONS: SuperRegion[] = [
+  {
+    id: 'northern',
+    name: 'Northern',
+    stateCodes: ['US-AK', 'CA-BC', 'CA-AB', 'CA-SK', 'CA-MB', 'CA-ON', 'CA-QC',
+                 'CA-NB', 'CA-NS', 'CA-NL', 'CA-PE', 'CA-YT', 'CA-NT', 'CA-NU',
+                 'PM', 'GL'],
+  },
+  {
+    id: 'continental-us',
+    name: 'Continental US',
+    stateCodes: [
+      'US-AL', 'US-AZ', 'US-AR', 'US-CA', 'US-CO', 'US-CT', 'US-DE', 'US-DC',
+      'US-FL', 'US-GA', 'US-ID', 'US-IL', 'US-IN', 'US-IA', 'US-KS', 'US-KY',
+      'US-LA', 'US-ME', 'US-MD', 'US-MA', 'US-MI', 'US-MN', 'US-MS', 'US-MO',
+      'US-MT', 'US-NE', 'US-NV', 'US-NH', 'US-NJ', 'US-NM', 'US-NY', 'US-NC',
+      'US-ND', 'US-OH', 'US-OK', 'US-OR', 'US-PA', 'US-RI', 'US-SC', 'US-SD',
+      'US-TN', 'US-TX', 'US-UT', 'US-VT', 'US-VA', 'US-WA', 'US-WV', 'US-WI',
+      'US-WY',
+    ],
+  },
+  {
+    id: 'hawaii',
+    name: 'Hawaii',
+    stateCodes: ['US-HI'],
+  },
+  {
+    id: 'mex-central',
+    name: 'Mexico & Central America',
+    // Country-level codes match via prefix (MX-BCN → MX)
+    stateCodes: ['MX', 'BZ', 'GT', 'SV', 'HN', 'NI', 'CR', 'PA'],
+  },
+  {
+    id: 'caribbean',
+    name: 'Caribbean',
+    stateCodes: ['CU', 'JM', 'HT', 'DO', 'PR', 'BS', 'BM', 'TC', 'TT', 'BB',
+                 'KN', 'AG', 'DM', 'GD', 'LC', 'VC', 'VI', 'VG', 'AW', 'MF',
+                 'MQ', 'BQ', 'SX'],
+  },
+]
+
+// Build reverse lookup: stateCode -> SuperRegion
+const STATE_TO_SUPER: Record<string, SuperRegion> = {}
+for (const sr of SUPER_REGIONS) {
+  for (const sc of sr.stateCodes) {
+    STATE_TO_SUPER[sc] = sr
+  }
+}
+
+/**
+ * Detect which super-region a state code belongs to.
+ * Tries exact match first, then country prefix (for MX-*, CU-*, etc.).
+ */
+export function detectSuperRegion(stateCode: string): SuperRegion | null {
+  const exact = STATE_TO_SUPER[stateCode]
+  if (exact) return exact
+  const country = stateCode.split('-')[0]
+  return STATE_TO_SUPER[country] || null
+}
+
+/**
+ * Detect super-region for a cell by ID (requires cell_states to be loaded).
+ */
+export function detectSuperRegionForCell(cellId: number | string): SuperRegion | null {
+  if (!cellStatesCache) return null
+  const stateCode = cellStatesCache[String(cellId)]
+  if (!stateCode) return null
+  return detectSuperRegion(stateCode)
+}
+
+/**
+ * Check if a cell belongs to a given region (sub-region ID or super-region ID).
+ * Requires cell_states to be loaded via loadCellStates().
+ */
+export function isCellInRegion(cellId: number | string, regionId: string): boolean {
+  if (!cellStatesCache) return false
+  const stateCode = cellStatesCache[String(cellId)]
+  if (!stateCode) return false
+
+  // Check sub-region match
+  const subRegion = resolveStateToRegion(stateCode)
+  if (subRegion?.id === regionId) return true
+
+  // Check super-region match
+  const superRegion = detectSuperRegion(stateCode)
+  if (superRegion?.id === regionId) return true
+
+  return false
+}

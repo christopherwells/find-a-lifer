@@ -188,13 +188,23 @@ export function getWeeklyHighlightsLite(
   currentWeek: number,
   seenCodes: Set<string>,
   goalCodes: Set<string>,
-  maxResults = 4
+  maxResults = 4,
+  regionId?: string | null,
 ): WeeklyHighlight[] {
   const highlights: WeeklyHighlight[] = []
 
   for (const sp of allSpecies) {
     if (seenCodes.has(sp.speciesCode)) continue
     if (!sp.peakWeek || sp.peakWeek < 1) continue
+
+    // Region filter: if a region is selected, only show species with data in that region
+    // Uses regionalDifficulty keys as a presence indicator for sub-regions,
+    // and superRegions array for super-regions
+    if (regionId) {
+      const inSubRegion = sp.regionalDifficulty && regionId in sp.regionalDifficulty
+      const inSuperRegion = sp.superRegions?.includes(regionId)
+      if (!inSubRegion && !inSuperRegion) continue
+    }
 
     const distFromPeak = Math.min(
       Math.abs(sp.peakWeek - currentWeek),

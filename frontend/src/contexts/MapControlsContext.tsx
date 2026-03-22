@@ -43,7 +43,7 @@ const initialState: MapControlsState = {
   selectedSpeciesMulti: [],
   selectedRegion: null,
   selectedLocation: null,
-  speciesFilters: { family: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' },
+  speciesFilters: { habitat: '', region: '', conservStatus: '', invasionStatus: '', difficulty: '' },
   goalLists: [],
   activeGoalListId: null,
   compareLocations: null,

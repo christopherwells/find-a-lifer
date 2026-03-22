@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { getDisplayGroup } from '../lib/familyGroups'
+// getDisplayGroup removed — habitat filter replaced family filter
 import { expandRegionFilter, REGION_BBOX } from '../lib/regionGroups'
 import SpeciesInfoCard from './SpeciesInfoCard'
 import { loadCellStates } from '../lib/subRegions'
@@ -393,14 +393,14 @@ export default memo(function MapView({
   // null = no filter active (show all), Set = only these species match
   const speciesFilterIdsRef = useRef<Set<number> | null>(null)
   useEffect(() => {
-    const hasFilter = speciesFilters && (speciesFilters.family || speciesFilters.region || speciesFilters.conservStatus || speciesFilters.invasionStatus || speciesFilters.difficulty)
+    const hasFilter = speciesFilters && (speciesFilters.habitat || speciesFilters.region || speciesFilters.conservStatus || speciesFilters.invasionStatus || speciesFilters.difficulty)
     if (!hasFilter || !speciesMetaCache) {
       speciesFilterIdsRef.current = null
       return
     }
     const matching = new Set<number>()
     for (const s of speciesMetaCache) {
-      if (speciesFilters.family && getDisplayGroup(s.familyComName ?? '') !== speciesFilters.family) continue
+      if (speciesFilters.habitat && !(s.habitatLabels ?? []).includes(speciesFilters.habitat)) continue
       if (speciesFilters.region) {
         const codes = expandRegionFilter(speciesFilters.region)
         if (!codes.some(c => s.regions?.includes(c))) continue

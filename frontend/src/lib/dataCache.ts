@@ -634,3 +634,116 @@ export async function computeGoalWindowOpportunities(
 
   return allResults.slice(0, 50)
 }
+
+// ── Unified Trip Planner ──────────────────────────────────────────
+
+export interface PlannerResult {
+  week: number
+  cellId: number
+  cellName: string
+  coordinates: [number, number]
+  liferCount: number
+  combinedProb: number
+  topSpecies: Array<{ speciesId: number; speciesCode: string; comName: string; freq: number }>
+}
+
+/**
+ * Compute trip planner results across a week range, filtered by region (state codes).
+ * Uses combined probability P = 1 - ∏(1-freq_i) with real reporting frequencies.
+ *
+ * @param seenSpeciesIds - user's (or group's) seen species IDs
+ * @param speciesById - species_id → Species lookup
+ * @param cellLabels - cell_id → city label
+ * @param cellCoords - cell_id → [lng, lat]
+ * @param weekRange - [startWeek, endWeek] inclusive (1-52)
+ * @param regionId - sub-region or super-region ID for state-code filtering (null = all)
+ * @param targetSpeciesIds - optional species filter (goal list), null = all lifers
+ * @param resolution - H3 resolution (default 4)
+ * @param abortSignal - abort controller for cancellation
+ */
+export async function computePlannerResults(
+  seenSpeciesIds: Set<number>,
+  speciesById: Map<number, Species>,
+  cellLabels: Map<number, string>,
+  cellCoords: Map<number, [number, number]>,
+  weekRange: [number, number],
+  regionId: string | null,
+  targetSpeciesIds: Set<number> | null = null,
+  resolution: number = 4,
+  abortSignal?: AbortSignal
+): Promise<PlannerResult[]> {
+  // Lazy import to avoid circular dependency
+  const { isCellInRegion, loadCellStates } = await import('./subRegions')
+
+  // Ensure cell states are loaded for region filtering
+  if (regionId) {
+    await loadCellStates(resolution)
+  }
+
+  const weeks: number[] = []
+  for (let w = weekRange[0]; w <= weekRange[1]; w++) {
+    weeks.push(w)
+  }
+
+  const BATCH_SIZE = 8
+  const allResults: PlannerResult[] = []
+  const MIN_FREQ = 3 // ~1% reporting frequency (3/255)
+
+  for (let batchStart = 0; batchStart < weeks.length; batchStart += BATCH_SIZE) {
+    if (abortSignal?.aborted) return []
+
+    const batch = weeks.slice(batchStart, batchStart + BATCH_SIZE)
+    const weekCellsMaps = await Promise.all(
+      batch.map(w => fetchWeekCells(w, resolution))
+    )
+
+    for (let bi = 0; bi < batch.length; bi++) {
+      const week = batch[bi]
+      const weekCells = weekCellsMaps[bi]
+
+      weekCells.forEach(({ speciesIds, freqs }, cellId) => {
+        // Region filter via state codes
+        if (regionId && !isCellInRegion(cellId, regionId)) return
+
+        if (!freqs) return
+
+        const presentSpecies: PlannerResult['topSpecies'] = []
+        let probNone = 1.0
+
+        for (let i = 0; i < speciesIds.length; i++) {
+          const sid = speciesIds[i]
+          if (seenSpeciesIds.has(sid)) continue
+          if (targetSpeciesIds && !targetSpeciesIds.has(sid)) continue
+          if (freqs[i] < MIN_FREQ) continue
+
+          const sp = speciesById.get(sid)
+          const freq = freqs[i] / 255
+          probNone *= (1 - freq)
+          presentSpecies.push({
+            speciesId: sid,
+            speciesCode: sp?.speciesCode || '',
+            comName: sp?.comName || 'Unknown',
+            freq,
+          })
+        }
+
+        if (presentSpecies.length === 0) return
+
+        const coords = cellCoords.get(cellId) || [0, 0] as [number, number]
+        allResults.push({
+          week,
+          cellId,
+          cellName: cellLabels.get(cellId) || '',
+          coordinates: coords,
+          liferCount: presentSpecies.length,
+          combinedProb: 1 - probNone,
+          topSpecies: presentSpecies.sort((a, b) => b.freq - a.freq).slice(0, 15),
+        })
+      })
+    }
+  }
+
+  // Sort by combined probability descending
+  allResults.sort((a, b) => b.combinedProb - a.combinedProb)
+  return allResults.slice(0, 300)
+}

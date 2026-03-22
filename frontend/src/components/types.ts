@@ -11,6 +11,7 @@ export interface SpeciesMeta {
   speciesCode: string
   comName: string
   sciName: string
+  habitatLabels?: string[]
 }
 
 export interface Species {
@@ -36,6 +37,7 @@ export interface Species {
   peakWeek: number
   rangeShiftScore: number
   regions?: string[]
+  superRegions?: string[]
   habitatLabels?: string[]
   preferredElevation?: { mean: number; min: number; max: number }
 }
@@ -45,7 +47,7 @@ export interface SpeciesByFamily {
 }
 
 export interface SpeciesFilters {
-  family: string           // '' = all (display group name)
+  habitat: string          // '' = all (habitat label from species.habitatLabels)
   region: string           // '' = all (region code)
   conservStatus: string    // '' = all
   invasionStatus: string   // '' = all

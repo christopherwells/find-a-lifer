@@ -5,24 +5,38 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Ensure MapLibre GL renders properly */
 .maplibregl-map {
   width: 100%;
   height: 100%;
 }
 
-/* Map legend positioning — CSS-only to avoid inline style vs Tailwind conflicts.
-   Mobile: above 52px tab bar + safe area. Desktop: 32px from bottom.
-   Using CSS media queries instead of window.innerWidth so it reacts to
-   resize, orientation change, and Android URL bar show/hide. */
+/* Map legend positioning — viewport-anchored on mobile to survive Android
+   URL bar show/hide and gesture nav bar changes. position:fixed is relative
+   to the viewport, not the parent container, so it never drifts. */
 .map-legend {
+  position: fixed !important;
   bottom: calc(52px + env(safe-area-inset-bottom, 0px) + 8px);
+  left: 12px;
   min-width: 140px;
   max-width: 160px;
+  z-index: 30;
 }
 @media (min-width: 768px) {
   .map-legend {
+    position: absolute !important;
     bottom: 2rem;
+    left: 12px;
     min-width: 200px;
     max-width: 240px;
   }

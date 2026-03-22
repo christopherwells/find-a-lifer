@@ -28,7 +28,7 @@ function AppInner() {
   })
   const [showAbout, setShowAbout] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [showAddSpecies, setShowAddSpecies] = useState(false)
+  const [showAddSpecies, setShowAddSpecies] = useState(false) // kept for backward compat with AddSpeciesModal
   const tourStartedRef = useRef(false)
   const { effectiveSeenSpecies, isSpeciesSeen, toggleSpecies, importSpeciesList, activeTripName, activeTripMemberCount } = useLifeList()
   const { showToast } = useToast()
@@ -120,7 +120,6 @@ function AppInner() {
         onShowAbout={() => setShowAbout(true)}
         onShowOnboarding={handleShowTour}
         onImportClick={handleImportClick}
-        onAddSpecies={() => setShowAddSpecies(true)}
         onShowProfile={() => setShowProfile(true)}
       />
 
