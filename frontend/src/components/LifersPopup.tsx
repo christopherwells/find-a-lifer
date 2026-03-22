@@ -250,54 +250,7 @@ export default function LifersPopup({
       )}
       {/* Lifer list */}
       <div className="overflow-y-auto flex-1">
-        {/* Notable Birds section */}
-        {notableBirds.length > 0 && popup.lifers.length > 0 && (
-          <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
-            <div className="text-xs lg:text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Notable Birds Here</div>
-            {notableBirds.map(({ species, tag, frequency }) => (
-              <div key={species.speciesCode} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1"
-                onClick={() => {
-                  onSpeciesCardOpen(species)
-                  const [lng, lat] = popup.coordinates
-                  const region = detectSubRegionForCell(popup.cellId)
-                  onRegionContextChange(region ? { subRegionId: region.id, cellLng: lng, cellLat: lat } : null)
-                }}
-              >
-                {species.photoUrl ? (
-                  <img src={species.photoUrl} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" loading="lazy" />
-                ) : (
-                  <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 text-lg">{'\u{1F426}'}</div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate dark:text-gray-200">{species.comName}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{tag} · {Math.round(frequency * 100)}% of trips</div>
-                </div>
-                {/* Add to goal list button */}
-                {popupGoalLists.length > 0 && (
-                  popupGoalAddFeedback?.speciesCode === species.speciesCode ? (
-                    <span className={`text-xs lg:text-xs flex-shrink-0 font-medium ${
-                      popupGoalAddFeedback.status === 'added' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
-                    }`}>
-                      {popupGoalAddFeedback.status === 'added' ? '\u2713' : 'In list'}
-                    </span>
-                  ) : (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onNotableAddToGoal(species.speciesCode)
-                      }}
-                      className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors text-xs font-bold"
-                      title={`Add to ${popupGoalLists[0].name}`}
-                      data-testid={`notable-add-goal-${species.speciesCode}`}
-                    >
-                      +
-                    </button>
-                  )
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Notable Birds section removed — recommendations live in highlights */}
         {popup.lifers.length === 0 ? (
           <div className="px-3 py-4 text-center text-sm text-gray-500">
             {popup.hasActiveFilter ? (

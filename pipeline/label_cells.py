@@ -249,8 +249,8 @@ OCEAN_REGIONS = [
     (30, 60, -180, -120, "North Pacific"),
     (10, 30, -130, -80, "Eastern Pacific"),
     (0, 10, -120, -75, "Tropical Eastern Pacific"),
-    # Arctic
-    (60, 90, -180, 0, "Arctic Ocean"),
+    # Arctic seas (no generic "Arctic Ocean" — use specific seas)
+    (70, 90, -180, 0, "Arctic"),
     # Hudson Bay / Labrador
     (50, 65, -95, -60, "Hudson Bay"),
     (45, 60, -60, -45, "Labrador Sea"),
@@ -407,8 +407,8 @@ def label_grid(grid_path, cities, resolution, preview=False):
                     nearest_city = c
 
             # Decide: inland cells get "Near [City]", ocean cells get ocean label
-            # Use extended radius for inland: if nearest city < 400km, it's inland
-            if nearest_city and nearest_dist < 400:
+            # 600km radius for inland — covers remote Alaska/northern Canada
+            if nearest_city and nearest_dist < 600:
                 # Inland cell — use "Near [City], [Region]"
                 if nearest_city["country"] in ("US", "CA"):
                     props["label"] = f"Near {nearest_city['name']}, {nearest_city['region']}"
