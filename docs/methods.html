@@ -885,12 +885,12 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <!-- ============================================================ -->
 <h2 id="gamification">18. Gamification &amp; Social Features</h2>
 
-<p>Phase 3 added celebration toasts, milestone tracking, streaks, and shareable milestone cards. Phase 4 added Firebase-backed social features.</p>
+<p>The Stats tab provides progress tracking through three views: Trophy Case (Groups, Regions, Achievements), overall progress statistics, and leaderboards.</p>
 
-<h3>18.1 Celebrations &amp; Trophy Case</h3>
-<p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts. Celebrations can be disabled in the kebab menu preferences.</p>
+<h3>18.1 Trophy Case</h3>
+<p>The Trophy Case is organized into three subtabs:</p>
 
-<p><strong>Trophy tiers</strong> are awarded per display group based on completion percentage, using a five-tier progression with stacking animations:</p>
+<p><strong>Groups</strong> &mdash; Each of the 40 display groups earns a trophy tier based on completion percentage. Five-tier progression with stacking CSS animations:</p>
 <table>
   <tr><th>Tier</th><th>Threshold</th><th>Visual Treatment</th></tr>
   <tr><td>Copper</td><td>&ge; 10% of species seen</td><td>Copper-toned medal with sheen sweep</td></tr>
@@ -899,14 +899,32 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td>Diamond</td><td>&ge; 75% of species seen</td><td>Diamond medal + icy glow pulse + sparkle</td></tr>
   <tr><td>Emerald</td><td>100% of species seen</td><td>Emerald medal + prismatic green glow + all stacking animations</td></tr>
 </table>
+<p>Each group has a dedicated emoji icon (e.g., owl for Owls, parrot for Parrots). CSS animations stack as tiers increase: <strong>sheen sweep</strong> (diagonal light reflection, all tiers), <strong>glow pulse</strong> (soft halo, silver+), <strong>sparkle effect</strong> (pseudo-element particles, gold+), and <strong>prismatic glow</strong> (emerald only).</p>
 
-<p>Each of the 40 display groups has a dedicated emoji icon (e.g., owl for Owls, parrot for Parrots, fly for Flycatchers) shown alongside the trophy. The Trophy Case (in the Stats tab) merges the former "Progress by Group" view, displaying all groups with their completion fractions, earned trophies, and remaining species counts. CSS animations stack as tiers increase: <strong>sheen sweep</strong> (diagonal light reflection, all tiers), <strong>glow pulse</strong> (soft halo, silver+), <strong>sparkle effect</strong> (pseudo-element particles, gold+), and <strong>prismatic glow</strong> (emerald only).</p>
+<p><strong>Regions</strong> &mdash; The same 5-tier system applied per sub-region. Each of the 17 sub-regions earns a trophy based on percentage of regional species observed. Regions are ordered geographically (north to south, west to east).</p>
 
-<h3>18.2 Activity Tracking</h3>
-<p>Streak tracking computes consecutive days with manual species additions (excluding bulk imports). Weekly summary shows new lifers and new family groups started. Data derived from IndexedDB <code>dateAdded</code> and <code>source</code> fields on life list entries.</p>
+<p><strong>Achievements</strong> &mdash; Ten ecological achievements with tiered progress bars:</p>
+<table>
+  <tr><th>Achievement</th><th>Description</th><th>Target</th></tr>
+  <tr><td>Habitat Explorer</td><td>Birds in distinct habitat types</td><td>11</td></tr>
+  <tr><td>Region Collector</td><td>Species across sub-regions</td><td>17</td></tr>
+  <tr><td>Taxonomic Breadth</td><td>Bird groups observed</td><td>40</td></tr>
+  <tr><td>Conservation Champion</td><td>Threatened species (NT/VU/EN/CR) observed</td><td>30</td></tr>
+  <tr><td>Rarity Hunter</td><td>Hard-to-find species (difficulty 7+)</td><td>100</td></tr>
+  <tr><td>Early Bird</td><td>Peak-week species seen in their best week</td><td>50</td></tr>
+  <tr><td>Shorebird Specialist</td><td>Shorebird species observed</td><td>30</td></tr>
+  <tr><td>Warbler Collector</td><td>Warbler species observed</td><td>40</td></tr>
+  <tr><td>Raptor Watcher</td><td>Raptors + falcons observed</td><td>25</td></tr>
+  <tr><td>Nocturnal Naturalist</td><td>Owls + nightjars observed</td><td>15</td></tr>
+</table>
 
-<h3>18.3 Firebase Social</h3>
-<p>Email/password authentication via Firebase Auth. User profiles stored in Cloud Firestore with aggregate stats (species count, streaks, groups completed). Friend system via 6-character codes. Trip reports with species lists. Shared goal lists with real-time Firestore listeners. Leaderboards in the Stats tab with a <strong>friends/global toggle</strong> &mdash; friends mode shows only connected friends, global mode shows the top 10 across all users.</p>
+<h3>18.2 Celebrations</h3>
+<p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts.</p>
+
+<h3>18.3 Firebase Social &amp; Group Trip Planning</h3>
+<p>Email/password authentication via Firebase Auth with password reset support. User profiles stored in Cloud Firestore with aggregate stats (species count, groups completed). Friend system via 6-character codes. Leaderboards in the Stats tab with a <strong>friends/global toggle</strong> &mdash; friends mode shows only connected friends, global mode shows the top 10 across all users.</p>
+
+<p><strong>Group Trip Planning</strong> (Sprint 4) enables collaborative birding trips for up to 6 members. Trip creators invite friends who accept/decline via the Trip Plan tab. The system computes the <strong>union of all members' life lists</strong> and injects it into <code>effectiveSeenSpecies</code>, so the map automatically shows species that <em>no one</em> in the group has seen. All four view modes (Count, Chance, Range, Goals), popups, hotspots, and window mode adapt automatically without modification. Firestore security rules enforce trip ownership, member limits, and invite permissions.</p>
 
 <!-- ============================================================ -->
 <h2 id="pipeline-orchestrator">19. Pipeline Orchestrator</h2>
