@@ -56,6 +56,9 @@ export default function LifersPopup({
   return (
     <div
       data-testid="lifers-popup"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Species in selected cell"
       className="fixed inset-0 top-[44px] bottom-[calc(52px+env(safe-area-inset-bottom,0px))] bg-white dark:bg-gray-900 flex flex-col z-40 animate-sheet-up md:animate-none md:absolute md:inset-auto md:top-4 md:right-4 md:w-72 md:max-h-96 md:z-10 md:rounded-lg md:shadow-xl md:border md:border-teal-200"
       style={{ maxHeight: window.innerWidth >= 768 ? '80%' : undefined }}
     >

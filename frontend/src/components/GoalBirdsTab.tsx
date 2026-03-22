@@ -333,13 +333,8 @@ export default function GoalBirdsTab() {
   const handleAddSpecies = (species: Species) => {
     if (!activeListId) return
 
-    if (goalLists.length > 1) {
-      // Multiple lists: show quick list selector (no confirmation dialog)
-      setListPickerSpecies(species)
-    } else {
-      // Single list: add directly, no picker needed
-      void handleAddSpeciesToList(species, activeListId)
-    }
+    // Always add to the active list directly — no picker needed
+    void handleAddSpeciesToList(species, activeListId)
   }
 
   // Performs the actual add to a specific list (called from list picker or directly)
@@ -941,7 +936,7 @@ export default function GoalBirdsTab() {
                             <span
                               className={`text-sm font-medium truncate ${
                                 seen
-                                  ? 'line-through text-gray-400 dark:text-gray-500'
+                                  ? 'line-through text-gray-500 dark:text-gray-400'
                                   : 'text-[#2C3E50] dark:text-gray-200 hover:text-[#2C3E7B] dark:hover:text-blue-400'
                               }`}
                               data-testid={seen ? `goal-species-seen-${code}` : `goal-species-unseen-${code}`}
@@ -959,7 +954,7 @@ export default function GoalBirdsTab() {
                           </div>
                           <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                             {species && (
-                              <span className={`text-xs italic truncate ${seen ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}>
+                              <span className={`text-xs italic truncate ${seen ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-400'}`}>
                                 {species.sciName}
                               </span>
                             )}
@@ -1272,7 +1267,7 @@ export default function GoalBirdsTab() {
             </div>
             <button
               onClick={() => setListPickerSpecies(null)}
-              className="mt-3 w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 py-1"
+              className="mt-3 w-full text-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 py-1"
               data-testid="list-picker-cancel"
             >
               Cancel

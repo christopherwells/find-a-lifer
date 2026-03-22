@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { SUB_REGIONS, SUPER_REGIONS } from '../lib/subRegions'
+// SUB_REGIONS/SUPER_REGIONS no longer needed — region options are hardcoded in the dropdown for geographic ordering
 
 interface TopBarProps {
   darkMode: boolean
@@ -141,11 +141,36 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
                   }`}
                 >
                   <option value="">Home Region: All</option>
-                  <optgroup label="Super-Regions">
-                    {SUPER_REGIONS.map(sr => <option key={sr.id} value={sr.id}>{sr.name}</option>)}
+                  <optgroup label="Northern (Canada &amp; Alaska)">
+                    <option value="northern">All Northern</option>
+                    <option value="ca-west">Western Canada &amp; Alaska</option>
+                    <option value="ca-central">Central Canada</option>
+                    <option value="ca-east">Eastern Canada &amp; N. Atlantic</option>
                   </optgroup>
-                  <optgroup label="Sub-Regions">
-                    {SUB_REGIONS.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  <optgroup label="Continental US">
+                    <option value="continental-us">All Continental US</option>
+                    <option value="us-ne">Northeastern US</option>
+                    <option value="us-se">Southeastern US</option>
+                    <option value="us-mw">Midwestern US</option>
+                    <option value="us-sw">Southwestern US</option>
+                    <option value="us-west">Western US</option>
+                    <option value="us-rockies">US Rockies</option>
+                  </optgroup>
+                  <optgroup label="Hawaii">
+                    <option value="hawaii">Hawaii</option>
+                  </optgroup>
+                  <optgroup label="Mexico &amp; Central America">
+                    <option value="mex-central">All Mex/CA</option>
+                    <option value="mx-north">Northern Mexico</option>
+                    <option value="mx-south">Southern Mexico</option>
+                    <option value="ca-c-north">Upper Central America</option>
+                    <option value="ca-c-south">Costa Rica &amp; Panama</option>
+                  </optgroup>
+                  <optgroup label="Caribbean">
+                    <option value="caribbean">All Caribbean</option>
+                    <option value="atlantic-west">Western Atlantic Islands</option>
+                    <option value="caribbean-greater">Greater Antilles</option>
+                    <option value="caribbean-lesser">Lesser Antilles</option>
                   </optgroup>
                 </select>
               </div>

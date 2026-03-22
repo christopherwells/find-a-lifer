@@ -53,10 +53,10 @@ WATER_FAMILY_OCEAN_THRESHOLD = 0.20
 FOREST_THRESHOLD = 0.15  # min total forest to qualify for any forest label
 # Per-type dominance thresholds: specific types get lower bar, mixed is harder
 FOREST_TYPE_LABELS = {
-    "needleleaf":          ("Conifer Forest",    0.45),  # lower bar — informative
-    "evergreen_broadleaf": ("Tropical Forest",   0.45),  # lower bar — informative
-    "deciduous_broadleaf": ("Deciduous Forest",  0.45),  # lower bar — informative
-    "mixed_forest":        ("Mixed Forest",      0.75),  # higher bar — less informative, downweighted
+    "needleleaf":          ("Conifer Forest",    0.35),  # lowered from 0.45 — more specific labels
+    "evergreen_broadleaf": ("Tropical Forest",   0.35),  # lowered from 0.45
+    "deciduous_broadleaf": ("Deciduous Forest",  0.35),  # lowered from 0.45
+    "mixed_forest":        ("Mixed Forest",      0.60),  # lowered from 0.75
 }
 
 # All covariate keys to aggregate (supports both split and legacy formats)

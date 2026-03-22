@@ -171,6 +171,7 @@ export default function ExploreTab() {
               key={mode}
               data-testid={`view-mode-${mode}`}
               onClick={() => setViewMode(mode)}
+              title={label}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg text-center transition-all ${
                 viewMode === mode
                   ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
@@ -183,7 +184,7 @@ export default function ExploreTab() {
         </div>
         <div className="flex items-center gap-1 mt-1">
           <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />
-          <span className="text-xs lg:text-xs text-gray-400 dark:text-gray-500">
+          <span className="text-xs lg:text-xs text-gray-500 dark:text-gray-400">
             {viewMode === 'density' ? 'New birds in each area' : viewMode === 'probability' ? 'Chance of finding a lifer' : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Where multiple species overlap' : 'Where this species is found') : 'Goal birds in each area'}
           </span>
         </div>
@@ -229,6 +230,7 @@ export default function ExploreTab() {
               : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
           }`}
           aria-pressed={showTotalRichness}
+          title={showTotalRichness ? 'Showing all species including seen ones' : 'Show all species including ones you have seen'}
         >
           <span className="flex items-center gap-1">Include Seen Species <Tooltip content={TOOLTIPS.totalRichness} /></span>
           <span
@@ -250,7 +252,7 @@ export default function ExploreTab() {
         <div className="mb-0">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400">This Week's Highlights</h3>
-            <button onClick={() => setShowHighlights(false)} className="text-xs lg:text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
+            <button onClick={() => setShowHighlights(false)} className="text-xs lg:text-xs text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Hide</button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
             {highlights.map(h => (
@@ -418,12 +420,12 @@ export default function ExploreTab() {
                     disabled={compareMode && selectedSpeciesMulti.length >= 4 && !selectedSpeciesMulti.includes(s.speciesCode)}
                   >
                     <div className="font-medium text-gray-800 dark:text-gray-200">{s.comName}</div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500 italic">{s.sciName}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">{s.sciName}</div>
                   </button>
                 ))
               )}
               {filteredSpecies.length > 100 && (
-                <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 text-center">
+                <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 text-center">
                   Showing first 100 of {filteredSpecies.length} — type to search
                 </div>
               )}
@@ -456,6 +458,7 @@ export default function ExploreTab() {
             onChange={(e) => setCurrentWeek(parseInt(e.target.value, 10))}
             className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
             data-testid="week-slider"
+            title={`Week ${currentWeek}`}
           />
           <button
             onClick={isAnimating ? stopAnimation : startAnimation}
@@ -466,6 +469,7 @@ export default function ExploreTab() {
                 : 'bg-[#2C3E7B] hover:bg-[#243267] text-white'
             }`}
             aria-label={isAnimating ? 'Pause migration animation' : 'Play migration animation'}
+            title={isAnimating ? 'Pause animation' : 'Play migration animation'}
           >
             {isAnimating ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
@@ -501,6 +505,7 @@ export default function ExploreTab() {
               className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
               data-testid="opacity-slider"
               aria-label="Adjust heatmap opacity"
+              title={`Opacity: ${Math.round(heatmapOpacity * 100)}%`}
             />
           </div>
       {/* Lifer Count Range Filter */}
@@ -526,8 +531,9 @@ export default function ExploreTab() {
             className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
             data-testid="lifer-range-min-slider"
             aria-label="Minimum lifer count"
+            title={`Minimum lifers: ${liferCountRange[0]}`}
           />
-          <div className="flex justify-between text-xs lg:text-xs text-gray-400 dark:text-gray-500">
+          <div className="flex justify-between text-xs lg:text-xs text-gray-500 dark:text-gray-400">
             <span>{dataRange[0]}</span>
             <span>{dataRange[1]}</span>
           </div>
@@ -544,7 +550,7 @@ export default function ExploreTab() {
       )}
 
       {/* Responsible birding footer */}
-      <p className="text-xs lg:text-xs text-gray-400 dark:text-gray-500 text-center mt-4 px-2">
+      <p className="text-xs lg:text-xs text-gray-500 dark:text-gray-400 text-center mt-4 px-2">
         Please bird responsibly.{' '}
         <a
           href="https://www.aba.org/aba-code-of-birding-ethics/"

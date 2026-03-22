@@ -27,6 +27,39 @@ GEONAMES_FILE = SCRIPT_DIR / "reference" / "cities500.txt"
 # US state FIPS → abbreviation
 ADMIN1_TO_STATE = {}  # populated from admin1 codes
 
+# Sub-region lookup for subRegion tagging (matches frontend/src/lib/subRegions.ts)
+_SUB_REGION_MAP = {}
+_SUB_REGION_DEFS = {
+    'ca-west': ['CA-BC', 'CA-AB', 'US-AK', 'CA-YT'],
+    'ca-central': ['CA-SK', 'CA-MB', 'CA-ON', 'CA-NT', 'CA-NU'],
+    'ca-east': ['CA-QC', 'CA-NB', 'CA-NS', 'CA-NL', 'CA-PE', 'PM', 'GL'],
+    'us-ne': ['US-ME', 'US-NH', 'US-VT', 'US-MA', 'US-RI', 'US-CT', 'US-NY', 'US-NJ', 'US-PA', 'US-DE', 'US-MD', 'US-DC'],
+    'us-se': ['US-VA', 'US-WV', 'US-NC', 'US-SC', 'US-GA', 'US-FL', 'US-AL', 'US-MS', 'US-TN', 'US-KY', 'US-LA', 'US-AR'],
+    'us-mw': ['US-OH', 'US-IN', 'US-IL', 'US-MI', 'US-WI', 'US-MN', 'US-IA', 'US-MO', 'US-ND', 'US-SD', 'US-NE', 'US-KS'],
+    'us-sw': ['US-TX', 'US-OK', 'US-NM', 'US-AZ'],
+    'us-west': ['US-CA', 'US-OR', 'US-WA'],
+    'us-rockies': ['US-NV', 'US-UT', 'US-CO', 'US-WY', 'US-MT', 'US-ID'],
+    'us-hi': ['US-HI'],
+    'mx-north': [f'MX-{s}' for s in ['BCN', 'BCS', 'SON', 'CHH', 'COA', 'NLE', 'TAM', 'SIN', 'DUR', 'ZAC', 'SLP', 'AGU', 'NAY', 'JAL']],
+    'mx-south': [f'MX-{s}' for s in ['COL', 'MIC', 'GUA', 'GRO', 'OAX', 'CHP', 'TAB', 'VER', 'PUE', 'TLA', 'HID', 'MEX', 'MOR', 'QUE', 'CAM', 'ROO', 'YUC', 'CMX', 'DIF']],
+    'ca-c-north': ['BZ', 'GT', 'SV', 'HN', 'NI'],
+    'ca-c-south': ['CR', 'PA'],
+    'caribbean-greater': ['CU', 'JM', 'HT', 'DO', 'PR'],
+    'caribbean-lesser': ['TT', 'BB', 'KN', 'VI', 'VG', 'AW', 'MF', 'MQ', 'BQ', 'SX', 'AG', 'DM', 'GD', 'LC', 'VC'],
+    'atlantic-west': ['BM', 'BS', 'TC'],
+}
+for _rid, _codes in _SUB_REGION_DEFS.items():
+    for _sc in _codes:
+        _SUB_REGION_MAP[_sc] = _rid
+
+
+def _state_to_subregion(state_code: str) -> str | None:
+    """Resolve a state code to sub-region ID. Tries exact match then country prefix."""
+    if state_code in _SUB_REGION_MAP:
+        return _SUB_REGION_MAP[state_code]
+    country = state_code.split('-')[0]
+    return _SUB_REGION_MAP.get(country)
+
 # Country + admin1 → short label (US states, CA provinces)
 # GeoNames uses admin1 codes: US.NY, CA.ON, etc.
 US_STATES = {
@@ -367,6 +400,25 @@ def label_grid(grid_path, cities, resolution, preview=False):
                 ocean_label = get_ocean_label(center_lat, center_lng, qualifier)
                 props["label"] = ocean_label
             unlabeled += 1
+
+    # Add subRegion property from cell_states.json
+    cell_states_path = OUTPUT_DIR / f"r{resolution}" / "cell_states.json"
+    if cell_states_path.exists():
+        with open(cell_states_path) as f:
+            cell_states = json.load(f)
+        tagged = 0
+        for feature in grid["features"]:
+            cell_id = str(feature["properties"].get("cell_id", ""))
+            state_code = cell_states.get(cell_id)
+            if state_code:
+                # Map state code to sub-region ID using the same logic as frontend subRegions.ts
+                region_id = _state_to_subregion(state_code)
+                if region_id:
+                    feature["properties"]["subRegion"] = region_id
+                    tagged += 1
+        print(f"  Resolution {resolution}: {tagged} cells tagged with subRegion")
+    else:
+        print(f"  Resolution {resolution}: no cell_states.json found, skipping subRegion tagging")
 
     print(f"  Resolution {resolution}: {labeled} labeled, {unlabeled} coordinate-only")
 

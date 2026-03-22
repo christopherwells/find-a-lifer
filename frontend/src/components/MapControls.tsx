@@ -5,6 +5,7 @@ import { useWeekAnimation } from '../lib/useWeekAnimation'
 import { getWeekLabel } from './tripPlanUtils'
 import { getWeeklyHighlightsLite } from '../lib/recommendationEngine'
 import { useMapControls } from '../contexts/MapControlsContext'
+import { SUB_REGIONS, SUPER_REGIONS } from '../lib/subRegions'
 
 interface MapControlsProps {
   seenSpecies: Set<string>
@@ -85,7 +86,9 @@ export default function MapControls({
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
 
-  // Load full species data (used for Range mode picker + weekly highlights)
+  // Load full species data (used for Range mode picker + weekly highlights).
+  // Note: fetchSpecies() is cached at the module level in dataCache.ts (shared with
+  // MapView's loadSpeciesMetaCache and ExploreTab), so multiple callers share one fetch.
   useEffect(() => {
     if (allSpecies.length > 0) return
     setIsLoadingSpecies(true)
@@ -194,6 +197,8 @@ export default function MapControls({
             onChange={(e) => setCurrentWeek(parseInt(e.target.value, 10))}
             className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
             data-testid="mc-week-slider"
+            title={`Week ${currentWeek}`}
+            aria-label="Select week of the year"
           />
           <button
             onClick={isAnimating ? stopAnimation : startAnimation}
@@ -204,6 +209,7 @@ export default function MapControls({
             }`}
             data-testid={isAnimating ? 'mc-animation-pause' : 'mc-animation-play'}
             aria-label={isAnimating ? 'Pause animation' : 'Play animation'}
+            title={isAnimating ? 'Pause animation' : 'Play migration animation'}
           >
             {isAnimating ? (
               <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
@@ -229,7 +235,12 @@ export default function MapControls({
                 <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.616a1 1 0 01.894-1.79l1.599.8L9 4.323V3a1 1 0 011-1z" />
                 </svg>
-                This Week · {weeklyHighlights.length} highlight{weeklyHighlights.length !== 1 ? 's' : ''}
+                {(() => {
+                  const id = localStorage.getItem('homeRegion')
+                  if (!id) return `This Week · ${weeklyHighlights.length}`
+                  const name = SUB_REGIONS.find(r => r.id === id)?.name || SUPER_REGIONS.find(r => r.id === id)?.name
+                  return name ? `This Week in ${name} · ${weeklyHighlights.length}` : `This Week · ${weeklyHighlights.length}`
+                })()}
               </span>
               <svg className={`h-3 w-3 transition-transform ${highlightsExpanded ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -288,8 +299,10 @@ export default function MapControls({
                 onChange={(e) => setHeatmapOpacity(parseInt(e.target.value, 10) / 100)}
                 className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#2C3E7B]"
                 data-testid="mc-opacity-slider"
+                title={`Opacity: ${Math.round(heatmapOpacity * 100)}%`}
+                aria-label="Adjust heatmap opacity"
               />
-              <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums w-7 text-right">
+              <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums w-7 text-right">
                 {Math.round(heatmapOpacity * 100)}%
               </span>
             </div>
@@ -326,6 +339,7 @@ export default function MapControls({
                     : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
                 aria-pressed={showTotalRichness}
+                title={showTotalRichness ? 'Showing all species including seen ones' : 'Show all species including ones you have seen'}
               >
                 Include Seen Species
                 <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
@@ -501,11 +515,11 @@ export default function MapControls({
                   data-testid="mc-species-search"
                 />
                 {isLoadingSpecies ? (
-                  <div className="text-xs text-gray-400 text-center py-3">Loading species...</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-3">Loading species...</div>
                 ) : (
                   <div className="max-h-36 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg mt-1 divide-y divide-gray-100 dark:divide-gray-700">
                     {filteredSpecies.length === 0 ? (
-                      <div className="px-2 py-3 text-xs text-gray-400 text-center">No species found.</div>
+                      <div className="px-2 py-3 text-xs text-gray-500 dark:text-gray-400 text-center">No species found.</div>
                     ) : (
                       filteredSpecies.slice(0, 50).map((s) => (
                         <button
@@ -532,12 +546,12 @@ export default function MapControls({
                           disabled={compareMode && selectedSpeciesMulti.length >= 4 && !selectedSpeciesMulti.includes(s.speciesCode)}
                         >
                           <div className="font-medium text-gray-800 dark:text-gray-200 truncate">{s.comName}</div>
-                          <div className="text-xs text-gray-400 italic truncate">{s.sciName}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 italic truncate">{s.sciName}</div>
                         </button>
                       ))
                     )}
                     {filteredSpecies.length > 50 && (
-                      <div className="px-2 py-1.5 text-xs text-gray-400 text-center">
+                      <div className="px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400 text-center">
                         {filteredSpecies.length - 50} more — type to search
                       </div>
                     )}

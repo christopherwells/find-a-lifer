@@ -424,7 +424,7 @@ export default function ProgressTab() {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between text-xs">
-                    <span className={`font-medium ${reached ? 'text-[#27AE60] dark:text-green-400' : isNext ? 'text-[#2C3E7B] dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                    <span className={`font-medium ${reached ? 'text-[#27AE60] dark:text-green-400' : isNext ? 'text-[#2C3E7B] dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
                       {target.toLocaleString()} species
                     </span>
                     {isNext && (
@@ -475,7 +475,7 @@ export default function ProgressTab() {
           <div className="space-y-1.5">
             {(leaderboardMode === 'friends' ? friendLeaderboard : leaderboard).map((entry, i) => (
               <div key={entry.uid} className={`flex items-center gap-2 text-sm ${entry.uid === user.uid ? 'font-bold' : ''}`}>
-                <span className="w-6 text-right text-gray-400 text-xs">#{i + 1}</span>
+                <span className="w-6 text-right text-gray-500 dark:text-gray-400 text-xs">#{i + 1}</span>
                 <span className="flex-1 text-gray-800 dark:text-gray-200 truncate">
                   {entry.displayName}{entry.uid === user.uid ? ' (you)' : ''}
                 </span>
@@ -483,7 +483,7 @@ export default function ProgressTab() {
               </div>
             ))}
             {(leaderboardMode === 'friends' ? friendLeaderboard : leaderboard).length === 0 && (
-              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
                 {leaderboardMode === 'friends' ? 'Add friends to see their progress' : 'No data yet'}
               </p>
             )}

@@ -150,7 +150,7 @@ export default memo(function SidePanel({
                 className={`flex-1 flex flex-col items-center justify-center min-h-[44px] py-1.5 transition-colors ${
                   isHighlighted
                     ? 'text-[#2C3E7B] dark:text-blue-400'
-                    : 'text-gray-400 dark:text-gray-500'
+                    : 'text-gray-500 dark:text-gray-400'
                 }`}
                 title={tab.label}
               >
@@ -209,7 +209,7 @@ export default memo(function SidePanel({
               className={`flex-1 py-2.5 px-1 flex flex-col items-center transition-all relative ${
                 activeTab === tab.id
                   ? 'text-[#2C3E7B] dark:text-blue-400'
-                  : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
               }`}
               title={tab.label}
             >

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useMapControls } from '../contexts/MapControlsContext'
 import type { Species } from './types'
 import { computePlannerResults, type PlannerResult } from '../lib/dataCache'
-import { SUB_REGIONS, SUPER_REGIONS } from '../lib/subRegions'
 import { getWeekLabel, getCellCoordinates, formatProbability, getProbabilityColor } from './tripPlanUtils'
 
 interface TripPlannerProps {
@@ -189,15 +188,36 @@ export default function TripPlanner({
             className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
           >
             <option value="">All Regions</option>
-            <optgroup label="Super-Regions">
-              {SUPER_REGIONS.map(sr => (
-                <option key={sr.id} value={sr.id}>{sr.name}</option>
-              ))}
+            <optgroup label="Northern (Canada & Alaska)">
+              <option value="northern">All Northern</option>
+              <option value="ca-west">Western Canada &amp; Alaska</option>
+              <option value="ca-central">Central Canada</option>
+              <option value="ca-east">Eastern Canada &amp; North Atlantic Islands</option>
             </optgroup>
-            <optgroup label="Sub-Regions">
-              {SUB_REGIONS.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
+            <optgroup label="Continental US">
+              <option value="continental-us">All Continental US</option>
+              <option value="us-ne">Northeastern US</option>
+              <option value="us-se">Southeastern US</option>
+              <option value="us-mw">Midwestern US</option>
+              <option value="us-sw">Southwestern US</option>
+              <option value="us-west">Western US</option>
+              <option value="us-rockies">US Rockies</option>
+            </optgroup>
+            <optgroup label="Hawaii">
+              <option value="hawaii">Hawaii</option>
+            </optgroup>
+            <optgroup label="Mexico & Central America">
+              <option value="mex-central">All Mexico &amp; Central America</option>
+              <option value="mx-north">Northern Mexico</option>
+              <option value="mx-south">Southern Mexico</option>
+              <option value="ca-c-north">Upper Central America</option>
+              <option value="ca-c-south">Costa Rica &amp; Panama</option>
+            </optgroup>
+            <optgroup label="Caribbean">
+              <option value="caribbean">All Caribbean</option>
+              <option value="atlantic-west">Western Atlantic Islands</option>
+              <option value="caribbean-greater">Greater Antilles</option>
+              <option value="caribbean-lesser">Lesser Antilles</option>
             </optgroup>
           </select>
         </div>
