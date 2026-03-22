@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import SpeciesInfoCard from './SpeciesInfoCard'
+import LifersNearYouCard from './LifersNearYouCard'
 import type { SpeciesMeta, Species } from './types'
 import { fetchSpecies } from '../lib/dataCache'
 import { useLifeList } from '../contexts/LifeListContext'
@@ -310,6 +311,15 @@ export default function ExploreTab() {
             />
           </span>
         </button>
+      )}
+
+      {/* Lifers Near You — location-aware recommendations */}
+      {viewMode === 'density' && effectiveSeenSpecies.size > 0 && (
+        <LifersNearYouCard
+          week={currentWeek}
+          seenSpecies={effectiveSeenSpecies}
+          onSpeciesClick={(sp) => setHighlightCard(sp)}
+        />
       )}
 
       {/* This Week's Highlights */}

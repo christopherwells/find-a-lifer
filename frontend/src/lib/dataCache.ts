@@ -302,10 +302,118 @@ export async function getCellLabels(resolution?: number): Promise<Map<number, st
   return labels
 }
 
+export interface NearbyLifer {
+  speciesCode: string
+  comName: string
+  sciName: string
+  freq: number           // 0-1 reporting frequency in the best cell
+  difficultyRating: number
+  cellId: number
+  cellName: string
+  photoUrl?: string
+  photoAttribution?: string
+}
+
 /**
- * Returns a 52-element array of average reporting frequencies for a species.
- * Each element represents the average frequency (0-1) across all cells for that week.
+ * Find the easiest unseen species near a location for the current week.
+ * Returns top N species ranked by a combination of ease (low difficulty, high frequency).
  */
+export async function getLifersNearLocation(
+  lng: number,
+  lat: number,
+  week: number,
+  seenSpeciesCodes: Set<string>,
+  count: number = 5,
+  resolution?: number,
+): Promise<NearbyLifer[]> {
+  const [allSpecies, weekCells, labels, grid] = await Promise.all([
+    fetchSpecies(),
+    fetchWeekCells(week, resolution),
+    getCellLabels(resolution),
+    fetchGrid(resolution),
+  ])
+
+  // Build species_id → Species lookup
+  const speciesById = new Map<number, Species>()
+  for (const sp of allSpecies) {
+    speciesById.set(sp.species_id, sp)
+  }
+
+  // Build cell_id → [lng, lat] centroid from grid GeoJSON
+  const cellCenters = new Map<number, [number, number]>()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const feature of (grid as any).features) {
+    const cellId = feature.properties?.cell_id
+    if (cellId == null) continue
+    const coords = feature.geometry?.coordinates
+    if (!coords) continue
+    // Compute centroid from first ring of polygon
+    const ring = coords[0]
+    if (!ring || ring.length === 0) continue
+    let sumLng = 0, sumLat = 0
+    for (const pt of ring) { sumLng += pt[0]; sumLat += pt[1] }
+    cellCenters.set(cellId, [sumLng / ring.length, sumLat / ring.length])
+  }
+
+  // Find nearby cells (sorted by distance, take closest 50)
+  const cellDistances: { cellId: number; dist: number }[] = []
+  for (const [cellId, [cLng, cLat]] of cellCenters) {
+    if (!weekCells.has(cellId)) continue
+    const dLng = (cLng - lng) * Math.cos((lat * Math.PI) / 180)
+    const dLat = cLat - lat
+    cellDistances.push({ cellId, dist: dLng * dLng + dLat * dLat })
+  }
+  cellDistances.sort((a, b) => a.dist - b.dist)
+  const nearbyCells = cellDistances.slice(0, 50)
+
+  // Collect unseen species across nearby cells, keeping best frequency
+  const bestSpecies = new Map<string, { freq: number; cellId: number; speciesId: number }>()
+  for (const { cellId } of nearbyCells) {
+    const cellData = weekCells.get(cellId)
+    if (!cellData) continue
+    for (let i = 0; i < cellData.speciesIds.length; i++) {
+      const sid = cellData.speciesIds[i]
+      const sp = speciesById.get(sid)
+      if (!sp) continue
+      if (seenSpeciesCodes.has(sp.speciesCode)) continue
+      const freq = cellData.freqs ? cellData.freqs[i] / 255 : 0
+      if (freq < 0.01) continue // skip very rare
+      const existing = bestSpecies.get(sp.speciesCode)
+      if (!existing || freq > existing.freq) {
+        bestSpecies.set(sp.speciesCode, { freq, cellId, speciesId: sid })
+      }
+    }
+  }
+
+  // Score and rank: prefer easy (low difficulty) and common (high frequency)
+  const scored: { code: string; score: number; freq: number; cellId: number }[] = []
+  for (const [code, { freq, cellId }] of bestSpecies) {
+    const sp = allSpecies.find(s => s.speciesCode === code)
+    if (!sp) continue
+    const difficulty = sp.difficultyRating ?? 5
+    // Score: higher = easier to find. Weight frequency heavily, penalize difficulty.
+    const score = freq * 10 - difficulty * 0.5
+    scored.push({ code, score, freq, cellId })
+  }
+  scored.sort((a, b) => b.score - a.score)
+
+  // Build results
+  return scored.slice(0, count).map(({ code, freq, cellId }) => {
+    const sp = allSpecies.find(s => s.speciesCode === code)!
+    return {
+      speciesCode: sp.speciesCode,
+      comName: sp.comName,
+      sciName: sp.sciName,
+      freq,
+      difficultyRating: sp.difficultyRating ?? 5,
+      cellId,
+      cellName: labels.get(cellId) || 'Unknown',
+      photoUrl: sp.photoUrl,
+      photoAttribution: sp.photoAttribution,
+    }
+  })
+}
+
 /** Cache of cell_id → state_code for sub-region filtering */
 let cellStatesCache: Map<number, string> | null = null
 let cellStatesLoading: Promise<Map<number, string>> | null = null
