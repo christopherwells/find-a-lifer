@@ -291,8 +291,8 @@ export default function ProgressTab() {
     // Count families started
     const familiesSeen = new Set(seenSpeciesList.map(s => getDisplayGroup(s.familyComName)))
 
-    // Helper: find the next tier target for a value
-    const nextTier = (value: number, tiers: number[]) => tiers.find(t => value < t) ?? tiers[tiers.length - 1]
+    // Find next tier. When value exceeds all tiers, return value itself (completed).
+    const nextTier = (value: number, tiers: number[]) => tiers.find(t => value < t) ?? value
 
     // Additional counts
     const totalFamilies = new Set(allSpecies.map(s => getDisplayGroup(s.familyComName))).size
@@ -315,7 +315,7 @@ export default function ProgressTab() {
       return labels.includes('Freshwater') || labels.includes('Ocean') || labels.includes('Wetland')
     }).length
 
-    type Achievement = { label: string; progress: number; target: number; reached: boolean }
+    type Achievement = { label: string; progress: number; target: number }
     const items: Achievement[] = []
 
     // 1. Habitat Explorer — tiers: 3, 5, 8, 11
@@ -324,7 +324,6 @@ export default function ProgressTab() {
       label: 'Habitat Explorer',
       progress: habitatsSeen.size,
       target: nextTier(habitatsSeen.size, [3, 5, 8, totalHabitats]),
-      reached: habitatsSeen.size >= totalHabitats,
     })
 
     // 2. Region Collector — tiers: 3, 6, 10, 14, 17
@@ -332,7 +331,6 @@ export default function ProgressTab() {
       label: 'Region Collector',
       progress: regionsSeen.size,
       target: nextTier(regionsSeen.size, [3, 6, 10, 14, 17]),
-      reached: regionsSeen.size >= 17,
     })
 
     // 3. Taxonomic Breadth — tiers: 10, 20, 30, all
@@ -340,7 +338,6 @@ export default function ProgressTab() {
       label: 'Taxonomist',
       progress: familiesSeen.size,
       target: nextTier(familiesSeen.size, [10, 20, 30, totalFamilies]),
-      reached: familiesSeen.size >= totalFamilies,
     })
 
     // 4. Conservation Champion — tiers: 5, 15, 30, 50, 75
@@ -348,7 +345,6 @@ export default function ProgressTab() {
       label: 'Conservationist',
       progress: threatenedSeen,
       target: nextTier(threatenedSeen, [5, 15, 30, 50, 75]),
-      reached: threatenedSeen >= 75,
     })
 
     // 5. Rarity Hunter — tiers: 10, 25, 50, 100, 150
@@ -356,7 +352,6 @@ export default function ProgressTab() {
       label: 'Rarity Hunter',
       progress: hardSeen,
       target: nextTier(hardSeen, [10, 25, 50, 100, 150]),
-      reached: hardSeen >= 150,
     })
 
     // 6. Easy Pickings — tiers: 25, 50, 100, 200, totalEasy
@@ -364,7 +359,6 @@ export default function ProgressTab() {
       label: 'Easy Pickings',
       progress: easySeen,
       target: nextTier(easySeen, [25, 50, 100, 200, totalEasy]),
-      reached: easySeen >= totalEasy,
     })
 
     // 7. Globe-trotter — countries birded in, tiers: 2, 5, 10, 15, 20
@@ -372,7 +366,6 @@ export default function ProgressTab() {
       label: 'Globe-trotter',
       progress: countriesSeen.size,
       target: nextTier(countriesSeen.size, [2, 5, 10, 15, 20]),
-      reached: countriesSeen.size >= 20,
     })
 
     // 8. Forest Birder — tiers: 25, 50, 100, 200, 300
@@ -380,7 +373,6 @@ export default function ProgressTab() {
       label: 'Forest Birder',
       progress: forestSeen,
       target: nextTier(forestSeen, [25, 50, 100, 200, 300]),
-      reached: forestSeen >= 300,
     })
 
     // 9. Waterbird Watcher — tiers: 10, 25, 50, 100, 150
@@ -388,7 +380,6 @@ export default function ProgressTab() {
       label: 'Water Birder',
       progress: waterSeen,
       target: nextTier(waterSeen, [10, 25, 50, 100, 150]),
-      reached: waterSeen >= 150,
     })
 
     // 10. Half Way There — seen 50%+ of all species
@@ -397,7 +388,6 @@ export default function ProgressTab() {
       label: 'Halfway There',
       progress: totalSeen,
       target: halfTarget,
-      reached: totalSeen >= halfTarget,
     })
 
     return items
@@ -540,17 +530,18 @@ export default function ProgressTab() {
         <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">Achievements</h4>
         <div className="grid grid-cols-2 gap-2">
           {milestones.map(m => {
+            const done = m.progress >= m.target
             const pct = Math.min(100, (m.progress / m.target) * 100)
             return (
-              <div key={m.label} className={`rounded-lg p-2 ${m.reached ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`} data-testid={`milestone-${m.label}`}>
+              <div key={m.label} className={`rounded-lg p-2 ${done ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`} data-testid={`milestone-${m.label}`}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-semibold ${m.reached ? 'text-[#27AE60] dark:text-green-400' : 'text-gray-800 dark:text-gray-200'}`}>
-                    {m.reached ? '\u2713 ' : ''}{m.label}
+                  <span className={`text-xs font-semibold ${done ? 'text-[#27AE60] dark:text-green-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                    {done ? '\u2713 ' : ''}{m.label}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
                   <div
-                    className={`h-full rounded-full ${m.reached ? 'bg-[#27AE60]' : 'bg-[#2C3E7B]'}`}
+                    className={`h-full rounded-full ${done ? 'bg-[#27AE60]' : 'bg-[#2C3E7B]'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

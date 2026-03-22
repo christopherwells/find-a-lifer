@@ -27,6 +27,26 @@ GEONAMES_FILE = SCRIPT_DIR / "reference" / "cities500.txt"
 # US state FIPS → abbreviation
 ADMIN1_TO_STATE = {}  # populated from admin1 codes
 
+# Country code → display name for hex labels
+# US and CA use state/province abbreviations, all others use country name
+COUNTRY_NAMES = {
+    "MX": "Mexico", "BZ": "Belize", "GT": "Guatemala", "SV": "El Salvador",
+    "HN": "Honduras", "NI": "Nicaragua", "CR": "Costa Rica", "PA": "Panama",
+    "CU": "Cuba", "JM": "Jamaica", "HT": "Haiti", "DO": "Dominican Republic",
+    "PR": "Puerto Rico", "BS": "Bahamas", "BM": "Bermuda", "TC": "Turks and Caicos",
+    "TT": "Trinidad and Tobago", "BB": "Barbados", "KN": "St. Kitts and Nevis",
+    "AG": "Antigua and Barbuda", "DM": "Dominica", "GD": "Grenada",
+    "LC": "St. Lucia", "VC": "St. Vincent", "VI": "US Virgin Islands",
+    "VG": "British Virgin Islands", "AW": "Aruba", "MF": "St. Martin",
+    "MQ": "Martinique", "BQ": "Bonaire", "SX": "Sint Maarten",
+    "PM": "St. Pierre and Miquelon", "GL": "Greenland",
+}
+
+
+def country_display(code: str) -> str:
+    """Convert 2-letter country code to display name."""
+    return COUNTRY_NAMES.get(code, code)
+
 # Sub-region lookup for subRegion tagging (matches frontend/src/lib/subRegions.ts)
 _SUB_REGION_MAP = {}
 _SUB_REGION_DEFS = {
@@ -370,7 +390,7 @@ def label_grid(grid_path, cities, resolution, preview=False):
             if city["country"] in ("US", "CA"):
                 label = f"{city['name']}, {city['region']}"
             else:
-                label = f"{city['name']}, {city['country']}"
+                label = f"{city['name']}, {country_display(city['country'])}"
             props["label"] = label
             labeled += 1
             labels.append((props.get("cell_id"), label, city["pop"]))
@@ -393,7 +413,7 @@ def label_grid(grid_path, cities, resolution, preview=False):
                 if nearest_city["country"] in ("US", "CA"):
                     props["label"] = f"Near {nearest_city['name']}, {nearest_city['region']}"
                 else:
-                    props["label"] = f"Near {nearest_city['name']}, {nearest_city['country']}"
+                    props["label"] = f"Near {nearest_city['name']}, {country_display(nearest_city['country'])}"
             else:
                 # Likely ocean or very remote — use ocean label
                 qualifier = nearest_city["name"] if nearest_city and nearest_dist < 500 else None

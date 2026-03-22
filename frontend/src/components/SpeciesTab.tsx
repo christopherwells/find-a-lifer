@@ -627,30 +627,27 @@ export default function SpeciesTab() {
                 </select>
                 <Tooltip content="Whether a species is native, introduced, or vagrant in a region." />
               </div>
-              <div className="flex items-center gap-0.5">
-                <select
-                  id="difficulty-filter"
-                  value={selectedDifficulty}
-                  onChange={(e) => setSelectedDifficulty(e.target.value)}
-                  className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                  data-testid="difficulty-filter"
-                >
-                  <option value="">Difficulty</option>
-                  <option value="Easy">1-2 Easy</option>
-                  <option value="Moderate">3-4 Moderate</option>
-                  <option value="Hard">5-6 Hard</option>
-                  <option value="Very Hard">7-8 Very Hard</option>
-                  <option value="Extremely Hard">9-10 Extreme</option>
-                </select>
-                <Tooltip content={TOOLTIPS.difficulty} />
-              </div>
             </div>
-            {/* Goal List filter dropdown */}
-            {goalLists.length > 0 && (
+            {/* Difficulty + Goal List row */}
+            <div className="flex gap-1.5">
+              <select
+                id="difficulty-filter"
+                value={selectedDifficulty}
+                onChange={(e) => setSelectedDifficulty(e.target.value)}
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="difficulty-filter"
+              >
+                <option value="">Difficulty</option>
+                <option value="Easy">1-2 Easy</option>
+                <option value="Moderate">3-4 Moderate</option>
+                <option value="Hard">5-6 Hard</option>
+                <option value="Very Hard">7-8 Very Hard</option>
+                <option value="Extremely Hard">9-10 Extreme</option>
+              </select>
               <select
                 value={goalListFilter}
                 onChange={(e) => setGoalListFilter(e.target.value)}
-                className="w-full px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="goal-list-filter"
               >
                 <option value="">All Species</option>
@@ -660,6 +657,7 @@ export default function SpeciesTab() {
                 ))}
               </select>
             )}
+            </div>
             {/* Include Seen Species toggle — syncs with map heatmap */}
             <button
               onClick={() => setShowTotalRichness(!showTotalRichness)}
