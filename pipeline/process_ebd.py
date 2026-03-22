@@ -1454,6 +1454,8 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
                 entry["preferredElevation"] = h["elevation"]
             if h.get("regionalHabitat"):
                 entry["regionalHabitat"] = h["regionalHabitat"]
+            if h.get("superRegionHabitat"):
+                entry["superRegionHabitat"] = h["superRegionHabitat"]
             habitat_matched += 1
 
         # Filter: skip species that are Escapee in ALL regions

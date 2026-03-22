@@ -100,6 +100,41 @@ for _region_id, (_, _state_codes, _) in SUB_REGIONS.items():
     for _sc in _state_codes:
         STATE_TO_REGION[_sc] = _region_id
 
+# Super-region definitions: key -> (display_name, state/country_codes)
+# Codes may be state-level (US-AK) or country-level (CA, MX, GL, PM, etc.)
+# Country-level codes match via prefix fallback (CA-BC -> CA -> "northern")
+SUPER_REGIONS = {
+    "northern": ("Northern", {
+        "US-AK", "CA", "GL", "PM",
+    }),
+    "continental-us": ("Continental US", {
+        "US-AL", "US-AZ", "US-AR", "US-CA", "US-CO", "US-CT", "US-DE", "US-DC",
+        "US-FL", "US-GA", "US-ID", "US-IL", "US-IN", "US-IA", "US-KS", "US-KY",
+        "US-LA", "US-ME", "US-MD", "US-MA", "US-MI", "US-MN", "US-MS", "US-MO",
+        "US-MT", "US-NE", "US-NV", "US-NH", "US-NJ", "US-NM", "US-NY", "US-NC",
+        "US-ND", "US-OH", "US-OK", "US-OR", "US-PA", "US-RI", "US-SC", "US-SD",
+        "US-TN", "US-TX", "US-UT", "US-VT", "US-VA", "US-WA", "US-WV", "US-WI",
+        "US-WY",
+    }),
+    "hawaii": ("Hawaii", {
+        "US-HI",
+    }),
+    "mex-central": ("Mexico & Central America", {
+        "MX", "BZ", "GT", "SV", "HN", "NI", "CR", "PA",
+    }),
+    "caribbean": ("Caribbean", {
+        "CU", "JM", "HT", "DO", "PR", "BS", "BM", "TC", "TT", "BB",
+        "KN", "AG", "DM", "GD", "LC", "VC", "VI", "VG", "AW", "MF",
+        "MQ", "BQ", "SX",
+    }),
+}
+
+# Build reverse lookup: state/country_code -> super_region_id
+STATE_TO_SUPER_REGION = {}
+for _sr_id, (_, _sr_codes) in SUPER_REGIONS.items():
+    for _sc in _sr_codes:
+        STATE_TO_SUPER_REGION[_sc] = _sr_id
+
 
 def compute_habitat_for_cells(weeks_data, covariates, cell_filter=None):
     """Compute frequency-weighted habitat covariates for a species.
@@ -286,6 +321,20 @@ def main():
     # Remove empty regions
     region_cell_sets = {k: v for k, v in region_cell_sets.items() if v}
 
+    # Build per-super-region cell ID sets (state codes first, country prefix fallback)
+    super_region_cell_sets = {k: set() for k in SUPER_REGIONS}
+    for cid in cell_centroids:
+        state_code = cell_states.get(str(cid), "")
+        if not state_code:
+            continue
+        # Try exact match first (US-AK, US-NY, etc.), then country prefix (CA-BC -> CA, MX-BCN -> MX)
+        resolved = (STATE_TO_SUPER_REGION.get(state_code)
+                    or STATE_TO_SUPER_REGION.get(state_code.split('-')[0]))
+        if resolved:
+            super_region_cell_sets[resolved].add(cid)
+    # Remove empty super-regions
+    super_region_cell_sets = {k: v for k, v in super_region_cell_sets.items() if v}
+
     # Process each species-weeks file
     habitat_results = {}  # speciesCode -> {labels, elevation, regionalHabitat}
     processed = 0
@@ -323,10 +372,23 @@ def main():
                     "elevation": r_elevation,
                 }
 
+        # Per-super-region habitat computation
+        super_regional_habitat = {}
+        for sr_id, sr_cell_set in super_region_cell_sets.items():
+            sr_norm, sr_elev, sr_weight = compute_habitat_for_cells(weeks_data, covariates, sr_cell_set)
+            if sr_norm is not None:
+                sr_labels = derive_labels(sr_norm, family)
+                sr_elevation = compute_elevation(sr_elev) if sr_elev else None
+                super_regional_habitat[sr_id] = {
+                    "labels": sr_labels,
+                    "elevation": sr_elevation,
+                }
+
         habitat_results[code] = {
             "labels": labels,
             "elevation": preferred_elev,
             "regionalHabitat": regional_habitat if regional_habitat else None,
+            "superRegionHabitat": super_regional_habitat if super_regional_habitat else None,
         }
         processed += 1
 
@@ -344,6 +406,10 @@ def main():
     # Count regional habitat coverage
     with_regional = sum(1 for r in habitat_results.values() if r.get("regionalHabitat"))
     print(f"  {with_regional} species with regional habitat data")
+
+    # Count super-regional habitat coverage
+    with_super_regional = sum(1 for r in habitat_results.values() if r.get("superRegionHabitat"))
+    print(f"  {with_super_regional} species with super-region habitat data")
 
     # Save to reference file for process_ebd.py to load during species.json assembly
     REFERENCE_DIR.mkdir(exist_ok=True)
@@ -364,6 +430,8 @@ def main():
                 sp["preferredElevation"] = result["elevation"]
             if result.get("regionalHabitat"):
                 sp["regionalHabitat"] = result["regionalHabitat"]
+            if result.get("superRegionHabitat"):
+                sp["superRegionHabitat"] = result["superRegionHabitat"]
             merged += 1
 
     # Write back
