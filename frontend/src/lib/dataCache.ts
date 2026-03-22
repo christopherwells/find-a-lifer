@@ -644,6 +644,7 @@ export interface PlannerResult {
   coordinates: [number, number]
   liferCount: number
   combinedProb: number
+  expectedLifers: number  // sum of individual frequencies — expected number of lifers you'd see
   topSpecies: Array<{ speciesId: number; speciesCode: string; comName: string; freq: number }>
 }
 
@@ -737,6 +738,7 @@ export async function computePlannerResults(
           coordinates: coords,
           liferCount: presentSpecies.length,
           combinedProb: 1 - probNone,
+          expectedLifers: presentSpecies.reduce((sum, s) => sum + s.freq, 0),
           topSpecies: presentSpecies.sort((a, b) => b.freq - a.freq).slice(0, 15),
         })
       })

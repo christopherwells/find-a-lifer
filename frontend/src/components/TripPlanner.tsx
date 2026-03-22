@@ -23,6 +23,7 @@ interface GroupedByLocation {
   bestWeek: number
   bestProb: number
   bestLiferCount: number
+  bestExpected: number
   weeks: PlannerResult[]
 }
 
@@ -32,6 +33,7 @@ interface GroupedByWeek {
   bestCellName: string
   bestProb: number
   bestLiferCount: number
+  bestExpected: number
   cells: PlannerResult[]
 }
 
@@ -62,6 +64,7 @@ export default function TripPlanner({
   const [endWeek, setEndWeek] = useState(() => Math.min(52, currentWeek + 4))
   const [goalListId, setGoalListId] = useState<string>('')
   const [viewMode, setViewMode] = useState<ViewMode>('location')
+  const [sortBy, setSortBy] = useState<'expected' | 'chance' | 'count'>('expected')
 
   // Results
   const [results, setResults] = useState<PlannerResult[]>([])
@@ -130,12 +133,19 @@ export default function TripPlanner({
     return () => abortRef.current?.abort()
   }, [compute])
 
+  // Sort comparator based on selected sort
+  const sortFn = useCallback((a: { bestProb: number; bestLiferCount: number; bestExpected: number }, b: { bestProb: number; bestLiferCount: number; bestExpected: number }) => {
+    if (sortBy === 'chance') return b.bestProb - a.bestProb
+    if (sortBy === 'count') return b.bestLiferCount - a.bestLiferCount
+    return b.bestExpected - a.bestExpected // 'expected' — default
+  }, [sortBy])
+
   // Group results by location
   const byLocation = useMemo((): GroupedByLocation[] => {
     const map = new Map<number, GroupedByLocation>()
     for (const r of results) {
       const existing = map.get(r.cellId)
-      if (!existing || r.combinedProb > existing.bestProb) {
+      if (!existing || r.expectedLifers > existing.bestExpected) {
         map.set(r.cellId, {
           cellId: r.cellId,
           cellName: r.cellName,
@@ -143,6 +153,7 @@ export default function TripPlanner({
           bestWeek: r.week,
           bestProb: r.combinedProb,
           bestLiferCount: r.liferCount,
+          bestExpected: r.expectedLifers,
           weeks: existing ? [...existing.weeks, r] : [r],
         })
       } else {
@@ -150,22 +161,23 @@ export default function TripPlanner({
       }
     }
     return Array.from(map.values())
-      .sort((a, b) => b.bestProb - a.bestProb)
+      .sort(sortFn)
       .slice(0, 30)
-  }, [results])
+  }, [results, sortFn])
 
   // Group results by week
   const byWeek = useMemo((): GroupedByWeek[] => {
     const map = new Map<number, GroupedByWeek>()
     for (const r of results) {
       const existing = map.get(r.week)
-      if (!existing || r.combinedProb > existing.bestProb) {
+      if (!existing || r.expectedLifers > existing.bestExpected) {
         map.set(r.week, {
           week: r.week,
           bestCellId: r.cellId,
           bestCellName: r.cellName,
           bestProb: r.combinedProb,
           bestLiferCount: r.liferCount,
+          bestExpected: r.expectedLifers,
           cells: existing ? [...existing.cells, r] : [r],
         })
       } else {
@@ -173,8 +185,8 @@ export default function TripPlanner({
       }
     }
     return Array.from(map.values())
-      .sort((a, b) => b.bestProb - a.bestProb)
-  }, [results])
+      .sort(sortFn)
+  }, [results, sortFn])
 
   const handleShowOnMap = (cellId: number, coordinates: [number, number], week?: number) => {
     setSelectedLocation({ cellId, coordinates, name: cellLabels.get(cellId) })
@@ -280,7 +292,19 @@ export default function TripPlanner({
         </div>
       </div>
 
-      {/* View toggle */}
+      {/* Sort + View toggle */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">Sort by</label>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as 'expected' | 'chance' | 'count')}
+          className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+        >
+          <option value="expected">Expected Lifers</option>
+          <option value="chance">Chance of Any Lifer</option>
+          <option value="count">Most Possible Lifers</option>
+        </select>
+      </div>
       <div className="bg-gray-200 dark:bg-gray-700 rounded-lg p-1 grid grid-cols-2 gap-1" role="tablist">
         {(['location', 'week'] as const).map(m => (
           <button
@@ -337,7 +361,9 @@ export default function TripPlanner({
                       </div>
                     </div>
                     <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getProbabilityColor(loc.bestProb)}`}>
-                      {formatProbability(loc.bestProb)}
+                      {sortBy === 'expected' ? `~${loc.bestExpected.toFixed(1)}`
+                        : sortBy === 'count' ? `${loc.bestLiferCount}`
+                        : formatProbability(loc.bestProb)}
                     </span>
                   </button>
                   {expanded && (
@@ -384,7 +410,9 @@ export default function TripPlanner({
                       </div>
                     </div>
                     <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getProbabilityColor(wk.bestProb)}`}>
-                      {formatProbability(wk.bestProb)}
+                      {sortBy === 'expected' ? `~${wk.bestExpected.toFixed(1)}`
+                        : sortBy === 'count' ? `${wk.bestLiferCount}`
+                        : formatProbability(wk.bestProb)}
                     </span>
                   </button>
                   {expanded && (
