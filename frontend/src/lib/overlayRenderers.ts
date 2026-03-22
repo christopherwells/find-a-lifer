@@ -274,6 +274,44 @@ export function computeDensityFromLiferSummary(
 }
 
 /**
+ * Compute expected lifers per cell: sum of individual reporting frequencies
+ * for unseen species. E.g., 3 lifers at 30%, 20%, 10% = 0.6 expected.
+ */
+export function computeExpectedLifers(
+  weekCells: Map<number, CellSpeciesData>,
+  speciesMetaCache: SpeciesMeta[] | null,
+  seenSpecies: Set<string>,
+  showTotalRichness: boolean,
+  speciesFilterIds: Set<number> | null,
+): OverlayResult {
+  const values = new Map<number, number>()
+  const seenIds = new Set<number>()
+  const validIds = new Set<number>()
+  if (speciesMetaCache) {
+    speciesMetaCache.forEach(s => {
+      validIds.add(s.species_id)
+      if (seenSpecies.size > 0 && !showTotalRichness && seenSpecies.has(s.speciesCode)) {
+        seenIds.add(s.species_id)
+      }
+    })
+  }
+
+  weekCells.forEach(({ speciesIds, freqs }, cellId) => {
+    if (!freqs) return
+    let expected = 0
+    for (let i = 0; i < speciesIds.length; i++) {
+      const sid = speciesIds[i]
+      if (!validIds.has(sid)) continue
+      if (seenIds.has(sid)) continue
+      if (speciesFilterIds && !speciesFilterIds.has(sid)) continue
+      expected += freqs[i] / 255
+    }
+    if (expected > 0.01) values.set(cellId, Math.round(expected * 10) / 10)
+  })
+  return { values }
+}
+
+/**
  * Build cell-value map from pre-computed weekly summary (total species per cell).
  * Used when user has no life list and showTotalRichness is false.
  */

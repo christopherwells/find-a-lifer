@@ -18,6 +18,7 @@ export default function ExploreTab() {
     state: {
       currentWeek,
       viewMode,
+      liferMetric,
       goalBirdsOnlyFilter,
       selectedSpecies,
       selectedSpeciesMulti,
@@ -31,6 +32,7 @@ export default function ExploreTab() {
     goalSpeciesCodes,
     setCurrentWeek,
     setViewMode,
+    setLiferMetric,
     setSelectedSpecies,
     setSelectedSpeciesMulti,
     setActiveGoalListId,
@@ -194,8 +196,7 @@ export default function ExploreTab() {
       <div>
         <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex gap-1">
           {[
-            { mode: 'density' as const, label: 'Count' },
-            { mode: 'probability' as const, label: 'Chance' },
+            { mode: 'density' as const, label: 'Lifers' },
             { mode: 'species' as const, label: 'Range' },
             { mode: 'goal-birds' as const, label: 'Goals' },
           ].map(({ mode, label }) => (
@@ -205,7 +206,7 @@ export default function ExploreTab() {
               onClick={() => setViewMode(mode)}
               title={label}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg text-center transition-all ${
-                viewMode === mode
+                (mode === 'density' ? (viewMode === 'density' || viewMode === 'probability') : viewMode === mode)
                   ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:bg-gray-200 dark:active:bg-gray-700'
               }`}
@@ -214,10 +215,31 @@ export default function ExploreTab() {
             </button>
           ))}
         </div>
+        {/* Lifer metric dropdown */}
+        {(viewMode === 'density' || viewMode === 'probability') && (
+          <select
+            value={liferMetric}
+            onChange={e => {
+              const metric = e.target.value as 'count' | 'chance' | 'expected'
+              setLiferMetric(metric)
+              if (metric === 'chance') setViewMode('probability')
+              else if (viewMode === 'probability') setViewMode('density')
+            }}
+            className="w-full mt-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          >
+            <option value="expected">Expected Lifers</option>
+            <option value="count">Lifer Count</option>
+            <option value="chance">Lifer Chance</option>
+          </select>
+        )}
         <div className="flex items-center gap-1 mt-1">
           <Tooltip content={TOOLTIPS[viewMode === 'density' ? 'richness' : viewMode === 'probability' ? 'frequency' : viewMode === 'species' ? 'range' : 'goals']} />
           <span className="text-xs lg:text-xs text-gray-500 dark:text-gray-400">
-            {viewMode === 'density' ? 'New birds in each area' : viewMode === 'probability' ? 'Chance of finding a lifer' : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Where multiple species overlap' : 'Where this species is found') : 'Goal birds in each area'}
+            {viewMode === 'density' && liferMetric === 'expected' ? 'Expected new species per area'
+              : viewMode === 'density' ? 'New birds in each area'
+              : viewMode === 'probability' ? 'Chance of finding a lifer'
+              : viewMode === 'species' ? (compareMode && selectedSpeciesMulti.length > 1 ? 'Where multiple species overlap' : 'Where this species is found')
+              : 'Goal birds in each area'}
           </span>
         </div>
       </div>

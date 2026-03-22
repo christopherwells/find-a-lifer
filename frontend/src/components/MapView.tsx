@@ -152,6 +152,7 @@ export default memo(function MapView({
     state: {
       currentWeek,
       viewMode,
+      liferMetric,
       goalBirdsOnlyFilter,
       selectedSpecies,
       selectedSpeciesMulti,
@@ -1644,12 +1645,23 @@ export default memo(function MapView({
             const weekCells = await fetchWeekCells(currentWeek, activeResolution)
             if (cancelled) return
 
-            const result = computeDensityFromLiferSummary(
-              weekCells, speciesMetaCache, seenSpecies, showTotalRichness,
-              speciesFilterIdsRef.current, computeLiferSummary
-            )
-            cellLiferCounts = result.values
-            console.log(`Density lifer: liferCells=${cellLiferCounts.size}/${weekCells.size}`)
+            // Use expected lifers computation when that metric is selected
+            if (liferMetric === 'expected') {
+              const { computeExpectedLifers } = await import('../lib/overlayRenderers')
+              const result = computeExpectedLifers(
+                weekCells, speciesMetaCache, seenSpecies, showTotalRichness,
+                speciesFilterIdsRef.current
+              )
+              cellLiferCounts = result.values
+              console.log(`Expected lifers: cells=${cellLiferCounts.size}/${weekCells.size}`)
+            } else {
+              const result = computeDensityFromLiferSummary(
+                weekCells, speciesMetaCache, seenSpecies, showTotalRichness,
+                speciesFilterIdsRef.current, computeLiferSummary
+              )
+              cellLiferCounts = result.values
+              console.log(`Density lifer: liferCells=${cellLiferCounts.size}/${weekCells.size}`)
+            }
           } catch (error) {
             if (!cancelled) console.error('Lifer summary: error loading data', error)
             // Do NOT fall back to weeklySummary — that shows total species
@@ -1729,7 +1741,7 @@ export default memo(function MapView({
         map.current.off('sourcedata', pendingRetryHandler)
       }
     }
-  }, [weeklySummary, weeklyData, currentWeek, viewMode, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, selectedSpeciesMulti, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness, speciesFilters])
+  }, [weeklySummary, weeklyData, currentWeek, viewMode, liferMetric, goalBirdsOnlyFilter, goalSpeciesCodes, seenSpecies, goalSpeciesIdSetVersion, selectedSpecies, selectedSpeciesMulti, heatmapOpacity, gridReady, liferCountRange, activeResolution, gridVersion, showTotalRichness, speciesFilters])
 
   return (
     <div className="relative w-full h-full">
@@ -1798,7 +1810,8 @@ export default memo(function MapView({
           showLegend = true
           emptyMessage = goalSpeciesCodes.size === 0 ? 'Add goal birds in the Goal Birds tab' : ''
         } else if (viewMode === 'density' && !goalBirdsOnlyFilter) {
-          legendTitle = seenSpecies.size > 0 ? 'Lifer Count' : 'Species Count'
+          legendTitle = liferMetric === 'expected' ? 'Expected Lifers'
+            : seenSpecies.size > 0 ? 'Lifer Count' : 'Species Count'
           showLegend = true
         } else if (viewMode === 'species' && selectedSpecies) {
           legendTitle = selectedSpeciesMeta ? selectedSpeciesMeta.comName : 'Species Range'

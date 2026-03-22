@@ -14,13 +14,8 @@ interface MapControlsProps {
 const VIEW_MODES: { mode: MapViewMode; label: string; icon: React.ReactNode }[] = [
   {
     mode: 'density',
-    label: 'Count',
-    icon: <span className="text-sm font-bold leading-none">#</span>,
-  },
-  {
-    mode: 'probability',
-    label: 'Chance',
-    icon: <span className="text-sm font-bold leading-none">%</span>,
+    label: 'Lifers',
+    icon: <span className="text-sm font-bold leading-none">L</span>,
   },
   {
     mode: 'species',
@@ -52,6 +47,7 @@ export default function MapControls({
   const {
     state: {
       viewMode,
+      liferMetric,
       currentWeek,
       heatmapOpacity,
       goalBirdsOnlyFilter,
@@ -65,6 +61,7 @@ export default function MapControls({
     },
     goalSpeciesCodes,
     setViewMode,
+    setLiferMetric,
     setCurrentWeek,
     setHeatmapOpacity,
     setGoalBirdsOnlyFilter,
@@ -157,10 +154,10 @@ export default function MapControls({
               <button
                 key={mode}
                 role="radio"
-                aria-checked={viewMode === mode}
+                aria-checked={mode === 'density' ? (viewMode === 'density' || viewMode === 'probability') : viewMode === mode}
                 onClick={() => setViewMode(mode)}
                 className={`flex-1 flex items-center justify-center gap-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-md transition-all ${
-                  viewMode === mode
+                  (mode === 'density' ? (viewMode === 'density' || viewMode === 'probability') : viewMode === mode)
                     ? 'bg-white dark:bg-gray-700 text-[#2C3E7B] dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
                 }`}
@@ -187,6 +184,27 @@ export default function MapControls({
             </svg>
           </button>
         </div>
+
+        {/* Lifer metric dropdown — visible in Lifers mode */}
+        {(viewMode === 'density' || viewMode === 'probability') && (
+          <div className="px-2 pb-1">
+            <select
+              value={liferMetric}
+              onChange={e => {
+                const metric = e.target.value as 'count' | 'chance' | 'expected'
+                setLiferMetric(metric)
+                // Switch underlying viewMode to match metric
+                if (metric === 'chance') setViewMode('probability')
+                else if (viewMode === 'probability') setViewMode('density')
+              }}
+              className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+            >
+              <option value="expected">Expected Lifers — how many new species you'd likely see</option>
+              <option value="count">Lifer Count — total possible new species</option>
+              <option value="chance">Lifer Chance — probability of seeing at least one</option>
+            </select>
+          </div>
+        )}
 
         {/* Row 2: Week Slider — hidden in Range mode with species selected */}
         <div className={`flex items-center gap-2 px-2 pb-2 ${viewMode === 'species' && selectedSpecies ? 'hidden' : ''}`}>
