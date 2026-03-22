@@ -30,7 +30,7 @@ function AppInner() {
   const [showProfile, setShowProfile] = useState(false)
   const [showAddSpecies, setShowAddSpecies] = useState(false)
   const tourStartedRef = useRef(false)
-  const { effectiveSeenSpecies, isSpeciesSeen, toggleSpecies, importSpeciesList } = useLifeList()
+  const { effectiveSeenSpecies, isSpeciesSeen, toggleSpecies, importSpeciesList, activeTripName, activeTripMemberCount } = useLifeList()
   const { showToast } = useToast()
 
   // Session counting
@@ -134,6 +134,13 @@ function AppInner() {
             seenSpecies={effectiveSeenSpecies}
           />
           </ErrorBoundary>
+          {/* Trip mode banner */}
+          {activeTripName && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-[#2C3E7B] text-white px-3 py-1.5 rounded-full shadow-lg text-xs font-medium flex items-center gap-2 pointer-events-none">
+              <span>Trip: {activeTripName}</span>
+              <span className="bg-white/20 px-1.5 py-0.5 rounded-full">{activeTripMemberCount}</span>
+            </div>
+          )}
           {/* Floating map controls — mobile only (desktop uses ExploreTab in panel) */}
           <MapControls
             seenSpecies={effectiveSeenSpecies}

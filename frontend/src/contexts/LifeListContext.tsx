@@ -53,6 +53,12 @@ interface LifeListContextValue {
   getTotalSeen: () => number
   getLifeListEntries: () => Promise<LifeListEntry[]>
   effectiveSeenSpecies: Set<string>
+  tripUnion: Set<string> | null
+  setTripUnion: (union: Set<string> | null) => void
+  activeTripName: string | null
+  setActiveTripName: (name: string | null) => void
+  activeTripMemberCount: number
+  setActiveTripMemberCount: (count: number) => void
 }
 
 const LifeListContext = createContext<LifeListContextValue | undefined>(undefined)
@@ -98,6 +104,9 @@ async function getDB(): Promise<IDBPDatabase<LifeListDB>> {
 export function LifeListProvider({ children }: { children: ReactNode }) {
   const [seenSpecies, setSeenSpecies] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [tripUnion, setTripUnion] = useState<Set<string> | null>(null)
+  const [activeTripName, setActiveTripName] = useState<string | null>(null)
+  const [activeTripMemberCount, setActiveTripMemberCount] = useState(0)
 
   // Load life list from IndexedDB on mount
   useEffect(() => {
@@ -230,7 +239,13 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
     importSpeciesList,
     getTotalSeen,
     getLifeListEntries,
-    effectiveSeenSpecies: seenSpecies,
+    effectiveSeenSpecies: tripUnion ?? seenSpecies,
+    tripUnion,
+    setTripUnion,
+    activeTripName,
+    setActiveTripName,
+    activeTripMemberCount,
+    setActiveTripMemberCount,
   }
 
   // Don't render children until life list is loaded

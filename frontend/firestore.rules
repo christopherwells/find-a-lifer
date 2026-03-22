@@ -37,6 +37,41 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
     }
 
+    // Trips: read if member, create/update/delete if owner
+    match /trips/{tripId} {
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.memberUids;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.ownerUid;
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.memberUids;
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.ownerUid;
+
+      // Trip members: all members can read, each writes own doc, owner can delete any
+      match /members/{memberUid} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUids;
+        allow create, update: if request.auth != null
+          && request.auth.uid == memberUid;
+        allow delete: if request.auth != null
+          && (request.auth.uid == memberUid
+            || request.auth.uid == get(/databases/$(database)/documents/trips/$(tripId)).data.ownerUid);
+      }
+    }
+
+    // Trip invites: sender creates, sender/recipient can read, recipient can update
+    match /tripInvites/{inviteId} {
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.fromUid;
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.fromUid
+          || request.auth.uid == resource.data.toUid);
+      allow update: if request.auth != null
+        && (request.auth.uid == resource.data.toUid
+          || request.auth.uid == resource.data.fromUid);
+    }
+
     // Deny everything else
     match /{document=**} {
       allow read, write: if false;

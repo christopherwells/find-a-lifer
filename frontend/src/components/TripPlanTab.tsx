@@ -7,6 +7,7 @@ import { buildSpeciesById } from './tripPlanUtils'
 import HotspotsMode from './HotspotsMode'
 import LocationMode from './LocationMode'
 import WindowMode from './WindowMode'
+import TripGroupSection from './TripGroupSection'
 
 export default function TripPlanTab() {
   const {
@@ -29,7 +30,7 @@ export default function TripPlanTab() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GeoJSON feature collection
   const [gridData, setGridData] = useState<any>(null)
   const [dataError, setDataError] = useState<string | null>(null)
-  const { seenSpecies } = useLifeList()
+  const { effectiveSeenSpecies: seenSpecies } = useLifeList()
 
   const speciesById = useMemo(() => buildSpeciesById(speciesData), [speciesData])
 
@@ -80,6 +81,9 @@ export default function TripPlanTab() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Group Trip Section */}
+      <TripGroupSection />
+
       {/* Header */}
       <div className="space-y-2 pb-2 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
