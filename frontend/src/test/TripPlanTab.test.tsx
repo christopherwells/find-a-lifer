@@ -1,42 +1,44 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import { MapControlsProvider } from '../contexts/MapControlsContext'
 
-// Stable reference for seenSpecies to avoid infinite re-render loops
-// (TripPlanTab's hotspots useEffect has seenSpecies in its dependency array;
-// a new Set reference on each render would trigger the effect infinitely)
 const stableSeenSpecies = new Set<string>()
 
-// Mock dataCache
 vi.mock('../lib/dataCache', () => ({
   __esModule: true,
   fetchSpecies: vi.fn().mockResolvedValue([]),
   fetchGrid: vi.fn().mockResolvedValue({ type: 'FeatureCollection', features: [] }),
   fetchWeekCells: vi.fn().mockResolvedValue(new Map()),
-  fetchSpeciesWeeks: vi.fn().mockResolvedValue({}),
-  getCellLabels: vi.fn().mockResolvedValue(new Map()),
-  computeLiferSummary: vi.fn().mockReturnValue(new Map()),
-  computeGoalWindowOpportunities: vi.fn().mockResolvedValue([]),
+  computePlannerResults: vi.fn().mockResolvedValue([]),
 }))
 
-// Mock LifeListContext with a stable seenSpecies reference
 vi.mock('../contexts/LifeListContext', () => ({
   __esModule: true,
   useLifeList: () => ({
     seenSpecies: stableSeenSpecies,
+    effectiveSeenSpecies: stableSeenSpecies,
     isSpeciesSeen: () => false,
     getTotalSeen: () => 0,
+    tripUnion: null,
+    setTripUnion: vi.fn(),
+    activeTripName: null,
+    setActiveTripName: vi.fn(),
+    activeTripMemberCount: 0,
+    setActiveTripMemberCount: vi.fn(),
   }),
 }))
 
-// Mock AuthContext for TripReportsSection
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ user: null, loading: false, error: null, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), clearError: vi.fn() }),
 }))
 
+vi.mock('../lib/subRegions', () => ({
+  loadCellStates: vi.fn().mockResolvedValue({}),
+  isCellInRegion: vi.fn().mockReturnValue(true),
+}))
+
 import TripPlanTab from '../components/TripPlanTab'
 
-/** Helper to render TripPlanTab wrapped in MapControlsProvider and wait for async effects to settle */
 async function renderTripPlanTab() {
   let result: ReturnType<typeof render>
   await act(async () => {
@@ -50,83 +52,30 @@ async function renderTripPlanTab() {
 }
 
 describe('TripPlanTab', () => {
-  it('renders mode buttons', async () => {
+  it('renders the unified planner with By Location / By Week toggle', async () => {
     await renderTripPlanTab()
-    expect(screen.getByTestId('location-mode-btn')).toBeInTheDocument()
-    expect(screen.getByTestId('hotspots-mode-btn')).toBeInTheDocument()
-    expect(screen.getByTestId('window-mode-btn')).toBeInTheDocument()
+    expect(screen.getByText('By Location')).toBeInTheDocument()
+    expect(screen.getByText('By Week')).toBeInTheDocument()
   })
 
-  it('renders Trip Planning header', async () => {
+  it('renders region filter dropdown', async () => {
     await renderTripPlanTab()
-    expect(screen.getByText('Trip Planning')).toBeInTheDocument()
+    expect(screen.getByText('All Regions')).toBeInTheDocument()
   })
 
-  it('renders Reset button', async () => {
+  it('renders species filter with All Lifers default', async () => {
     await renderTripPlanTab()
-    expect(screen.getByTestId('clear-trip-plan-btn')).toBeInTheDocument()
-    expect(screen.getByText('Reset')).toBeInTheDocument()
+    expect(screen.getByText('All Lifers')).toBeInTheDocument()
   })
 
-  it('defaults to Hotspots mode and shows hotspot week slider', async () => {
+  it('shows import prompt when no life list', async () => {
     await renderTripPlanTab()
-    expect(screen.getByTestId('hotspot-week-slider')).toBeInTheDocument()
-    expect(screen.getByText('Select Week')).toBeInTheDocument()
+    expect(screen.getByText('Import your life list to see trip planning results')).toBeInTheDocument()
   })
 
-  it('switches to Location mode and shows empty state', async () => {
+  it('renders Group Trip section for authenticated users', async () => {
     await renderTripPlanTab()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('location-mode-btn'))
-    })
-    expect(screen.getByText('Click on the map to select a location')).toBeInTheDocument()
-    expect(screen.getByText('Selected Location')).toBeInTheDocument()
-  })
-
-  it('switches to Window mode and shows species search', async () => {
-    await renderTripPlanTab()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('window-mode-btn'))
-    })
-    expect(screen.getByText('Select Target Species')).toBeInTheDocument()
-    expect(screen.getByTestId('species-search-input')).toBeInTheDocument()
-  })
-
-  it('Location mode shows empty state when no location selected', async () => {
-    await renderTripPlanTab()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('location-mode-btn'))
-    })
-    expect(screen.getByText('Click on the map to select a location')).toBeInTheDocument()
-  })
-
-  it('mode switching back and forth works', async () => {
-    await renderTripPlanTab()
-    // Start in hotspots (default)
-    expect(screen.getByTestId('hotspot-week-slider')).toBeInTheDocument()
-
-    // Switch to location
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('location-mode-btn'))
-    })
-    expect(screen.queryByTestId('hotspot-week-slider')).not.toBeInTheDocument()
-
-    // Switch back to hotspots
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('hotspots-mode-btn'))
-    })
-    expect(screen.getByTestId('hotspot-week-slider')).toBeInTheDocument()
-  })
-
-  it('renders without crashing when context has default values', async () => {
-    await renderTripPlanTab()
-    expect(screen.getByText('Trip Planning')).toBeInTheDocument()
-  })
-
-  it('clears compare locations on mount', async () => {
-    // TripPlanTab calls setCompareLocations(null) on mount via useEffect.
-    // We just verify it renders successfully (the context handles the state).
-    await renderTripPlanTab()
-    expect(screen.getByText('Trip Planning')).toBeInTheDocument()
+    // TripGroupSection shows sign-in prompt when not authenticated
+    expect(screen.getByText('Sign in to plan group trips with friends')).toBeInTheDocument()
   })
 })

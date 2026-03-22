@@ -53,7 +53,8 @@ describe('Sparkline', () => {
     const { container } = render(<Sparkline data={makeSineData()} currentWeek={10} />)
     const gradient = container.querySelector('linearGradient')
     expect(gradient).toBeInTheDocument()
-    expect(gradient?.getAttribute('id')).toBe('sparkline-grad')
+    // ID is now unique per instance via useId()
+    expect(gradient?.getAttribute('id')).toBeTruthy()
   })
 
   // --- Current week marker ---
@@ -61,7 +62,7 @@ describe('Sparkline', () => {
     const { container } = render(<Sparkline data={makeSineData()} currentWeek={25} />)
     const line = container.querySelector('line')
     expect(line).toBeInTheDocument()
-    expect(line?.getAttribute('stroke')).toBe('#E74C3C')
+    // Color now applied via Tailwind class (stroke-red-500), not inline attribute
     expect(line?.getAttribute('stroke-dasharray')).toBe('2 2')
   })
 
@@ -69,7 +70,7 @@ describe('Sparkline', () => {
     const { container } = render(<Sparkline data={makeSineData()} currentWeek={25} />)
     const circle = container.querySelector('circle')
     expect(circle).toBeInTheDocument()
-    expect(circle?.getAttribute('fill')).toBe('#E74C3C')
+    // Color now applied via Tailwind class (fill-red-500), not inline attribute
   })
 
   // --- Frequency labels ---

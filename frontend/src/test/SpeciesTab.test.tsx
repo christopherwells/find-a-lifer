@@ -170,7 +170,7 @@ describe('SpeciesTab', () => {
     fireEvent.click(screen.getByTestId('filter-toggle-btn'))
 
     // Filter panel should now be visible
-    expect(screen.getByTestId('family-filter')).toBeInTheDocument()
+    expect(screen.getByTestId('habitat-filter')).toBeInTheDocument()
   })
 
   it('renders filter dropdowns when filter toggle is clicked', async () => {
@@ -184,7 +184,7 @@ describe('SpeciesTab', () => {
 
     // After clicking, the filter dropdowns should appear
     expect(screen.getByTestId('seen-filter')).toBeInTheDocument()
-    expect(screen.getByTestId('family-filter')).toBeInTheDocument()
+    expect(screen.getByTestId('habitat-filter')).toBeInTheDocument()
     expect(screen.getByTestId('conservation-filter')).toBeInTheDocument()
     expect(screen.getByTestId('invasion-filter')).toBeInTheDocument()
     expect(screen.getByTestId('difficulty-filter')).toBeInTheDocument()
