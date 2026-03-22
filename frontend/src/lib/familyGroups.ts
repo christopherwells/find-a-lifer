@@ -81,10 +81,10 @@ const FAMILY_TO_GROUP: Record<string, string> = {
   'Barn-Owls': 'Owls',
   'Owls': 'Owls',
 
-  // Kingfishers and Motmots
-  'Kingfishers': 'Kingfishers and Motmots',
-  'Motmots': 'Kingfishers and Motmots',
-  'Bee-eaters': 'Kingfishers and Motmots',
+  // Kingfishers, Motmots, and Allies
+  'Kingfishers': 'Kingfishers, Motmots, and Allies',
+  'Motmots': 'Kingfishers, Motmots, and Allies',
+  'Bee-eaters': 'Kingfishers, Motmots, and Allies',
 
   // Toucans, Barbets, and Allies
   'Toucans': 'Toucans, Barbets, and Allies',
@@ -173,6 +173,39 @@ const FAMILY_TO_GROUP: Record<string, string> = {
   // Finches and Allies
   'Finches, Euphonias, and Allies': 'Finches and Allies',
   'Waxbills and Allies': 'Finches and Allies',
+  'Whydahs and Indigobirds': 'Finches and Allies',
+  'Weavers and Allies': 'Finches and Allies',
+
+  // Swifts and Swallows combined
+  'Swifts': 'Swifts and Swallows',
+  'Swallows': 'Swifts and Swallows',
+
+  // Cuckoos and Allies
+  'Cuckoos': 'Cuckoos and Allies',
+  'Turacos': 'Cuckoos and Allies',
+
+  // Caribbean and tropical families
+  'Todies': 'Kingfishers, Motmots, and Allies',
+  'Palmchat': 'Waxwings, Dippers, and Allies',
+  'Chat-Tanagers': 'Tanagers and Allies',
+  'Cuban Warblers': 'Warblers',
+  'Olive Warbler': 'Warblers',
+  'Reed Warblers and Allies': 'Warblers',
+  'Bush Warblers and Allies': 'Warblers',
+
+  // Exotic/introduced families
+  'Cassowaries and Emu': 'Game Birds',
+  'Rheas': 'Game Birds',
+  'Magpie Goose': 'Ducks, Geese, and Waterfowl',
+  'Sandgrouse': 'Game Birds',
+  'Hornbills': 'Kingfishers, Motmots, and Allies',
+  'Tyrant Flycatchers': 'Flycatchers',
+  'Monarch Flycatchers': 'Flycatchers',
+  'Grassbirds and Allies': 'Warblers',
+  'Laughingthrushes and Allies': 'Thrushes, Mockingbirds, and Allies',
+  'White-eyes, Yuhinas, and Allies': 'Warblers',
+  'Penduline-Tits': 'Chickadees, Nuthatches, and Allies',
+  'Parrotbills': 'Chickadees, Nuthatches, and Allies',
 }
 
 /**
@@ -209,27 +242,26 @@ const ECOLOGICAL_GROUP_ORDER: string[] = [
   'Game Birds',
   // Land non-passerines
   'Pigeons and Doves',
-  'Cuckoos',
+  'Cuckoos and Allies',
   'Hummingbirds',
   'Nightjars and Allies',
   'Vultures, Hawks, and Allies',
   'Falcons',
   'Owls',
   'Trogons',
-  'Kingfishers and Motmots',
+  'Kingfishers, Motmots, and Allies',
   'Toucans, Barbets, and Allies',
   'Woodpeckers',
   'Parrots',
   // Suboscine passerines
   'Antbirds and Allies',
   'Ovenbirds and Woodcreepers',
-  'Tyrant Flycatchers',
+  'Flycatchers',
   'Cotingas, Manakins, and Allies',
   // Oscine passerines
   'Shrikes and Vireos',
   'Crows and Jays',
-  'Swifts',
-  'Swallows',
+  'Swifts and Swallows',
   'Chickadees, Nuthatches, and Allies',
   'Wrens and Gnatcatchers',
   'Waxwings, Dippers, and Allies',

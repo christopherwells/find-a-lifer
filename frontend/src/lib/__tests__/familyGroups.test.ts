@@ -34,7 +34,7 @@ describe('getDisplayGroup', () => {
   it('returns the original family name as fallback for unmapped families', () => {
     expect(getDisplayGroup('Ducks, Geese, and Waterfowl')).toBe('Ducks, Geese, and Waterfowl')
     expect(getDisplayGroup('Woodpeckers')).toBe('Woodpeckers')
-    expect(getDisplayGroup('Tyrant Flycatchers')).toBe('Tyrant Flycatchers')
+    expect(getDisplayGroup('Tyrant Flycatchers')).toBe('Flycatchers')
   })
 
   it('returns the input string for a completely unknown family', () => {
@@ -43,10 +43,10 @@ describe('getDisplayGroup', () => {
 })
 
 describe('getGroupSortKey', () => {
-  // ECOLOGICAL_GROUP_ORDER has 41 entries (indices 0-40).
-  // Known groups return their index; unknown groups return >= 41.
+  // ECOLOGICAL_GROUP_ORDER has 40 entries (indices 0-39).
+  // Known groups return their index; unknown groups return >= 40.
 
-  it('returns a value < 41 for all known ecological groups', () => {
+  it('returns a value < 40 for all known ecological groups', () => {
     const knownGroups = [
       'Ducks, Geese, and Waterfowl',
       'Flamingos, Grebes, and Loons',
@@ -61,8 +61,8 @@ describe('getGroupSortKey', () => {
     for (const group of knownGroups) {
       expect(
         getGroupSortKey(group, 0),
-        `${group} should have sort key < 41`
-      ).toBeLessThan(41)
+        `${group} should have sort key < 40`
+      ).toBeLessThan(40)
     }
   })
 
@@ -98,15 +98,13 @@ describe('getGroupSortKey', () => {
     expect(falcons).toBeLessThan(owls)
   })
 
-  it('sorts Swifts adjacent to Swallows', () => {
-    const swifts = getGroupSortKey('Swifts', 0)
-    const swallows = getGroupSortKey('Swallows', 0)
-
-    expect(Math.abs(swifts - swallows)).toBe(1)
+  it('Swifts and Swallows are merged into one group', () => {
+    const swifts = getGroupSortKey('Swifts and Swallows', 0)
+    expect(swifts).toBeLessThan(40) // Should be in the known groups
   })
 
-  it('returns value >= 41 for unknown groups', () => {
-    expect(getGroupSortKey('Unknown Bird Family', 0)).toBeGreaterThanOrEqual(41)
+  it('returns value >= 40 for unknown groups', () => {
+    expect(getGroupSortKey('Unknown Bird Family', 0)).toBeGreaterThanOrEqual(40)
   })
 
   it('uses fallbackTaxonOrder to differentiate unknown groups', () => {
@@ -114,17 +112,15 @@ describe('getGroupSortKey', () => {
     const unknown2 = getGroupSortKey('Unknown B', 200)
 
     expect(unknown1).toBeLessThan(unknown2)
-    // Both should be >= 41
-    expect(unknown1).toBeGreaterThanOrEqual(41)
-    expect(unknown2).toBeGreaterThanOrEqual(41)
+    // Both should be >= 40
+    expect(unknown1).toBeGreaterThanOrEqual(40)
+    expect(unknown2).toBeGreaterThanOrEqual(40)
   })
 
-  it('the ecological order list has exactly 41 entries', () => {
-    // Verify by checking that index 40 is a valid known group
-    // and index 41 would be the boundary for unknowns.
-    // Blackbirds and Orioles is the last entry (index 40).
+  it('the ecological order list has exactly 40 entries', () => {
+    // Blackbirds and Orioles is the last entry (index 39).
     const lastGroup = getGroupSortKey('Blackbirds and Orioles', 0)
-    expect(lastGroup).toBe(40)
+    expect(lastGroup).toBe(39)
 
     // First group is Ducks at index 0
     const firstGroup = getGroupSortKey('Ducks, Geese, and Waterfowl', 0)
