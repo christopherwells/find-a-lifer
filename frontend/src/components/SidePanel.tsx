@@ -3,9 +3,22 @@ import ExploreTab from './ExploreTab'
 import SpeciesTab from './SpeciesTab'
 import { useMapControls } from '../contexts/MapControlsContext'
 
-const GoalBirdsTab = lazy(() => import('./GoalBirdsTab'))
-const TripPlanTab = lazy(() => import('./TripPlanTab'))
-const ProgressTab = lazy(() => import('./ProgressTab'))
+/** Lazy import with auto-reload on stale chunk errors (after deploys) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyWithRetry(importFn: () => Promise<any>) {
+  return lazy(() => importFn().catch(() => {
+    const reloaded = sessionStorage.getItem('chunk-reload')
+    if (!reloaded) {
+      sessionStorage.setItem('chunk-reload', '1')
+      window.location.reload()
+    }
+    return importFn()
+  }))
+}
+
+const GoalBirdsTab = lazyWithRetry(() => import('./GoalBirdsTab'))
+const TripPlanTab = lazyWithRetry(() => import('./TripPlanTab'))
+const ProgressTab = lazyWithRetry(() => import('./ProgressTab'))
 
 import { trackEvent } from '../lib/analytics'
 export type { MapViewMode, SelectedLocation } from './types'

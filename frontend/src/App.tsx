@@ -16,7 +16,22 @@ import { openFilePicker, processCSVFile } from './lib/csvImport'
 import { isTourComplete, startTour } from './lib/featureTour'
 import './App.css'
 
-const ProfileTab = lazy(() => import('./components/ProfileTab'))
+/** Lazy import with auto-reload on stale chunk errors (after deploys) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyWithRetry(importFn: () => Promise<any>) {
+  return lazy(() => importFn().catch(() => {
+    // After deploy, old chunk hashes may be stale in SW cache.
+    // Reload once to pick up new service worker + chunks.
+    const reloaded = sessionStorage.getItem('chunk-reload')
+    if (!reloaded) {
+      sessionStorage.setItem('chunk-reload', '1')
+      window.location.reload()
+    }
+    return importFn()
+  }))
+}
+
+const ProfileTab = lazyWithRetry(() => import('./components/ProfileTab'))
 
 function AppInner() {
   const [darkMode, setDarkMode] = useState(() => {
