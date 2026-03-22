@@ -16,6 +16,8 @@ from pathlib import Path
 from collections import defaultdict
 
 PROJECT = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REFERENCE_DIR = SCRIPT_DIR / "reference"
 FRONTEND_DATA = PROJECT / "frontend" / "public" / "data"
 SPECIES_JSON = FRONTEND_DATA / "species.json"
 
@@ -80,6 +82,7 @@ SUB_REGIONS = {
     "ca-c-north": ("Northern Central America", {"BZ", "GT", "SV", "HN", "NI"}, [-92, 12, -83, 18]),
     "ca-c-south": ("Southern Central America", {"CR", "PA"}, [-86, 7, -77, 12]),
     "caribbean-greater": ("Greater Antilles", {"CU", "JM", "HT", "DO", "PR"}, [-85, 17, -64, 24]),
+    "caribbean-lesser": ("Lesser Antilles", {"TT", "BB", "KN", "VI", "VG", "AW", "MF", "MQ", "BQ", "SX", "AG", "DM", "GD", "LC", "VC"}, [-70, 10, -59, 19]),
     "atlantic-west": ("Western Atlantic Islands", {"BM", "BS", "TC"}, [-80, 20, -60, 33]),
     "us-ne": ("Northeastern US", {"US-ME","US-NH","US-VT","US-MA","US-RI","US-CT","US-NY","US-NJ","US-PA","US-DE","US-MD","US-DC"}, [-80, 37, -66, 48]),
     "us-se": ("Southeastern US", {"US-VA","US-WV","US-NC","US-SC","US-GA","US-FL","US-AL","US-MS","US-TN","US-KY","US-LA","US-AR"}, [-95, 24, -75, 39]),
@@ -341,6 +344,13 @@ def main():
     # Count regional habitat coverage
     with_regional = sum(1 for r in habitat_results.values() if r.get("regionalHabitat"))
     print(f"  {with_regional} species with regional habitat data")
+
+    # Save to reference file for process_ebd.py to load during species.json assembly
+    REFERENCE_DIR.mkdir(exist_ok=True)
+    habitat_ref_path = REFERENCE_DIR / "species_habitat.json"
+    with open(habitat_ref_path, "w") as f:
+        json.dump(habitat_results, f, separators=(",", ":"))
+    print(f"\nSaved habitat reference: {habitat_ref_path} ({len(habitat_results)} species)")
 
     # Merge into species.json
     merged = 0
