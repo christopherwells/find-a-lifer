@@ -22,8 +22,9 @@ type SpeciesByGroup = Record<string, Species[]>
 
 export default function SpeciesTab() {
   const {
-    state: { selectedRegion, speciesFilters },
+    state: { selectedRegion, speciesFilters, showTotalRichness },
     setSpeciesFilters: onSpeciesFiltersChange,
+    setShowTotalRichness,
   } = useMapControls()
   const { species: rawSpecies, loading } = useSpecies()
   const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
@@ -549,30 +550,29 @@ export default function SpeciesTab() {
                 <option value="unseen">Unseen Only</option>
               </select>
             </div>
-            {/* Habitat filter (full width) */}
-            <select
-              id="habitat-filter"
-              value={selectedHabitat}
-              onChange={(e) => setSelectedHabitat(e.target.value)}
-              className="w-full px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-              data-testid="habitat-filter"
-            >
-              <option value="">All Habitats</option>
-              <option value="Forest">Forest</option>
-              <option value="Tropical Forest">Tropical Forest</option>
-              <option value="Conifer Forest">Conifer Forest</option>
-              <option value="Deciduous Forest">Deciduous Forest</option>
-              <option value="Mixed Forest">Mixed Forest</option>
-              <option value="Wetland">Wetland</option>
-              <option value="Freshwater">Freshwater</option>
-              <option value="Ocean">Ocean</option>
-              <option value="Grassland">Grassland</option>
-              <option value="Scrubland">Scrubland</option>
-              <option value="Agricultural">Agricultural</option>
-              <option value="Urban-tolerant">Urban-tolerant</option>
-            </select>
-            {/* Secondary filters row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+            {/* Habitat + Conservation status (same row) */}
+            <div className="flex gap-1.5">
+              <select
+                id="habitat-filter"
+                value={selectedHabitat}
+                onChange={(e) => setSelectedHabitat(e.target.value)}
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="habitat-filter"
+              >
+                <option value="">All Habitats</option>
+                <option value="Forest">Forest</option>
+                <option value="Tropical Forest">Tropical Forest</option>
+                <option value="Conifer Forest">Conifer Forest</option>
+                <option value="Deciduous Forest">Deciduous Forest</option>
+                <option value="Mixed Forest">Mixed Forest</option>
+                <option value="Wetland">Wetland</option>
+                <option value="Freshwater">Freshwater</option>
+                <option value="Ocean">Ocean</option>
+                <option value="Grassland">Grassland</option>
+                <option value="Scrubland">Scrubland</option>
+                <option value="Agricultural">Agricultural</option>
+                <option value="Urban-tolerant">Urban-tolerant</option>
+              </select>
               <div className="flex items-center gap-0.5">
                 <select
                   id="conservation-filter"
@@ -640,6 +640,25 @@ export default function SpeciesTab() {
                 ))}
               </select>
             )}
+            {/* Include Seen Species toggle — syncs with map heatmap */}
+            <button
+              onClick={() => setShowTotalRichness(!showTotalRichness)}
+              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md border text-xs font-medium transition-all ${
+                showTotalRichness
+                  ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+              }`}
+              title={showTotalRichness ? 'Map shows all species including seen' : 'Map shows only unseen species (lifers)'}
+            >
+              Include Seen on Map
+              <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                showTotalRichness ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
+              }`}>
+                <span className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+                  showTotalRichness ? 'translate-x-3.5' : 'translate-x-0.5'
+                }`} />
+              </span>
+            </button>
             {/* Clear filters */}
             {activeFilterCount > 0 && (
               <button
