@@ -186,12 +186,7 @@ export default function ProgressTab() {
   // Build sub-region ID → display name lookup
   const subRegionIdToName: Record<string, string> = {}
   SUB_REGIONS.forEach(sr => {
-    // Central America sub-regions roll up to single 'Central America' group
-    if (sr.id === 'ca-c-north' || sr.id === 'ca-c-south') {
-      subRegionIdToName[sr.id] = 'Central America'
-    } else {
-      subRegionIdToName[sr.id] = sr.name
-    }
+    subRegionIdToName[sr.id] = sr.name
   })
 
   // Calculate region breakdown using regionalDifficulty for sub-region presence
@@ -299,62 +294,114 @@ export default function ProgressTab() {
     // Helper: find the next tier target for a value
     const nextTier = (value: number, tiers: number[]) => tiers.find(t => value < t) ?? tiers[tiers.length - 1]
 
-    const items: Array<{ label: string; description: string; progress: number; target: number; reached: boolean }> = []
-
-    // Habitat explorer — tiers: 3, 5, 8, 10
-    const habitatTarget = nextTier(habitatsSeen.size, [3, 5, 8, 10])
-    items.push({
-      label: 'Habitat Explorer',
-      description: `Birds in ${habitatsSeen.size} habitat types`,
-      progress: habitatsSeen.size,
-      target: habitatTarget,
-      reached: habitatsSeen.size >= 10,
-    })
-
-    // Region collector — tiers: 3, 6, 10, 14, 17
-    const regionTarget = nextTier(regionsSeen.size, [3, 6, 10, 14, 17])
-    items.push({
-      label: 'Region Collector',
-      description: `Species across ${regionsSeen.size} sub-regions`,
-      progress: regionsSeen.size,
-      target: regionTarget,
-      reached: regionsSeen.size >= 17,
-    })
-
-    // Taxonomic breadth — tiers: 10, 20, 30, all
+    // Additional counts
     const totalFamilies = new Set(allSpecies.map(s => getDisplayGroup(s.familyComName))).size
-    const familyTarget = nextTier(familiesSeen.size, [10, 20, 30, totalFamilies])
-    items.push({
-      label: 'Taxonomic Breadth',
-      description: `${familiesSeen.size} of ${totalFamilies} bird groups`,
-      progress: familiesSeen.size,
-      target: familyTarget,
-      reached: familiesSeen.size >= totalFamilies,
-    })
-
-    // Conservation champion — tiers: 5, 15, 30, 50, 75
     const totalThreatened = allSpecies.filter(s =>
       s.conservStatus === 'Vulnerable' || s.conservStatus === 'Endangered' || s.conservStatus === 'Critically Endangered'
     ).length
-    if (totalThreatened > 0) {
-      const conservTarget = nextTier(threatenedSeen, [5, 15, 30, 50, 75])
-      items.push({
-        label: 'Conservation Champion',
-        description: `${threatenedSeen} threatened species observed`,
-        progress: threatenedSeen,
-        target: conservTarget,
-        reached: threatenedSeen >= 75,
-      })
+
+    // Count easy species seen (difficulty 1-3)
+    const easySeen = seenSpeciesList.filter(s => (s.difficultyRating ?? 5) <= 3).length
+    const totalEasy = allSpecies.filter(s => (s.difficultyRating ?? 5) <= 3).length
+
+    // Count species with photos seen (proxy for "well-documented")
+    const countriesSeen = new Set<string>()
+    for (const s of seenSpeciesList) {
+      for (const r of s.regions ?? []) countriesSeen.add(r)
     }
 
-    // Rarity hunter — tiers: 10, 25, 50, 100, 150
-    const rarityTarget = nextTier(hardSeen, [10, 25, 50, 100, 150])
+    // Forest specialists seen
+    const forestSeen = seenSpeciesList.filter(s => (s.habitatLabels ?? []).some(h => h.includes('Forest'))).length
+
+    // Waterbird count
+    const waterSeen = seenSpeciesList.filter(s => {
+      const labels = s.habitatLabels ?? []
+      return labels.includes('Freshwater') || labels.includes('Ocean') || labels.includes('Wetland')
+    }).length
+
+    type Achievement = { label: string; progress: number; target: number; reached: boolean }
+    const items: Achievement[] = []
+
+    // 1. Habitat Explorer — tiers: 3, 5, 8, 11
+    const totalHabitats = 11 // actual count of non-generalist habitat types in data
+    items.push({
+      label: 'Habitat Explorer',
+      progress: habitatsSeen.size,
+      target: nextTier(habitatsSeen.size, [3, 5, 8, totalHabitats]),
+      reached: habitatsSeen.size >= totalHabitats,
+    })
+
+    // 2. Region Collector — tiers: 3, 6, 10, 14, 17
+    items.push({
+      label: 'Region Collector',
+      progress: regionsSeen.size,
+      target: nextTier(regionsSeen.size, [3, 6, 10, 14, 17]),
+      reached: regionsSeen.size >= 17,
+    })
+
+    // 3. Taxonomic Breadth — tiers: 10, 20, 30, all
+    items.push({
+      label: 'Taxonomist',
+      progress: familiesSeen.size,
+      target: nextTier(familiesSeen.size, [10, 20, 30, totalFamilies]),
+      reached: familiesSeen.size >= totalFamilies,
+    })
+
+    // 4. Conservation Champion — tiers: 5, 15, 30, 50, 75
+    items.push({
+      label: 'Conservationist',
+      progress: threatenedSeen,
+      target: nextTier(threatenedSeen, [5, 15, 30, 50, 75]),
+      reached: threatenedSeen >= 75,
+    })
+
+    // 5. Rarity Hunter — tiers: 10, 25, 50, 100, 150
     items.push({
       label: 'Rarity Hunter',
-      description: `${hardSeen} hard-to-find species (difficulty 7+)`,
       progress: hardSeen,
-      target: rarityTarget,
+      target: nextTier(hardSeen, [10, 25, 50, 100, 150]),
       reached: hardSeen >= 150,
+    })
+
+    // 6. Easy Pickings — tiers: 25, 50, 100, 200, totalEasy
+    items.push({
+      label: 'Easy Pickings',
+      progress: easySeen,
+      target: nextTier(easySeen, [25, 50, 100, 200, totalEasy]),
+      reached: easySeen >= totalEasy,
+    })
+
+    // 7. Globe-trotter — countries birded in, tiers: 2, 5, 10, 15, 20
+    items.push({
+      label: 'Globe-trotter',
+      progress: countriesSeen.size,
+      target: nextTier(countriesSeen.size, [2, 5, 10, 15, 20]),
+      reached: countriesSeen.size >= 20,
+    })
+
+    // 8. Forest Birder — tiers: 25, 50, 100, 200, 300
+    items.push({
+      label: 'Forest Birder',
+      progress: forestSeen,
+      target: nextTier(forestSeen, [25, 50, 100, 200, 300]),
+      reached: forestSeen >= 300,
+    })
+
+    // 9. Waterbird Watcher — tiers: 10, 25, 50, 100, 150
+    items.push({
+      label: 'Water Birder',
+      progress: waterSeen,
+      target: nextTier(waterSeen, [10, 25, 50, 100, 150]),
+      reached: waterSeen >= 150,
+    })
+
+    // 10. Half Way There — seen 50%+ of all species
+    const halfTarget = Math.ceil(totalSpecies / 2)
+    items.push({
+      label: 'Halfway There',
+      progress: totalSeen,
+      target: halfTarget,
+      reached: totalSeen >= halfTarget,
     })
 
     return items
@@ -495,26 +542,23 @@ export default function ProgressTab() {
       {/* 7. Achievements */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="milestones-section">
         <h4 className="text-base font-medium text-[#2C3E50] dark:text-gray-100">Achievements</h4>
-        <div className="space-y-2.5">
+        <div className="grid grid-cols-2 gap-2">
           {milestones.map(m => {
             const pct = Math.min(100, (m.progress / m.target) * 100)
             return (
-              <div key={m.label} data-testid={`milestone-${m.label}`}>
-                <div className="flex items-center justify-between mb-0.5">
+              <div key={m.label} className={`rounded-lg p-2 ${m.reached ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`} data-testid={`milestone-${m.label}`}>
+                <div className="flex items-center justify-between mb-1">
                   <span className={`text-xs font-semibold ${m.reached ? 'text-[#27AE60] dark:text-green-400' : 'text-gray-800 dark:text-gray-200'}`}>
                     {m.reached ? '\u2713 ' : ''}{m.label}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-                    {m.progress}/{m.target}
-                  </span>
                 </div>
-                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${m.reached ? 'bg-[#27AE60]' : 'bg-[#2C3E7B]'}`}
+                    className={`h-full rounded-full ${m.reached ? 'bg-[#27AE60]' : 'bg-[#2C3E7B]'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{m.description}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 tabular-nums">{m.progress}/{m.target}</p>
               </div>
             )
           })}
