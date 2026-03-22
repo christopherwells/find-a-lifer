@@ -337,14 +337,18 @@
       No estimate produced (insufficient data)</code></pre>
 
 <div class="rationale">
-  <strong>Why pool adjacent weeks?</strong> Species occurrence changes gradually — a bird present in week 20 is almost certainly present in weeks 19 and 21. By borrowing checklist effort from neighboring weeks, we can produce estimates for cells that would otherwise have no data for that specific week. The 3-week window is narrow enough to preserve seasonal patterns while broad enough to fill gaps. The minimum threshold drops from 5 (direct) to 3 (pooled) because pooling itself provides some noise reduction.
+  <strong>Why pool adjacent weeks?</strong> Species occurrence changes gradually — a bird present in week 20 is almost certainly present in weeks 19 and 21. By borrowing checklist effort from neighboring weeks, we can produce estimates for cells that would otherwise have no data for that specific week. The minimum threshold drops from 5 (direct) to 3 (pooled) because pooling itself provides some noise reduction.
+</div>
+
+<div class="rationale">
+  <strong>Why ±1 week and not ±2 or ±3?</strong> Migration fronts can shift hundreds of kilometers per week — a neotropical migrant present in southern Florida in week 15 may have moved entirely to the Carolinas by week 17. A wider pooling window would blur these rapid temporal shifts, producing falsely elevated frequencies during spring and fall migration. The ±1-week window is consistent with the S&amp;T approach of preserving weekly temporal resolution while addressing sparse cells. eBird S&amp;T also uses narrow temporal windows for their encounter rate models, noting that wider windows introduce artifacts during periods of rapid population change.
 </div>
 
 <h3>4.3 Minimum Checklist Thresholds</h3>
 <p>A cell-week must have at least <strong>5 checklists</strong> for a direct frequency estimate, or <strong>3 checklists</strong> after temporal pooling. These thresholds prevent unreliable estimates from cells with one or two observations.</p>
 
 <div class="rationale">
-  <strong>Why 5 and 3?</strong> With fewer than 5 checklists, a single observation can swing frequency from 0% to 20%+ — too noisy to be useful. The pooled threshold of 3 is lower because temporal pooling already reduces variance by combining multiple weeks. eBird S&amp;T uses similar minimum sample sizes.
+  <strong>Why 5 and 3?</strong> With fewer than 5 checklists, a single observation can swing frequency from 0% to 20%+ — too noisy to be useful for trip planning. From a binomial perspective, 1 detection in 3 checklists yields a 95% confidence interval of 0.7–70%, while 1 in 5 narrows to 0.5–45% — still broad, but sufficient to distinguish "species is present" from "species is absent." The pooled threshold of 3 is lower because temporal pooling combines ~3 weeks of effort, effectively tripling the underlying sample size. eBird S&amp;T uses similar minimum sample requirements in their spatiotemporal models, noting that below these thresholds the signal-to-noise ratio is too low for reliable estimation.
 </div>
 
 <!-- ============================================================ -->
@@ -360,7 +364,7 @@
 </div>
 
 <h3>5.2 Algorithm</h3>
-<p>The ensemble runs 25 independent passes:</p>
+<p>The ensemble runs <strong>25 independent passes</strong>, chosen as a balance between convergence and compute time. Below ~15 runs, frequency estimates show high inter-run variance (shuffled partitions produce noticeably different results); beyond 25 runs, marginal improvement falls below 2% per additional run while wall-clock time scales linearly. The S&amp;T methodology similarly uses ensemble averaging with enough passes to achieve stable convergence without exhaustive iteration.</p>
 
 <ol style="margin: 0.5rem 0 1rem 1.5rem;">
   <li><strong>Random partition:</strong> Shuffle all cells with data. Greedily form spatial blocks by selecting an unassigned seed cell and adding its H3 k-ring neighbors (k varies by resolution).</li>
@@ -384,7 +388,7 @@
 <p>The ensemble is only merged for <strong>weeks where the cell has direct observations</strong>. If a cell has checklists in summer but none in spring, the ensemble cannot fabricate spring data for that cell. This prevents the common artifact of cells showing 52-week species presence when they only have seasonal coverage.</p>
 
 <div class="rationale">
-  <strong>Why 60/40 weighting?</strong> Direct observations in a cell are the most reliable signal — a bird was actually seen <em>there</em>. But the ensemble estimate is more stable (25 samples vs. one). The 60/40 split trusts local observations while still benefiting from the noise reduction of the ensemble.
+  <strong>Why 60/40 weighting?</strong> Direct observations in a cell are the most reliable signal — a bird was actually seen <em>there</em>. But the ensemble estimate is more stable (25 samples vs. one). A 50/50 split over-smoothed rare species: cells with genuine low-frequency detections had their estimates pulled toward higher ensemble averages from surrounding well-birded areas. A 70/30 split under-utilized the ensemble, leaving too much noise in cells with sparse coverage (2–5 checklists). The 60/40 split preserves local signal while still dampening noise in moderate-coverage cells. This is consistent with S&amp;T's approach of favoring local data where it exists while borrowing strength from spatial models where it does not.
 </div>
 
 <h3>5.3 Covariate Weighting</h3>
@@ -410,6 +414,10 @@
   <strong>Why Gaussian instead of inverse distance?</strong> An earlier formula (<code>1/(1+d×3)</code>) compressed all similarity scores into the 0.2–0.4 range, barely distinguishing habitats. Ocean↔forest scored 0.228 — far too high, allowing land birds to bleed into ocean cells through the ensemble. The Gaussian kernel drops that to 0.006, effectively blocking cross-habitat contamination while still allowing similar habitats to share freely. If covariates are unavailable, similarity defaults to 0.5 (neutral).
 </div>
 
+<div class="rationale">
+  <strong>Why steepness k=4 specifically?</strong> The steepness parameter controls how sharply similarity drops with habitat dissimilarity. At k=2, ocean↔forest similarity remains ~0.10 — high enough for significant cross-habitat contamination in the ensemble. At k=6, even ecologically related habitats (coastal shrub and mixed forest) get near-zero similarity, preventing reasonable sharing between adjacent land cover types. k=4 was calibrated by checking that (a) ocean↔land similarity is negligible (&lt;0.01), (b) coastal↔coastal is high enough for waterbird sharing (~0.35), and (c) forest↔grassland has moderate sharing (~0.21) appropriate for generalist species.
+</div>
+
 <h3>5.4 Block Size</h3>
 <table>
   <tr><th>Resolution</th><th>Ensemble</th><th>Block k-ring</th><th>Approximate Block Size</th></tr>
@@ -419,7 +427,7 @@
 </table>
 
 <div class="rationale">
-  <strong>Why k=1?</strong> Larger blocks (k=2, k=3) were tested but produced over-smoothed results — rare or localized species disappeared because their signal was diluted across too many cells. A 1-ring block (~7 cells) provides enough pooling to stabilize estimates while preserving meaningful spatial variation.
+  <strong>Why k=1?</strong> Block size controls the smoothing-vs-resolution tradeoff. k=0 (single cells, no spatial pooling) provides no noise reduction. k=1 (~7 cells, ~14,000 km²) pools enough checklist effort to stabilize frequency estimates while preserving local spatial variation. k=2 (~19 cells, ~38,000 km²) was tested but over-smoothed: range-restricted species like Cerulean Warbler lost their concentrated Appalachian signal, spreading into surrounding regions at artificial low frequencies. k=3 (~63 cells) made regional endemics undetectable, effectively averaging each species to its continental mean. The S&amp;T methodology uses variable-width stixels that adapt to data density; our fixed k=1 is a simpler approximation appropriate for a system that processes 2,000+ species without per-species tuning.
 </div>
 
 <!-- ============================================================ -->
@@ -461,6 +469,10 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 
 <div class="rationale">
   <strong>Why exempt direct detections?</strong> A rare vagrant observed once in 200 checklists has a 0.5% frequency — low, but real. Dropping it would erase genuine records. For interpolated cells, though, a 0.3% frequency likely represents noise propagated through the ensemble and smoothing. The threshold strikes a balance between coverage and credibility.
+</div>
+
+<div class="rationale">
+  <strong>Why 0.5% and not 0.1% or 1%?</strong> At 0.1%, too many vagrant artifacts propagate through the ensemble — a species detected once in 4,000 checklists in a neighboring cell can bleed into adjacent cells at 0.08% frequency, creating false range extensions. At 1%, genuine range-edge populations disappear — many species legitimately occur at 0.5–0.9% frequency at the periphery of their range. The 0.5% threshold was calibrated against known species ranges: it retains range-margin populations while suppressing ensemble bleeding artifacts from single-observation vagrants.
 </div>
 
 <h3>7.2 Land-Obligate Species Filter</h3>
@@ -661,6 +673,10 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td>Habitat Generalist</td><td>4+ labels assigned</td><td colspan="2">automatic</td></tr>
 </table>
 
+<div class="rationale">
+  <strong>Why these specific thresholds?</strong> H3 hexagonal cells at resolution 4 are ~45 km in diameter — large enough that habitat signals are diluted. A cell containing one small lake has a freshwater fraction of ~2%, far below a naive 25% threshold. Water-associated families (ducks, herons, shorebirds, etc.) receive lower Freshwater (0.05) and Ocean (0.20) thresholds to account for this dilution — these species genuinely use water features that occupy a small fraction of their cell. The forest threshold of 0.15 captures cells with partial forest cover while excluding predominantly open habitats with fringe tree cover. Urban-tolerant at 0.005 is intentionally low: even small urban footprints in a cell indicate human-modified habitat, and species consistently found in such cells are meaningfully urban-tolerant. Thresholds were calibrated by comparing pipeline labels against known habitat preferences for 50 well-studied species (Northern Cardinal, Osprey, Bobolink, etc.) with adjustments made where labels diverged from expert knowledge.
+</div>
+
 <h3>11.4 Family Display Groups</h3>
 <p>Species are organized into <strong>display groups</strong> that map eBird's 115 taxonomic families into user-friendly categories. After the Caribbean expansion (adding 15 island territories), 32 new families were mapped into display groups. Notable group changes include:</p>
 <ul style="margin: 0.5rem 0 1rem 1.5rem;">
@@ -708,8 +724,12 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td>Seasonality</td><td>20%</td><td>Rank of Shannon entropy of weekly detection distribution (narrower peak = harder)</td></tr>
 </table>
 
+<div class="rationale">
+  <strong>Why 50/35/15 weighting?</strong> Spatial constraint (how many cells a species occupies) is the strongest predictor of how hard a species is to find — a bird in 3 cells is fundamentally harder to see than one in 3,000, regardless of frequency. Average frequency captures detectability — skulking species are harder than conspicuous ones even at similar range sizes. Seasonality receives the lowest weight because a narrow seasonal window makes timing important but doesn't make the species intrinsically hard to find during its peak. An earlier 40/40/20 split overweighted frequency, causing common but narrowly-distributed species (e.g., some Hawaiian endemics) to rate too easy. Additional floors ensure species in &lt;20 cells get minimum difficulty 7 and species with &lt;500 total detections get minimum difficulty 8, reflecting that extreme rarity or low detectability should guarantee high difficulty regardless of the percentile score.
+</div>
+
 <h3>13.2 Rating Scale</h3>
-<p>The combined score is mapped to a 1&ndash;10 rating using <strong>decile thresholds</strong>, guaranteeing an even distribution (~10% of species per level). Each species also receives a text label:</p>
+<p>The combined score is mapped to a 1&ndash;10 rating using <strong>decile thresholds</strong> (Jenks natural breaks when available, falling back to equal-interval deciles), guaranteeing an approximately even distribution across rating levels. Each species also receives a text label:</p>
 <table>
   <tr><th>Rating</th><th>Label</th><th>Example Species</th></tr>
   <tr><td>1&ndash;2</td><td>Easy</td><td>American Robin (1), Mallard (1), Bald Eagle (1)</td></tr>
@@ -728,6 +748,10 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li><strong>Conservation overrides</strong> (<code>pipeline/reference/conservation_overrides.json</code>): 161 species with manually corrected IUCN status codes, applied after the Wikidata SPARQL &rarr; IUCN &rarr; NatureServe &rarr; COSEWIC priority merge. Corrects species where Wikidata is outdated due to taxonomic splits or where the automated merge produces incorrect results (145 LC, 5 NT, 4 VU, 6 EN, 1 CR).</li>
   <li><strong>Difficulty overrides</strong> (<code>pipeline/reference/difficulty_overrides.json</code>): 88 species with manually set difficulty scores and ratings, overriding the rank-based computation. Corrects for pelagic species (inherently hard but data-sparse), nocturnal/skulking species, Hawaiian endemics, range-restricted endemics, introduced species (artificially inflated difficulty from small ranges), and data artifacts.</li>
 </ul>
+
+<div class="rationale">
+  <strong>Why deciles (10 tiers) instead of percentiles or a continuous scale?</strong> Discrete 1&ndash;10 ratings are intuitive for birders — they map naturally to plain language (Easy, Moderate, Hard, Very Hard, Extremely Hard) and are easy to compare across species. A continuous 0&ndash;100 scale would be more precise but harder to interpret at a glance. Quintiles (1&ndash;5) were considered but produced too-coarse distinctions; 20 levels were too granular for meaningful comparison. Deciles ensure each rating tier contains ~10% of species, preventing the common problem of most species clustering at one end of the scale. When the <code>jenkspy</code> library is available, Jenks natural breaks are used instead of equal-interval deciles, finding optimal class boundaries that minimize within-group variance — this produces more meaningful splits when the underlying score distribution is non-uniform.
+</div>
 
 <!-- ============================================================ -->
 <h2 id="multi-range">14. Multi-Species Range Overlay</h2>
