@@ -828,110 +828,33 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </ul>
 <p>On desktop, the full-frequency version (<code>getWeeklyHighlights()</code>) uses week cell data for precise frequency comparisons. On mobile, a lightweight version (<code>getWeeklyHighlightsLite()</code>) uses only the <code>peakWeek</code> field from species metadata, avoiding expensive data fetches while still surfacing actionable highlights. The mobile highlights card appears as a collapsible "This Week" section below the week slider in MapControls.</p>
 
-<h3>16.3 Smart Goal Suggestions</h3>
-<p>Auto-generated goal suggestions based on life list analysis. The engine selects the 3&ndash;4 most relevant suggestion sections from:</p>
-<ul style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li><strong>Family completion</strong> &mdash; families where the user has seen most but not all species</li>
-  <li><strong>Easy lifers</strong> &mdash; common, widespread species the user hasn't yet seen</li>
-  <li><strong>Seasonal opportunities</strong> &mdash; species with narrow seasonal windows currently in peak</li>
-  <li><strong>Colorful characters</strong> &mdash; curated list of 29 visually striking species</li>
-  <li><strong>Regional icons</strong> &mdash; curated specialists from 10 regions (including Florida, Texas, Alaska, Caribbean)</li>
-</ul>
-
-<h3>16.4 Goal Templates</h3>
-<p>Pre-built goal lists for targeted birding challenges:</p>
-<table>
-  <tr><th>Category</th><th>Templates</th></tr>
-  <tr><td>Conservation</td><td>Threatened species (VU/EN/CR), Near Threatened, Data Deficient, Invasive species, Restricted-range (&le; 2 regions)</td></tr>
-  <tr><td>Difficulty</td><td>Easy lifers (rating 1&ndash;2), Hardest birds (rating 9&ndash;10)</td></tr>
-  <tr><td>Habitat</td><td>Forest specialists, Ocean/pelagic, Wetland specialists</td></tr>
-  <tr><td>Regional</td><td>Regional specialty species for each sub-region</td></tr>
-</table>
-
-<div class="rationale">
-  <strong>Why restricted-range &le; 2 regions?</strong> Species occurring in only 1&ndash;2 of the app's 31 regions are genuinely range-restricted within the coverage area. This is computed from the <code>invasionStatus</code> keys (which track which regions a species occurs in as native), giving a proxy for range size without requiring additional data.
-</div>
-
-<h3>16.5 Accessibility</h3>
-<p>Goal bird UI components use ARIA attributes throughout: <code>aria-label</code> on interactive elements, <code>aria-expanded</code> on collapsible sections, and <code>role="progressbar"</code> on completion indicators.</p>
+<h3>16.3 Group Trip Planning</h3>
+<p>When planning trips with friends, the system computes the <strong>union of all members' life lists</strong> and uses it as the effective seen-species set. This means the map shows species that <em>no one</em> in the group has seen, correctly adapting all view modes (lifer density, combined probability, species range, goal density) without separate computation paths.</p>
 
 <!-- ============================================================ -->
-<h2 id="trip-planning">17. Trip Planning</h2>
+<h2 id="trip-planning">17. Trip Planning Algorithms</h2>
 
-<p>The Trip Plan tab provides four modes for planning birding trips using the pre-computed species occurrence data. All modes operate on the user's life list and selected week to surface the most productive locations and timing. When a <strong>region filter</strong> is active, all four modes restrict their species lists to the selected region's country codes, ensuring results are geographically relevant.</p>
+<p>Trip planning modes use the pre-computed weekly species data to surface optimal locations and timing for finding new species.</p>
 
-<h3>17.1 Hotspots</h3>
-<p>Ranks grid cells by <strong>lifer count</strong> for the selected week. Uses <code>computeLiferSummary()</code> to count unseen species per cell, producing a ranked list of the most productive locations for finding new life birds. Results show cell name, lifer count, and top unseen species. Clicking a result centers the map on that cell.</p>
+<h3>17.1 Hotspot Ranking</h3>
+<p>Ranks grid cells by <strong>lifer count</strong> for the selected week using <code>computeLiferSummary()</code>. The ranking subtracts the user's life list from each cell's species set, producing a density map of unseen species. When a <strong>region filter</strong> is active, species are additionally filtered to the selected region's country codes, restricting results to geographically relevant species only.</p>
 
 <h3>17.2 Window of Opportunity</h3>
-<p>Two sub-modes for finding optimal timing:</p>
+<p>Finds optimal timing for target species using frequency profiles:</p>
 <ul style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li><strong>Single species</strong> &mdash; given one species, finds the peak frequency weeks and best locations across the year. Uses species-weeks frequency profiles to identify when and where the species is most detectable.</li>
-  <li><strong>Goal list</strong> &mdash; given the user's goal list, finds week + location combinations that maximize goal species coverage. Scans all weeks and cells to surface trips where multiple goal species overlap in time and space.</li>
+  <li><strong>Single species</strong> &mdash; scans the species' 52-week frequency profile across all cells to find peak-frequency weeks and locations. Uses species-weeks data (<code>{code}.json</code>) which stores per-cell, per-week reporting frequencies.</li>
+  <li><strong>Goal list</strong> &mdash; finds week + location combinations maximizing goal species overlap. For each week, computes how many goal species are present per cell, surfacing trips where multiple target species can be found simultaneously.</li>
 </ul>
 
-<h3>17.3 Compare Locations</h3>
-<p>Side-by-side comparison of two grid cells for the selected week. Shows three sections:</p>
-<ul style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li><strong>Overlap species</strong> &mdash; species present in both cells, with frequency data from each</li>
-  <li><strong>Unique to A</strong> &mdash; species found only in the first cell</li>
-  <li><strong>Unique to B</strong> &mdash; species found only in the second cell</li>
-</ul>
-<p>Helps users decide between two potential trip destinations by comparing what each offers.</p>
-
-<h3>17.4 Location Analysis</h3>
-<p>Detailed species breakdown for a single cell during a date range. Shows all species expected in the cell across the selected weeks with reporting frequencies, grouped by family. Useful for building a target list before visiting a specific location.</p>
+<h3>17.3 Location Analysis</h3>
+<p>Per-cell species breakdown across a date range. Aggregates reporting frequencies from the weekly cell data across the selected weeks, producing a comprehensive target list grouped by family with frequency-weighted sorting.</p>
 
 <!-- ============================================================ -->
-<h2 id="gamification">18. Gamification &amp; Social Features</h2>
-
-<p>The Stats tab provides progress tracking through three views: Trophy Case (Groups, Regions, Achievements), overall progress statistics, and leaderboards.</p>
-
-<h3>18.1 Trophy Case</h3>
-<p>The Trophy Case is organized into three subtabs:</p>
-
-<p><strong>Groups</strong> &mdash; Each of the 40 display groups earns a trophy tier based on completion percentage. Five-tier progression with stacking CSS animations:</p>
-<table>
-  <tr><th>Tier</th><th>Threshold</th><th>Visual Treatment</th></tr>
-  <tr><td>Copper</td><td>&ge; 10% of species seen</td><td>Copper-toned medal with sheen sweep</td></tr>
-  <tr><td>Silver</td><td>&ge; 25% of species seen</td><td>Silver medal + glow pulse animation</td></tr>
-  <tr><td>Gold</td><td>&ge; 50% of species seen</td><td>Gold medal + sheen + glow + sparkle pseudo-elements</td></tr>
-  <tr><td>Diamond</td><td>&ge; 75% of species seen</td><td>Diamond medal + icy glow pulse + sparkle</td></tr>
-  <tr><td>Emerald</td><td>100% of species seen</td><td>Emerald medal + prismatic green glow + all stacking animations</td></tr>
-</table>
-<p>Each group has a dedicated emoji icon (e.g., owl for Owls, parrot for Parrots). CSS animations stack as tiers increase: <strong>sheen sweep</strong> (diagonal light reflection, all tiers), <strong>glow pulse</strong> (soft halo, silver+), <strong>sparkle effect</strong> (pseudo-element particles, gold+), and <strong>prismatic glow</strong> (emerald only).</p>
-
-<p><strong>Regions</strong> &mdash; The same 5-tier system applied per sub-region. Each of the 17 sub-regions earns a trophy based on percentage of regional species observed. Regions are ordered geographically (north to south, west to east).</p>
-
-<p><strong>Achievements</strong> &mdash; Ten ecological achievements with tiered progress bars:</p>
-<table>
-  <tr><th>Achievement</th><th>Description</th><th>Target</th></tr>
-  <tr><td>Habitat Explorer</td><td>Birds in distinct habitat types</td><td>11</td></tr>
-  <tr><td>Region Collector</td><td>Species across sub-regions</td><td>17</td></tr>
-  <tr><td>Taxonomic Breadth</td><td>Bird groups observed</td><td>40</td></tr>
-  <tr><td>Conservation Champion</td><td>Threatened species (NT/VU/EN/CR) observed</td><td>30</td></tr>
-  <tr><td>Rarity Hunter</td><td>Hard-to-find species (difficulty 7+)</td><td>100</td></tr>
-  <tr><td>Early Bird</td><td>Peak-week species seen in their best week</td><td>50</td></tr>
-  <tr><td>Shorebird Specialist</td><td>Shorebird species observed</td><td>30</td></tr>
-  <tr><td>Warbler Collector</td><td>Warbler species observed</td><td>40</td></tr>
-  <tr><td>Raptor Watcher</td><td>Raptors + falcons observed</td><td>25</td></tr>
-  <tr><td>Nocturnal Naturalist</td><td>Owls + nightjars observed</td><td>15</td></tr>
-</table>
-
-<h3>18.2 Celebrations</h3>
-<p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts.</p>
-
-<h3>18.3 Firebase Social &amp; Group Trip Planning</h3>
-<p>Email/password authentication via Firebase Auth with password reset support. User profiles stored in Cloud Firestore with aggregate stats (species count, groups completed). Friend system via 6-character codes. Leaderboards in the Stats tab with a <strong>friends/global toggle</strong> &mdash; friends mode shows only connected friends, global mode shows the top 10 across all users.</p>
-
-<p><strong>Group Trip Planning</strong> (Sprint 4) enables collaborative birding trips for up to 6 members. Trip creators invite friends who accept/decline via the Trip Plan tab. The system computes the <strong>union of all members' life lists</strong> and injects it into <code>effectiveSeenSpecies</code>, so the map automatically shows species that <em>no one</em> in the group has seen. All four view modes (Count, Chance, Range, Goals), popups, hotspots, and window mode adapt automatically without modification. Firestore security rules enforce trip ownership, member limits, and invite permissions.</p>
-
-<!-- ============================================================ -->
-<h2 id="pipeline-orchestrator">19. Pipeline Orchestrator</h2>
+<h2 id="pipeline-orchestrator">18. Pipeline Orchestrator</h2>
 
 <p>The full data pipeline involves seven sequential steps that must run in order, with each step depending on the outputs of the previous one. To eliminate manual orchestration errors, a dedicated orchestrator script (<code>pipeline/run_all.py</code>) chains all steps with validation gates between each stage.</p>
 
-<h3>19.1 Step Sequence</h3>
+<h3>18.1 Step Sequence</h3>
 <div class="pipeline-flow">
   <div class="pipeline-step active">process_ebd.py</div>
   <div class="pipeline-arrow">&rarr;</div>
@@ -950,7 +873,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 
 <p>After each step completes, a <strong>validation gate</strong> checks that expected output files exist and are non-empty. For example, after <code>process_ebd.py</code>, the gate verifies that <code>species.json</code>, all <code>grid.geojson</code> files, week data directories, and archive files are present. After <code>label_cells.py</code>, it spot-checks that grid features contain the <code>label</code> property. If any validation fails, the pipeline halts immediately with a clear error message rather than allowing downstream steps to operate on missing or stale data.</p>
 
-<h3>19.2 CLI Options</h3>
+<h3>18.2 CLI Options</h3>
 <table>
   <tr><th>Flag</th><th>Effect</th></tr>
   <tr><td><code>--rebuild</code></td><td>Passes <code>--rebuild</code> to <code>process_ebd.py</code> to regenerate output from archived intermediate counts (no new EBD files needed)</td></tr>
@@ -965,7 +888,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <strong>Why an orchestrator?</strong> Before <code>run_all.py</code>, the seven pipeline steps had to be run manually in order. Skipping or misordering a step (e.g., running <code>compute_difficulty.py</code> before <code>ship_covariates.py</code>) produced subtle data inconsistencies that were difficult to diagnose. The orchestrator with validation gates makes the pipeline a single command with fail-fast behavior.
 </div>
 
-<h3>19.3 Species-Habitat Affinity Spike</h3>
+<h3>18.3 Species-Habitat Affinity Spike</h3>
 <p>A feasibility spike tested whether <strong>per-species habitat profiles</strong> could improve gap-filling over the current cell-to-cell covariate similarity approach. The hypothesis: if a species prefers deciduous forest, cells with deciduous forest should receive higher smoothing weight regardless of proximity to detection cells.</p>
 
 <p>For each species, a weighted-average habitat profile was computed from all detection cells (weighted by detection count). Non-detection cells were then scored by two methods:</p>
@@ -981,99 +904,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </div>
 
 <!-- ============================================================ -->
-<h2 id="frontend-performance">20. Frontend Performance</h2>
-
-<p>Several performance and resilience patterns keep the app responsive on mobile devices and prevent unbounded resource consumption.</p>
-
-<h3>20.1 Error Boundaries</h3>
-<p>Three React error boundaries isolate failures to their respective domains:</p>
-<ol style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li><strong>App root boundary</strong> &mdash; catches top-level rendering failures and displays a recovery UI</li>
-  <li><strong>Map boundary</strong> &mdash; isolates MapLibre GL crashes (WebGL context loss, tile errors) so the side panel remains functional</li>
-  <li><strong>Tab boundary</strong> &mdash; wraps individual tab content so a failure in one tab (e.g., Goals) does not take down the entire side panel</li>
-</ol>
-
-<h3>20.2 Code Splitting</h3>
-<p>Heavier tab components are loaded on demand via <code>React.lazy()</code> with <code>Suspense</code> fallbacks. The lazily loaded tabs are:</p>
-<ul style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li>Goal Birds tab</li>
-  <li>Trip Plan tab</li>
-  <li>Stats tab</li>
-</ul>
-<p>The Explore and Species tabs are included in the main bundle since they are the default entry points. The app uses 5 tabs (Explore, Species, Goals, Plan, Stats) &mdash; Profile settings have been consolidated into the kebab menu. This reduces the initial JavaScript payload and speeds up first paint on slower connections.</p>
-
-<h3>20.3 LRU Cache Eviction</h3>
-<p>The data cache (<code>dataCache.ts</code>) uses an LRU (Least Recently Used) eviction strategy to prevent unbounded memory growth as users browse across weeks and resolutions. Week summary and cell data are evicted when the cache exceeds a configured entry limit, keeping the most recently accessed data in memory while freeing older entries. This is particularly important on mobile devices with constrained memory budgets.</p>
-
-<h3>20.4 No-Data Cell Feedback</h3>
-<p>When a user clicks a cell that has no species data for the selected week, a toast notification explains the situation rather than showing an empty or confusing popup. This provides clear feedback instead of silent failure.</p>
-
-<h3>20.5 Touch Targets</h3>
-<p>All mobile map controls (zoom buttons, view mode selector, week slider) use a minimum <strong>44&times;44px</strong> touch target, following WCAG 2.5.5 (Enhanced) guidelines. This ensures usability on touchscreens without requiring precise taps.</p>
-
-<h3>20.6 Resizable Desktop Sidebar</h3>
-<p>On desktop viewports, the side panel features a <strong>draggable left edge</strong> for resizing between 320px and 800px width. The resize handle appears as a subtle grip indicator on hover. The user's preferred width is persisted in <code>localStorage</code> and restored on subsequent visits. This allows users to expand the panel for detailed species lists or narrow it to maximize the map area.</p>
-
-<h3>20.7 MapControlsContext</h3>
-<p>Map control state (view mode, week, opacity, filters) was previously passed through 5+ levels of prop drilling from <code>App.tsx</code> down through <code>SidePanel</code>, <code>ExploreTab</code>, and <code>MapControls</code> into <code>MapView</code>. A dedicated React context (<code>MapControlsContext.tsx</code>) now provides this state directly to any component that needs it, eliminating prop drilling and simplifying component interfaces across 12+ files.</p>
-
-<h3>20.8 Guided Feature Tour</h3>
-<p>New users are guided through the app with a <strong>driver.js</strong> feature tour (<code>lib/featureTour.ts</code>) that replaces the previous onboarding overlay slides. The tour consists of 8 steps highlighting key UI elements:</p>
-<ol style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li>Map overview (hexagonal cells)</li>
-  <li>View mode selector (Count/Chance/Range/Goals)</li>
-  <li>Week slider for temporal exploration</li>
-  <li>Cell click interaction</li>
-  <li>Species tab for browsing and life list management</li>
-  <li>Goals tab for goal list creation</li>
-  <li>Plan tab for trip planning</li>
-  <li>Menu button (import, dark mode, tutorial, about)</li>
-</ol>
-<p>The tour is <strong>responsive</strong>: on mobile (&lt;768px), steps target the bottom tab bar buttons and floating MapControls; on desktop, they target the side panel tab navigation. driver.js is lazy-loaded via dynamic <code>import()</code> to avoid increasing the main bundle size. Tour completion state is persisted in <code>localStorage</code> and can be replayed from the kebab menu.</p>
-
-<h3>20.9 Geolocation Prompt</h3>
-<p>After a user's first life list import, the app prompts for browser geolocation permission. If granted, the map flies to the user's location at zoom level 7 (resolution 4, local trip planning scale). This only triggers when no saved map position exists in <code>localStorage</code>, ensuring returning users are not re-prompted.</p>
-
-<h3>20.10 Font Size Accessibility</h3>
-<p>A minimum font size of <strong>12px</strong> is enforced throughout the app. A responsive three-tier type scale ensures readability across devices: primary text uses 12px on mobile scaling to 14px on large screens, while icon-associated text uses 11px scaling to 12px. No text in the app is rendered below 11px.</p>
-
-<h3>20.11 Manual Species Add</h3>
-<p>Users can add individual species to their life list via a search-and-add modal accessible from the kebab menu. The modal provides a fuzzy search across all species names (common and scientific), allowing users to quickly add species they have seen without importing a full CSV file. Each addition triggers the same celebration and milestone logic as other life list additions.</p>
-
-<!-- ============================================================ -->
-<h2 id="pwa">21. PWA &amp; Installability</h2>
-
-<p>Find-A-Lifer is a progressive web app installable on Android, iOS, and desktop. The service worker (via <code>vite-plugin-pwa</code> with Workbox) pre-caches the app shell and lazily caches data files for offline use.</p>
-
-<p>App icons are generated as <strong>PNG files at multiple sizes</strong> (192&times;192, 512&times;512) for the web manifest, ensuring compatibility with Android home screen shortcuts, iOS "Add to Home Screen," and desktop PWA install prompts. Maskable icon variants are included for Android adaptive icon rendering.</p>
-
-<!-- ============================================================ -->
-<h2 id="analytics">22. Firebase Analytics</h2>
-
-<p>Anonymous usage analytics are collected via Firebase Analytics to understand how the app is used in practice. Key tracked interactions include:</p>
-<ul style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li>App opens and session starts</li>
-  <li>Tab switches (Explore, Species, Goals, Plan, Stats)</li>
-  <li>Cell clicks on the map</li>
-  <li>Life list imports (CSV upload, manual additions)</li>
-  <li>View mode changes (Count, Chance, Range, Goals)</li>
-  <li>Week slider interactions</li>
-</ul>
-<p>No personally identifiable information is collected. Analytics data helps prioritize features and identify under-used or confusing workflows.</p>
-
-<!-- ============================================================ -->
-<h2 id="firestore-security">23. Firestore Security Rules</h2>
-
-<p>Cloud Firestore security rules enforce authentication-based access control for all social features. Each user's profile, friend connections, trip reports, and shared goal lists are scoped to their Firebase Auth UID. Rules ensure:</p>
-<ul style="margin: 0.5rem 0 1rem 1.5rem;">
-  <li>Users can only read and write their own profile data</li>
-  <li>Friend connections require mutual consent (both users must accept)</li>
-  <li>Shared goal lists are readable by participants but only editable by the owner</li>
-  <li>Leaderboard entries are read-only for non-owners, preventing score manipulation</li>
-</ul>
-
-<!-- ============================================================ -->
-<h2 id="parameters">24. Parameter Reference</h2>
+<h2 id="parameters">19. Parameter Reference</h2>
 
 <table>
   <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
@@ -1097,7 +928,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="references">25. References &amp; Data Sources</h2>
+<h2 id="references">20. References &amp; Data Sources</h2>
 
 <ul style="margin: 0.5rem 0 1rem 1.5rem; line-height: 2;">
   <li>Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, C. Crowley, K. Dunham, A. Stillman, I. Davies, A. Rodewald, V. Ruiz-Gutierrez, C. Wood. 2023. <em>eBird Status and Trends, Data Version: 2022.</em> Cornell Lab of Ornithology. <a href="https://doi.org/10.2173/ebirdst.2022">doi:10.2173/ebirdst.2022</a></li>
