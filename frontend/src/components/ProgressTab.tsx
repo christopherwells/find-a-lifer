@@ -296,66 +296,65 @@ export default function ProgressTab() {
     // Count families started
     const familiesSeen = new Set(seenSpeciesList.map(s => getDisplayGroup(s.familyComName)))
 
+    // Helper: find the next tier target for a value
+    const nextTier = (value: number, tiers: number[]) => tiers.find(t => value < t) ?? tiers[tiers.length - 1]
+
     const items: Array<{ label: string; description: string; progress: number; target: number; reached: boolean }> = []
 
-    // Habitat explorer
+    // Habitat explorer — tiers: 3, 5, 8, 10
+    const habitatTarget = nextTier(habitatsSeen.size, [3, 5, 8, 10])
     items.push({
       label: 'Habitat Explorer',
-      description: `Seen birds in ${habitatsSeen.size} of 10 habitat types`,
+      description: `Birds in ${habitatsSeen.size} habitat types`,
       progress: habitatsSeen.size,
-      target: 10,
+      target: habitatTarget,
       reached: habitatsSeen.size >= 10,
     })
 
-    // Region collector
+    // Region collector — tiers: 3, 6, 10, 14, 17
+    const regionTarget = nextTier(regionsSeen.size, [3, 6, 10, 14, 17])
     items.push({
       label: 'Region Collector',
-      description: `Species in ${regionsSeen.size} of 17 sub-regions`,
+      description: `Species across ${regionsSeen.size} sub-regions`,
       progress: regionsSeen.size,
-      target: 17,
+      target: regionTarget,
       reached: regionsSeen.size >= 17,
     })
 
-    // Family breadth
+    // Taxonomic breadth — tiers: 10, 20, 30, all
     const totalFamilies = new Set(allSpecies.map(s => getDisplayGroup(s.familyComName))).size
+    const familyTarget = nextTier(familiesSeen.size, [10, 20, 30, totalFamilies])
     items.push({
       label: 'Taxonomic Breadth',
-      description: `${familiesSeen.size} of ${totalFamilies} bird groups started`,
+      description: `${familiesSeen.size} of ${totalFamilies} bird groups`,
       progress: familiesSeen.size,
-      target: totalFamilies,
+      target: familyTarget,
       reached: familiesSeen.size >= totalFamilies,
     })
 
-    // Conservation champion
+    // Conservation champion — tiers: 5, 15, 30, 50, 75
     const totalThreatened = allSpecies.filter(s =>
       s.conservStatus === 'Vulnerable' || s.conservStatus === 'Endangered' || s.conservStatus === 'Critically Endangered'
     ).length
     if (totalThreatened > 0) {
+      const conservTarget = nextTier(threatenedSeen, [5, 15, 30, 50, 75])
       items.push({
         label: 'Conservation Champion',
         description: `${threatenedSeen} threatened species observed`,
         progress: threatenedSeen,
-        target: Math.min(25, totalThreatened),
-        reached: threatenedSeen >= 25,
+        target: conservTarget,
+        reached: threatenedSeen >= 75,
       })
     }
 
-    // Rarity hunter
+    // Rarity hunter — tiers: 10, 25, 50, 100, 150
+    const rarityTarget = nextTier(hardSeen, [10, 25, 50, 100, 150])
     items.push({
       label: 'Rarity Hunter',
       description: `${hardSeen} hard-to-find species (difficulty 7+)`,
       progress: hardSeen,
-      target: 50,
-      reached: hardSeen >= 50,
-    })
-
-    // Overall progress
-    items.push({
-      label: 'Life List',
-      description: `${totalSeen} of ${totalSpecies} species`,
-      progress: totalSeen,
-      target: totalSpecies,
-      reached: totalSeen >= totalSpecies,
+      target: rarityTarget,
+      reached: hardSeen >= 150,
     })
 
     return items
