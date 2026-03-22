@@ -541,7 +541,7 @@ export default function GoalBirdsTab() {
                     if (e.key === 'Escape') handleCancelRename()
                   }}
                   placeholder="Enter new name..."
-                  className="flex-1 px-3 py-2 text-sm border border-[var(--color-brand)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="flex-1 px-3 py-2 text-sm border border-[var(--color-brand)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
                   autoFocus
                   data-testid="rename-input"
                 />
@@ -570,7 +570,7 @@ export default function GoalBirdsTab() {
                 <select
                   value={activeListId || ''}
                   onChange={(e) => setActiveListId(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
                   data-testid="goal-list-selector"
                 >
                   {goalLists.map((list) => (
@@ -664,7 +664,7 @@ export default function GoalBirdsTab() {
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
                   placeholder="e.g., Dream Birds"
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-200 ${
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-200 ${
                     createListError ? 'border-red-400' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   autoFocus
@@ -784,7 +784,7 @@ export default function GoalBirdsTab() {
                   }}
                   onFocus={() => setShowSuggestions(true)}
                   placeholder="Search species to add..."
-                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
                   data-testid="species-search-input"
                 />
                 <svg
@@ -859,7 +859,7 @@ export default function GoalBirdsTab() {
                     value={listFilterTerm}
                     onChange={(e) => setListFilterTerm(e.target.value)}
                     placeholder="Filter list by name..."
-                    className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2C3E7B] focus:border-transparent"
+                    className="w-full px-3 py-1.5 pr-8 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent"
                     data-testid="goal-list-filter-input"
                   />
                   {listFilterTerm ? (

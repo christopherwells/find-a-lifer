@@ -385,7 +385,7 @@ export default memo(function MapView({
     if (compareLocations.locationA) {
       const elA = document.createElement('div')
       elA.style.cssText = 'width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;color:white;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);cursor:default;'
-      elA.style.backgroundColor = '#2C3E7B'
+      elA.style.backgroundColor = 'var(--color-brand)'
       elA.textContent = 'A'
       compareMarkerARef.current = new maplibregl.Marker({ element: elA })
         .setLngLat(compareLocations.locationA.coordinates)
@@ -916,7 +916,7 @@ export default memo(function MapView({
           type: 'line',
           source: 'grid',
           paint: {
-            'line-color': darkMode ? '#FBBF24' : '#2C3E7B',
+            'line-color': darkMode ? '#FBBF24' : 'var(--color-brand)',
             'line-width': 2.5,
             'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
           },

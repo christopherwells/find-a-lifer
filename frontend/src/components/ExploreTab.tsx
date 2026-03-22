@@ -271,7 +271,7 @@ export default function ExploreTab() {
             <select
               value={activeGoalListId || ''}
               onChange={(e) => setActiveGoalListId(e.target.value || null)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[var(--color-brand)] bg-white dark:bg-gray-800 dark:text-gray-200"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 focus:border-[var(--color-brand)] bg-white dark:bg-gray-800 dark:text-gray-200"
               data-testid="active-goal-list-selector"
               aria-label="Select active goal list for map"
             >
@@ -350,7 +350,7 @@ export default function ExploreTab() {
             value={speciesSearch}
             onChange={(e) => setSpeciesSearch(e.target.value)}
             data-testid="species-range-search"
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2C3E7B]/30 focus:border-[var(--color-brand)] bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 focus:border-[var(--color-brand)] bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
           />
 
           {/* Multi-species chip row */}

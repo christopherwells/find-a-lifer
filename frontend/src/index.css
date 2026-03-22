@@ -9,6 +9,7 @@
 */
 :root {
   --color-brand: #2C3E7B;
+  --color-brand-dark: #1a2a5e;
   --color-brand-text: #2C3E50;
   --color-success: #27AE60;
   --color-secondary: #E87722;
@@ -24,6 +25,7 @@
 
 .dark {
   --color-brand: #60a5fa;
+  --color-brand-dark: #3b82f6;
   --color-brand-text: #f3f4f6;
   --color-success: #4ade80;
 }

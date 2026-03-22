@@ -135,7 +135,7 @@ export async function startTour(): Promise<void> {
       animate: true,
       smoothScroll: true,
       allowClose: true,
-      overlayColor: '#1a2a5e',
+      overlayColor: 'var(--color-brand-dark)',
       overlayOpacity: 0.6,
       stagePadding: 8,
       stageRadius: 8,

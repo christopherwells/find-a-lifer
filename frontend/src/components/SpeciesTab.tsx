@@ -503,7 +503,7 @@ export default function SpeciesTab() {
               value={searchTerm}
               onChange={handleSearchChange}
               onFocus={() => searchTerm.trim().length > 0 && setShowSuggestions(true)}
-              className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
               data-testid="species-search-input"
             />
 
@@ -556,7 +556,7 @@ export default function SpeciesTab() {
               <RegionSelector
                 value={selectedRegionFilter}
                 onChange={setSelectedRegionFilter}
-                className="flex-1 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 testId="region-filter"
                 placeholder="All Regions"
               />
@@ -564,7 +564,7 @@ export default function SpeciesTab() {
                 id="seen-filter"
                 value={seenFilter}
                 onChange={(e) => setSeenFilter(e.target.value as '' | 'seen' | 'unseen' | 'lifers')}
-                className="flex-1 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="seen-filter"
               >
                 <option value="">Seen & Unseen</option>
@@ -578,7 +578,7 @@ export default function SpeciesTab() {
                 id="habitat-filter"
                 value={selectedHabitat}
                 onChange={(e) => setSelectedHabitat(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="habitat-filter"
               >
                 <option value="">All Habitats</option>
@@ -600,7 +600,7 @@ export default function SpeciesTab() {
                   id="conservation-filter"
                   value={selectedConservStatus}
                   onChange={(e) => setSelectedConservStatus(e.target.value)}
-                  className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                   data-testid="conservation-filter"
                 >
                   <option value="">All Statuses</option>
@@ -619,7 +619,7 @@ export default function SpeciesTab() {
                   id="invasion-filter"
                   value={selectedInvasionStatus}
                   onChange={(e) => setSelectedInvasionStatus(e.target.value)}
-                  className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                   data-testid="invasion-filter"
                 >
                   <option value="">All Origins</option>
@@ -636,7 +636,7 @@ export default function SpeciesTab() {
                 id="difficulty-filter"
                 value={selectedDifficulty}
                 onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="difficulty-filter"
               >
                 <option value="">Difficulty</option>
@@ -649,7 +649,7 @@ export default function SpeciesTab() {
               <select
                 value={goalListFilter}
                 onChange={(e) => setGoalListFilter(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[#2C3E7B] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="goal-list-filter"
               >
                 <option value="">All Species</option>
@@ -778,7 +778,7 @@ export default function SpeciesTab() {
                           type="checkbox"
                           checked={isSpeciesSeen(species.speciesCode)}
                           onChange={() => celebrateToggle(species.speciesCode, species.comName)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--color-brand)] focus:ring-[#2C3E7B] cursor-pointer flex-shrink-0"
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--color-brand)] focus:ring-[var(--color-brand)] cursor-pointer flex-shrink-0"
                         />
                         {/* Species name — single line */}
                         <button

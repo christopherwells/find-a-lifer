@@ -98,7 +98,7 @@ export default function AboutPage({ onClose }: AboutPageProps) {
                 href="https://www.aba.org/aba-code-of-birding-ethics/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block mt-2.5 text-sm text-[var(--color-brand)] underline hover:text-[#1a2a5e] dark:hover:text-blue-300 font-medium"
+                className="inline-block mt-2.5 text-sm text-[var(--color-brand)] underline hover:text-[var(--color-brand-dark)] dark:hover:text-blue-300 font-medium"
                 data-testid="about-aba-link"
               >
                 ABA Code of Birding Ethics

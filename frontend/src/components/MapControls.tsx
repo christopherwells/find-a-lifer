@@ -543,7 +543,7 @@ export default function MapControls({
                   placeholder="Search species..."
                   value={speciesSearch}
                   onChange={(e) => setSpeciesSearch(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#2C3E7B]/30"
+                  className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)]/30"
                   data-testid="mc-species-search"
                 />
                 {isLoadingSpecies ? (

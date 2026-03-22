@@ -46,7 +46,7 @@ export default function TopBar({ darkMode, onToggleDarkMode, onShowAbout, onShow
       className={`flex items-center justify-between px-4 z-50 shadow-md relative min-h-[44px] ${
         darkMode
           ? 'bg-[#1A1A2E] text-white'
-          : 'bg-gradient-to-r from-[#2C3E7B] to-[#1a2a5e] text-white'
+          : 'bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-dark)] text-white'
       }`}
     >
       {/* Left: Logo and Title */}
