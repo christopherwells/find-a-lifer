@@ -14,6 +14,7 @@ interface SpeciesInfoCardProps {
   species: Species
   onClose: () => void
   currentWeek?: number
+  onWeekChange?: (week: number) => void
   onCellClick?: (cellId: number, coordinates: [number, number]) => void
   onShowOnMap?: () => void
   regionContext?: { subRegionId: string; cellLng: number; cellLat: number }
@@ -24,6 +25,7 @@ export default function SpeciesInfoCard({
   species,
   onClose,
   currentWeek,
+  onWeekChange,
   onCellClick,
   onShowOnMap,
   regionContext,
@@ -333,7 +335,7 @@ export default function SpeciesInfoCard({
               <p className="text-xs lg:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 Seasonality{selectedRegion ? ` — ${selectedRegion.name}` : ''}
               </p>
-              <Sparkline data={freqProfile} currentWeek={week} />
+              <Sparkline data={freqProfile} currentWeek={week} onWeekChange={onWeekChange} />
             </div>
           )}
 

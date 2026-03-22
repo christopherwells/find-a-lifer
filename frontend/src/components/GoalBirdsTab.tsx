@@ -32,7 +32,7 @@ function getConservStatusDot(status: string): React.ReactNode {
 }
 
 export default function GoalBirdsTab() {
-  const { state: { viewMode }, setGoalLists: onGoalListsChange, setActiveGoalListId: onActiveGoalListIdChange, setViewMode } = useMapControls()
+  const { state: { viewMode, currentWeek }, setGoalLists: onGoalListsChange, setActiveGoalListId: onActiveGoalListIdChange, setViewMode, setCurrentWeek } = useMapControls()
   const { isSpeciesSeen, seenSpecies } = useLifeList()
   const { showToast } = useToast()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
@@ -1346,6 +1346,8 @@ export default function GoalBirdsTab() {
         <SpeciesInfoCard
           species={selectedSpeciesCard}
           onClose={() => setSelectedSpeciesCard(null)}
+          currentWeek={currentWeek}
+          onWeekChange={setCurrentWeek}
         />
       )}
     </div>

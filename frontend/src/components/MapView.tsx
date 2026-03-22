@@ -167,6 +167,7 @@ export default memo(function MapView({
     goalSpeciesCodes,
     setSelectedLocation: onLocationSelect,
     setDataRange: onDataRangeChange,
+    setCurrentWeek,
   } = useMapControls()
   const { showToast } = useToast()
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -1898,6 +1899,7 @@ export default memo(function MapView({
           species={popupSpeciesCard}
           onClose={() => { setPopupSpeciesCard(null); setPopupRegionContext(null) }}
           currentWeek={currentWeek}
+          onWeekChange={setCurrentWeek}
           regionContext={popupRegionContext ?? undefined}
           onCellClick={(cellId, coordinates) => {
             setPopupSpeciesCard(null)

@@ -22,10 +22,11 @@ type SpeciesByGroup = Record<string, Species[]>
 
 export default function SpeciesTab() {
   const {
-    state: { selectedRegion, speciesFilters, showTotalRichness, seenFilter },
+    state: { selectedRegion, speciesFilters, showTotalRichness, seenFilter, currentWeek },
     setSpeciesFilters: onSpeciesFiltersChange,
     setShowTotalRichness,
     setSeenFilter,
+    setCurrentWeek,
   } = useMapControls()
   const { species: rawSpecies, loading } = useSpecies()
   const [speciesByGroup, setSpeciesByGroup] = useState<SpeciesByGroup>({})
@@ -878,6 +879,8 @@ export default function SpeciesTab() {
         <SpeciesInfoCard
           species={selectedSpeciesCard}
           onClose={() => setSelectedSpeciesCard(null)}
+          currentWeek={currentWeek}
+          onWeekChange={setCurrentWeek}
           regionContext={speciesTabRegionContext}
         />
       )}
