@@ -1,116 +1,65 @@
 {
-  "_comment": "Manual difficulty overrides. Format: avibase-ID -> {difficultyScore: 0-100, difficultyRating: 1-10}",
-  "_section_urban_introduced": "Introduced/urban species rated too hard because EBD has poor urban cell coverage",
   "avibase-BBA263C2": {
-    "_name": "Rock Pigeon",
-    "_reason": "Ubiquitous in every city worldwide; algorithm sees few cells due to poor urban EBD coverage",
-    "_computed": "rating=9, cells=30",
     "difficultyScore": 5,
     "difficultyRating": 1
   },
   "avibase-35810386": {
-    "_name": "Monk Parakeet",
-    "_reason": "Noisy, conspicuous flocks around nest structures in many US cities; easy once you know the site",
-    "_computed": "rating=3, cells=351",
     "difficultyScore": 22,
     "difficultyRating": 2
   },
   "avibase-8B85CB2C": {
-    "_name": "Nanday Parakeet",
-    "_reason": "Loud, conspicuous feral flocks in FL, CA, TX; easy at known roost sites",
-    "_computed": "rating=6, cells=76",
     "difficultyScore": 30,
     "difficultyRating": 3
   },
   "avibase-B42BCB40": {
-    "_name": "White-winged Parakeet",
-    "_reason": "Established feral flocks in Miami area; findable at known sites",
-    "_computed": "rating=6, cells=35",
     "difficultyScore": 38,
     "difficultyRating": 4
   },
   "avibase-31C03CB8": {
-    "_name": "Rosy-faced Lovebird",
-    "_reason": "Established feral population in Phoenix metro; easy at neighborhood feeders there",
-    "_computed": "rating=5, cells=85",
     "difficultyScore": 30,
     "difficultyRating": 3
   },
   "avibase-8DE71518": {
-    "_name": "Mitred Parakeet",
-    "_reason": "Small feral flocks in a few cities; localized but findable at known roost sites",
-    "_computed": "rating=7, cells=41",
     "difficultyScore": 42,
     "difficultyRating": 5
   },
   "avibase-12E354E2": {
-    "_name": "Red-masked Parakeet",
-    "_reason": "Small feral flocks in San Francisco; localized but findable at known roost sites",
-    "_computed": "rating=7, cells=46",
     "difficultyScore": 42,
     "difficultyRating": 5
   },
   "avibase-B1595124": {
-    "_name": "Red-crowned Amazon",
-    "_reason": "Established feral populations in CA and TX cities; findable at known roost/nesting sites",
-    "_computed": "rating=7, cells=45",
     "difficultyScore": 42,
     "difficultyRating": 5
   },
-  "_section_nocturnal": "Nocturnal/crepuscular species: harder than data suggests because most birding happens during daytime",
   "avibase-FC366114": {
-    "_name": "Great Horned Owl",
-    "_reason": "Nocturnal but widespread and vocal; responds to playback; occasionally seen at dusk",
-    "_computed": "rating=4, cells=5214",
     "difficultyScore": 45,
     "difficultyRating": 5
   },
   "avibase-BDBB04D5": {
-    "_name": "Barred Owl",
-    "_reason": "Nocturnal but frequently heard/seen at dusk in suitable habitat; vocal and responsive",
-    "_computed": "rating=4, cells=3124",
     "difficultyScore": 45,
     "difficultyRating": 5
   },
   "avibase-A69062C8": {
-    "_name": "Eastern Screech-Owl",
-    "_reason": "Strictly nocturnal; small, well-camouflaged; rarely seen without targeted effort or playback",
-    "_computed": "rating=6, cells=2260",
     "difficultyScore": 54,
     "difficultyRating": 7
   },
   "avibase-89F8B6F5": {
-    "_name": "Western Screech-Owl",
-    "_reason": "Strictly nocturnal; small, well-camouflaged; rarely seen without targeted effort or playback",
-    "_computed": "rating=5, cells=928",
     "difficultyScore": 54,
     "difficultyRating": 7
   },
   "avibase-6B54759B": {
-    "_name": "American Barn Owl",
-    "_reason": "Strictly nocturnal; rarely encountered without nest box sites or targeted nighttime effort",
-    "_computed": "rating=4, cells=2251",
     "difficultyScore": 50,
     "difficultyRating": 6
   },
   "avibase-26BA25EF": {
-    "_name": "Northern Saw-whet Owl",
-    "_reason": "Strictly nocturnal, tiny, secretive; very hard to find without banding stations or playback",
-    "_computed": "rating=6, cells=2113",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
   "avibase-FA36ABE5": {
-    "_name": "Great Gray Owl",
-    "_reason": "Genuinely rare and hard to find; requires travel to remote northern forests",
-    "_computed": "rating=10, cells=1",
     "difficultyScore": 80,
     "difficultyRating": 9
   },
   "avibase-FC4D40D2": {
-    "_name": "Long-eared Owl",
-    "_reason": "Strictly nocturnal, secretive, well-camouflaged; seldom found outside known winter roost sites",
-    "_computed": "rating=7, cells=349",
     "difficultyScore": 60,
     "difficultyRating": 8
   },
@@ -119,115 +68,66 @@
     "difficultyRating": 7
   },
   "avibase-5B23B360": {
-    "_name": "Snowy Owl",
-    "_reason": "Irruptive; easy in invasion years but nearly impossible in off years; unpredictable",
-    "_computed": "rating=7, cells=1157",
     "difficultyScore": 58,
     "difficultyRating": 7
   },
   "avibase-1BF907B6": {
-    "_name": "Flammulated Owl",
-    "_reason": "Strictly nocturnal, tiny, montane forests; one of the hardest owls to find",
-    "_computed": "rating=7, cells=443",
     "difficultyScore": 62,
     "difficultyRating": 8
   },
   "avibase-D74BA965": {
-    "_name": "Elf Owl",
-    "_reason": "Strictly nocturnal, tiny; limited range in AZ/TX borderlands; requires nighttime effort",
-    "_computed": "rating=7, cells=179",
     "difficultyScore": 60,
     "difficultyRating": 8
   },
   "avibase-2E2B24EB": {
-    "_name": "Whiskered Screech-Owl",
-    "_reason": "Strictly nocturnal; restricted to SE AZ sky island canyons; requires nighttime effort",
-    "_computed": "rating=8, cells=96",
     "difficultyScore": 62,
     "difficultyRating": 8
   },
   "avibase-8AB4EAF6": {
-    "_name": "Boreal Owl",
-    "_reason": "Strictly nocturnal, remote boreal forests; very difficult to find even with effort",
-    "_computed": "rating=7, cells=347",
     "difficultyScore": 65,
     "difficultyRating": 8
   },
   "avibase-24E39ACD": {
-    "_name": "Common Nighthawk",
-    "_reason": "Crepuscular but conspicuous overhead in season; visible during daytime migration",
-    "_computed": "rating=4, cells=5011",
     "difficultyScore": 44,
     "difficultyRating": 5
   },
   "avibase-D621FFC6": {
-    "_name": "Common Poorwill",
-    "_reason": "Strictly nocturnal; sits on roads at night but almost never found during daytime",
-    "_computed": "rating=6, cells=1375",
     "difficultyScore": 54,
     "difficultyRating": 7
   },
   "avibase-8D3E8871": {
-    "_name": "Chuck-will's-widow",
-    "_reason": "Strictly nocturnal; heard far more than seen; requires nighttime effort in SE US forests",
-    "_computed": "rating=7, cells=1371",
     "difficultyScore": 58,
     "difficultyRating": 7
   },
   "avibase-1A09655B": {
-    "_name": "Eastern Whip-poor-will",
-    "_reason": "Strictly nocturnal; heard far more than seen; requires nighttime effort in forests",
-    "_computed": "rating=7, cells=1821",
     "difficultyScore": 58,
     "difficultyRating": 7
   },
   "avibase-CED2468C": {
-    "_name": "Mexican Whip-poor-will",
-    "_reason": "Strictly nocturnal; limited range in SW mountains; requires nighttime effort",
-    "_computed": "rating=6, cells=246",
     "difficultyScore": 58,
     "difficultyRating": 7
   },
   "avibase-C0F335B7": {
-    "_name": "Buff-collared Nightjar",
-    "_reason": "Strictly nocturnal; extremely range-restricted in US (a few AZ canyons); requires nighttime effort",
-    "_computed": "rating=6, cells=129",
     "difficultyScore": 62,
     "difficultyRating": 8
   },
   "avibase-F2CB69EC": {
-    "_name": "Common Pauraque",
-    "_reason": "Nocturnal but sits on roads at night in S Texas; findable with effort at known sites",
-    "_computed": "rating=5, cells=484",
     "difficultyScore": 48,
     "difficultyRating": 6
   },
-  "_section_secretive_marsh": "Secretive marsh birds: harder than frequency suggests because they hide in dense vegetation",
   "avibase-2CC21529": {
-    "_name": "Sora",
-    "_reason": "Very secretive; heard far more than seen; rarely flushes; requires marsh-edge patience",
-    "_computed": "rating=4, cells=4443",
     "difficultyScore": 48,
     "difficultyRating": 6
   },
   "avibase-87705CC4": {
-    "_name": "Virginia Rail",
-    "_reason": "Secretive marsh bird; occasionally responds to playback but rarely seen in open",
-    "_computed": "rating=5, cells=3294",
     "difficultyScore": 50,
     "difficultyRating": 6
   },
   "avibase-13E9F9B4": {
-    "_name": "American Bittern",
-    "_reason": "Extremely well-camouflaged; stands motionless in reeds; heard far more than seen",
-    "_computed": "rating=5, cells=3129",
     "difficultyScore": 50,
     "difficultyRating": 6
   },
   "avibase-0B361ED8": {
-    "_name": "Least Bittern",
-    "_reason": "Tiny, secretive, well-camouflaged; one of the hardest regular marsh birds to see",
-    "_computed": "rating=6, cells=1760",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
@@ -248,194 +148,110 @@
     "difficultyRating": 10
   },
   "avibase-F4829920": {
-    "_name": "American Woodcock",
-    "_reason": "Crepuscular display flights are findable, but daytime detection nearly impossible; requires timed effort",
-    "_computed": "rating=6, cells=2396",
     "difficultyScore": 54,
     "difficultyRating": 7
   },
-  "_section_pelagic": "Pelagic species: require boat trips to find, which most birders don't do regularly",
   "avibase-D295D249": {
-    "_name": "Wilson's Storm-Petrel",
-    "_reason": "Requires pelagic boat trip; common at sea but inaccessible to most birders",
-    "_computed": "rating=4, cells=250",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
   "avibase-C5FB15C6": {
-    "_name": "Leach's Storm-Petrel",
-    "_reason": "Requires pelagic boat trip; breeds on remote islands; nocturnal at colonies",
-    "_computed": "rating=5, cells=350",
     "difficultyScore": 56,
     "difficultyRating": 7
   },
   "avibase-DCD73C3A": {
-    "_name": "Black-capped Petrel",
-    "_reason": "Requires dedicated far-offshore pelagic trip; globally endangered; very hard to find",
-    "_computed": "rating=4, cells=46",
     "difficultyScore": 75,
     "difficultyRating": 9
   },
   "avibase-D3FAE385": {
-    "_name": "Band-rumped Storm-Petrel",
-    "_reason": "Requires far-offshore pelagic trip; uncommon and hard to identify at sea",
-    "_computed": "rating=5, cells=74",
     "difficultyScore": 65,
     "difficultyRating": 8
   },
   "avibase-710BB4E6": {
-    "_name": "Cory's Shearwater",
-    "_reason": "Requires pelagic trip off Atlantic coast; can be common on good trips but inaccessible otherwise",
-    "_computed": "rating=8, cells=127",
     "difficultyScore": 58,
     "difficultyRating": 7
   },
   "avibase-8B879DFA": {
-    "_name": "Great Shearwater",
-    "_reason": "Requires pelagic trip; can be common off Atlantic coast on right trip but inaccessible otherwise",
-    "_computed": "rating=5, cells=275",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
   "avibase-1725B07D": {
-    "_name": "Sooty Shearwater",
-    "_reason": "Visible from shore on Pacific coast but requires pelagic trip on Atlantic; mixed accessibility",
-    "_computed": "rating=5, cells=472",
     "difficultyScore": 50,
     "difficultyRating": 6
   },
   "avibase-5AEDC002": {
-    "_name": "Manx Shearwater",
-    "_reason": "Requires pelagic trip off Atlantic coast; uncommon; occasionally from shore during storms",
-    "_computed": "rating=7, cells=208",
     "difficultyScore": 58,
     "difficultyRating": 7
   },
   "avibase-7D1A9D5C": {
-    "_name": "South Polar Skua",
-    "_reason": "Requires pelagic trip; uncommon and difficult to find even at sea",
-    "_computed": "rating=7, cells=104",
     "difficultyScore": 62,
     "difficultyRating": 8
   },
   "avibase-7CB8F5B7": {
-    "_name": "Pomarine Jaeger",
-    "_reason": "Pelagic; occasionally seen from shore during migration but usually requires boat trip",
-    "_computed": "rating=6, cells=686",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
   "avibase-39086887": {
-    "_name": "Parasitic Jaeger",
-    "_reason": "Pelagic; occasionally seen from shore but usually requires coastal persistence or boat trip",
-    "_computed": "rating=6, cells=966",
     "difficultyScore": 52,
     "difficultyRating": 6
   },
   "avibase-1D446440": {
-    "_name": "Long-tailed Jaeger",
-    "_reason": "Pelagic in winter; breeds in remote Arctic tundra; requires effort to find in either context",
-    "_computed": "rating=4, cells=551",
     "difficultyScore": 52,
     "difficultyRating": 6
   },
   "avibase-05520B42": {
-    "_name": "Brown Booby",
-    "_reason": "Tropical; visible from some piers/jetties in FL/TX but limited access for most birders",
-    "_computed": "rating=2, cells=470",
     "difficultyScore": 45,
     "difficultyRating": 5
   },
   "avibase-0A4609D1": {
-    "_name": "Red-footed Booby",
-    "_reason": "Tropical pelagic; mostly seen in Hawaii or on pelagic trips; rare from mainland shore",
-    "_computed": "rating=2, cells=201",
     "difficultyScore": 50,
     "difficultyRating": 6
   },
   "avibase-534FB490": {
-    "_name": "Northern Gannet",
-    "_reason": "Visible from Atlantic shore in season; requires coastal trip but not a pelagic",
-    "_computed": "rating=2, cells=478",
     "difficultyScore": 38,
     "difficultyRating": 4
   },
   "avibase-8AA3B42E": {
-    "_name": "Magnificent Frigatebird",
-    "_reason": "Visible from shore in FL/TX coastal areas; widespread in tropics; not hard with coastal access",
-    "_computed": "rating=1, cells=958",
     "difficultyScore": 38,
     "difficultyRating": 4
   },
   "avibase-EE8ECB1D": {
-    "_name": "Black-footed Albatross",
-    "_reason": "Requires Pacific pelagic trip; common on Monterey Bay trips but inaccessible without a boat",
-    "_computed": "rating=3, cells=121",
     "difficultyScore": 52,
     "difficultyRating": 6
   },
   "avibase-98FB6D4B": {
-    "_name": "Laysan Albatross",
-    "_reason": "Requires Pacific pelagic trip or trip to Hawaii breeding colonies; inaccessible for most",
-    "_computed": "rating=3, cells=80",
     "difficultyScore": 52,
     "difficultyRating": 6
   },
-  "_section_range_restricted": "Range-restricted species: harder or easier than algorithm suggests due to localized populations",
   "avibase-B9A2B7CC": {
-    "_name": "Kirtland's Warbler",
-    "_reason": "Breeds almost exclusively in N Michigan jack pine; very range-restricted but findable on guided tours",
-    "_computed": "rating=7, cells=132",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
   "avibase-D78D24B9": {
-    "_name": "Florida Scrub-Jay",
-    "_reason": "Florida endemic; very range-restricted but tame and easy to find at known reserves",
-    "_computed": "rating=7, cells=55",
     "difficultyScore": 48,
     "difficultyRating": 6
   },
   "avibase-8A35BFD6": {
-    "_name": "Golden-cheeked Warbler",
-    "_reason": "Breeds only in central TX juniper-oak woodlands; range-restricted but findable by song in season",
-    "_computed": "rating=6, cells=102",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
   "avibase-DEFD8414": {
-    "_name": "Black-capped Vireo",
-    "_reason": "Very range-restricted in TX/OK; formerly endangered; requires specific habitat knowledge",
-    "_computed": "rating=5, cells=182",
     "difficultyScore": 52,
     "difficultyRating": 6
   },
   "avibase-0BFCAE79": {
-    "_name": "Red-cockaded Woodpecker",
-    "_reason": "Restricted to managed longleaf pine; requires visiting specific military bases/refuges with active colonies",
-    "_computed": "rating=4, cells=210",
     "difficultyScore": 48,
     "difficultyRating": 6
   },
   "avibase-24F14328": {
-    "_name": "California Condor",
-    "_reason": "Extremely range-restricted but conspicuous and easy to find at known sites (Big Sur, Grand Canyon, Pinnacles)",
-    "_computed": "rating=3, cells=53",
     "difficultyScore": 42,
     "difficultyRating": 5
   },
   "avibase-B87D744D": {
-    "_name": "Whooping Crane",
-    "_reason": "Critically endangered with tiny population; findable at Aransas NWR in winter but requires specific trip",
-    "_computed": "rating=6, cells=243",
     "difficultyScore": 55,
     "difficultyRating": 7
   },
-  "_section_secretive_grassland": "Secretive grassland/skulking species: harder than frequency suggests",
   "avibase-CDA2F827": {
-    "_name": "Henslow's Sparrow",
-    "_reason": "Extremely skulking in dense grasslands; weak song easily missed; declining habitat specialist",
-    "_computed": "rating=7, cells=927",
     "difficultyScore": 58,
     "difficultyRating": 7
   },
@@ -444,16 +260,10 @@
     "difficultyRating": 7
   },
   "avibase-727D994F": {
-    "_name": "Nelson's Sparrow",
-    "_reason": "Very skulking in dense marsh; runs through grass rather than flying; hard to see well",
-    "_computed": "rating=6, cells=1219",
     "difficultyScore": 52,
     "difficultyRating": 7
   },
   "avibase-79C9C8C4": {
-    "_name": "Saltmarsh Sparrow",
-    "_reason": "Restricted to NE US salt marshes; skulking and declining; range-restricted and secretive",
-    "_computed": "rating=8, cells=134",
     "difficultyScore": 60,
     "difficultyRating": 8
   },
@@ -462,9 +272,6 @@
     "difficultyRating": 8
   },
   "avibase-BF380B5D": {
-    "_name": "Sprague's Pipit",
-    "_reason": "High-altitude song flight makes it detectable but seeing it on ground is very difficult; grassland specialist",
-    "_computed": "rating=4, cells=783",
     "difficultyScore": 48,
     "difficultyRating": 6
   },
@@ -472,95 +279,55 @@
     "difficultyScore": 60,
     "difficultyRating": 8
   },
-  "_section_hawaiian": "Hawaiian species: algorithm underrates many because few cells in dataset but some are genuinely findable",
   "avibase-7B3AB998": {
-    "_name": "Hawaiian Hawk",
-    "_reason": "Restricted to Big Island but conspicuous soaring raptor; not hard to find there",
-    "_computed": "rating=7, cells=10",
     "difficultyScore": 42,
     "difficultyRating": 5
   },
   "avibase-5E3BDB15": {
-    "_name": "Hawaiian Coot",
-    "_reason": "Restricted to Hawaii but conspicuous on wetlands and golf course ponds; easy on-island",
-    "_computed": "rating=4, cells=20",
     "difficultyScore": 30,
     "difficultyRating": 3
   },
   "avibase-EDB18078": {
-    "_name": "Hawaiian Goose",
-    "_reason": "Restricted to Hawaii but conspicuous and habituated to people at parks; easy on-island",
-    "_computed": "rating=3, cells=23",
     "difficultyScore": 25,
     "difficultyRating": 3
   },
   "avibase-374CF449": {
-    "_name": "Apapane",
-    "_reason": "Common in native forest on Big Island and Maui; easy at Hakalau or Hosmer Grove",
-    "_computed": "rating=3, cells=20",
     "difficultyScore": 28,
     "difficultyRating": 3
   },
   "avibase-ABB15738": {
-    "_name": "Hawaii Amakihi",
-    "_reason": "Common Hawaiian honeycreeper; even found at lower elevations; easy in native forest",
-    "_computed": "rating=4, cells=13",
     "difficultyScore": 30,
     "difficultyRating": 3
   },
   "avibase-A71C0CB7": {
-    "_name": "Iiwi",
-    "_reason": "Conspicuous red honeycreeper in native forest; declining but findable at high elevations",
-    "_computed": "rating=4, cells=12",
     "difficultyScore": 38,
     "difficultyRating": 4
   },
   "avibase-0E48C9D0": {
-    "_name": "Hawaii Elepaio",
-    "_reason": "Curious and conspicuous in native forest; findable at Hakalau NWR",
-    "_computed": "rating=5, cells=8",
     "difficultyScore": 42,
     "difficultyRating": 5
   },
   "avibase-E2F7F6EC": {
-    "_name": "Oahu Elepaio",
-    "_reason": "Critically endangered with tiny population on Oahu; very hard to find",
-    "_computed": "rating=9, cells=3",
     "difficultyScore": 72,
     "difficultyRating": 9
   },
   "avibase-D94752EA": {
-    "_name": "Maui Alauahio",
-    "_reason": "Restricted to high-elevation Maui forest; findable at Polipoli or Hosmer Grove with effort",
-    "_computed": "rating=4, cells=3",
     "difficultyScore": 48,
     "difficultyRating": 6
   },
   "avibase-B690DF97": {
-    "_name": "Hawaii Akepa",
-    "_reason": "Critically endangered; restricted to highest-elevation native forest on Big Island",
-    "_computed": "rating=6, cells=4",
     "difficultyScore": 62,
     "difficultyRating": 8
   },
   "avibase-DDE78CC9": {
-    "_name": "Akiapolaau",
-    "_reason": "Critically endangered; restricted to remote high-elevation Big Island forest; very hard",
-    "_computed": "rating=6, cells=4",
     "difficultyScore": 68,
     "difficultyRating": 8
   },
   "avibase-DD65F272": {
-    "_name": "Hawaii Creeper",
-    "_reason": "Critically endangered; restricted to remote high-elevation Big Island forest; very hard",
-    "_computed": "rating=6, cells=4",
     "difficultyScore": 65,
     "difficultyRating": 8
   },
   "avibase-6B31D099": {
-    "_name": "Palila",
-    "_reason": "Critically endangered; restricted to mamane forest on Mauna Kea; accessible with 4WD road but very rare",
-    "_computed": "rating=8, cells=2",
     "difficultyScore": 70,
     "difficultyRating": 9
   },
