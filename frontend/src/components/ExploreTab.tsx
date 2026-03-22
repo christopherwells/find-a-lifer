@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import SpeciesInfoCard from './SpeciesInfoCard'
 import type { SpeciesMeta, Species } from './types'
 import { fetchSpecies } from '../lib/dataCache'
 import { useLifeList } from '../contexts/LifeListContext'
@@ -51,6 +52,7 @@ export default function ExploreTab() {
   // This Week's Highlights
   const [fullSpecies, setFullSpecies] = useState<Species[]>([])
   const [showHighlights, setShowHighlights] = useState(true)
+  const [highlightCard, setHighlightCard] = useState<Species | null>(null)
   const { effectiveSeenSpecies } = useLifeList()
 
   // Week animation
@@ -313,10 +315,7 @@ export default function ExploreTab() {
               <div
                 key={h.species.speciesCode}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => {
-                  setViewMode('species')
-                  setSelectedSpecies(h.species.speciesCode)
-                }}
+                onClick={() => setHighlightCard(h.species as Species)}
               >
                 {h.species.photoUrl && (
                   <img src={h.species.photoUrl} alt="" className="w-full h-20 rounded object-cover mb-1" loading="lazy" />
@@ -615,6 +614,18 @@ export default function ExploreTab() {
           ABA Code of Birding Ethics
         </a>
       </p>
+      {/* Species Info Card from highlight click */}
+      {highlightCard && (
+        <SpeciesInfoCard
+          species={highlightCard}
+          onClose={() => setHighlightCard(null)}
+          onShowOnMap={() => {
+            setViewMode('species')
+            setSelectedSpecies(highlightCard.speciesCode)
+            setHighlightCard(null)
+          }}
+        />
+      )}
     </div>
   )
 }
