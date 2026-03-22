@@ -127,19 +127,13 @@ describe('ProgressTab', () => {
     })
   })
 
-  it('shows "Progress by Region" section', async () => {
+  it('shows Trophy Case with subtabs (Groups/Regions/Achievements)', async () => {
     render(<ProgressTab />)
     await waitFor(() => {
-      expect(screen.getByText('Progress by Region')).toBeInTheDocument()
+      expect(screen.getByTestId('trophy-case')).toBeInTheDocument()
     })
-    expect(screen.getByTestId('region-breakdown-list')).toBeInTheDocument()
-  })
-
-  it('shows achievements section', async () => {
-    render(<ProgressTab />)
-    await waitFor(() => {
-      expect(screen.getByTestId('milestones-section')).toBeInTheDocument()
-    })
+    expect(screen.getByText('Groups')).toBeInTheDocument()
+    expect(screen.getByText('Regions')).toBeInTheDocument()
     expect(screen.getByText('Achievements')).toBeInTheDocument()
   })
 
