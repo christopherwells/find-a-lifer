@@ -178,7 +178,7 @@ export default memo(function SidePanel({
             : 'md:h-full animate-sheet-up md:animate-none'
           }`}
         style={!collapsed ? {
-          top: '44px',
+          top: 'calc(44px + env(safe-area-inset-top, 0px))',
           bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))',
           height: 'auto',
           ...(window.innerWidth >= 768 ? { top: 'auto', width: `${sidebarWidth}px`, bottom: 'auto', height: 'auto' } : {}),
