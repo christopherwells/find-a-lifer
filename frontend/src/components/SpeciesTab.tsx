@@ -14,7 +14,7 @@ import { FamilyGroupSkeleton } from './Skeleton'
 import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
 import { expandRegionFilter } from '../lib/regionGroups'
 import RegionSelector from './RegionSelector'
-import Tooltip from './Tooltip'
+// Tooltip info moved to title attributes for mobile space efficiency
 // tooltipContent import removed — difficulty tooltip was in the old grid layout
 
 /** Species grouped by display group name, in taxonomic order */
@@ -556,7 +556,7 @@ export default function SpeciesTab() {
               <RegionSelector
                 value={selectedRegionFilter}
                 onChange={setSelectedRegionFilter}
-                className="flex-1 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 testId="region-filter"
                 placeholder="All Regions"
               />
@@ -564,7 +564,7 @@ export default function SpeciesTab() {
                 id="seen-filter"
                 value={seenFilter}
                 onChange={(e) => setSeenFilter(e.target.value as '' | 'seen' | 'unseen' | 'lifers')}
-                className="flex-1 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="seen-filter"
               >
                 <option value="">Seen & Unseen</option>
@@ -572,16 +572,16 @@ export default function SpeciesTab() {
                 <option value="unseen">Unseen Only</option>
               </select>
             </div>
-            {/* Habitat + Conservation status (same row) */}
+            {/* Habitat + Difficulty */}
             <div className="flex gap-1.5">
               <select
                 id="habitat-filter"
                 value={selectedHabitat}
                 onChange={(e) => setSelectedHabitat(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 min-w-0 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="habitat-filter"
               >
-                <option value="">All Habitats</option>
+                <option value="">Habitat</option>
                 <option value="Forest">Forest</option>
                 <option value="Tropical Forest">Tropical Forest</option>
                 <option value="Conifer Forest">Conifer Forest</option>
@@ -595,61 +595,60 @@ export default function SpeciesTab() {
                 <option value="Agricultural">Agricultural</option>
                 <option value="Urban-tolerant">Urban-tolerant</option>
               </select>
-              <div className="flex items-center gap-0.5">
-                <select
-                  id="conservation-filter"
-                  value={selectedConservStatus}
-                  onChange={(e) => setSelectedConservStatus(e.target.value)}
-                  className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                  data-testid="conservation-filter"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Least Concern">Least Concern</option>
-                  <option value="Near Threatened">Near Threatened</option>
-                  <option value="Vulnerable">Vulnerable</option>
-                  <option value="Endangered">Endangered</option>
-                  <option value="Critically Endangered">Critically Endangered</option>
-                  <option value="Extinct in the Wild">Extinct in Wild</option>
-                  <option value="Data Deficient">Data Deficient</option>
-                </select>
-                <Tooltip content="IUCN Red List classification of extinction risk." />
-              </div>
-              <div className="flex items-center gap-0.5">
-                <select
-                  id="invasion-filter"
-                  value={selectedInvasionStatus}
-                  onChange={(e) => setSelectedInvasionStatus(e.target.value)}
-                  className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                  data-testid="invasion-filter"
-                >
-                  <option value="">All Origins</option>
-                  <option value="Native">Native</option>
-                  <option value="Introduced">Introduced</option>
-                  <option value="Provisional">Provisional</option>
-                </select>
-                <Tooltip content="Whether a species is native, introduced, or vagrant in a region." />
-              </div>
-            </div>
-            {/* Difficulty + Goal List row */}
-            <div className="flex gap-1.5">
               <select
                 id="difficulty-filter"
                 value={selectedDifficulty}
                 onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="flex-1 min-w-0 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="difficulty-filter"
               >
                 <option value="">Difficulty</option>
-                <option value="Easy">1-2 Easy</option>
-                <option value="Moderate">3-4 Moderate</option>
-                <option value="Hard">5-6 Hard</option>
-                <option value="Very Hard">7-8 Very Hard</option>
-                <option value="Extremely Hard">9-10 Extreme</option>
+                <option value="Easy">Easy (1-2)</option>
+                <option value="Moderate">Moderate (3-4)</option>
+                <option value="Hard">Hard (5-6)</option>
+                <option value="Very Hard">Very Hard (7-8)</option>
+                <option value="Extremely Hard">Extreme (9-10)</option>
               </select>
+            </div>
+            {/* Conservation + Origin */}
+            <div className="flex gap-1.5">
+              <select
+                id="conservation-filter"
+                value={selectedConservStatus}
+                onChange={(e) => setSelectedConservStatus(e.target.value)}
+                className="flex-1 min-w-0 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="conservation-filter"
+                title="IUCN Red List classification"
+              >
+                <option value="">Conservation</option>
+                <option value="Least Concern">Least Concern</option>
+                <option value="Near Threatened">Near Threatened</option>
+                <option value="Vulnerable">Vulnerable</option>
+                <option value="Endangered">Endangered</option>
+                <option value="Critically Endangered">Critically Endangered</option>
+                <option value="Extinct in the Wild">Extinct in Wild</option>
+                <option value="Data Deficient">Data Deficient</option>
+              </select>
+              <select
+                id="invasion-filter"
+                value={selectedInvasionStatus}
+                onChange={(e) => setSelectedInvasionStatus(e.target.value)}
+                className="flex-1 min-w-0 px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                data-testid="invasion-filter"
+                title="Native, introduced, or vagrant"
+              >
+                <option value="">Origin</option>
+                <option value="Native">Native</option>
+                <option value="Introduced">Introduced</option>
+                <option value="Provisional">Provisional</option>
+              </select>
+            </div>
+            {/* Goal List filter */}
+            {goalLists.length > 0 && (
               <select
                 value={goalListFilter}
                 onChange={(e) => setGoalListFilter(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="w-full px-1.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 data-testid="goal-list-filter"
               >
                 <option value="">All Species</option>
@@ -658,7 +657,7 @@ export default function SpeciesTab() {
                   <option key={l.id} value={l.id}>{l.name} ({l.speciesCodes.length})</option>
                 ))}
               </select>
-            </div>
+            )}
             {/* Include Seen Species toggle — syncs with map heatmap */}
             <button
               onClick={() => setShowTotalRichness(!showTotalRichness)}
