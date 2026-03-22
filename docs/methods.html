@@ -303,6 +303,9 @@
 
 <p>Environmental covariates are computed from <a href="https://www.earthenv.org/landcover">EarthEnv</a> 1km land cover rasters. Ocean fractions are computed separately from <a href="https://www.naturalearthdata.com/">Natural Earth</a> 50m land polygons by measuring the fraction of each H3 cell that does not overlap land area. Each H3 cell's ocean fraction determines whether it is treated as ocean (ocean &ge; 0.9).</p>
 
+<h3>3.3 Antimeridian Handling</h3>
+<p>H3 hexagonal cells near the 180&deg; meridian (antimeridian) can produce GeoJSON polygons that wrap incorrectly &mdash; vertices jump from +179&deg; to &minus;179&deg;, creating polygons that span the entire globe. The pipeline normalizes these polygons by detecting when any vertex has a negative longitude while others are positive, and shifting all negative longitudes by +360&deg; so the polygon remains contiguous across the date line. This ensures correct rendering of cells in western Alaska and the Aleutian Islands.</p>
+
 <!-- ============================================================ -->
 <h2 id="frequency">4. Frequency Estimation</h2>
 
@@ -485,6 +488,19 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <strong>Why 10 records?</strong> A species observed only 3&ndash;5 times across all cells and weeks produces extremely noisy frequency estimates that mislead trip planners. The threshold of 10 records provides a minimal statistical basis for spatial patterns while remaining low enough to retain legitimately uncommon species. The force-keep list ensures that genuine endemics with inherently low observation counts are never lost.
 </div>
 
+<h3>7.4 Escapee Species Filter</h3>
+<p>The eBird Basic Dataset includes an <code>EXOTIC CODE</code> column that classifies non-native observations. The pipeline now distinguishes between the two provisional/escapee codes:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong><code>P</code> (Provisional)</strong> &mdash; species with established or potentially establishing populations. These are real vagrants and naturalized populations (e.g., Eurasian Collared-Dove expanding its range). <strong>Kept in the dataset.</strong></li>
+  <li><strong><code>X</code> (Escapee)</strong> &mdash; species that are almost certainly escaped captive birds, zoo escapes, or released pets (e.g., a parrot species far outside its native range with no breeding population). <strong>Filtered out when escapee in all regions.</strong></li>
+</ul>
+
+<p>Species that carry the <code>X</code> (Escapee) exotic code in <strong>every region where they occur</strong> are removed from the final output. This eliminates 140 species that represent escaped pets, zoo birds, and other non-wild observations, reducing the species count from 2,307 to 2,167. Species that are native or provisional in at least one region are retained with their full occurrence data.</p>
+
+<div class="rationale">
+  <strong>Why filter escapees globally rather than per-region?</strong> A species that is genuinely wild somewhere in the coverage area (native or provisional in any region) should remain available for all regions &mdash; it may be an escapee in one region but a legitimate vagrant target in another. Only species that are <em>exclusively</em> escapees everywhere are removed. This conservative approach avoids accidentally dropping species like Monk Parakeet (escapee origin but with established breeding colonies) while still removing species like Indian Peafowl that have no wild populations anywhere in the coverage area.
+</div>
+
 <!-- ============================================================ -->
 <h2 id="output">8. Output Format</h2>
 
@@ -512,9 +528,9 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td><code>species-weeks/{code}.json</code></td><td><code>{week: [[cell_id, freq], ...]}</code></td><td>Single-species range maps</td></tr>
 </table>
 
-<p>A shared <code>species.json</code> contains metadata for all 2,052+ species across 13 countries and 31 eBird regions (AG, AW, BB, BM, BQ, BS, BZ, CA, CR, CU, DM, DO, GD, HT, JM, KN, LC, MF, MQ, MX, NI, PA, PM, PR, SX, TC, TT, US, VC, VG, VI) on a grid of 10,607 cells at resolution 4. Fields include: common name, scientific name, family, taxonomic order, eBird species code, conservation status, invasion status per region, difficulty rating, regional difficulty, habitat labels, and photo attribution.</p>
+<p>A shared <code>species.json</code> contains metadata for all 2,167 species across 13 countries and 31 eBird regions (AG, AW, BB, BM, BQ, BS, BZ, CA, CR, CU, DM, DO, GD, HT, JM, KN, LC, MF, MQ, MX, NI, PA, PM, PR, SX, TC, TT, US, VC, VG, VI) on a grid of 10,607 cells at resolution 4. Fields include: common name, scientific name, family, taxonomic order, eBird species code, conservation status, invasion status per region, difficulty rating, regional difficulty, habitat labels, and photo attribution.</p>
 
-<p><strong>Invasion status</strong> is derived from the EBD <code>EXOTIC CODE</code> column: empty &rarr; Native, <code>N</code> &rarr; Introduced, <code>P</code>/<code>X</code> &rarr; Vagrant/Accidental. Stored per-species as <code>Record&lt;string, string&gt;</code> keyed by region code. A <strong>native override rule</strong> applies: if ANY native checklist exists for a species in a region, the species is classified as Native in that region regardless of any exotic-coded checklists. This prevents misclassification of native species that occasionally appear on exotic lists.</p>
+<p><strong>Invasion status</strong> is derived from the EBD <code>EXOTIC CODE</code> column: empty &rarr; Native, <code>N</code> &rarr; Introduced, <code>P</code> &rarr; Provisional (real vagrants, kept), <code>X</code> &rarr; Escapee (filtered out when escapee in all regions; see &sect;7.4). Stored per-species as <code>Record&lt;string, string&gt;</code> keyed by region code. A <strong>native override rule</strong> applies: if ANY native checklist exists for a species in a region, the species is classified as Native in that region regardless of any exotic-coded checklists. This prevents misclassification of native species that occasionally appear on exotic lists.</p>
 
 <p><strong>Display priority</strong> for invasion badges: Native &gt; Introduced &gt; Vagrant/Accidental. If a species is native in <em>any</em> region within the current scope (global or filtered region), no invasion badge is shown &mdash; native status takes precedence. This respects the historical timeframe the bird has been present. When a region filter is active, only invasion entries for that region's country codes are considered.</p>
 
@@ -525,15 +541,15 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <!-- ============================================================ -->
 <h2 id="client">9. Client-Side Computation</h2>
 
-<h3>9.1 Lifer Density</h3>
-<p>The default view mode subtracts the user's life list from each cell's species count:</p>
+<h3>9.1 Lifer Count (formerly Richness / Lifer Density)</h3>
+<p>The "Count" view mode subtracts the user's life list from each cell's species count:</p>
 
 <div class="formula">
   lifer_count(cell, week) = total_species(cell, week) − seen_species(cell, week)
 </div>
 
 <h3>9.2 Combined Lifer Probability</h3>
-<p>For the "Frequency" view, the app computes the probability of observing at least one unseen species during a visit:</p>
+<p>For the "Chance" view (formerly Frequency), the app computes the probability of observing at least one unseen species during a visit:</p>
 
 <div class="formula">
   P(≥1 lifer) = 1 − ∏<sub>i</sub>(1 − freq<sub>i</sub>) &nbsp; for all unseen species i in the cell
@@ -551,6 +567,30 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li>Zoom 5.5+: Resolution 4 (~45 km hexes)</li>
 </ul>
 <p>Each resolution has independently computed data, so switching is seamless — the appropriate grid and weekly data are loaded fresh for the new resolution.</p>
+
+<h3>9.4 Quantile Normalization</h3>
+<p>All five view modes (Count, Chance, Range, Goals, multi-species Range) use <strong>quantile normalization</strong> for the heatmap color gradient, replacing the earlier linear value/max scaling. Instead of mapping raw values linearly to the color ramp, cells are ranked by percentile and spread evenly across the gradient:</p>
+
+<div class="formula">
+  color_position = rank(cell_value) / total_cells_with_data
+</div>
+
+<p>This ensures the full color range is always utilized regardless of the underlying value distribution. With linear scaling, a few extreme outlier cells could compress 95% of cells into the bottom of the color range, making most of the map appear uniformly low. Quantile normalization guarantees an even visual spread: the top 10% of cells always appear in the top 10% of the color gradient.</p>
+
+<p>Raw values are preserved and displayed in cell popups and tooltips, so users still see the actual species count, probability, or frequency &mdash; only the map coloring uses percentile ranks.</p>
+
+<div class="rationale">
+  <strong>Why quantile instead of linear?</strong> Species count and frequency distributions are heavily right-skewed: most cells have modest values while a few hotspot cells have very high counts. Under linear scaling, the hotspots dominate the color range and everything else looks the same shade of pale. Quantile normalization reveals spatial patterns across the full range of values, making it much easier to distinguish "good" from "great" birding locations.
+</div>
+
+<h3>9.5 Goal Birds Combined Probability</h3>
+<p>The Goal Birds view mode now displays <strong>combined probability</strong> rather than a simple species count. For cells containing goal list species, the probability is computed identically to the Chance view:</p>
+
+<div class="formula">
+  P(&ge;1 goal bird) = 1 &minus; &prod;<sub>i</sub>(1 &minus; freq<sub>i</sub>) &nbsp; for all goal species i in the cell
+</div>
+
+<p>This gives a more actionable metric than a raw count &mdash; a cell with 3 goal species at 5% frequency each is less productive than a cell with 1 goal species at 60% frequency. The probability view reflects the actual likelihood of encountering at least one goal bird during a visit.</p>
 
 <!-- ============================================================ -->
 <h2 id="labeling">10. Grid Cell Labeling</h2>
@@ -621,10 +661,20 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <tr><td>Habitat Generalist</td><td>4+ labels assigned</td><td colspan="2">automatic</td></tr>
 </table>
 
-<h3>11.4 Stixel Ensemble Habitat Similarity</h3>
+<h3>11.4 Family Display Groups</h3>
+<p>Species are organized into <strong>display groups</strong> that map eBird's 115 taxonomic families into user-friendly categories. After the Caribbean expansion (adding 15 island territories), 32 new families were mapped into display groups. Notable group changes include:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+  <li><strong>Tyrant Flycatchers</strong> renamed to <strong>Flycatchers</strong> for brevity</li>
+  <li><strong>Swifts</strong> and <strong>Swallows</strong> merged into a single display group</li>
+  <li><strong>Cuckoos</strong> expanded to <strong>Cuckoos and Allies</strong> to include related families</li>
+  <li><strong>Sandgrouse</strong> folded into <strong>Pigeons</strong> display group</li>
+</ul>
+<p>The total display group count remains stable at ~40 groups, with ecological ordering preserved (waterfowl first through passerines).</p>
+
+<h3>11.5 Stixel Ensemble Habitat Similarity</h3>
 <p>The split forest types also improve the stixel ensemble's spatial smoothing. The <code>covariate_similarity()</code> function computes Gaussian similarity between cells using all 10 land cover dimensions plus elevation. With split forest types, a boreal conifer cell and a tropical broadleaf cell are now recognized as dissimilar habitats, suppressing inappropriate smoothing between them.</p>
 
-<h3>11.5 Elevation</h3>
+<h3>11.6 Elevation</h3>
 <p>Each species receives a preferred elevation range: the frequency-weighted mean, minimum, and maximum elevation across occurrence cells.</p>
 
 <!-- ============================================================ -->
@@ -698,9 +748,9 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 
 <table>
   <tr><th>Group</th><th>Sub-Regions</th><th>State/Province Codes</th></tr>
-  <tr><td>Canada (4-way)</td><td>Western Canada</td><td>BC, AB</td></tr>
+  <tr><td>Canada (4-way)</td><td>Pacific Northwest &amp; Alaska</td><td>BC, AB (+ Alaska US state codes)</td></tr>
   <tr><td></td><td>Central Canada</td><td>SK, MB</td></tr>
-  <tr><td></td><td>Eastern Canada</td><td>ON, QC, NB, NS, NL, PE</td></tr>
+  <tr><td></td><td>Atlantic Canada &amp; Islands</td><td>ON, QC, NB, NS, NL, PE, PM, GL</td></tr>
   <tr><td></td><td>Northern Canada</td><td>YT, NT, NU</td></tr>
   <tr><td>US (8 regions)</td><td>Northeast, Southeast, Midwest, Southwest, West, Rockies, Alaska, Hawaii</td><td>Defined by US state codes (e.g., US-ME, US-CA)</td></tr>
   <tr><td>Mexico (2-way)</td><td>Northern Mexico</td><td>BCN, BCS, SON, CHH, COA, NLE, TAM, SIN, DUR, ZAC, SLP, AGU, NAY, JAL</td></tr>
@@ -737,7 +787,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Sub-regions are fully integrated into the species filter dropdown across all tabs. The region filter system (<code>regionGroups.ts</code>) defines 19 sub-regions plus 3 multi-country groups:</p>
 <ul>
   <li><strong>US sub-regions (8):</strong> Northeastern, Southeastern, Midwestern, Southwestern, Western US, US Rockies, Alaska, Hawaii &mdash; shown under "United States" optgroup</li>
-  <li><strong>Canada sub-regions (4):</strong> Western, Central, Eastern, Northern Canada &mdash; shown under "Canada" optgroup</li>
+  <li><strong>Canada sub-regions (4):</strong> Pacific Northwest &amp; Alaska, Central Canada, Atlantic Canada &amp; Islands, Northern Canada &mdash; shown under "Canada" optgroup</li>
   <li><strong>Mexico sub-regions (2):</strong> Northern, Southern Mexico &mdash; shown under "Mexico" optgroup</li>
   <li><strong>Multi-country groups:</strong> Central America (7 countries), Greater Antilles (5), Lesser Antilles (15 territories), Western Atlantic Islands (3) &mdash; shown under "Central America" and "Caribbean" optgroups</li>
 </ul>
@@ -801,7 +851,7 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>The Trip Plan tab provides four modes for planning birding trips using the pre-computed species occurrence data. All modes operate on the user's life list and selected week to surface the most productive locations and timing. When a <strong>region filter</strong> is active, all four modes restrict their species lists to the selected region's country codes, ensuring results are geographically relevant.</p>
 
 <h3>17.1 Hotspots</h3>
-<p>Ranks grid cells by <strong>lifer density</strong> for the selected week. Uses <code>computeLiferSummary()</code> to count unseen species per cell, producing a ranked list of the most productive locations for finding new life birds. Results show cell name, lifer count, and top unseen species. Clicking a result centers the map on that cell.</p>
+<p>Ranks grid cells by <strong>lifer count</strong> for the selected week. Uses <code>computeLiferSummary()</code> to count unseen species per cell, producing a ranked list of the most productive locations for finding new life birds. Results show cell name, lifer count, and top unseen species. Clicking a result centers the map on that cell.</p>
 
 <h3>17.2 Window of Opportunity</h3>
 <p>Two sub-modes for finding optimal timing:</p>
@@ -827,10 +877,18 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 
 <p>Phase 3 added celebration toasts, milestone tracking, streaks, and shareable milestone cards. Phase 4 added Firebase-backed social features.</p>
 
-<h3>18.1 Celebrations &amp; Trophies</h3>
-<p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts. Celebrations can be disabled in Profile &gt; Preferences.</p>
+<h3>18.1 Celebrations &amp; Trophy Case</h3>
+<p>Lifer celebration moments fire when species are toggled seen: success toast with count, milestone detection at thresholds (5, 10, 25, 50, 100, 250, 500, 750, 1000+), CSS confetti for medium/large milestones, and group completion trophies. Bulk CSV imports show a single summary instead of per-species toasts. Celebrations can be disabled in the kebab menu preferences.</p>
 
-<p><strong>Trophy levels</strong> are awarded per display group based on completion percentage: Bronze (&ge;1/3 of species seen), Silver (&ge;2/3), Gold (100%). The Stats tab includes a trophy case showing all earned trophies sorted by level (gold first), with medal indicators and progress fractions.</p>
+<p><strong>Trophy tiers</strong> are awarded per display group based on completion percentage, using a copper/silver/gold progression:</p>
+<table>
+  <tr><th>Tier</th><th>Threshold</th><th>Visual Treatment</th></tr>
+  <tr><td>Copper</td><td>&ge; 33% of species seen</td><td>Copper-toned medal</td></tr>
+  <tr><td>Silver</td><td>&ge; 67% of species seen</td><td>Silver medal with glow pulse animation</td></tr>
+  <tr><td>Gold</td><td>100% of species seen</td><td>Gold medal with sheen sweep + sparkle animations</td></tr>
+</table>
+
+<p>Each of the 40+ display groups has a dedicated emoji icon shown alongside the trophy. The Trophy Case (in the Stats tab) merges the former "Progress by Group" view, displaying all groups with their completion fractions, earned trophies, and remaining species counts. CSS animations include a <strong>sheen sweep</strong> (diagonal light reflection on gold trophies), a <strong>glow pulse</strong> (soft halo on silver/gold), and a <strong>sparkle effect</strong> on gold completions.</p>
 
 <h3>18.2 Activity Tracking</h3>
 <p>Streak tracking computes consecutive days with manual species additions (excluding bulk imports). Weekly summary shows new lifers and new family groups started. Data derived from IndexedDB <code>dateAdded</code> and <code>source</code> fields on life list entries.</p>
@@ -910,10 +968,9 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <ul style="margin: 0.5rem 0 1rem 1.5rem;">
   <li>Goal Birds tab</li>
   <li>Trip Plan tab</li>
-  <li>Stats / Progress tab</li>
-  <li>Profile tab</li>
+  <li>Stats tab</li>
 </ul>
-<p>The Explore and Species tabs are included in the main bundle since they are the default entry points. This reduces the initial JavaScript payload and speeds up first paint on slower connections.</p>
+<p>The Explore and Species tabs are included in the main bundle since they are the default entry points. The app uses 5 tabs (Explore, Species, Goals, Plan, Stats) &mdash; Profile settings have been consolidated into the kebab menu. This reduces the initial JavaScript payload and speeds up first paint on slower connections.</p>
 
 <h3>20.3 LRU Cache Eviction</h3>
 <p>The data cache (<code>dataCache.ts</code>) uses an LRU (Least Recently Used) eviction strategy to prevent unbounded memory growth as users browse across weeks and resolutions. Week summary and cell data are evicted when the cache exceeds a configured entry limit, keeping the most recently accessed data in memory while freeing older entries. This is particularly important on mobile devices with constrained memory budgets.</p>
@@ -923,6 +980,9 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 
 <h3>20.5 Touch Targets</h3>
 <p>All mobile map controls (zoom buttons, view mode selector, week slider) use a minimum <strong>44&times;44px</strong> touch target, following WCAG 2.5.5 (Enhanced) guidelines. This ensures usability on touchscreens without requiring precise taps.</p>
+
+<h3>20.6 Resizable Desktop Sidebar</h3>
+<p>On desktop viewports, the side panel features a <strong>draggable left edge</strong> for resizing between 320px and 800px width. The resize handle appears as a subtle grip indicator on hover. The user's preferred width is persisted in <code>localStorage</code> and restored on subsequent visits. This allows users to expand the panel for detailed species lists or narrow it to maximize the map area.</p>
 
 <!-- ============================================================ -->
 <h2 id="pwa">21. PWA &amp; Installability</h2>
@@ -937,10 +997,10 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>Anonymous usage analytics are collected via Firebase Analytics to understand how the app is used in practice. Key tracked interactions include:</p>
 <ul style="margin: 0.5rem 0 1rem 1.5rem;">
   <li>App opens and session starts</li>
-  <li>Tab switches (Explore, Species, Goals, Trip Plan, Stats, Profile)</li>
+  <li>Tab switches (Explore, Species, Goals, Plan, Stats)</li>
   <li>Cell clicks on the map</li>
   <li>Life list imports (CSV upload, manual additions)</li>
-  <li>View mode changes (Richness, Frequency, Range, Goals)</li>
+  <li>View mode changes (Count, Chance, Range, Goals)</li>
   <li>Week slider interactions</li>
 </ul>
 <p>No personally identifiable information is collected. Analytics data helps prioritize features and identify under-used or confusing workflows.</p>
