@@ -113,9 +113,10 @@ export async function inviteToTrip(
   if (trip.memberUids.length >= MAX_MEMBERS) throw new Error('Trip is full (max 6 members)')
   if (trip.memberUids.includes(toUid)) throw new Error('Already a member of this trip')
 
-  // Check for existing pending invite
+  // Check for existing pending invite (scoped to fromUid to satisfy security rules)
   const q = query(
     collection(db, 'tripInvites'),
+    where('fromUid', '==', fromUid),
     where('tripId', '==', tripId),
     where('toUid', '==', toUid),
     where('status', '==', 'pending'),

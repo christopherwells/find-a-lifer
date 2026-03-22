@@ -11,6 +11,23 @@ html, body {
   height: 100%;
 }
 
+/* Map legend positioning — CSS-only to avoid inline style vs Tailwind conflicts.
+   Mobile: above 52px tab bar + safe area. Desktop: 32px from bottom.
+   Using CSS media queries instead of window.innerWidth so it reacts to
+   resize, orientation change, and Android URL bar show/hide. */
+.map-legend {
+  bottom: calc(52px + env(safe-area-inset-bottom, 0px) + 8px);
+  min-width: 140px;
+  max-width: 160px;
+}
+@media (min-width: 768px) {
+  .map-legend {
+    bottom: 2rem;
+    min-width: 200px;
+    max-width: 240px;
+  }
+}
+
 /* Toast slide-up animation */
 @keyframes slide-up {
   from { transform: translateX(-50%) translateY(20px); opacity: 0; }
