@@ -200,6 +200,20 @@ export function MapControlsProvider({ children }: { children: ReactNode }) {
     loadGoalLists()
   }, [])
 
+  // Listen for shared URL state
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (!detail) return
+      if (detail.viewMode) dispatch({ type: 'SET_VIEW_MODE', mode: detail.viewMode })
+      if (detail.week) dispatch({ type: 'SET_CURRENT_WEEK', week: detail.week })
+      if (detail.liferMetric) dispatch({ type: 'SET_LIFER_METRIC', metric: detail.liferMetric })
+      if (detail.selectedSpecies) dispatch({ type: 'SET_SELECTED_SPECIES', code: detail.selectedSpecies })
+    }
+    window.addEventListener('shareState', handler)
+    return () => window.removeEventListener('shareState', handler)
+  }, [])
+
   // Derived: goal species codes from the active list
   const goalSpeciesCodes = useMemo(() => {
     if (!state.activeGoalListId) return new Set<string>()

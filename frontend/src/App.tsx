@@ -40,6 +40,33 @@ function AppInner() {
     trackEvent('app_open', { session_count: count })
   }, [])
 
+  // Apply shared URL state on startup
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash || hash.length <= 1) return
+    import('./lib/urlState').then(({ decodeMapState }) => {
+      const shared = decodeMapState(hash)
+      if (!shared) return
+      // Apply map position via flying to the shared center/zoom
+      const applyMapState = () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const map = (window as any).__maplibreglMap
+        if (shared.center && map?.flyTo) {
+          map.flyTo({ center: shared.center, zoom: shared.zoom ?? 7, duration: 0 })
+        }
+      }
+      // Dispatch state changes via MapControlsContext
+      // These are picked up by the context's useReducer
+      if (shared.viewMode) {
+        window.dispatchEvent(new CustomEvent('shareState', { detail: shared }))
+      }
+      // Apply map position after a short delay to let the map initialize
+      setTimeout(applyMapState, 1000)
+      // Clear the hash so it doesn't re-apply on navigation
+      history.replaceState(null, '', window.location.pathname + window.location.search)
+    })
+  }, [])
+
   // Launch driver.js feature tour on first visit (after map has loaded)
   useEffect(() => {
     if (isTourComplete() || tourStartedRef.current) return

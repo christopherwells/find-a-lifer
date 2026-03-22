@@ -621,6 +621,37 @@ export default function ExploreTab() {
         </div>
       )}
 
+      {/* Share button */}
+      <button
+        onClick={async () => {
+          const { buildShareUrl } = await import('../lib/urlState')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const map = (window as any).__maplibreglMap
+          const center = map?.getCenter?.()
+          const zoom = map?.getZoom?.()
+          const url = buildShareUrl({
+            week: currentWeek,
+            viewMode,
+            liferMetric,
+            selectedSpecies: selectedSpecies || undefined,
+            center: center ? [center.lng, center.lat] : undefined,
+            zoom: zoom ?? undefined,
+          })
+          if (navigator.share) {
+            navigator.share({ title: 'Find-A-Lifer', url }).catch(() => {})
+          } else {
+            navigator.clipboard.writeText(url).then(() => {
+              const btn = document.querySelector('[data-share-btn]')
+              if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = '📤 Share this view' }, 2000) }
+            }).catch(() => {})
+          }
+        }}
+        data-share-btn
+        className="w-full text-xs text-[var(--color-brand)] hover:text-[var(--color-brand-dark)] font-medium py-2 flex items-center justify-center gap-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      >
+        📤 Share this view
+      </button>
+
       {/* Responsible birding footer */}
       <p className="text-xs lg:text-xs text-gray-500 dark:text-gray-400 text-center mt-4 px-2">
         Please bird responsibly.{' '}
