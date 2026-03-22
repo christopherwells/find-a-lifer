@@ -33,6 +33,7 @@ SCRIPT_DIR = Path(__file__).parent
 TAXONOMY_FILE = SCRIPT_DIR / "reference" / "ebird_taxonomy.json"
 OUTPUT_FILE = SCRIPT_DIR / "reference" / "conservation_status.json"
 PHOTOS_OUTPUT_FILE = SCRIPT_DIR / "reference" / "species_photos.json"
+OVERRIDES_FILE = SCRIPT_DIR / "reference" / "conservation_overrides.json"
 
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
@@ -439,8 +440,21 @@ def fetch_photos(ebird_scinames):
 
 
 def fetch_conservation(ebird_scinames):
-    """Fetch and merge conservation status from IUCN, NatureServe, COSEWIC."""
+    """Fetch and merge conservation status from IUCN, NatureServe, COSEWIC.
+
+    Priority merge logic:
+      1. IUCN Red List — but only if the status is an actual assessment
+         (LC/NT/VU/EN/CR/EW/EX). DD and NE are kept only if no better
+         source provides a real assessment.
+      2. NatureServe — same DD/NE deferral rule.
+      3. COSEWIC — last resort from automated sources.
+      4. Manual overrides from conservation_overrides.json — applied last,
+         unconditionally replacing whatever the automated merge produced.
+    """
     print("--- Fetching conservation status ---\n")
+
+    # Statuses that represent a real assessment (not placeholder)
+    ASSESSED_CODES = {"LC", "NT", "VU", "EN", "CR", "EW", "EX"}
 
     # Fetch from all three sources
     iucn_results = run_sparql(IUCN_QUERY, "IUCN Red List (P141)")
@@ -457,27 +471,67 @@ def fetch_conservation(ebird_scinames):
     print(f"\nParsed: {len(iucn_map)} IUCN, {len(natureserve_map)} NatureServe, {len(cosewic_map)} COSEWIC")
 
     # Merge with priority: IUCN > NatureServe > COSEWIC
+    # DD/NE from a higher-priority source defers to a real assessment
+    # from a lower-priority source.
     merged = {}
     source_counts = {"iucn": 0, "natureserve": 0, "cosewic": 0, "missing": 0}
 
     for sci_name in ebird_scinames:
+        # Collect candidates in priority order: (code, source_label)
+        candidates = []
         if sci_name in iucn_map:
-            merged[sci_name] = iucn_map[sci_name]
-            source_counts["iucn"] += 1
-        elif sci_name in natureserve_map:
-            merged[sci_name] = natureserve_map[sci_name]
-            source_counts["natureserve"] += 1
-        elif sci_name in cosewic_map:
-            merged[sci_name] = cosewic_map[sci_name]
-            source_counts["cosewic"] += 1
-        else:
+            candidates.append((iucn_map[sci_name], "iucn"))
+        if sci_name in natureserve_map:
+            candidates.append((natureserve_map[sci_name], "natureserve"))
+        if sci_name in cosewic_map:
+            candidates.append((cosewic_map[sci_name], "cosewic"))
+
+        if not candidates:
             source_counts["missing"] += 1
+            continue
+
+        # First pass: pick the highest-priority source that has a real
+        # assessment (not DD/NE).
+        chosen_code = None
+        chosen_source = None
+        for code, source in candidates:
+            if code in ASSESSED_CODES:
+                chosen_code = code
+                chosen_source = source
+                break
+
+        # Second pass: if no source has a real assessment, take the
+        # highest-priority placeholder (DD > NE, but priority order
+        # already handles this — just take the first).
+        if chosen_code is None:
+            chosen_code = candidates[0][0]
+            chosen_source = candidates[0][1]
+
+        merged[sci_name] = chosen_code
+        source_counts[chosen_source] += 1
 
     print(f"\nMerge results for {len(ebird_scinames)} eBird species:")
     print(f"  IUCN:        {source_counts['iucn']}")
     print(f"  NatureServe: {source_counts['natureserve']}")
     print(f"  COSEWIC:     {source_counts['cosewic']}")
     print(f"  No data:     {source_counts['missing']}")
+
+    # Apply manual overrides
+    overrides_applied = 0
+    if OVERRIDES_FILE.exists():
+        with open(OVERRIDES_FILE) as f:
+            overrides = json.load(f)
+        if overrides:
+            valid_codes = ASSESSED_CODES | {"DD", "NE"}
+            for sci_name, code in overrides.items():
+                if code not in valid_codes:
+                    print(f"  WARNING: override for '{sci_name}' has invalid code '{code}', skipping")
+                    continue
+                merged[sci_name] = code
+                overrides_applied += 1
+            print(f"\n  Applied {overrides_applied} manual overrides from {OVERRIDES_FILE.name}")
+    else:
+        print(f"\n  No overrides file found at {OVERRIDES_FILE.name} — skipping")
 
     # Distribution of statuses
     code_counts = {}
