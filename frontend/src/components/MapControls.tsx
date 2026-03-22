@@ -35,20 +35,12 @@ const VIEW_MODES: { mode: MapViewMode; label: string; icon: React.ReactNode }[] 
   {
     mode: 'density',
     label: 'Richness',
-    icon: (
-      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-      </svg>
-    ),
+    icon: <span className="text-sm font-bold leading-none">#</span>,
   },
   {
     mode: 'probability',
     label: 'Frequency',
-    icon: (
-      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-      </svg>
-    ),
+    icon: <span className="text-sm font-bold leading-none">%</span>,
   },
   {
     mode: 'species',
