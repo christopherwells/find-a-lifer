@@ -5,13 +5,11 @@ import ProfileTab from '../components/ProfileTab'
 // --- Mocks ---
 const mockGetTotalSeen = vi.fn(() => 42)
 const mockIsSpeciesSeen = vi.fn(() => false)
-const mockImportSpeciesList = vi.fn()
 const mockClearAllSpecies = vi.fn()
 
 vi.mock('../contexts/LifeListContext', () => ({
   useLifeList: () => ({
     isSpeciesSeen: mockIsSpeciesSeen,
-    importSpeciesList: mockImportSpeciesList,
     clearAllSpecies: mockClearAllSpecies,
     getTotalSeen: mockGetTotalSeen,
     seenSpecies: new Set<string>(),
@@ -51,16 +49,16 @@ describe('ProfileTab', () => {
     mockGetTotalSeen.mockReturnValue(42)
   })
 
-  it('renders the import CSV button', () => {
+  it('renders life list stats with total seen count', () => {
     render(<ProfileTab />)
-    expect(screen.getByTestId('import-csv-button')).toBeInTheDocument()
-    expect(screen.getByText('Import CSV')).toBeInTheDocument()
+    const countEl = screen.getByTestId('total-seen-count')
+    expect(countEl).toBeInTheDocument()
+    expect(countEl.textContent).toBe('42 species')
   })
 
   it('renders the export button when species are seen', () => {
     render(<ProfileTab />)
     expect(screen.getByTestId('export-csv-button')).toBeInTheDocument()
-    expect(screen.getByText('Export Life List as CSV')).toBeInTheDocument()
   })
 
   it('hides the export button when no species are seen', () => {
@@ -69,17 +67,9 @@ describe('ProfileTab', () => {
     expect(screen.queryByTestId('export-csv-button')).not.toBeInTheDocument()
   })
 
-  it('renders life list stats with total seen count', () => {
-    render(<ProfileTab />)
-    const countEl = screen.getByTestId('total-seen-count')
-    expect(countEl).toBeInTheDocument()
-    expect(countEl.textContent).toBe('42 species')
-  })
-
   it('renders the Clear All Species button', () => {
     render(<ProfileTab />)
     expect(screen.getByTestId('clear-all-button')).toBeInTheDocument()
-    expect(screen.getByText('Clear All Species')).toBeInTheDocument()
   })
 
   it('renders the Check for Updates button', () => {
@@ -92,11 +82,9 @@ describe('ProfileTab', () => {
     expect(screen.getByText('Profile & Data')).toBeInTheDocument()
   })
 
-  it('displays section headings', () => {
+  it('does not show import section (moved to kebab menu)', () => {
     render(<ProfileTab />)
-    expect(screen.getByText('Import eBird Life List')).toBeInTheDocument()
-    expect(screen.getByText('Your Life List')).toBeInTheDocument()
-    expect(screen.getByText('App Updates')).toBeInTheDocument()
-    expect(screen.getByText('Reset')).toBeInTheDocument()
+    expect(screen.queryByText('Import eBird Life List')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('import-csv-button')).not.toBeInTheDocument()
   })
 })
