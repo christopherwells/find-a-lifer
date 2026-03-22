@@ -116,10 +116,10 @@ html, body {
   }
 }
 
-/* Glow keyframe */
+/* Glow keyframe — colored per tier via CSS variables */
 @keyframes trophy-glow {
-  0%, 100% { box-shadow: 0 0 2px rgba(255,255,255,0.1); }
-  50% { box-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 25px rgba(255,255,255,0.2); }
+  0%, 100% { box-shadow: 0 0 2px var(--glow-color, rgba(255,255,255,0.1)); }
+  50% { box-shadow: 0 0 12px var(--glow-color, rgba(255,255,255,0.5)), 0 0 30px var(--glow-soft, rgba(255,255,255,0.15)); }
 }
 
 /* Sparkle pseudo-elements — used by gold, diamond, emerald */
@@ -161,11 +161,11 @@ html, body {
   border: 3px solid rgba(255, 255, 255, 0.4);
 }
 
-/* Prismatic keyframe — visible hue shift */
+/* Prismatic keyframe — gentle hue shift */
 @keyframes trophy-prismatic {
   0% { filter: hue-rotate(0deg) brightness(1); }
-  33% { filter: hue-rotate(30deg) brightness(1.1); }
-  66% { filter: hue-rotate(-20deg) brightness(1.05); }
+  33% { filter: hue-rotate(12deg) brightness(1.03); }
+  66% { filter: hue-rotate(-8deg) brightness(1.01); }
   100% { filter: hue-rotate(0deg) brightness(1); }
 }
 
@@ -175,34 +175,42 @@ html, body {
  * Copper: sheen only (defined by .trophy-sheen above)
  */
 
-/* Silver: sheen + glow */
+/* Silver: sheen + glow (silver glow) */
 .trophy-silver.trophy-glow {
+  --glow-color: rgba(192, 192, 210, 0.6);
+  --glow-soft: rgba(192, 192, 210, 0.2);
   animation-name: trophy-sheen, trophy-glow;
   animation-duration: 8s, 3s;
   animation-timing-function: linear, ease-in-out;
   animation-iteration-count: infinite, infinite;
 }
 
-/* Gold: sheen + glow (sparkle handled by pseudo-elements) */
+/* Gold: sheen + glow (golden glow, sparkle via pseudo-elements) */
 .trophy-gold.trophy-glow {
+  --glow-color: rgba(250, 200, 0, 0.5);
+  --glow-soft: rgba(250, 200, 0, 0.15);
   animation-name: trophy-sheen, trophy-glow;
   animation-duration: 8s, 2.5s;
   animation-timing-function: linear, ease-in-out;
   animation-iteration-count: infinite, infinite;
 }
 
-/* Diamond: sheen + glow + pulse */
+/* Diamond: sheen + glow + pulse (icy glow) */
 .trophy-diamond.trophy-pulse {
+  --glow-color: rgba(56, 189, 248, 0.5);
+  --glow-soft: rgba(56, 189, 248, 0.15);
   animation-name: trophy-sheen, trophy-glow, trophy-pulse;
   animation-duration: 8s, 2.5s, 2.5s;
   animation-timing-function: linear, ease-in-out, ease-in-out;
   animation-iteration-count: infinite, infinite, infinite;
 }
 
-/* Emerald: sheen + glow + pulse + prismatic */
+/* Emerald: sheen + glow + pulse + prismatic (green glow) */
 .trophy-emerald.trophy-prismatic {
+  --glow-color: rgba(16, 185, 129, 0.5);
+  --glow-soft: rgba(16, 185, 129, 0.15);
   animation-name: trophy-sheen, trophy-glow, trophy-pulse, trophy-prismatic;
-  animation-duration: 8s, 2s, 2.5s, 4s;
+  animation-duration: 8s, 2s, 2.5s, 5s;
   animation-timing-function: linear, ease-in-out, ease-in-out, ease-in-out;
   animation-iteration-count: infinite, infinite, infinite, infinite;
   border: 3px solid rgba(255, 255, 255, 0.4);
