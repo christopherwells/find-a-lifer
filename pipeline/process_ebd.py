@@ -106,6 +106,36 @@ REGION_NAMES = {
     "VC": "Saint Vincent and the Grenadines",
 }
 
+# Super-regions: broad biogeographic groupings used for frontend filtering.
+# Each maps a super-region id to (display_name, set_of_region_codes).
+# Region codes match the EBD file-level codes stored in species_regions
+# (e.g. "US-ME" for US states, "CA" for all Canada, "MX" for Mexico).
+SUPER_REGIONS = {
+    "northern": ("Northern", {
+        "US-AK", "CA", "GL", "PM",
+    }),
+    "continental-us": ("Continental US", {
+        "US-AL", "US-AZ", "US-AR", "US-CA", "US-CO", "US-CT", "US-DE", "US-DC",
+        "US-FL", "US-GA", "US-ID", "US-IL", "US-IN", "US-IA", "US-KS", "US-KY",
+        "US-LA", "US-ME", "US-MD", "US-MA", "US-MI", "US-MN", "US-MS", "US-MO",
+        "US-MT", "US-NE", "US-NV", "US-NH", "US-NJ", "US-NM", "US-NY", "US-NC",
+        "US-ND", "US-OH", "US-OK", "US-OR", "US-PA", "US-RI", "US-SC", "US-SD",
+        "US-TN", "US-TX", "US-UT", "US-VT", "US-VA", "US-WA", "US-WV", "US-WI",
+        "US-WY",
+    }),
+    "hawaii": ("Hawaii", {
+        "US-HI",
+    }),
+    "mex-central": ("Mexico & Central America", {
+        "MX", "BZ", "GT", "SV", "HN", "NI", "CR", "PA",
+    }),
+    "caribbean": ("Caribbean", {
+        "CU", "JM", "HT", "DO", "PR", "BS", "BM", "TC", "TT", "BB",
+        "KN", "AG", "DM", "GD", "LC", "VC", "VI", "VG", "AW", "MF",
+        "MQ", "BQ", "SX",
+    }),
+}
+
 
 def get_week(date_str):
     """Convert YYYY-MM-DD to week number (1-52)."""
@@ -1297,10 +1327,43 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
             difficulty_map = json.load(f)
         print(f"  Loaded {len(difficulty_map)} difficulty scores")
 
+    # Pre-compute numCells and peakWeek from res 4 detections archive
+    # numCells: number of unique cells where species was detected (at res 4)
+    # peakWeek: week with highest total detections across all cells (at res 4)
+    taxon_numcells = {}
+    taxon_peakweek = {}
+    res4_detections = detections_by_res.get(4, {}) if detections_by_res else {}
+    for taxon_id, cell_data in res4_detections.items():
+        taxon_numcells[taxon_id] = len(cell_data)
+        week_totals = defaultdict(int)
+        for cell_id, weeks in cell_data.items():
+            for week, count in weeks.items():
+                week_totals[week] += count
+        if week_totals:
+            taxon_peakweek[taxon_id] = max(week_totals, key=week_totals.get)
+    print(f"  Pre-computed numCells/peakWeek for {len(taxon_numcells)} species (res 4)")
+
+    # Build reverse lookup: region code -> set of super-region ids
+    region_to_super = {}
+    for sr_id, (_, sr_codes) in SUPER_REGIONS.items():
+        for code in sr_codes:
+            region_to_super[code] = sr_id
+
+    # Load habitat data (from compute_species_habitat.py, keyed by speciesCode)
+    habitat_path = SCRIPT_DIR / "reference" / "species_habitat.json"
+    habitat_map = {}
+    if habitat_path.exists():
+        with open(habitat_path) as f:
+            habitat_map = json.load(f)
+        print(f"  Loaded habitat data for {len(habitat_map)} species")
+    else:
+        print(f"  No species_habitat.json found -- skipping habitat data")
+
     conserv_matched = 0
     exotic_matched = 0
     photos_matched = 0
     difficulty_matched = 0
+    habitat_matched = 0
     species_list = []
     for taxon_id in sorted(species_names.keys()):
         sci_name = species_scinames.get(taxon_id, "")
@@ -1362,6 +1425,35 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
                 entry["regionalDifficulty"] = d["regionalDifficulty"]
             difficulty_matched += 1
 
+        # Super-regions: which broad biogeographic areas the species occurs in
+        sp_regions = entry["regions"]
+        sr_set = set()
+        for r in sp_regions:
+            if r in region_to_super:
+                sr_set.add(region_to_super[r])
+        if sr_set:
+            entry["superRegions"] = sorted(sr_set)
+
+        # numCells: unique res-4 cells where species was detected
+        if taxon_id in taxon_numcells:
+            entry["numCells"] = taxon_numcells[taxon_id]
+
+        # peakWeek: week with highest total detections (res 4)
+        if taxon_id in taxon_peakweek:
+            entry["peakWeek"] = taxon_peakweek[taxon_id]
+
+        # Habitat data (from compute_species_habitat.py)
+        species_code = taxon_to_code[taxon_id]
+        if species_code in habitat_map:
+            h = habitat_map[species_code]
+            if h.get("labels"):
+                entry["habitatLabels"] = h["labels"]
+            if h.get("elevation"):
+                entry["preferredElevation"] = h["elevation"]
+            if h.get("regionalHabitat"):
+                entry["regionalHabitat"] = h["regionalHabitat"]
+            habitat_matched += 1
+
         # Filter: skip species that are Escapee in ALL regions
         # (escaped pets, zoo birds — not useful for trip planning)
         # Provisional vagrants (P) are kept — they're naturally occurring
@@ -1387,6 +1479,12 @@ def generate_output(cell_week_checklists_by_res, detections_by_res,
     print(f"  Difficulty scores: {difficulty_matched}/{len(species_list)} matched")
     print(f"  Invasion status: {exotic_matched}/{len(species_list)} with exotic data")
     print(f"  Photos: {photos_matched}/{len(species_list)} with photo metadata")
+    print(f"  Habitat labels: {habitat_matched}/{len(species_list)} with habitat data")
+    sr_counts = sum(1 for s in species_list if "superRegions" in s)
+    nc_counts = sum(1 for s in species_list if "numCells" in s)
+    pw_counts = sum(1 for s in species_list if "peakWeek" in s)
+    print(f"  Super-regions: {sr_counts}/{len(species_list)} assigned")
+    print(f"  numCells/peakWeek: {nc_counts}/{len(species_list)} with cell counts, {pw_counts}/{len(species_list)} with peak week")
 
     families = set(s.get("familyComName", "") for s in species_list if s.get("familyComName"))
     print(f"  Families: {len(families)}")
