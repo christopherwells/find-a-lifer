@@ -180,14 +180,14 @@ export function LifeListProvider({ children }: { children: ReactNode }) {
       const existingCodes = new Set(seenSpecies)
 
       const tx = db.transaction(STORE_NAME, 'readwrite')
+      // Fire all puts without awaiting each — much faster for bulk imports
       for (let i = 0; i < speciesCodes.length; i++) {
-        const entry: LifeListEntry = {
+        tx.store.put({
           speciesCode: speciesCodes[i],
           comName: comNames[i],
           dateAdded: Date.now(),
-          source: 'import'
-        }
-        await tx.store.put(entry)
+          source: 'import' as const,
+        })
       }
       await tx.done
 
