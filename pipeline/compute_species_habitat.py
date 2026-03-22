@@ -28,11 +28,11 @@ RESOLUTION = 4
 # Forest types get specific labels when one type dominates (>60% of total forest)
 # Otherwise falls back to generic "Forest"
 NON_FOREST_THRESHOLDS = [
-    ("Freshwater", "water", 0.25),    # high bar — avoid labeling land birds near lakes
-    ("Ocean", "ocean", 0.40),         # high bar — only species truly in ocean-dominated cells
+    ("Freshwater", "water", 0.08),    # lowered from 0.25 — cell averages dilute water signal heavily
+    ("Ocean", "ocean", 0.65),         # raised from 0.40 — only truly pelagic/ocean-dominated species
     ("Wetland", "flooded", 0.03),
     ("Grassland", "herb", 0.08),
-    ("Agricultural", "cultivated", 0.20),  # raised to avoid labeling generalists near farms
+    ("Agricultural", "cultivated", 0.20),
     ("Urban-tolerant", "urban", 0.005),
     ("Scrubland", "shrub", 0.10),
 ]
@@ -47,8 +47,8 @@ WATER_ASSOCIATED_FAMILIES = {
     "Sandpipers and Allies", "Plovers and Lapwings",
     "Gulls, Terns, and Skimmers",
 }
-WATER_FAMILY_FRESHWATER_THRESHOLD = 0.05  # much lower for known water birds
-WATER_FAMILY_OCEAN_THRESHOLD = 0.20
+WATER_FAMILY_FRESHWATER_THRESHOLD = 0.01  # very low — if any water signal, these birds use it
+WATER_FAMILY_OCEAN_THRESHOLD = 0.40       # raised from 0.20 — gulls near coast aren't ocean birds
 
 FOREST_THRESHOLD = 0.15  # min total forest to qualify for any forest label
 # Per-type dominance thresholds: specific types get lower bar, mixed is harder
