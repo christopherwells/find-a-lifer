@@ -23,13 +23,11 @@ async function clearAppCaches(): Promise<boolean> {
 }
 
 interface ProfileTabProps {
-  darkMode?: boolean
-  onToggleDarkMode?: () => void
   onShowAbout?: () => void
   onShowOnboarding?: () => void
 }
 
-export default function ProfileTab({ darkMode, onToggleDarkMode, onShowAbout, onShowOnboarding }: ProfileTabProps = {}) {
+export default function ProfileTab({ onShowAbout, onShowOnboarding }: ProfileTabProps = {}) {
   const {
     clearAllSpecies, getTotalSeen, isSpeciesSeen,
   } = useLifeList()
@@ -150,23 +148,6 @@ export default function ProfileTab({ darkMode, onToggleDarkMode, onShowAbout, on
       {/* Preferences Section */}
       <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
         <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100 mb-1">Preferences</h4>
-        {onToggleDarkMode && (
-          <label className="flex items-center justify-between cursor-pointer md:hidden">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Dark mode</span>
-            <button
-              onClick={onToggleDarkMode}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                darkMode ? 'bg-[#2C3E7B]' : 'bg-gray-200 dark:bg-gray-600'
-              }`}
-              role="switch"
-              aria-checked={darkMode}
-            >
-              <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-                darkMode ? 'translate-x-4.5' : 'translate-x-1'
-              }`} />
-            </button>
-          </label>
-        )}
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm text-gray-700 dark:text-gray-300">Celebration animations</span>
           <CelebrationToggle />

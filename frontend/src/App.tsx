@@ -285,8 +285,6 @@ function App() {
             </button>
             <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" /></div>}>
               <ProfileTab
-                darkMode={darkMode}
-                onToggleDarkMode={() => setDarkMode((prev) => !prev)}
                 onShowAbout={() => { setShowProfile(false); setShowAbout(true) }}
                 onShowOnboarding={() => { setShowProfile(false); handleShowOnboarding() }}
               />
