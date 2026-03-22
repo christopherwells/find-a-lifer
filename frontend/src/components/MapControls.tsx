@@ -144,7 +144,7 @@ export default function MapControls({
     viewMode === 'goal-birds' ||
     ((viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && goalBirdsOnlyFilter)
 
-  const showGoalBirdsToggle = viewMode === 'density' || viewMode === 'probability' || viewMode === 'species'
+  const showGoalBirdsToggle = false // Goal Birds Only toggle removed — use Goals view mode instead
   const showTotalRichnessToggle = viewMode === 'density'
   const showLiferRange = viewMode === 'density' && !goalBirdsOnlyFilter && dataRange[1] > 0
 

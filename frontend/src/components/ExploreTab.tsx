@@ -17,8 +17,7 @@ export default function ExploreTab({
   onWeekChange,
   viewMode = 'density',
   onViewModeChange,
-  goalBirdsOnlyFilter = false,
-  onGoalBirdsOnlyFilterChange,
+  goalBirdsOnlyFilter = false, // kept for goal list selector visibility
   selectedSpecies = null,
   onSelectedSpeciesChange,
   selectedSpeciesMulti = [],
@@ -216,33 +215,6 @@ export default function ExploreTab({
             </select>
           )}
         </div>
-      )}
-
-      {/* Goal Birds Only Filter */}
-      {(viewMode === 'density' || viewMode === 'probability' || viewMode === 'species') && (
-        <button
-          data-testid="goal-birds-only-toggle"
-          onClick={() => onGoalBirdsOnlyFilterChange?.(!goalBirdsOnlyFilter)}
-          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-sm font-medium ${
-            goalBirdsOnlyFilter
-              ? 'bg-[#2C3E7B] border-[#2C3E7B] text-white shadow-sm'
-              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-          }`}
-          aria-pressed={goalBirdsOnlyFilter}
-        >
-          <span className="flex items-center gap-1">Goal Birds Only <Tooltip content={TOOLTIPS.goalBirdsOnly} /></span>
-          <span
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              goalBirdsOnlyFilter ? 'bg-white/30' : 'bg-gray-200 dark:bg-gray-600'
-            }`}
-          >
-            <span
-              className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-                goalBirdsOnlyFilter ? 'translate-x-4.5' : 'translate-x-1'
-              }`}
-            />
-          </span>
-        </button>
       )}
 
       {/* Show All Species toggle — in density mode, shows total richness instead of lifer density */}
