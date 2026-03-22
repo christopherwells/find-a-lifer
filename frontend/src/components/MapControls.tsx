@@ -191,7 +191,7 @@ export default function MapControls({
         </div>
 
         {/* Row 2: Week Slider — hidden in Range mode with species selected */}
-        <div className={`flex items-center gap-2 px-2 pb-2 ${viewMode === 'species' && selectedSpecies ? 'hidden' : ''}`}
+        <div className={`flex items-center gap-2 px-2 pb-2 ${viewMode === 'species' && selectedSpecies ? 'hidden' : ''}`}>
           <span className={`text-xs font-bold whitespace-nowrap px-1.5 py-0.5 rounded transition-colors ${
             showWrapIndicator
               ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40'
