@@ -40,7 +40,7 @@
   "Microchera cupreiceps": "LC",
   "Chlorophonia musica": "LC",
   "Cynanthus forficatus": "LC",
-  "Riccordia bicolor": "LC",
+  "Riccordia bicolor": "NT",
   "Troglodytes musculus": "LC",
   "Sula brewsteri": "LC",
   "Astur bicolor": "LC",
@@ -58,11 +58,11 @@
   "Aphelocoma insularis": "VU",
   "Loxops mana": "EN",
   "Astur gundlachi": "EN",
-  "Corvus minutus": "EN",
+  "Corvus minutus": "LC",
   "Chrysuronia boucardi": "EN",
   "Ramphocinclus sanctaeluciae": "EN",
   "Psittacara brevipes": "EN",
-  "Priotelus roseigaster": "NT",
+  "Priotelus roseigaster": "LC",
   "Sturnella lilianae": "NT",
-  "Loxia sinesciuris": "EN"
+  "Loxia sinesciuris": "CR"
 }
