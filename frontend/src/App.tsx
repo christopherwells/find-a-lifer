@@ -76,8 +76,8 @@ function AppInner() {
     if (!localStorage.getItem('mapPosition') && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const mapEl = document.querySelector('.maplibregl-map') as HTMLElement & { __maplibreglMap?: { flyTo: (opts: { center: [number, number]; zoom: number }) => void } }
-          const mapInstance = (window as Record<string, unknown>).__maplibreglMap as { flyTo: (opts: { center: [number, number]; zoom: number }) => void } | undefined
+          // Access the exposed map instance from MapView
+          const mapInstance = (window as unknown as Record<string, unknown>).__maplibreglMap as { flyTo: (opts: { center: [number, number]; zoom: number }) => void } | undefined
           if (mapInstance) {
             mapInstance.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 7 })
           }
