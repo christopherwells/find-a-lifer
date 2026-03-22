@@ -10,7 +10,7 @@ const firebaseConfig = {
   storageBucket: 'find-a-lifer.firebasestorage.app',
   messagingSenderId: '1085486899544',
   appId: '1:1085486899544:web:ea3580f54b82312529c52d',
-  measurementId: 'G-PLACEHOLDER', // TODO: replace with actual measurement ID from Firebase console
+  measurementId: 'G-6DR4VQDZ1X',
 }
 
 const app = initializeApp(firebaseConfig)
