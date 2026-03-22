@@ -291,9 +291,6 @@ export default function ProgressTab() {
     // Count families started
     const familiesSeen = new Set(seenSpeciesList.map(s => getDisplayGroup(s.familyComName)))
 
-    // Find next tier. When value exceeds all tiers, return value itself (completed).
-    const nextTier = (value: number, tiers: number[]) => tiers.find(t => value < t) ?? value
-
     // Additional counts
     const totalFamilies = new Set(allSpecies.map(s => getDisplayGroup(s.familyComName))).size
     // Count easy species seen (difficulty 1-3)
@@ -315,85 +312,45 @@ export default function ProgressTab() {
       return labels.includes('Freshwater') || labels.includes('Ocean') || labels.includes('Wetland')
     }).length
 
-    type Achievement = { label: string; progress: number; target: number }
+    type Achievement = { label: string; emoji: string; progress: number; tiers: number[]; desc: string }
     const items: Achievement[] = []
 
     // 1. Habitat Explorer — tiers: 3, 5, 8, 11
-    const totalHabitats = 11 // actual count of non-generalist habitat types in data
-    items.push({
-      label: 'Habitat Explorer',
-      progress: habitatsSeen.size,
-      target: nextTier(habitatsSeen.size, [3, 5, 8, totalHabitats]),
-    })
+    const totalHabitats = 11
+    items.push({ label: 'Habitat Explorer', emoji: '\u{1F30D}', progress: habitatsSeen.size, tiers: [3, 5, 8, totalHabitats, totalHabitats], desc: `${habitatsSeen.size} habitat types` })
 
     // 2. Region Collector — tiers: 3, 6, 10, 14, 17
-    items.push({
-      label: 'Region Collector',
-      progress: regionsSeen.size,
-      target: nextTier(regionsSeen.size, [3, 6, 10, 14, 17]),
-    })
+    items.push({ label: 'Region Collector', emoji: '\u{1F4CD}', progress: regionsSeen.size, tiers: [3, 6, 10, 14, 17], desc: `${regionsSeen.size} sub-regions` })
 
     // 3. Taxonomic Breadth — tiers: 10, 20, 30, all
-    items.push({
-      label: 'Taxonomist',
-      progress: familiesSeen.size,
-      target: nextTier(familiesSeen.size, [10, 20, 30, totalFamilies]),
-    })
+    items.push({ label: 'Taxonomist', emoji: '\u{1F9EC}', progress: familiesSeen.size, tiers: [10, 20, 30, totalFamilies, totalFamilies], desc: `${familiesSeen.size}/${totalFamilies} groups` })
 
     // 4. Conservation Champion — tiers: 5, 15, 30, 50, 75
-    items.push({
-      label: 'Conservationist',
-      progress: threatenedSeen,
-      target: nextTier(threatenedSeen, [5, 15, 30, 50, 75]),
-    })
+    items.push({ label: 'Conservationist', emoji: '\u{1F33F}', progress: threatenedSeen, tiers: [5, 15, 30, 50, 75], desc: `${threatenedSeen} threatened spp` })
 
     // 5. Rarity Hunter — tiers: 10, 25, 50, 100, 150
-    items.push({
-      label: 'Rarity Hunter',
-      progress: hardSeen,
-      target: nextTier(hardSeen, [10, 25, 50, 100, 150]),
-    })
+    items.push({ label: 'Rarity Hunter', emoji: '\u{1F48E}', progress: hardSeen, tiers: [10, 25, 50, 100, 150], desc: `${hardSeen} hard species` })
 
     // 6. Easy Pickings — tiers: 25, 50, 100, 200, totalEasy
-    items.push({
-      label: 'Easy Pickings',
-      progress: easySeen,
-      target: nextTier(easySeen, [25, 50, 100, 200, totalEasy]),
-    })
+    items.push({ label: 'Easy Pickings', emoji: '\u{2705}', progress: easySeen, tiers: [25, 50, 100, 200, totalEasy], desc: `${easySeen} easy species` })
 
     // 7. Globe-trotter — countries birded in, tiers: 2, 5, 10, 15, 20
-    items.push({
-      label: 'Globe-trotter',
-      progress: countriesSeen.size,
-      target: nextTier(countriesSeen.size, [2, 5, 10, 15, 20]),
-    })
+    items.push({ label: 'Globe-trotter', emoji: '\u{2708}\u{FE0F}', progress: countriesSeen.size, tiers: [2, 5, 10, 15, 20], desc: `${countriesSeen.size} countries` })
 
     // 8. Forest Birder — tiers: 25, 50, 100, 200, 300
-    items.push({
-      label: 'Forest Birder',
-      progress: forestSeen,
-      target: nextTier(forestSeen, [25, 50, 100, 200, 300]),
-    })
+    items.push({ label: 'Forest Birder', emoji: '\u{1F332}', progress: forestSeen, tiers: [25, 50, 100, 200, 300], desc: `${forestSeen} forest species` })
 
     // 9. Waterbird Watcher — tiers: 10, 25, 50, 100, 150
-    items.push({
-      label: 'Water Birder',
-      progress: waterSeen,
-      target: nextTier(waterSeen, [10, 25, 50, 100, 150]),
-    })
+    items.push({ label: 'Water Birder', emoji: '\u{1F30A}', progress: waterSeen, tiers: [10, 25, 50, 100, 150], desc: `${waterSeen} waterbirds` })
 
-    // 10. Half Way There — seen 50%+ of all species
+    // 10. Half Way There — special single-tier achievement
     const halfTarget = Math.ceil(totalSpecies / 2)
-    items.push({
-      label: 'Halfway There',
-      progress: totalSeen,
-      target: halfTarget,
-    })
+    items.push({ label: 'Halfway There', emoji: '\u{1F3AF}', progress: totalSeen, tiers: [halfTarget, halfTarget, halfTarget, halfTarget, halfTarget], desc: `${totalSeen}/${halfTarget}` })
 
     return items
   }, [allSpecies, seenSpecies, totalSeen, totalSpecies])
 
-  const [trophyTab, setTrophyTab] = useState<'groups' | 'regions' | 'achievements'>('groups')
+  const [trophyTab, setTrophyTab] = useState<'groups' | 'regions' | 'achievements' | 'leaderboard'>('groups')
 
   if (loading) {
     return <ProgressSkeleton />
@@ -482,6 +439,7 @@ export default function ProgressTab() {
             { key: 'groups' as const, label: 'Groups' },
             { key: 'regions' as const, label: 'Regions' },
             { key: 'achievements' as const, label: 'Achievements' },
+            ...(user ? [{ key: 'leaderboard' as const, label: 'Leaderboard' }] : []),
           ]).map(({ key, label }) => (
             <button
               key={key}
@@ -579,38 +537,52 @@ export default function ProgressTab() {
           </div>
         )}
 
-        {/* Achievements tab */}
+        {/* Achievements tab — trophy plaques matching Groups/Regions style */}
         {trophyTab === 'achievements' && (
         <div className="grid grid-cols-2 gap-2">
           {milestones.map(m => {
-            const done = m.progress >= m.target
-            const pct = Math.min(100, (m.progress / m.target) * 100)
+            // Determine tier based on how many thresholds exceeded
+            const tiersReached = m.tiers.filter(t => m.progress >= t).length
+            const level = tiersReached >= 5 ? 'emerald' : tiersReached >= 4 ? 'diamond' : tiersReached >= 3 ? 'gold' : tiersReached >= 2 ? 'silver' : tiersReached >= 1 ? 'copper' : null
+            const tierClass = level === 'emerald'
+              ? 'trophy-emerald bg-emerald-600 text-emerald-50'
+              : level === 'diamond'
+              ? 'trophy-diamond bg-sky-200 text-sky-900'
+              : level === 'gold'
+              ? 'trophy-gold bg-yellow-400 text-yellow-900'
+              : level === 'silver'
+              ? 'trophy-silver bg-gray-300 text-gray-800 dark:bg-gray-400 dark:text-gray-900'
+              : level === 'copper'
+              ? 'trophy-copper bg-[#8B4531] text-amber-100'
+              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+            const animClass = level === 'emerald' ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse trophy-prismatic'
+              : level === 'diamond' ? 'trophy-sheen trophy-glow trophy-sparkle trophy-pulse'
+              : level === 'gold' ? 'trophy-sheen trophy-glow trophy-sparkle'
+              : level === 'silver' ? 'trophy-sheen trophy-glow'
+              : level ? 'trophy-sheen' : ''
+            const delay = ((m.label.length * 7 + m.progress * 13) % 20) * 0.5
             return (
-              <div key={m.label} className={`rounded-lg p-2 ${done ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`} data-testid={`milestone-${m.label}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-semibold ${done ? 'text-[#27AE60] dark:text-green-400' : 'text-gray-800 dark:text-gray-200'}`}>
-                    {done ? '\u2713 ' : ''}{m.label}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${done ? 'bg-[#27AE60]' : 'bg-[#2C3E7B]'}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 tabular-nums">{m.progress}/{m.target}</p>
+              <div
+                key={m.label}
+                className={`relative flex flex-col items-center p-2.5 rounded-lg shadow-sm overflow-hidden ${tierClass} ${animClass}`}
+                style={{ animationDelay: `${delay}s` }}
+                data-testid={`milestone-${m.label}`}
+                title={`${m.label}: ${m.desc}`}
+              >
+                <span className="text-3xl">{m.emoji}</span>
+                <p className="text-xs font-semibold text-center leading-tight mt-1" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{m.label}</p>
+                <p className="text-sm font-medium mt-0.5">{m.desc}</p>
               </div>
             )
           })}
         </div>
         )}
-      </div>
 
-      {/* 8. Leaderboard */}
-      {user && (leaderboard.length > 0 || friendLeaderboard.length > 0) && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2" data-testid="leaderboard-section">
+        {/* Leaderboard tab */}
+        {trophyTab === 'leaderboard' && user && (leaderboard.length > 0 || friendLeaderboard.length > 0) && (
+        <div className="space-y-2" data-testid="leaderboard-section">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Leaderboard</h4>
+            <span className="text-sm font-medium text-[#2C3E50] dark:text-gray-100">Species Count</span>
             <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
               <button
                 onClick={() => setLeaderboardMode('friends')}
@@ -647,7 +619,14 @@ export default function ProgressTab() {
             )}
           </div>
         </div>
-      )}
+        )}
+
+        {trophyTab === 'leaderboard' && (!user || (leaderboard.length === 0 && friendLeaderboard.length === 0)) && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+            Sign in to see leaderboards.
+          </p>
+        )}
+      </div>
 
       {/* Completion Message */}
       {totalSeen === totalSpecies && totalSpecies > 0 && (
