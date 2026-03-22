@@ -29,7 +29,7 @@ function getConservStatusDot(status: string): React.ReactNode {
   return <span className={`inline-block w-2 h-2 rounded-full ${color} flex-shrink-0`} title={title} />
 }
 
-export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?: (lists: GoalList[]) => void } = {}) {
+export default function GoalBirdsTab({ onGoalListsChange, onActiveGoalListIdChange }: { onGoalListsChange?: (lists: GoalList[]) => void; onActiveGoalListIdChange?: (id: string | null) => void } = {}) {
   const { isSpeciesSeen, seenSpecies } = useLifeList()
   const { showToast } = useToast()
   const [goalLists, setGoalLists] = useState<GoalList[]>([])
@@ -110,11 +110,11 @@ export default function GoalBirdsTab({ onGoalListsChange }: { onGoalListsChange?
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalLists, loading])
 
-  // Save active list ID to localStorage and reset filter when switching lists
+  // Save active list ID to localStorage, notify parent, and reset filter when switching lists
   useEffect(() => {
+    onActiveGoalListIdChange?.(activeListId)
     if (activeListId) {
       localStorage.setItem('activeGoalListId', activeListId)
-      console.log(`Saved active goal list ID to localStorage: ${activeListId}`)
     } else {
       localStorage.removeItem('activeGoalListId')
     }

@@ -293,7 +293,7 @@ export default memo(function SidePanel({
             )}
             {activeTab === 'species' && <SpeciesTab selectedRegion={selectedRegion} speciesFilters={speciesFilters} onSpeciesFiltersChange={onSpeciesFiltersChange} />}
             <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-6 w-6 border-2 border-[#2C3E7B] border-t-transparent rounded-full animate-spin" /></div>}>
-              {activeTab === 'goals' && <GoalBirdsTab onGoalListsChange={onGoalListsChange} />}
+              {activeTab === 'goals' && <GoalBirdsTab onGoalListsChange={onGoalListsChange} onActiveGoalListIdChange={onActiveGoalListIdChange} />}
               {activeTab === 'trip' && (
                 <TripPlanTab
                   selectedLocation={selectedLocation}
