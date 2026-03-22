@@ -15,7 +15,7 @@ import { getDisplayGroup, getGroupSortKey } from '../lib/familyGroups'
 import { expandRegionFilter } from '../lib/regionGroups'
 import RegionSelector from './RegionSelector'
 import Tooltip from './Tooltip'
-import { TOOLTIPS } from '../lib/tooltipContent'
+// tooltipContent import removed — difficulty tooltip was in the old grid layout
 
 /** Species grouped by display group name, in taxonomic order */
 type SpeciesByGroup = Record<string, Species[]>
@@ -656,7 +656,6 @@ export default function SpeciesTab() {
                   <option key={l.id} value={l.id}>{l.name} ({l.speciesCodes.length})</option>
                 ))}
               </select>
-            )}
             </div>
             {/* Include Seen Species toggle — syncs with map heatmap */}
             <button
