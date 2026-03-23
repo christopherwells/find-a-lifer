@@ -966,7 +966,79 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
   <li>Wikidata. Free structured knowledge base. <a href="https://www.wikidata.org/">wikidata.org</a> (CC0) &mdash; used for SPARQL queries of IUCN conservation status (P141), NatureServe status (P4319), COSEWIC status (P6949), and species photographs (P18)</li>
 </ul>
 
-<p class="updated">Last updated: March 22, 2026. Pipeline source code: <code>pipeline/process_ebd.py</code></p>
+<hr>
+<h2>Appendix: Planned Pipeline Experiments (March 2026)</h2>
+
+<p>The following improvements are being tested in an isolated experimental pipeline (<code>pipeline-experimental/</code>) before integration into production. Each is evaluated independently on a test region (US-ME, 61 res-4 cells, ~585K checklists) and compared against the current baseline.</p>
+
+<h3>Experiment 1: Checklist-Length Normalization</h3>
+<p><b>Hypothesis:</b> Normalizing detection rates to a standard 1-hour effort will reduce bias from variable checklist durations. Currently, a 30-minute checklist and a 4-hour checklist are weighted equally in the frequency calculation. Longer checklists naturally detect more species, inflating frequencies in cells frequented by dedicated birders.</p>
+<p><b>Method:</b> Replace <code>freq = detections / checklists</code> with effort-normalized rates: <code>freq = sum(detection_i / effort_hours_i) / n_checklists</code>. This also allows safely lowering MIN_DURATION from 30 to 10-15 minutes, recovering ~30-40% more checklists.</p>
+<p><b>Metrics:</b> Change in frequency distributions, checklist recovery rate, spatial coverage.</p>
+
+<h3>Experiment 2: Area Protocol Inclusion</h3>
+<p><b>Hypothesis:</b> Adding "Area" protocol checklists will recover high-quality systematic survey data (Christmas Bird Counts, breeding bird atlas projects) that is currently excluded.</p>
+<p><b>Method:</b> Add "Area" to the accepted protocol set alongside "Stationary" and "Traveling".</p>
+<p><b>Metrics:</b> Additional checklists recovered, species count changes, frequency changes in winter (CBC season).</p>
+
+<h3>Experiment 3: Observer Quality Weighting</h3>
+<p><b>Hypothesis:</b> Weighting checklists by observer experience (total lifetime checklists submitted) will improve frequency accuracy by upweighting skilled observers who detect more species per unit effort.</p>
+<p><b>Method:</b> Pre-pass over EBD to build observer profiles. Weight each checklist by <code>min(1.0, log10(total_checklists) / 3)</code>. An observer with 1,000+ checklists gets full weight; one with 10 checklists gets 33% weight.</p>
+<p><b>Metrics:</b> Change in frequency estimates for skulking/cryptic species, smoothness of spatial patterns.</p>
+
+<h3>Experiment 4: Recency Weighting</h3>
+<p><b>Hypothesis:</b> Applying a half-life decay (10 years) will produce more accurate current-year distributions by downweighting outdated observations from decades ago. Species ranges shift due to climate change, habitat loss, and range expansions.</p>
+<p><b>Method:</b> Weight each checklist by <code>0.5 ^ ((current_year - obs_year) / 10)</code>. Data from 2024 has full weight; data from 2004 has 25% weight.</p>
+<p><b>Metrics:</b> Changes for range-expanding species (Eurasian Collared-Dove) and declining species (Cerulean Warbler). Comparison against known range shift literature.</p>
+
+<h3>Experiment 5: Partial Checklist Recovery</h3>
+<p><b>Hypothesis:</b> Incomplete checklists provide valid presence data (a species WAS detected) even though absence is unreliable. Using partial checklists as presence-only signals could improve spatial coverage in under-sampled regions.</p>
+<p><b>Method:</b> Partial checklists contribute detections to the numerator only (not the denominator). A 0.3 discount factor controls trust level. Only applied where ≥3 complete checklists anchor the denominator.</p>
+<p><b>Risk:</b> This is the most speculative improvement. Partial checklists have unknown effort and unknown completeness. The discount factor needs careful calibration.</p>
+<p><b>Metrics:</b> Coverage gain in under-sampled cells, frequency stability, false positive rate for rare species.</p>
+
+<h3>Experiment 6: Single-Season Occupancy Model</h3>
+<p><b>Hypothesis:</b> Reporting frequency conflates two distinct probabilities: the probability a species occupies a cell (occupancy, &psi;) and the probability it is detected given presence (detection, <i>p</i>). Separating these gives more ecologically meaningful estimates. A species with &psi;=0.8 and <i>p</i>=0.2 has a reporting frequency of 0.16 &mdash; the occupancy model recovers the true 80% occupancy.</p>
+<p><b>Method:</b> Single-season occupancy model (MacKenzie et al. 2002) fit per species using maximum likelihood estimation (scipy). Detection covariates: duration, month, observer experience. Occupancy covariates: habitat composition, elevation. For species with insufficient local data (&lt;50 detection histories), detection probability is borrowed from range-wide estimates &mdash; detection behavior is species-intrinsic (a Virginia Rail is equally skulky everywhere).</p>
+<p><b>Metrics:</b> Species-level detection probabilities vs. current difficulty ratings. Occupancy estimates vs. raw frequencies. Identification of species where frequency dramatically underestimates true occurrence.</p>
+<p><b>Academic interest:</b> This experiment addresses fundamental questions about citizen science data quality: How much does observer skill affect detection? Are there systematic regional biases? Which species are truly rare vs. merely hard to detect?</p>
+
+<h3>Resolution 5</h3>
+<p><b>Goal:</b> Add ~10km hexagonal cells (H3 resolution 5) in data-rich regions for finer spatial detail. Resolution 4 cells are ~45km across, which is too coarse for trip planning in well-sampled areas like the US Northeast, Texas coast, and Southern California.</p>
+<p><b>Feasibility:</b> Res 5 produces ~24,000 cells in regions where res 4 has 20+ checklists per week. Data volume roughly doubles. The improvements above (especially checklist-length normalization) directly enable res 5 by recovering enough checklists to populate finer cells.</p>
+<p><b>Frontend:</b> Multi-resolution zoom switching already exists. Res 5 activates at zoom 7.5+.</p>
+
+<h3>Experiment 7: Species Co-occurrence Correction</h3>
+<p><b>Problem:</b> The combined lifer probability formula P(lifer) = 1 &minus; &prod;(1 &minus; freq<sub>i</sub>) assumes species detections are independent. They are not. Gull species co-occur on the same checklists. Shorebird flocks contain multiple species. Warbler waves in spring migration produce correlated detections. The independence assumption systematically overestimates the number of unique lifers a birder will see.</p>
+<p><b>Method:</b> Compute a pairwise co-occurrence matrix from checklist data: for each species pair (A, B), what fraction of checklists containing A also contain B, conditional on both being present in the cell? Species pairs with co-occurrence &gt;80% are grouped. The probability formula is then applied per group (probability of seeing <em>at least one</em> from the group) rather than per species.</p>
+<p><b>Alternative approach:</b> Monte Carlo simulation &mdash; draw N random checklists from a cell using actual species frequencies and co-occurrence structure, count unique lifers per draw, report the mean. More computationally expensive but avoids the independence assumption entirely.</p>
+<p><b>Metrics:</b> Compare expected lifer counts (independence assumption vs. co-occurrence corrected) across cells. The difference quantifies how much the current formula overestimates.</p>
+
+<h3>Experiment 8: Personalized Detection Probability</h3>
+<p><b>Insight:</b> Reporting frequency, occupancy probability, and <em>your</em> probability of finding a species are three different things:</p>
+<ul>
+  <li><b>Reporting frequency</b> (current metric): what fraction of all checklists report the species</li>
+  <li><b>Occupancy probability</b> (Experiment 6): is the species present in the cell?</li>
+  <li><b>Personal detection probability</b>: given the species is present, will <em>this user</em> detect it?</li>
+</ul>
+<p>A Virginia Rail might have 5% reporting frequency, 60% occupancy (present but skulking), and detection probability that ranges from 2% (beginner) to 20% (expert who knows to listen for calls at dawn).</p>
+<p><b>Method:</b> If the occupancy model (Experiment 6) succeeds, it produces species-level detection probabilities as a function of observer experience. A user profile setting (self-reported experience tier, or linked eBird checklist count) provides the skill parameter. The frontend computes:</p>
+<p style="text-align:center;"><code>your_prob = occupancy &times; detection(species, your_skill)</code></p>
+<p>This personalizes the map: a beginner sees lower lifer probabilities for skulking species (Rails, Owls, Nightjars) than an expert, which more honestly represents their chances of actually finding those birds.</p>
+<p><b>Profile integration:</b> A setting in the user profile: "Birding experience" with tiers mapped to an eBird checklist count proxy (Beginner: 0&ndash;50, Intermediate: 50&ndash;500, Advanced: 500&ndash;2000, Expert: 2000+). Users who link their eBird account could auto-populate this.</p>
+
+<h3>Evaluation Framework</h3>
+<p>Each experiment is evaluated on:</p>
+<ul>
+  <li><b>Coverage:</b> number of cells with frequency data</li>
+  <li><b>Smoothness:</b> mean absolute frequency difference between adjacent cells (lower = smoother)</li>
+  <li><b>Accuracy:</b> spot-check against known species (Northern Cardinal, Bicknell's Thrush, Kirtland's Warbler)</li>
+  <li><b>Stability:</b> frequency standard deviation across cells (should decrease with better data)</li>
+  <li><b>Volume:</b> total checklists accepted, species detected</li>
+</ul>
+<p>Winning improvements are combined for a full pipeline rebuild. Production pipeline is not modified until experiments validate improvements.</p>
+
+<p class="updated">Last updated: March 23, 2026. Pipeline source code: <code>pipeline/process_ebd.py</code>. Experimental code: <code>pipeline-experimental/</code></p>
 
 </body>
 </html>
