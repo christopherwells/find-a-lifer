@@ -1050,6 +1050,30 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 </ul>
 <p>Winning improvements are combined for a full pipeline rebuild. Production pipeline is not modified until experiments validate improvements.</p>
 
+<h3>Factorial Design</h3>
+<p>Rather than testing each experiment in isolation, we run a full 2<sup>9</sup> = 512 factorial: every combination of the 9 binary flags. This captures interaction effects (e.g., effort normalization + occupancy correction might double-correct, or they might be synergistic).</p>
+
+<p>Evaluation uses 80/20 held-out checklist splits with per-species MAE against the held-out complete checklists. Method selection is per-species: if a method helps shorebirds but hurts warblers, it's applied only to shorebirds. Species traits (difficulty, habitat, spatial extent, family) predict which method combinations work best, producing a generalizable trait-based meta-model.</p>
+
+<h3>State Blocks</h3>
+<p>Experiments run on 5 ecologically distinct state blocks:</p>
+<ul>
+  <li><b>New England (ME+NH+MA):</b> 7x effort gradient (18&ndash;124 CL/km&sup2;), shared species pool, strong occupancy signal at Plum Island</li>
+  <li><b>Southwest (AZ+NM):</b> arid, sky islands, moderate effort, high diversity</li>
+  <li><b>Mid-Atlantic (VA+NC):</b> Appalachian + coastal, moderate effort</li>
+  <li><b>Pacific NW (WA+OR):</b> maritime + interior, pelagic specialties</li>
+  <li><b>Northern Plains (ND+SD+MN):</b> grassland, low effort, boreal edge</li>
+</ul>
+
+<h3>Key Statistical Insights</h3>
+<p>Three distinct quantities that the experiments aim to separate:</p>
+<ol>
+  <li><b>Reporting frequency</b> (current pipeline): what fraction of checklists report the species</li>
+  <li><b>Occupancy probability</b> (Experiment 6): is the species actually present, regardless of detection?</li>
+  <li><b>Personal detection probability</b> (future): given the species is present, will <em>this user</em> detect it?</li>
+</ol>
+<p>Additionally, the combined lifer probability formula P = 1 &minus; &prod;(1 &minus; freq<sub>i</sub>) assumes species are independently detected. Species co-occurrence (Experiment 7) corrects for the fact that finding one gull species strongly predicts finding others.</p>
+
 <p class="updated">Last updated: March 23, 2026. Pipeline source code: <code>pipeline/process_ebd.py</code>. Experimental code: <code>pipeline-experimental/</code></p>
 
 </body>
