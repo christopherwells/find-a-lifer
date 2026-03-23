@@ -134,7 +134,7 @@ describe('ProgressTab', () => {
     })
     expect(screen.getByText('Groups')).toBeInTheDocument()
     expect(screen.getByText('Regions')).toBeInTheDocument()
-    expect(screen.getByText('Achievements')).toBeInTheDocument()
+    expect(screen.getByText('Achieve')).toBeInTheDocument()
   })
 
   it('shows empty state when no species are seen', async () => {
