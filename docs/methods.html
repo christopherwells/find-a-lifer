@@ -1027,6 +1027,18 @@ weighted_freq(C) = Σ(freq(N) × weight(N)) / Σ(weight(N))</code></pre>
 <p>This personalizes the map: a beginner sees lower lifer probabilities for skulking species (Rails, Owls, Nightjars) than an expert, which more honestly represents their chances of actually finding those birds.</p>
 <p><b>Profile integration:</b> A setting in the user profile: "Birding experience" with tiers mapped to an eBird checklist count proxy (Beginner: 0&ndash;50, Intermediate: 50&ndash;500, Advanced: 500&ndash;2000, Expert: 2000+). Users who link their eBird account could auto-populate this.</p>
 
+<h3>Experiment 9: Effort-Corrected Frequencies (Fink et al. 2023)</h3>
+<p><b>Problem:</b> Urban areas have more birders, not more birds. A cell near Boston with 500 checklists appears to have higher species richness than a rural Maine cell with 5 checklists, but much of that difference reflects observer effort, not ecology. Reporting frequency (detections/checklists) normalizes for checklist count but does not correct for systematic differences in observer behavior, skill, and temporal coverage across space.</p>
+<p><b>Based on:</b> Fink, D. et al. 2023. &ldquo;A Double Machine Learning Trend Model for Citizen Science Data.&rdquo; <em>Methods in Ecology and Evolution</em>, 14, 2435&ndash;2448. The eBird Status &amp; Trends team's approach separates the observation process from the ecological process using two model components trained simultaneously.</p>
+<p><b>Method:</b> Adapted from Fink et al.'s four feature classes: (1) effort covariates &mdash; duration, distance, observer experience; (2) temporal covariates &mdash; week, time of year; (3) spatial/habitat covariates &mdash; EarthEnv land cover, elevation, ocean fraction; (4) response &mdash; species detection count. We fit both a Random Forest and a GLM to compare: the ecological component (spatial + temporal covariates only) provides the effort-corrected frequency estimate.</p>
+<p><b>What this corrects:</b> Urban cells with high effort profiles have their frequencies adjusted to reflect what a &ldquo;standard effort&rdquo; observer would see, directly addressing the spatial sampling bias that inflates richness near cities.</p>
+
+<h3>Experiment 10: Adaptive Habitat-Aware Pooling</h3>
+<p><b>Problem:</b> Data-sparse cells (rural Maine, remote Caribbean) have too few checklists for reliable frequency estimates. Currently these cells either show no data or produce noisy estimates from 2&ndash;3 checklists.</p>
+<p><b>Inspiration:</b> eBird Status &amp; Trends uses adaptive stixel sizing via QuadTree partitioning &mdash; larger spatial blocks in data-sparse areas, smaller in data-dense areas. The ensemble averages predictions across overlapping stixels of varying sizes.</p>
+<p><b>Method:</b> For cells below MIN_CHECKLISTS after temporal pooling, expand the search radius adaptively: k=1 ring (existing behavior), then k=2 ring if covariate similarity &gt;0.7, then k=3 ring if similarity &gt;0.8. Weight borrowed data by <code>covariate_similarity &times; 1/(ring_distance + 1)</code>. Only borrow within the same sub-region to prevent cross-border artifacts.</p>
+<p><b>Example:</b> A cell near Presque Isle, Maine with 3 checklists borrows from surrounding boreal forest cells within 2&ndash;3 hexagonal rings. If those cells collectively provide 15+ checklists of similar habitat, the pooled frequency is reliable. Coastal cells do not bleed into forest cells because the covariate similarity gate prevents ecologically dissimilar pooling.</p>
+
 <h3>Evaluation Framework</h3>
 <p>Each experiment is evaluated on:</p>
 <ul>
