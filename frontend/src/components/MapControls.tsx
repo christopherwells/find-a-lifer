@@ -16,7 +16,11 @@ const VIEW_MODES: { mode: MapViewMode; label: string; icon: React.ReactNode }[] 
   {
     mode: 'density',
     label: 'Lifers',
-    icon: <span className="text-xs font-bold leading-none">Lifers</span>,
+    icon: (
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L15 8.5L22 9.3L17 14L18.2 21L12 17.8L5.8 21L7 14L2 9.3L9 8.5Z" />
+      </svg>
+    ),
   },
   {
     mode: 'species',
