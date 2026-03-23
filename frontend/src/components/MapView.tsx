@@ -661,15 +661,17 @@ export default memo(function MapView({
       map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     }
 
-    // Add GPS locate button
-    map.current.addControl(
-      new maplibregl.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: false,
-        showUserLocation: true,
-      }),
-      'top-right'
-    )
+    // Add GPS locate button — desktop only (mobile uses floating controls)
+    if (!isMobile) {
+      map.current.addControl(
+        new maplibregl.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: false,
+          showUserLocation: true,
+        }),
+        'top-right'
+      )
+    }
 
     // Add scale bar (bottom-right to avoid overlapping legend in bottom-left)
     map.current.addControl(
